@@ -85,11 +85,7 @@ export function registerAuthRoutes(app: FastifyInstance, { env, prisma }: AuthRo
 
   // Elk ingelogd account mag zijn eigen gegevens opvragen; de authorize()-preHandler
   // handelt de 401 af en zet het geverifieerde account op de request.
-  app.get(
-    '/auth/me',
-    { preHandler: authorize(prisma) },
-    (request): AuthResponse => {
-      return { account: toPublic(requireAccount(request)) };
-    },
-  );
+  app.get('/auth/me', { preHandler: authorize(prisma) }, (request): AuthResponse => {
+    return { account: toPublic(requireAccount(request)) };
+  });
 }

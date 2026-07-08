@@ -41,7 +41,11 @@ describe('autorisatie en tenant-isolatie — /admin/accounts', () => {
   });
 
   it('weigert een CAREGIVER met 403 FORBIDDEN', async () => {
-    const { email, password } = await seedAccount('caregiver@intento.local', 'pw-caregiver', 'CAREGIVER');
+    const { email, password } = await seedAccount(
+      'caregiver@intento.local',
+      'pw-caregiver',
+      'CAREGIVER',
+    );
     const cookie = await loginCookie(app, email, password);
 
     const res = await app.inject({ method: 'GET', url: '/admin/accounts', headers: { cookie } });
@@ -69,7 +73,11 @@ describe('autorisatie en tenant-isolatie — /admin/accounts', () => {
     await seedAccount('admin.b@intento.local', 'pw-b', 'ADMIN', orgB);
 
     const cookieA = await loginCookie(app, adminA.email, adminA.password);
-    const res = await app.inject({ method: 'GET', url: '/admin/accounts', headers: { cookie: cookieA } });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/accounts',
+      headers: { cookie: cookieA },
+    });
 
     expect(res.statusCode).toBe(200);
     const body = accountListResponseSchema.parse(res.json());
