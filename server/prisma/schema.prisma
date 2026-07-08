@@ -172,6 +172,66 @@ model DeviceLinkCode {
   @@index([userId])
 }
 
+/// Een pictogram uit de beheerde AAC-bibliotheek (DESIGN §6.2, FR-015, T3.1). De bibliotheek
+/// begrenst de AI: tijdens communicatie mag alleen uit deze symbolen worden gekozen (DESIGN §7.6).
+/// Ze zijn **platformbreed gedeeld**, niet tenant-gebonden — één beheerde woordenschat voor alle
+/// omgevingen (persoonlijke context/voorkeuren blijven wél per gebruiker en tenant).
+///
+/// Velden:
+/// - `concept`: canonieke, unieke conceptsleutel (lowercase, bv. "walking"). Hiernaar verwijzen
+///   relaties en straks de AI-context (§6.3); niet de weergavetekst.
+/// - `label`: weergavetekst voor de gebruiker (Nederlands, bv. "Wandelen").
+/// - `category`: categoriesleutel ("intent" | "activity" | ... ; gevalideerd op de API-grens,
+///   geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
+/// - `glyph`: de visuele weergave. In de MVP een emoji waaruit de server een SVG-placeholder
+///   rendert (`GET /aac/images/:id.svg`); T3.2 vervangt dit door geüploade afbeeldingsbestanden.
+/// - `synonyms`: alternatieve zoektermen (JSON-array van strings) — gestructureerd bewaard zodat
+///   T3.2 ze los kan beheren en de zoek-API ze kan teruggeven.
+/// - `searchText`: afgeleide, genormaliseerde (lowercase) zoekindex = concept + label + synoniemen.
+///   De zoek-API matcht hierop met één `contains`, wat **portabel én hoofdletterongevoelig** is op
+///   zowel SQLite als PostgreSQL (beide kanten vooraf lowercase → geen DB-specifieke `mode` nodig).
+///   Wordt herbouwd bij elke wijziging van het symbool of zijn synoniemen (T3.2).
+model AacSymbol {
+  id         String   @id @default(cuid())
+  concept    String   @unique
+  label      String
+  category   String
+  glyph      String
+  /// JSON-array van synoniemen (zoektermen). Op de grens met zod gevalideerd/geparseerd.
+  synonyms   Json
+  /// Genormaliseerde zoekindex (lowercase); afgeleid, nooit rechtstreeks aan de client getoond.
+  searchText String
+  createdAt  DateTime @default(now())
+
+  /// Relaties waarin dit symbool de ouder is (bv. "buiten" bevat "wandelen").
+  parentLinks AacConceptRelation[] @relation("parent")
+  /// Relaties waarin dit symbool het kind is.
+  childLinks  AacConceptRelation[] @relation("child")
+
+  @@index([category])
+}
+
+/// Een begripsrelatie tussen twee AAC-symbolen (DESIGN §6.2, FR-015, T3.1). Vormt de boom waarlangs
+/// de (later AI-gestuurde) verfijning loopt: van intentie naar steeds concreter concept
+/// (bv. "buiten" → "wandelen"). `relation` typeert de relatie ("contains" in de MVP; ruimte voor
+/// meer types later). De samengestelde unieke sleutel voorkomt dubbele relaties; beide kanten
+/// `onDelete: Cascade` ruimen de relatie op als een van de symbolen verdwijnt.
+model AacConceptRelation {
+  id       String @id @default(cuid())
+  parentId String
+  childId  String
+  /// Type relatie: "contains" | … (gevalideerd op de API-grens; geen native enum i.v.m.
+  /// SQLite/PostgreSQL-portabiliteit — zie schema-header).
+  relation String @default("contains")
+
+  parent AacSymbol @relation("parent", fields: [parentId], references: [id], onDelete: Cascade)
+  child  AacSymbol @relation("child", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId, relation])
+  @@index([parentId])
+  @@index([childId])
+}
+
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren
 /// alleen een SHA-256-hash (`tokenHash`). De client krijgt het rauwe token als
 /// httpOnly+Secure cookie; bij elke request hashen we de cookie en zoeken hierop

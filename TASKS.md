@@ -48,7 +48,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 3 — AAC-bibliotheek
 
-- [ ] **T3.1 AAC-model, seed en zoek-API**
+- [x] **T3.1 AAC-model, seed en zoek-API**
   *DESIGN: §6.2 (AacSymbol, AacConceptRelation), §8.2, FR-015.* Modellen voor symbolen (concept, image, categorie, synoniemen) en relaties (parent/child). Seed-set met voldoende concepten voor de voorbeeldflows uit DESIGN §3 (intenties, activiteiten, gevoelens, lichaamsdelen, eten/drinken, personen/plekken). `GET /aac/search?q=` zoekt op concept én synoniemen. Opslag/serving van pictogramafbeeldingen.
   *Acceptatie:* seed draait schoon; zoek-API vindt op synoniem; afbeeldingen bereikbaar vanuit web.
 

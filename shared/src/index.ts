@@ -214,3 +214,61 @@ export const deviceSessionResponseSchema = z.object({
   user: userPublicSchema,
 });
 export type DeviceSessionResponse = z.infer<typeof deviceSessionResponseSchema>;
+
+// --- AAC-bibliotheek (T3.1, DESIGN §6.2, §8.2, FR-015) ---
+
+/**
+ * Categorie van een AAC-symbool. Bewust een gesloten lijst (DESIGN §3): de startscherm-intenties
+ * (`intent`) plus de verfijningscategorieën. Gevalideerd op de API-grens; ook de bron voor de
+ * db-validatie op de grens (geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit).
+ */
+export const aacCategorySchema = z.enum([
+  'intent', // startscherm-intenties (iets zeggen, willen, voelen, probleem, vraag)
+  'activity', // activiteiten (wandelen, fietsen, …)
+  'feeling', // gevoelens (blij, verdrietig, moe, …)
+  'body', // lichaamsdelen (hoofd, buik, been, …)
+  'food', // eten
+  'drink', // drinken
+  'person', // personen (mama, papa, …)
+  'place', // plekken (thuis, park, toilet, …)
+  'animal', // dieren (hond, …)
+  'object', // voorwerpen
+]);
+export type AacCategory = z.infer<typeof aacCategorySchema>;
+
+/**
+ * Publieke weergave van een AAC-symbool (zoekresultaat). `imageUrl` is het pad waarop het
+ * pictogram bereikbaar is (`GET /aac/images/:id.svg`); de web-client toont dat rechtstreeks.
+ * `searchText` en interne velden worden nooit meegestuurd.
+ */
+export const aacSymbolSchema = z.object({
+  id: z.string(),
+  concept: z.string(),
+  label: z.string(),
+  category: aacCategorySchema,
+  glyph: z.string(),
+  synonyms: z.array(z.string()),
+  imageUrl: z.string(),
+});
+export type AacSymbol = z.infer<typeof aacSymbolSchema>;
+
+/**
+ * Zoekverzoek (`GET /aac/search?q=…`). De term wordt getrimd en naar lowercase genormaliseerd,
+ * zodat de match hoofdletterongevoelig en portabel is (server matcht op een lowercase zoekindex).
+ * Minimaal 1 teken; een lege query levert een 400 in plaats van de hele bibliotheek.
+ */
+export const aacSearchQuerySchema = z.object({
+  q: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .transform((value) => value.toLowerCase()),
+});
+export type AacSearchQuery = z.infer<typeof aacSearchQuerySchema>;
+
+/** Antwoord op `GET /aac/search`: de gevonden symbolen (bibliotheek is niet tenant-gebonden). */
+export const aacSearchResponseSchema = z.object({
+  symbols: z.array(aacSymbolSchema),
+});
+export type AacSearchResponse = z.infer<typeof aacSearchResponseSchema>;

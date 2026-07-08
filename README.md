@@ -70,8 +70,8 @@ Tests draaien tegen een aparte, per testrun verse testdatabase. Details:
 
 `npm run db:seed` maakt een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
 `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (default `admin@intento.local` /
-`change-me-admin` — buiten lokaal ontwikkelen overschrijven). Login zet een ondertekende
-httpOnly-sessie-cookie:
+`change-me-admin` — buiten lokaal ontwikkelen overschrijven) en seedt daarnaast de gedeelde
+AAC-bibliotheek (T3.1). Login zet een ondertekende httpOnly-sessie-cookie:
 
 ```bash
 # Inloggen (cookie in cookies.txt bewaren) en het eigen account opvragen:
@@ -142,6 +142,21 @@ curl -sc device.txt -X POST http://127.0.0.1:3000/devices/link \
   -H 'content-type: application/json' -d '{"code":"<koppelcode>"}'
 # 3) Tablet haalt de eigen gebruiker op met het apparaat-token:
 curl -sb device.txt http://127.0.0.1:3000/device/me
+```
+
+## AAC-bibliotheek (T3.1)
+
+De AAC-bibliotheek is de gedeelde, beheerde pictogramwoordenschat die de AI begrenst (DESIGN §7.6).
+`npm run db:seed` vult ze met een startset (~31 symbolen + relaties voor de voorbeeldflows uit
+DESIGN §3). Zoeken kan met een ingelogd account **of** een gekoppeld apparaat en is
+hoofdletterongevoelig op concept, label én synoniem; pictogrammen worden als (server-gerenderde)
+SVG geleverd en zijn los opvraagbaar. Een beheer-UI volgt in T3.2.
+
+```bash
+# Zoeken op synoniem ("lopen" vindt concept "walking"); levert o.a. een imageUrl per symbool:
+curl -sb cookies.txt "http://127.0.0.1:3000/aac/search?q=lopen"
+# Het pictogram van een symbool ophalen (publiek, SVG):
+curl -s http://127.0.0.1:3000/aac/images/<symbol-id>.svg
 ```
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)

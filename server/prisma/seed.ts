@@ -1,5 +1,6 @@
 import { prisma } from '../src/db/prisma.js';
 import { hashPassword } from '../src/auth/password.js';
+import { seedAacLibrary } from '../src/aac/library.js';
 
 /**
  * Seed-script (idempotent, `npm run db:seed`).
@@ -36,7 +37,13 @@ async function main(): Promise<void> {
     },
   });
 
-  console.log(`Seed klaar: organisatie "${org.name}" (${org.id}), admin "${admin.email}".`);
+  // AAC-bibliotheek (T3.1): gedeelde, niet-tenant-gebonden woordenschat. Idempotent ge-upsert.
+  await seedAacLibrary(prisma);
+  const symbolCount = await prisma.aacSymbol.count();
+
+  console.log(
+    `Seed klaar: organisatie "${org.name}" (${org.id}), admin "${admin.email}", ${symbolCount} AAC-symbolen.`,
+  );
   if (adminPassword === DEV_DEFAULT_PASSWORD) {
     console.warn(
       '⚠️  SEED_ADMIN_PASSWORD niet gezet — dev-default gebruikt. Zet een echt wachtwoord buiten lokale ontwikkeling.',

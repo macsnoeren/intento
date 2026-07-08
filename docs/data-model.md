@@ -47,9 +47,9 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 
 ## Entiteiten
 
-Het volledige model uit DESIGN §6.2 (PersonalContext, Preference, AacSymbol,
-AacConceptRelation, ConversationSession, ConversationStep, GeneratedMessage,
-CorrectionEvent, ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
+Het volledige model uit DESIGN §6.2 (PersonalContext, Preference,
+ConversationSession, ConversationStep, GeneratedMessage, CorrectionEvent,
+ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
@@ -61,6 +61,8 @@ CorrectionEvent, ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 | **CaregiverAssignment** | `userId` + `accountId` (samengestelde PK), `createdAt` | Koppeling begeleider↔gebruiker (T2.2, DESIGN §2, FR-017). Many-to-many tussen een CAREGIVER-`Account` en een `User`. Stuurt de toegang: een begeleider ziet/beheert alléén gekoppelde gebruikers. Samengestelde sleutel voorkomt dubbele koppelingen; tenant-grens (zelfde organisatie) op de API-grens bewaakt. |
 | **Device** | `id`, `userId`, `type`, `tokenHash` (uniek), `lastActive`, `createdAt` | Gekoppelde tablet (T2.3, DESIGN §6.2, FR-018), aan **precies één** `User` gebonden. Alleen de **SHA-256-hash** van het langlevende apparaat-token staat in de db; het rauwe token leeft in de `intento_device`-cookie. Geeft alléén toegang tot de eigen gebruiker. `lastActive` voor monitoring (geen communicatie-inhoud). |
 | **DeviceLinkCode** | `id`, `codeHash` (uniek), `userId`, `usedAt`, `expiresAt`, `createdAt` | Koppelcode die een beheerder genereert (T2.3, FR-018). Alleen de **SHA-256-hash** staat in de db; codes zijn **eenmalig** (`usedAt`) en **verlopen** (`expiresAt`). Wisselt op `POST /devices/link` in voor een `Device`. |
+| **AacSymbol** | `id`, `concept` (uniek), `label`, `category`, `glyph`, `synonyms` (JSON), `searchText`, `createdAt` | Pictogram uit de AAC-bibliotheek (T3.1, DESIGN §6.2, FR-015). **Platformbreed gedeeld**, niet tenant-gebonden. `concept` = canonieke lowercase sleutel waarnaar relaties (en straks de AI) verwijzen; `label` = Nederlandse weergavetekst; `category` op de grens gevalideerd (zod-enum). `glyph` = emoji waaruit de server een SVG-placeholder rendert (MVP; T3.2 → geüploade bestanden). `synonyms` = extra zoektermen. `searchText` = afgeleide, genormaliseerde (lowercase) zoekindex uit concept+label+synoniemen. |
+| **AacConceptRelation** | `id`, `parentId`, `childId`, `relation` (standaard `contains`) | Begripsrelatie tussen twee `AacSymbol`s (T3.1). Vormt de verfijningsboom (bv. `buiten` → `wandelen`, DESIGN §3.1). Samengestelde unieke sleutel `(parentId, childId, relation)` voorkomt dubbele relaties. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
 Account` (cascade delete); `User.organizationId → Organization` (cascade delete);
@@ -69,14 +71,29 @@ User` en `CaregiverAssignment.accountId → Account` (beide cascade delete — d
 verdwijnt als de gebruiker of het begeleider-account wordt verwijderd); `Device.userId →
 User` en `DeviceLinkCode.userId → User` (beide cascade delete — apparaten en openstaande codes
 verdwijnen met de gebruiker). Zo verdwijnt bij het verwijderen van een organisatie/gebruiker
-netjes alle onderliggende data.
+netjes alle onderliggende data. De AAC-bibliotheek staat hier **los** van: `AacSymbol`/
+`AacConceptRelation` zijn gedeeld en niet aan een organisatie of gebruiker gekoppeld;
+`AacConceptRelation.parentId`/`childId → AacSymbol` (beide cascade delete).
+
+## AAC-zoekindex en portabiliteit
+
+De zoek-API (`GET /aac/search?q=…`) matcht hoofdletterongevoelig op concept, label én
+synoniemen. In plaats van per-DB-afhankelijk gedrag (SQLite `LIKE` is ASCII-hoofdletter­ongevoelig,
+PostgreSQL niet — dat vereist `ILIKE`/`mode: 'insensitive'`) bewaren we een afgeleide,
+vooraf-lowercased kolom `searchText` en normaliseren we ook de zoekterm naar lowercase. Eén
+`contains` op `searchText` is dan **identiek portabel** op SQLite en PostgreSQL zonder DB-specifieke
+opties. `searchText` wordt herbouwd bij elke wijziging (nu in de seed; T3.2 bij bewerken via de UI).
+`synonyms` staat als `Json`-array — op beide databases ondersteund en op de grens met zod geparseerd.
 
 ## Seed
 
 [`server/prisma/seed.ts`](../server/prisma/seed.ts) is idempotent (`npm run db:seed`) en
 plaatst een demo-organisatie **en** een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
 `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (dev-default met waarschuwing als niet gezet).
-Herseeden overschrijft een bestaand wachtwoord niet. AAC-bibliotheek volgt in T3.1.
+Herseeden overschrijft een bestaand wachtwoord niet. Het script seedt óók de **AAC-bibliotheek**
+(T3.1) via [`server/src/aac/library.ts`](../server/src/aac/library.ts) met de dataset uit
+[`server/src/aac/data.ts`](../server/src/aac/data.ts): symbolen worden op `concept` ge-upsert en
+relaties op hun unieke combinatie — idempotent, dus herseeden levert geen duplicaten.
 
 ## Migratiegeschiedenis (kort)
 
@@ -85,3 +102,4 @@ Herseeden overschrijft een bestaand wachtwoord niet. AAC-bibliotheek volgt in T3
 - **`users_and_communication_profile`** (T2.1) — `User`, `UserCommunicationProfile` + index/relaties.
 - **`caregiver_assignments`** (T2.2) — `CaregiverAssignment` (samengestelde PK + index op `accountId`).
 - **`devices_and_link_codes`** (T2.3) — `Device` en `DeviceLinkCode` (unieke `tokenHash`/`codeHash`, index op `userId`).
+- **`aac_library`** (T3.1) — `AacSymbol` (uniek `concept`, index op `category`) en `AacConceptRelation` (samengestelde unieke `(parentId, childId, relation)`, indexen op `parentId`/`childId`).

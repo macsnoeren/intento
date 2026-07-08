@@ -83,4 +83,16 @@ leeft in de langlevende `intento_device`-cookie (`DEVICE_TOKEN_TTL_DAYS`).
 | POST | `/devices/link` | publiek | Wisselt een koppelcode in (`linkDeviceRequestSchema`, `{ code }`; genormaliseerd). Bij succes: `201` + `deviceSessionResponseSchema` (`{ device, user }`) en de `intento_device`-cookie. Onbekend/verlopen/al gebruikt → `400 INVALID_LINK_CODE` (bewust generiek). Streng rate-limited per IP. |
 | GET | `/device/me` | apparaat | Eigen gebruiker + apparaat (`deviceSessionResponseSchema`). Enige data waartoe een apparaat-token toegang geeft. Geen/ongeldig apparaat → `401 DEVICE_NOT_LINKED`. |
 
-<Volgende domeinen (gesprek, AAC …) worden hier per taak toegevoegd.>
+### AAC-bibliotheek (T3.1)
+De AAC-bibliotheek (`AacSymbol` + `AacConceptRelation`) is de beheerde woordenschat die de AI
+begrenst (DESIGN §7.6). Ze is **gedeeld** — niet tenant-gebonden — maar niet publiek: zoeken vereist
+een ingelogd account **óf** een gekoppeld apparaat (de tablet zoekt tijdens communicatie). Pictogrammen
+worden in de MVP als server-gerenderde SVG-placeholders geleverd (uit de emoji `glyph`); T3.2 voegt
+geüploade afbeeldingsbestanden toe.
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/aac/search?q=…` | account **of** apparaat | Zoekt hoofdletterongevoelig op concept, label én synoniemen (`aacSearchQuerySchema`; lege `q` → `400`). `200` + `aacSearchResponseSchema` (`{ symbols: [{ id, concept, label, category, glyph, synonyms, imageUrl }] }`). Zonder account- of apparaat-auth → `401 NOT_AUTHENTICATED`. |
+| GET | `/aac/images/{id}.svg` | publiek | Pictogram van een symbool als `image/svg+xml` (server-gerenderd uit `glyph`+`label`), cachebaar. Bewust publiek: presentatiedata die de web-client als `<img src>` laadt. Onbekend id → `404 SYMBOL_NOT_FOUND`. |
+
+<Volgende domeinen (gesprek, …) worden hier per taak toegevoegd.>
