@@ -47,20 +47,22 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 
 ## Entiteiten
 
-Het volledige model uit DESIGN §6.2 (User, UserCommunicationProfile, PersonalContext,
-Preference, AacSymbol, AacConceptRelation, ConversationSession, ConversationStep,
-GeneratedMessage, CorrectionEvent, Device, ConceptProposal) wordt in latere taken
-toegevoegd. Nu bestaat het fundament:
+Het volledige model uit DESIGN §6.2 (PersonalContext, Preference, AacSymbol,
+AacConceptRelation, ConversationSession, ConversationStep, GeneratedMessage,
+CorrectionEvent, Device, ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
 | **Organization** | `id`, `name`, `type`, `createdAt` | Intento-omgeving (family/care/personal) en tenant-root. Fundament-model uit T0.2; de rest hangt hier onder. |
 | **Account** | `id`, `email` (uniek), `passwordHash`, `role`, `organizationId`, `failedLoginAttempts`, `lockedUntil`, `createdAt` | Login voor een persoon (T1.1). `role` = `ADMIN`/`CAREGIVER`/`USER` (zod op de grens). Wachtwoord alleen als argon2id-hash. `email` platformbreed uniek (login-keuze, ADR-0004). Lockout-velden voor brute-force-mitigatie. |
 | **Session** | `id`, `tokenHash` (uniek), `accountId`, `createdAt`, `expiresAt` | Actieve login-sessie (T1.1). Alleen de **SHA-256-hash** van het sessietoken staat in de db; het rauwe token leeft in de httpOnly-cookie. Verlopen sessies zijn ongeldig en worden opgeruimd. |
+| **User** | `id`, `name`, `organizationId`, `active`, `createdAt` | De communicerende persoon (T2.1). Staat los van `Account`: een gebruiker hoeft geen eigen login te hebben. Tenant-gebonden via `organizationId`. `active` deactiveert zonder te verwijderen. |
+| **UserCommunicationProfile** | `userId` (PK), `iconsPerScreen`, `showText`, `aiLearningEnabled`, `supportMode` | 1-op-1 communicatie-instellingen (T2.1, DESIGN §5.3). `iconsPerScreen` alléén 2/4/6/8 (standaard 4), afgedwongen met zod op de API-grens. Standaarden: tekst aan, leren aan, ondersteuning uit. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
-Account` (cascade delete). Zo verdwijnt bij het verwijderen van een organisatie/account
-netjes alle onderliggende auth-data.
+Account` (cascade delete); `User.organizationId → Organization` (cascade delete);
+`UserCommunicationProfile.userId → User` (cascade delete). Zo verdwijnt bij het verwijderen
+van een organisatie/gebruiker netjes alle onderliggende data (incl. het communicatieprofiel).
 
 ## Seed
 
@@ -73,3 +75,4 @@ Herseeden overschrijft een bestaand wachtwoord niet. AAC-bibliotheek volgt in T3
 
 - **`init`** (T0.2) — `Organization`.
 - **`accounts_and_sessions`** (T1.1) — `Account`, `Session` + indexen/relaties.
+- **`users_and_communication_profile`** (T2.1) — `User`, `UserCommunicationProfile` + index/relaties.

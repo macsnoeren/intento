@@ -36,6 +36,45 @@ model Organization {
   createdAt DateTime @default(now())
 
   accounts Account[]
+  users    User[]
+}
+
+/// De communicerende persoon (DESIGN §2, §6.2). Staat bewust los van `Account`: een
+/// gebruiker hoeft geen eigen login te hebben (bediening kan via een gekoppelde tablet of
+/// een begeleider), en één persoon is niet per se één login. `active` maakt het mogelijk een
+/// gebruiker te deactiveren zonder gegevens te verwijderen. Tenant-gebonden via
+/// `organizationId`: elke query wordt hierop gefilterd (multi-tenant-isolatie, DESIGN §9.4).
+model User {
+  id             String   @id @default(cuid())
+  /// Weergavenaam van de persoon.
+  name           String
+  organizationId String
+  /// Of de gebruiker actief is; inactief = behouden maar niet in gebruik.
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// 1-op-1 communicatie-instellingen; verdwijnt mee als de gebruiker wordt verwijderd.
+  communicationProfile UserCommunicationProfile?
+
+  @@index([organizationId])
+}
+
+/// Communicatie-instellingen per gebruiker (DESIGN §5.3, §6.2). 1-op-1 aan `User`
+/// (`userId` is de primaire sleutel). De waarden sturen de gebruikersapp aan:
+/// - `iconsPerScreen`: aantal opties per scherm — alleen 2/4/6/8 (standaard 4), afgedwongen
+///   met zod op de API-grens (geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit).
+/// - `showText`: tekst onder pictogrammen tonen (ondersteunend, standaard aan).
+/// - `aiLearningEnabled`: leren van bevestigde communicatie toestaan (uitschakelbaar).
+/// - `supportMode`: ondersteuningsmodus (begeleider tikt aan namens de gebruiker).
+model UserCommunicationProfile {
+  userId            String  @id
+  iconsPerScreen    Int     @default(4)
+  showText          Boolean @default(true)
+  aiLearningEnabled Boolean @default(true)
+  supportMode       Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 /// Een login voor een persoon met toegang tot een organisatie (DESIGN §2, §6.2). De rol

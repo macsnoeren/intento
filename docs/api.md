@@ -38,6 +38,23 @@ Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of locko
 ### Accounts (T1.2)
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
-| GET | `/admin/accounts` | ADMIN | Lijst van logins **binnen de eigen organisatie** (`accountListResponseSchema`). Rol-beperkt (`403 FORBIDDEN` voor CAREGIVER/USER) en tenant-gefilterd op `organizationId`. Representatief voorbeeld van de autorisatie-/isolatielaag; volledig gebruikersbeheer volgt in T2.1. |
+| GET | `/admin/accounts` | ADMIN | Lijst van logins **binnen de eigen organisatie** (`accountListResponseSchema`). Rol-beperkt (`403 FORBIDDEN` voor CAREGIVER/USER) en tenant-gefilterd op `organizationId`. Representatief voorbeeld van de autorisatie-/isolatielaag. |
 
-<Volgende domeinen (gebruikers, gesprek, AAC …) worden hier per taak toegevoegd.>
+### Gebruikers (T2.1)
+Gebruikers (`User`) zijn de communicerende personen, met een 1-op-1 communicatieprofiel
+(`UserCommunicationProfile`). Alles is tenant-gebonden: elke query op `organizationId`
+gefilterd; toegang op id via een andere organisatie geeft `403 FORBIDDEN` (bestaan lekt niet).
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| POST | `/users` | ADMIN | Maakt een gebruiker in de eigen organisatie aan (`createUserRequestSchema`: `{ name, active? }`). Het communicatieprofiel wordt met standaardwaarden aangemaakt. `201` + `userPublicSchema`. |
+| GET | `/admin/users` | ADMIN | Lijst van gebruikers **binnen de eigen organisatie** (`userListResponseSchema`). |
+| GET | `/users/{id}` | ADMIN, CAREGIVER | Eén gebruiker inclusief profiel (`userPublicSchema`), of `403` bij een andere organisatie. |
+| PUT | `/users/{id}/settings` | ADMIN, CAREGIVER | Vervangt het volledige communicatieprofiel (`updateSettingsRequestSchema`). `iconsPerScreen` alléén **2/4/6/8** — anders `400 VALIDATION_ERROR`. `200` + `userPublicSchema`. |
+| DELETE | `/users/{id}` | ADMIN | Verwijdert de gebruiker (profiel verdwijnt mee). `204`. Een CAREGIVER krijgt `403 FORBIDDEN`. |
+
+Rolkeuze (DESIGN §2): aanmaken/verwijderen is een beheerderstaak (ADMIN); een begeleider
+mag instellingen beheren. Koppeling begeleider→gebruiker (alleen eigen gebruikers zien)
+volgt in **T2.2** — nu ziet elke begeleider de gebruikers van de eigen organisatie.
+
+<Volgende domeinen (gesprek, AAC …) worden hier per taak toegevoegd.>

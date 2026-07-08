@@ -1,8 +1,13 @@
 /* Tablet-first, rustig ontwerp met grote klikvlakken (DESIGN §5.1). */
 :root {
   --intento-bg: #f4f6fb;
+  --intento-surface: #ffffff;
   --intento-fg: #1c2536;
+  --intento-muted: #5b6577;
   --intento-accent: #2f6fed;
+  --intento-danger: #c8324a;
+  --intento-border: #d7deec;
+  --intento-radius: 12px;
   color-scheme: light;
 }
 
@@ -29,30 +34,216 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
-.app-shell {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 2rem;
-  text-align: center;
+/* Panelen en layout */
+.panel {
+  background: var(--intento-surface);
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 1.5rem;
 }
 
-.app-shell__title {
-  font-size: clamp(2.5rem, 6vw, 4rem);
-  margin: 0;
+.panel--narrow {
+  max-width: 26rem;
+  margin: 4rem auto;
+}
+
+.panel__title {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  margin: 0 0 1rem;
   color: var(--intento-accent);
 }
 
-.app-shell__tagline {
-  font-size: clamp(1.25rem, 3vw, 1.75rem);
+.panel__subtitle {
+  font-size: 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.muted {
+  color: var(--intento-muted);
+}
+
+.admin {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.admin__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin__account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--intento-muted);
+}
+
+.admin__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 48rem) {
+  .admin__grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* Formulieren */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.form__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.form__error {
+  color: var(--intento-danger);
   margin: 0;
 }
 
-.app-shell__status {
-  font-size: 1rem;
-  opacity: 0.7;
+.form__ok {
+  color: var(--intento-accent);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border: none;
+  padding: 0;
   margin: 0;
+}
+
+.field__label {
+  font-weight: 600;
+}
+
+.field__input {
+  font-size: 1.1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  min-height: 3rem;
+}
+
+.form--inline .field__input {
+  flex: 1 1 12rem;
+}
+
+/* Grote, duidelijke keuze- en schakelbesturing */
+.choice-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.15rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  cursor: pointer;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.05rem;
+}
+
+.toggle input,
+.choice input {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+/* Knoppen */
+.button {
+  font-size: 1.05rem;
+  padding: 0.75rem 1.25rem;
+  min-height: 3rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  background: var(--intento-surface);
+  color: var(--intento-fg);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button--primary {
+  background: var(--intento-accent);
+  border-color: var(--intento-accent);
+  color: #fff;
+}
+
+.button--danger {
+  color: var(--intento-danger);
+  border-color: var(--intento-danger);
+  background: var(--intento-surface);
+}
+
+/* Gebruikerslijst */
+.user-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.user-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 0.4rem 0.4rem 0.4rem 0;
+}
+
+.user-list__item--active {
+  border-color: var(--intento-accent);
+  box-shadow: 0 0 0 1px var(--intento-accent);
+}
+
+.user-list__select {
+  flex: 1;
+  text-align: left;
+  font-size: 1.1rem;
+  padding: 0.6rem 0.9rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
 }

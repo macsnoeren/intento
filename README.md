@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving — nu nog een lege shell). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login en gebruikersbeheer (T2.1). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -89,6 +89,28 @@ lopen via het `authorize(...)`-preHandler (401 zonder sessie, 403 bij verkeerde 
 filteren tenant-data op `organizationId` (T1.2). Endpoints en foutcodes:
 [docs/api.md](docs/api.md); afwegingen: [docs/adr/0004](docs/adr/0004-authentication-sessions.md),
 [docs/adr/0005](docs/adr/0005-authorization-tenant-isolation.md).
+
+## Gebruikersbeheer (beheeromgeving, T2.1)
+
+Een beheerder beheert de communicerende gebruikers en hun communicatie-instellingen
+(aantal opties 2/4/6/8, tekst tonen, AI-leren, ondersteuningsmodus — DESIGN §5.3). Via de
+web-app: `npm run dev:web`, open <http://localhost:5173>, log in als admin en beheer
+gebruikers (aanmaken, instellingen, verwijderen). De web-app praat met de backend op
+`VITE_API_URL` (standaard `http://localhost:3000`).
+
+```bash
+# Gebruiker aanmaken (ADMIN), lijst, instellingen (alleen 2/4/6/8), verwijderen:
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/users \
+  -H 'content-type: application/json' -d '{"name":"Sanne"}'
+curl -sb cookies.txt http://127.0.0.1:3000/admin/users
+curl -sb cookies.txt -X PUT http://127.0.0.1:3000/users/<id>/settings \
+  -H 'content-type: application/json' \
+  -d '{"iconsPerScreen":6,"showText":false,"aiLearningEnabled":false,"supportMode":true}'
+curl -sb cookies.txt -X DELETE http://127.0.0.1:3000/users/<id>
+```
+
+Aanmaken/verwijderen is ADMIN; instellingen aanpassen mag ook een CAREGIVER (koppeling
+begeleider→gebruiker volgt in T2.2).
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

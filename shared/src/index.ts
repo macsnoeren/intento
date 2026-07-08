@@ -67,3 +67,65 @@ export const accountListResponseSchema = z.object({
   accounts: z.array(accountPublicSchema),
 });
 export type AccountListResponse = z.infer<typeof accountListResponseSchema>;
+
+// --- Gebruikers en communicatieprofiel (T2.1, DESIGN §2, §5.3, §6.2) ---
+
+/**
+ * Aantal pictogramopties per scherm. Bewust beperkt tot 2/4/6/8 (DESIGN §5.3): minder =
+ * eenvoudiger, meer = sneller. Elke andere waarde is ongeldig en wordt op de API-grens
+ * geweigerd (400). Standaardwaarde is 4 (in het datamodel).
+ */
+export const iconsPerScreenSchema = z.union([
+  z.literal(2),
+  z.literal(4),
+  z.literal(6),
+  z.literal(8),
+]);
+export type IconsPerScreen = z.infer<typeof iconsPerScreenSchema>;
+
+/**
+ * Communicatie-instellingen van een gebruiker (`UserCommunicationProfile`, DESIGN §5.3).
+ * Stuurt de gebruikersapp aan: aantal opties, tekst tonen, AI-leren en ondersteuningsmodus.
+ */
+export const communicationProfileSchema = z.object({
+  iconsPerScreen: iconsPerScreenSchema,
+  showText: z.boolean(),
+  aiLearningEnabled: z.boolean(),
+  supportMode: z.boolean(),
+});
+export type CommunicationProfile = z.infer<typeof communicationProfileSchema>;
+
+/** Publieke weergave van een gebruiker inclusief communicatieprofiel. */
+export const userPublicSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  organizationId: z.string(),
+  active: z.boolean(),
+  createdAt: z.iso.datetime(),
+  communicationProfile: communicationProfileSchema,
+});
+export type UserPublic = z.infer<typeof userPublicSchema>;
+
+/**
+ * Aanmaakverzoek (`POST /users`). Alleen een naam is nodig; het communicatieprofiel wordt
+ * met de standaardwaarden aangemaakt en daarna via `PUT /users/{id}/settings` aangepast.
+ * `active` is optioneel (standaard actief).
+ */
+export const createUserRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  active: z.boolean().optional(),
+});
+export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
+
+/**
+ * Instellingenverzoek (`PUT /users/{id}/settings`). PUT vervangt het volledige profiel, dus
+ * alle velden zijn verplicht. `iconsPerScreen` accepteert alléén 2/4/6/8.
+ */
+export const updateSettingsRequestSchema = communicationProfileSchema;
+export type UpdateSettingsRequest = z.infer<typeof updateSettingsRequestSchema>;
+
+/** Antwoord op `GET /admin/users`: gebruikers **binnen de eigen organisatie** (tenant-gefilterd). */
+export const userListResponseSchema = z.object({
+  users: z.array(userPublicSchema),
+});
+export type UserListResponse = z.infer<typeof userListResponseSchema>;

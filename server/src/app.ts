@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './errors.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
+import { registerUserRoutes } from './routes/users.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -57,6 +58,7 @@ export async function buildApp({
   registerHealthRoutes(app);
   registerAuthRoutes(app, { env, prisma });
   registerAccountRoutes(app, { prisma });
+  registerUserRoutes(app, { prisma });
 
   return app;
 }

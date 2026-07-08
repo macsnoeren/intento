@@ -34,7 +34,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 2 — Gebruikers en profielen
 
-- [ ] **T2.1 Gebruikersbeheer en communicatieprofiel**
+- [x] **T2.1 Gebruikersbeheer en communicatieprofiel**
   *DESIGN: §2, §5.3, §6.2 (User, UserCommunicationProfile), §8.2, FR-017.* User CRUD voor admin (`POST /users`, `GET /users/{id}`, `GET /admin/users`, verwijderen) + UserCommunicationProfile (iconsPerScreen 2/4/6/8 standaard 4, showText, aiLearningEnabled, supportMode) via `PUT /users/{id}/settings`. Basis beheer-UI: gebruikerslijst + instellingenformulier.
   *Acceptatie:* admin beheert gebruikers in de UI; instellingen zod-gevalideerd (alleen 2/4/6/8); caregiver mag niet verwijderen.
 

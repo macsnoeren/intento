@@ -18,10 +18,12 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-gerelateerde data (sessies → accounts → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
+  await prisma.userCommunicationProfile.deleteMany();
+  await prisma.user.deleteMany();
   await prisma.organization.deleteMany();
 }
 
@@ -59,6 +61,22 @@ export async function seedAccount(
     },
   });
   return { organizationId: orgId, accountId: account.id, email, password };
+}
+
+/**
+ * Maakt een gebruiker (met standaard-communicatieprofiel) in de opgegeven organisatie. Zonder
+ * `organizationId` wordt er een nieuwe organisatie aangemaakt. Handig om isolatie tussen
+ * organisaties aan te tonen (org A ziet nooit gebruikers van org B).
+ */
+export async function seedUser(
+  name = 'Testgebruiker',
+  organizationId?: string,
+): Promise<{ id: string; organizationId: string }> {
+  const orgId = organizationId ?? (await seedOrganization());
+  const user = await prisma.user.create({
+    data: { name, organizationId: orgId, communicationProfile: { create: {} } },
+  });
+  return { id: user.id, organizationId: orgId };
 }
 
 /**

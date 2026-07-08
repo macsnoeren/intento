@@ -41,7 +41,9 @@ server niet uit elkaar lopen.
   `routes/` (één bestand per domein), `db/` (Prisma-client-singleton).
 - `server/prisma/` — `schema.prisma` (datamodel), `migrations/`, `seed.ts`. De
   CLI-config staat in `server/prisma.config.ts`.
-- `web/src/` — `main.tsx` (mount), `App.tsx` (shell), `styles.css`.
+- `web/src/` — `main.tsx` (mount), `App.tsx` (sessie-toestand + weergavekeuze), `api.ts`
+  (injecteerbare, zod-validerende `Api`-client naar de backend), beheercomponenten
+  (`LoginForm`, `AdminUsersPage`, `SettingsForm`), `styles.css`.
 
 ## Belangrijke patronen
 

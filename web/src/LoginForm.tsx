@@ -1,0 +1,72 @@
+import { useState, type FormEvent } from 'react';
+import type { AuthResponse } from '@intento/shared';
+import { ApiRequestError, type Api } from './api.ts';
+
+/**
+ * Login-scherm voor de beheeromgeving. Roept `POST /auth/login` aan en geeft het ingelogde
+ * account door aan de bovenliggende app. Fouten (verkeerd wachtwoord, lockout, rate limit)
+ * worden getoond met de melding uit de backend.
+ */
+export function LoginForm({
+  api,
+  onLoggedIn,
+}: {
+  api: Api;
+  onLoggedIn: (auth: AuthResponse) => void;
+}): React.JSX.Element {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      onLoggedIn(await api.login(email, password));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Inloggen mislukt.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="panel panel--narrow">
+      <h1 className="panel__title">Intento — beheer</h1>
+      <form className="form" onSubmit={(e) => void handleSubmit(e)} aria-label="Inloggen">
+        <label className="field">
+          <span className="field__label">E-mail</span>
+          <input
+            className="field__input"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </label>
+        <label className="field">
+          <span className="field__label">Wachtwoord</span>
+          <input
+            className="field__input"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </label>
+        {error ? (
+          <p className="form__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <button className="button button--primary" type="submit" disabled={busy}>
+          {busy ? 'Bezig…' : 'Inloggen'}
+        </button>
+      </form>
+    </main>
+  );
+}

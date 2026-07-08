@@ -6,6 +6,21 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.1 Gebruikersbeheer en communicatieprofiel.** Prisma-modellen `User` (los van
+  `Account`, tenant-gebonden, `active`-vlag) en `UserCommunicationProfile` (1-op-1:
+  `iconsPerScreen` 2/4/6/8 standaard 4, `showText`, `aiLearningEnabled`, `supportMode`),
+  migratie `users_and_communication_profile`. CRUD-endpoints `POST /users` (ADMIN),
+  `GET /admin/users` (ADMIN), `GET /users/{id}` (ADMIN/CAREGIVER), `PUT /users/{id}/settings`
+  (ADMIN/CAREGIVER, zod dwingt 2/4/6/8 af) en `DELETE /users/{id}` (ADMIN) — alle queries
+  tenant-gefilterd, id-toegang via `assertSameTenant` (403 bij andere organisatie).
+  Gedeelde schema's (`iconsPerScreenSchema`, `communicationProfileSchema`, `userPublicSchema`,
+  `createUserRequestSchema`, `updateSettingsRequestSchema`, `userListResponseSchema`).
+  Beheer-UI in de web-app: login-scherm, gebruikerslijst met aanmaken/verwijderen en een
+  instellingenformulier (radioknoppen 2/4/6/8 + schakelaars), via een gevalideerde,
+  injecteerbare `Api`-client (`web/src/api.ts`). Server- en web-tests dekken CRUD, validatie,
+  rolcontrole (caregiver mag niet verwijderen) en tenant-isolatie. Gedocumenteerd in
+  `docs/api.md`, `docs/data-model.md`.
+
 - **T1.2 Autorisatie en tenant-isolatie.** Herbruikbare autorisatie-middleware
   `authorize(prisma, { roles })` (`server/src/auth/authorize.ts`): 401 `NOT_AUTHENTICATED`
   zonder geldige sessie, 403 `FORBIDDEN` bij verkeerde rol; zet het geverifieerde account op
