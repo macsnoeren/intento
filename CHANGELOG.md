@@ -6,6 +6,17 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T1.2 Autorisatie en tenant-isolatie.** Herbruikbare autorisatie-middleware
+  `authorize(prisma, { roles })` (`server/src/auth/authorize.ts`): 401 `NOT_AUTHENTICATED`
+  zonder geldige sessie, 403 `FORBIDDEN` bij verkeerde rol; zet het geverifieerde account op
+  `request.account`. Tenant-isolatiehelpers `tenantScope(account)` (where-filter op
+  `organizationId`) en `assertSameTenant(account, resource)` (`server/src/auth/tenant.ts`).
+  `/auth/me` gebruikt nu dezelfde middleware. Representatief ADMIN-only, tenant-gefilterd
+  endpoint `GET /admin/accounts` (`accountListResponseSchema`) toont de laag end-to-end.
+  Herbruikbare testhelpers (`seedOrganization`, `seedAccount` met gedeelde org, `loginCookie`)
+  en isolatie-/rol-tests (org A ziet nooit org B; 401/403). Gedocumenteerd in ADR-0005,
+  `docs/api.md`, `docs/security.md` (access-control-vinkje), `docs/architecture.md`.
+
 - **T1.1 Accounts, login en organisaties.** Prisma-modellen `Account`
   (rollen ADMIN/CAREGIVER/USER, platformbreed unieke e-mail, lockout-velden) en `Session`,
   migratie `accounts_and_sessions`. `POST /auth/login` (argon2id-wachtwoordhash, generieke

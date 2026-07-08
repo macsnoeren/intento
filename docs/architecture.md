@@ -53,6 +53,11 @@ server niet uit elkaar lopen.
 - **Centrale foutafhandeling** — `ZodError → 400`, `HttpError → eigen status`,
   onbekende fouten → 500 zonder interne details te lekken. Alle fouten in de
   consistente structuur `{ error: { code, message } }` (DESIGN §8.1).
+- **Autorisatie + tenant-isolatie** — beschermde routes hangen het
+  `authorize(prisma, { roles })`-preHandler ervoor (401 zonder sessie, 403 bij verkeerde
+  rol) en zetten `request.account`. Tenant-gebonden queries filteren op `organizationId`
+  via `tenantScope(account)` / `assertSameTenant(...)` (`auth/tenant.ts`). Zie
+  [adr/0005](adr/0005-authorization-tenant-isolation.md).
 - **Prisma-client-singleton** (`db/prisma.ts`) — verbindt via een driver adapter
   (SQLite in dev/test) op basis van `DATABASE_URL`; wordt op `globalThis` bewaard zodat
   `tsx watch` niet telkens een nieuwe verbinding opent. Zie [data-model.md](data-model.md).

@@ -57,3 +57,13 @@ export const authResponseSchema = z.object({
   account: accountPublicSchema,
 });
 export type AuthResponse = z.infer<typeof authResponseSchema>;
+
+/**
+ * Antwoord van `GET /admin/accounts`: de logins binnen de eigen organisatie (ADMIN-only).
+ * De lijst is per definitie tenant-gefilterd — een organisatie ziet nooit accounts van een
+ * andere organisatie (DESIGN §9.4, multi-tenant-isolatie).
+ */
+export const accountListResponseSchema = z.object({
+  accounts: z.array(accountPublicSchema),
+});
+export type AccountListResponse = z.infer<typeof accountListResponseSchema>;

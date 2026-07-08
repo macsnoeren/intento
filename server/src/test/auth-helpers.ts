@@ -1,4 +1,4 @@
-import type { LightMyRequestResponse } from 'fastify';
+import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { loadEnv, type Env } from '../env.js';
 import { prisma } from '../db/prisma.js';
 import { hashPassword } from '../auth/password.js';
@@ -32,24 +32,33 @@ export interface SeededAccount {
   password: string;
 }
 
-/** Maakt een organisatie + account met bekend wachtwoord voor de tests. */
+/** Maakt een losse organisatie aan (tenant-root) voor isolatietests. */
+export async function seedOrganization(name = 'Testorganisatie'): Promise<string> {
+  const org = await prisma.organization.create({ data: { name, type: 'family' } });
+  return org.id;
+}
+
+/**
+ * Maakt een account met bekend wachtwoord voor de tests. Zonder `organizationId` wordt er
+ * een nieuwe organisatie aangemaakt; geef er één mee om meerdere accounts in dezélfde
+ * organisatie te zetten (nodig om tenant-isolatie tussen twee organisaties aan te tonen).
+ */
 export async function seedAccount(
   email = 'admin@intento.local',
   password = 'correct horse battery staple',
   role = 'ADMIN',
+  organizationId?: string,
 ): Promise<SeededAccount> {
-  const org = await prisma.organization.create({
-    data: { name: 'Testorganisatie', type: 'family' },
-  });
+  const orgId = organizationId ?? (await seedOrganization());
   const account = await prisma.account.create({
     data: {
       email: email.toLowerCase(),
       passwordHash: await hashPassword(password),
       role,
-      organizationId: org.id,
+      organizationId: orgId,
     },
   });
-  return { organizationId: org.id, accountId: account.id, email, password };
+  return { organizationId: orgId, accountId: account.id, email, password };
 }
 
 /**
@@ -61,4 +70,27 @@ export function sessionCookieHeader(response: LightMyRequestResponse): string | 
   const headers = Array.isArray(raw) ? raw : raw ? [raw] : [];
   const match = headers.find((h) => h.startsWith(`${SESSION_COOKIE_NAME}=`));
   return match?.split(';', 1)[0];
+}
+
+/**
+ * Logt in en geeft de sessie-cookie-header terug die als `Cookie` op vervolgverzoeken kan.
+ * Herbruikbaar in autorisatie-/isolatietests: één regel van "account" naar "geauthenticeerd
+ * verzoek". Gooit als de login niet slaagt, zodat een testfout meteen zichtbaar is.
+ */
+export async function loginCookie(
+  app: FastifyInstance,
+  email: string,
+  password: string,
+): Promise<string> {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: { email, password },
+  });
+  if (res.statusCode !== 200) {
+    throw new Error(`Login mislukte voor ${email}: status ${res.statusCode}`);
+  }
+  const cookie = sessionCookieHeader(res);
+  if (!cookie) throw new Error(`Geen sessie-cookie ontvangen voor ${email}`);
+  return cookie;
 }

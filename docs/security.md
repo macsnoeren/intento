@@ -25,7 +25,13 @@
 - [x] **Account-lockout / rate limiting** — na `LOGIN_MAX_ATTEMPTS` mislukte pogingen
       tijdelijke lockout (`LOGIN_LOCKOUT_MINUTES`); streng per-IP rate limit op `/auth/login`
       (`@fastify/rate-limit`, `global: false`). Getest (lockout → 423, overschrijding → 429).
-- [ ] **Access control / IDOR** — elke query op eigenaar/tenant gefilterd + getest (T1.2).
+- [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
+      (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
+      `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op
+      `organizationId`) en `assertSameTenant(account, resource)` (403 bij vreemde tenant,
+      dezelfde fout als "bestaat niet" om bestaan niet te lekken) in `auth/tenant.ts`. Elke
+      tenant-gebonden query wordt op `organizationId` gefilterd. Getest op isolatie tussen
+      twee organisaties en op 401/403 in `routes/accounts.test.ts` en `auth/tenant.test.ts`.
 - [ ] **Uploads** — groottelimiet, content-type-check, ondertekende URL's (AAC-fase).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).

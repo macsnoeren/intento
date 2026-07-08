@@ -79,11 +79,16 @@ curl -sc cookies.txt -X POST http://127.0.0.1:3000/auth/login \
   -H 'content-type: application/json' \
   -d '{"email":"admin@intento.local","password":"change-me-admin"}'
 curl -sb cookies.txt http://127.0.0.1:3000/auth/me
+# ADMIN-only, gefilterd op de eigen organisatie (403 voor CAREGIVER/USER):
+curl -sb cookies.txt http://127.0.0.1:3000/admin/accounts
 curl -sb cookies.txt -X POST http://127.0.0.1:3000/auth/logout
 ```
 
-Login is streng rate-limited en kent account-lockout na herhaald falen. Endpoints en
-foutcodes: [docs/api.md](docs/api.md); afwegingen: [docs/adr/0004](docs/adr/0004-authentication-sessions.md).
+Login is streng rate-limited en kent account-lockout na herhaald falen. Beschermde routes
+lopen via het `authorize(...)`-preHandler (401 zonder sessie, 403 bij verkeerde rol) en
+filteren tenant-data op `organizationId` (T1.2). Endpoints en foutcodes:
+[docs/api.md](docs/api.md); afwegingen: [docs/adr/0004](docs/adr/0004-authentication-sessions.md),
+[docs/adr/0005](docs/adr/0005-authorization-tenant-isolation.md).
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

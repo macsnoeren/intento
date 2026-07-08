@@ -10,9 +10,10 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AccountModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { verifyLogin } from '../auth/service.js';
-import { createSession, deleteSessionByToken, findAccountBySessionToken } from '../auth/session.js';
+import { createSession, deleteSessionByToken } from '../auth/session.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from '../auth/cookie.js';
 import { readSessionToken } from '../auth/request.js';
+import { authorize, requireAccount } from '../auth/authorize.js';
 
 export interface AuthRoutesDeps {
   env: Env;
@@ -82,12 +83,13 @@ export function registerAuthRoutes(app: FastifyInstance, { env, prisma }: AuthRo
     reply.status(204).send();
   });
 
-  app.get('/auth/me', async (request): Promise<AuthResponse> => {
-    const token = readSessionToken(request);
-    const account = token ? await findAccountBySessionToken(prisma, token) : null;
-    if (!account) {
-      throw new HttpError(401, 'NOT_AUTHENTICATED', 'Niet ingelogd.');
-    }
-    return { account: toPublic(account) };
-  });
+  // Elk ingelogd account mag zijn eigen gegevens opvragen; de authorize()-preHandler
+  // handelt de 401 af en zet het geverifieerde account op de request.
+  app.get(
+    '/auth/me',
+    { preHandler: authorize(prisma) },
+    (request): AuthResponse => {
+      return { account: toPublic(requireAccount(request)) };
+    },
+  );
 }

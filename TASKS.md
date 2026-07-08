@@ -28,7 +28,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §2, §6.2 (Organization, Account), §8.2, §9.4.* Modellen Organization + Account (rollen ADMIN/CAREGIVER/USER). `POST /auth/login` met argon2id, sessietokens gehasht at-rest in httpOnly+Secure cookies, logout, strenge rate limiting op login, account-lockout. Seed: eerste organisatie + admin.
   *Acceptatie:* login/logout getest (goed/fout wachtwoord, lockout na herhaald falen, rate limit); sessietoken nergens plaintext opgeslagen.
 
-- [ ] **T1.2 Autorisatie en tenant-isolatie**
+- [x] **T1.2 Autorisatie en tenant-isolatie**
   *DESIGN: §2, §9.4.* Autorisatie-middleware: rolcontrole per route + verplichte filtering op `organizationId` in elke query. Herbruikbare testhelpers die isolatie aantonen (org A kan nooit data van org B zien).
   *Acceptatie:* isolatietests voor elk bestaand endpoint; ongeautoriseerde toegang geeft 403 met consistente foutstructuur.
 
