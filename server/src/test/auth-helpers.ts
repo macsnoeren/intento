@@ -18,8 +18,9 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-/gebruikersdata (sessies → accounts → profielen → gebruikers → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (koppelingen → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
+  await prisma.caregiverAssignment.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.userCommunicationProfile.deleteMany();
@@ -77,6 +78,11 @@ export async function seedUser(
     data: { name, organizationId: orgId, communicationProfile: { create: {} } },
   });
   return { id: user.id, organizationId: orgId };
+}
+
+/** Koppelt een begeleider-account rechtstreeks aan een gebruiker (voor toegangstests). */
+export async function linkCaregiver(accountId: string, userId: string): Promise<void> {
+  await prisma.caregiverAssignment.create({ data: { accountId, userId } });
 }
 
 /**

@@ -1,9 +1,11 @@
 import {
   apiErrorSchema,
   authResponseSchema,
+  caregiverListResponseSchema,
   userListResponseSchema,
   userPublicSchema,
   type AuthResponse,
+  type CaregiverListResponse,
   type CreateUserRequest,
   type UpdateSettingsRequest,
   type UserListResponse,
@@ -41,6 +43,8 @@ export interface Api {
   createUser(body: CreateUserRequest): Promise<UserPublic>;
   updateSettings(id: string, body: UpdateSettingsRequest): Promise<UserPublic>;
   deleteUser(id: string): Promise<void>;
+  listCaregivers(userId: string): Promise<CaregiverListResponse>;
+  linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -104,5 +108,16 @@ export const httpApi: Api = {
   },
   async deleteUser(id) {
     await request(`/users/${id}`, { method: 'DELETE' });
+  },
+  async listCaregivers(userId) {
+    return caregiverListResponseSchema.parse(await request(`/admin/users/${userId}/caregivers`));
+  },
+  async linkCaregiver(userId, accountId, linked) {
+    return caregiverListResponseSchema.parse(
+      await request(`/admin/users/${userId}/caregivers`, {
+        method: 'POST',
+        body: JSON.stringify({ accountId, linked }),
+      }),
+    );
   },
 };

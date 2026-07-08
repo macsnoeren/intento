@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login en gebruikersbeheer (T2.1). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1) en begeleiderkoppeling (T2.2). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -109,8 +109,22 @@ curl -sb cookies.txt -X PUT http://127.0.0.1:3000/users/<id>/settings \
 curl -sb cookies.txt -X DELETE http://127.0.0.1:3000/users/<id>
 ```
 
-Aanmaken/verwijderen is ADMIN; instellingen aanpassen mag ook een CAREGIVER (koppeling
-begeleider→gebruiker volgt in T2.2).
+Aanmaken/verwijderen is ADMIN; instellingen aanpassen mag ook een CAREGIVER, maar alléén voor
+gebruikers waaraan hij gekoppeld is.
+
+### Begeleiders koppelen (T2.2)
+
+Een beheerder koppelt begeleiders (CAREGIVER-accounts) aan een gebruiker; die koppeling
+bepaalt de toegang — een niet-gekoppelde begeleider krijgt `403` op de gebruiker-routes. In de
+web-app verschijnt per geselecteerde gebruiker een paneel "Gekoppelde begeleiders" met een
+schakelaar per begeleider.
+
+```bash
+# Begeleiders van een gebruiker bekijken (ADMIN) en koppelen/ontkoppelen:
+curl -sb cookies.txt http://127.0.0.1:3000/admin/users/<id>/caregivers
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/users/<id>/caregivers \
+  -H 'content-type: application/json' -d '{"accountId":"<caregiver-account-id>","linked":true}'
+```
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

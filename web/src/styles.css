@@ -99,6 +99,22 @@ body {
   }
 }
 
+/* Rechterkolom: instellingen + gekoppelde begeleiders onder elkaar. */
+.admin__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.caregiver-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 /* Formulieren */
 .form {
   display: flex;

@@ -2,6 +2,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it } from 'vitest';
 import type {
   AuthResponse,
+  CaregiverLink,
+  CaregiverListResponse,
   CreateUserRequest,
   UpdateSettingsRequest,
   UserListResponse,
@@ -40,10 +42,18 @@ function makeUser(id: string, name: string): UserPublic {
 }
 
 /** Bouwt een stateful nep-backend; `loggedIn` bepaalt of er al een sessie is. */
-function fakeApi(options: { loggedIn?: boolean } = {}): Api {
+function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } = {}): Api {
   let session = options.loggedIn ?? false;
   const users: UserPublic[] = [];
   let counter = 0;
+  // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
+  const caregiverSeed = options.caregivers ?? [];
+  const linksByUser = new Map<string, Set<string>>();
+
+  function caregiversFor(userId: string): CaregiverLink[] {
+    const linked = linksByUser.get(userId) ?? new Set<string>();
+    return caregiverSeed.map((c) => ({ ...c, linked: linked.has(c.accountId) }));
+  }
 
   return {
     me(): Promise<AuthResponse> {
@@ -82,6 +92,16 @@ function fakeApi(options: { loggedIn?: boolean } = {}): Api {
       const index = users.findIndex((u) => u.id === id);
       if (index >= 0) users.splice(index, 1);
       return Promise.resolve();
+    },
+    listCaregivers(userId: string): Promise<CaregiverListResponse> {
+      return Promise.resolve({ caregivers: caregiversFor(userId) });
+    },
+    linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse> {
+      const set = linksByUser.get(userId) ?? new Set<string>();
+      if (linked) set.add(accountId);
+      else set.delete(accountId);
+      linksByUser.set(userId, set);
+      return Promise.resolve({ caregivers: caregiversFor(userId) });
     },
   };
 }
@@ -132,5 +152,32 @@ describe('beheeromgeving-app', () => {
     // Verwijderen.
     fireEvent.click(screen.getByRole('button', { name: 'Gebruiker Sanne verwijderen' }));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Sanne' })).toBeNull());
+  });
+
+  it('laat een beheerder een begeleider aan een gebruiker koppelen', async () => {
+    const api = fakeApi({
+      loggedIn: true,
+      caregivers: [{ accountId: 'cg-1', email: 'begeleider@intento.local', linked: false }],
+    });
+    render(<App api={api} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    // Gebruiker aanmaken en selecteren.
+    fireEvent.change(screen.getByLabelText('Naam van de gebruiker'), {
+      target: { value: 'Sanne' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Toevoegen' }));
+    await screen.findByRole('button', { name: 'Sanne' });
+
+    // Begeleiderpaneel verschijnt met de begeleider, nog niet gekoppeld.
+    const panel = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
+    const checkbox = within(panel).getByRole<HTMLInputElement>('checkbox', {
+      name: 'begeleider@intento.local',
+    });
+    expect(checkbox.checked).toBe(false);
+
+    // Koppelen: schakelaar aan → blijft aangevinkt (server bevestigt de nieuwe stand).
+    fireEvent.click(checkbox);
+    await waitFor(() => expect(checkbox.checked).toBe(true));
   });
 });

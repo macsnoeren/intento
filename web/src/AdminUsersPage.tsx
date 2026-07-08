@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AccountPublic, UpdateSettingsRequest, UserPublic } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
+import { CaregiversPanel } from './CaregiversPanel.tsx';
 
 /**
  * Beheeromgeving — gebruikersbeheer (T2.1, DESIGN §5.2). Toont de gebruikerslijst van de
@@ -142,14 +143,25 @@ export function AdminUsersPage({
           )}
         </section>
 
-        <section className="panel" aria-label="Instellingen">
-          <h2 className="panel__subtitle">Communicatie-instellingen</h2>
+        <div className="admin__detail">
+          <section className="panel" aria-label="Instellingen">
+            <h2 className="panel__subtitle">Communicatie-instellingen</h2>
+            {selected ? (
+              <SettingsForm key={selected.id} user={selected} onSave={handleSaveSettings} />
+            ) : (
+              <p className="muted">Kies een gebruiker om de instellingen aan te passen.</p>
+            )}
+          </section>
+
           {selected ? (
-            <SettingsForm key={selected.id} user={selected} onSave={handleSaveSettings} />
-          ) : (
-            <p className="muted">Kies een gebruiker om de instellingen aan te passen.</p>
-          )}
-        </section>
+            <CaregiversPanel
+              key={`caregivers-${selected.id}`}
+              api={api}
+              userId={selected.id}
+              userName={selected.name}
+            />
+          ) : null}
+        </div>
       </div>
     </main>
   );

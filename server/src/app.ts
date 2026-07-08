@@ -11,6 +11,7 @@ import { registerHealthRoutes } from './routes/health.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerUserRoutes } from './routes/users.js';
+import { registerCaregiverRoutes } from './routes/caregivers.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -59,6 +60,7 @@ export async function buildApp({
   registerAuthRoutes(app, { env, prisma });
   registerAccountRoutes(app, { prisma });
   registerUserRoutes(app, { prisma });
+  registerCaregiverRoutes(app, { prisma });
 
   return app;
 }

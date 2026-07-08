@@ -4,6 +4,7 @@ import { userListResponseSchema, userPublicSchema } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import {
+  linkCaregiver,
   loginCookie,
   resetAuthData,
   seedAccount,
@@ -139,6 +140,8 @@ describe('gebruikersbeheer — /users', () => {
     await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
     const caregiver = await seedAccount('caregiver@intento.local', 'pw-c', 'CAREGIVER', org);
     const user = await seedUser('Sanne', org);
+    // Begeleider moet aan de gebruiker gekoppeld zijn om die te mogen beheren (T2.2).
+    await linkCaregiver(caregiver.accountId, user.id);
 
     const cookie = await loginCookie(app, caregiver.email, caregiver.password);
 

@@ -49,12 +49,22 @@ gefilterd; toegang op id via een andere organisatie geeft `403 FORBIDDEN` (besta
 |---|---|---|---|
 | POST | `/users` | ADMIN | Maakt een gebruiker in de eigen organisatie aan (`createUserRequestSchema`: `{ name, active? }`). Het communicatieprofiel wordt met standaardwaarden aangemaakt. `201` + `userPublicSchema`. |
 | GET | `/admin/users` | ADMIN | Lijst van gebruikers **binnen de eigen organisatie** (`userListResponseSchema`). |
-| GET | `/users/{id}` | ADMIN, CAREGIVER | Eén gebruiker inclusief profiel (`userPublicSchema`), of `403` bij een andere organisatie. |
-| PUT | `/users/{id}/settings` | ADMIN, CAREGIVER | Vervangt het volledige communicatieprofiel (`updateSettingsRequestSchema`). `iconsPerScreen` alléén **2/4/6/8** — anders `400 VALIDATION_ERROR`. `200` + `userPublicSchema`. |
+| GET | `/users/{id}` | ADMIN, CAREGIVER | Eén gebruiker inclusief profiel (`userPublicSchema`), of `403` bij een andere organisatie. Een CAREGIVER krijgt `403` als hij niet aan deze gebruiker gekoppeld is (T2.2). |
+| PUT | `/users/{id}/settings` | ADMIN, CAREGIVER | Vervangt het volledige communicatieprofiel (`updateSettingsRequestSchema`). `iconsPerScreen` alléén **2/4/6/8** — anders `400 VALIDATION_ERROR`. `200` + `userPublicSchema`. Voor een CAREGIVER geldt dezelfde koppel-eis als bij `GET`. |
 | DELETE | `/users/{id}` | ADMIN | Verwijdert de gebruiker (profiel verdwijnt mee). `204`. Een CAREGIVER krijgt `403 FORBIDDEN`. |
 
 Rolkeuze (DESIGN §2): aanmaken/verwijderen is een beheerderstaak (ADMIN); een begeleider
-mag instellingen beheren. Koppeling begeleider→gebruiker (alleen eigen gebruikers zien)
-volgt in **T2.2** — nu ziet elke begeleider de gebruikers van de eigen organisatie.
+mag instellingen beheren, maar sinds **T2.2** alléén voor gebruikers waaraan hij gekoppeld is.
+
+### Begeleiders koppelen (T2.2)
+Een beheerder bepaalt welke begeleiders (CAREGIVER-accounts) aan een gebruiker gekoppeld zijn.
+De koppeling stuurt de toegang: een niet-gekoppelde begeleider krijgt op de gebruiker-routes
+hierboven `403 FORBIDDEN`. Beide endpoints zijn tenant-gebonden (gebruiker én begeleider moeten
+in de eigen organisatie zitten, anders `403`).
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/admin/users/{id}/caregivers` | ADMIN | Alle CAREGIVER-accounts van de eigen organisatie met per account of het aan deze gebruiker gekoppeld is (`caregiverListResponseSchema`). |
+| POST | `/admin/users/{id}/caregivers` | ADMIN | Koppelt (`{ accountId, linked: true }`) of ontkoppelt (`linked: false`) één begeleider (`linkCaregiverRequestSchema`); idempotent. `200` + de bijgewerkte lijst. Account is geen CAREGIVER → `400 NOT_A_CAREGIVER`; account uit een andere organisatie → `403 FORBIDDEN`. |
 
 <Volgende domeinen (gesprek, AAC …) worden hier per taak toegevoegd.>

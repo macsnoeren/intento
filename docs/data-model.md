@@ -58,11 +58,14 @@ CorrectionEvent, Device, ConceptProposal) wordt in latere taken toegevoegd. Nu b
 | **Session** | `id`, `tokenHash` (uniek), `accountId`, `createdAt`, `expiresAt` | Actieve login-sessie (T1.1). Alleen de **SHA-256-hash** van het sessietoken staat in de db; het rauwe token leeft in de httpOnly-cookie. Verlopen sessies zijn ongeldig en worden opgeruimd. |
 | **User** | `id`, `name`, `organizationId`, `active`, `createdAt` | De communicerende persoon (T2.1). Staat los van `Account`: een gebruiker hoeft geen eigen login te hebben. Tenant-gebonden via `organizationId`. `active` deactiveert zonder te verwijderen. |
 | **UserCommunicationProfile** | `userId` (PK), `iconsPerScreen`, `showText`, `aiLearningEnabled`, `supportMode` | 1-op-1 communicatie-instellingen (T2.1, DESIGN §5.3). `iconsPerScreen` alléén 2/4/6/8 (standaard 4), afgedwongen met zod op de API-grens. Standaarden: tekst aan, leren aan, ondersteuning uit. |
+| **CaregiverAssignment** | `userId` + `accountId` (samengestelde PK), `createdAt` | Koppeling begeleider↔gebruiker (T2.2, DESIGN §2, FR-017). Many-to-many tussen een CAREGIVER-`Account` en een `User`. Stuurt de toegang: een begeleider ziet/beheert alléén gekoppelde gebruikers. Samengestelde sleutel voorkomt dubbele koppelingen; tenant-grens (zelfde organisatie) op de API-grens bewaakt. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
 Account` (cascade delete); `User.organizationId → Organization` (cascade delete);
-`UserCommunicationProfile.userId → User` (cascade delete). Zo verdwijnt bij het verwijderen
-van een organisatie/gebruiker netjes alle onderliggende data (incl. het communicatieprofiel).
+`UserCommunicationProfile.userId → User` (cascade delete); `CaregiverAssignment.userId →
+User` en `CaregiverAssignment.accountId → Account` (beide cascade delete — de koppeling
+verdwijnt als de gebruiker of het begeleider-account wordt verwijderd). Zo verdwijnt bij het
+verwijderen van een organisatie/gebruiker netjes alle onderliggende data.
 
 ## Seed
 
@@ -76,3 +79,4 @@ Herseeden overschrijft een bestaand wachtwoord niet. AAC-bibliotheek volgt in T3
 - **`init`** (T0.2) — `Organization`.
 - **`accounts_and_sessions`** (T1.1) — `Account`, `Session` + indexen/relaties.
 - **`users_and_communication_profile`** (T2.1) — `User`, `UserCommunicationProfile` + index/relaties.
+- **`caregiver_assignments`** (T2.2) — `CaregiverAssignment` (samengestelde PK + index op `accountId`).

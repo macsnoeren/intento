@@ -56,6 +56,8 @@ model User {
   organization         Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// 1-op-1 communicatie-instellingen; verdwijnt mee als de gebruiker wordt verwijderd.
   communicationProfile UserCommunicationProfile?
+  /// Gekoppelde begeleiders (CAREGIVER-accounts) die deze gebruiker mogen helpen.
+  caregiverLinks       CaregiverAssignment[]
 
   @@index([organizationId])
 }
@@ -99,8 +101,28 @@ model Account {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sessions     Session[]
+  /// Gebruikers waaraan dit account (als CAREGIVER) gekoppeld is.
+  caregiverLinks CaregiverAssignment[]
 
   @@index([organizationId])
+}
+
+/// Koppeling tussen een begeleider (CAREGIVER-`Account`) en een `User` (T2.2, DESIGN §2,
+/// FR-017). Een begeleider ziet en beheert **alleen** de gebruikers waaraan hij expliciet
+/// gekoppeld is; zonder koppeling geeft toegang tot die gebruiker 403. De koppeling is een
+/// many-to-many tussen account en gebruiker; de tenant-grens (zelfde organisatie) wordt op
+/// de API-grens bewaakt. De samengestelde sleutel voorkomt dubbele koppelingen, en beide
+/// kanten `onDelete: Cascade` ruimen de koppeling op als het account of de gebruiker verdwijnt.
+model CaregiverAssignment {
+  userId    String
+  accountId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@id([userId, accountId])
+  @@index([accountId])
 }
 
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren

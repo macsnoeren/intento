@@ -129,3 +129,38 @@ export const userListResponseSchema = z.object({
   users: z.array(userPublicSchema),
 });
 export type UserListResponse = z.infer<typeof userListResponseSchema>;
+
+// --- Begeleiders koppelen (T2.2, DESIGN §2, FR-017) ---
+
+/**
+ * Eén begeleider-account in de koppelweergave van een gebruiker (`GET /admin/users/{id}/caregivers`).
+ * `linked` geeft aan of dit CAREGIVER-account op dít moment aan de gebruiker gekoppeld is,
+ * zodat de beheer-UI per begeleider een aan/uit-schakelaar kan tonen.
+ */
+export const caregiverLinkSchema = z.object({
+  accountId: z.string(),
+  email: z.email(),
+  linked: z.boolean(),
+});
+export type CaregiverLink = z.infer<typeof caregiverLinkSchema>;
+
+/**
+ * Antwoord op `GET /admin/users/{id}/caregivers`: alle CAREGIVER-accounts van de eigen
+ * organisatie met per account of het aan deze gebruiker gekoppeld is (tenant-gefilterd).
+ */
+export const caregiverListResponseSchema = z.object({
+  caregivers: z.array(caregiverLinkSchema),
+});
+export type CaregiverListResponse = z.infer<typeof caregiverListResponseSchema>;
+
+/**
+ * Koppelverzoek (`POST /admin/users/{id}/caregivers`). Eén endpoint voor koppelen én
+ * ontkoppelen: `linked: true` legt de koppeling, `linked: false` verwijdert die. Idempotent —
+ * herhaald koppelen/ontkoppelen levert dezelfde eindtoestand. `accountId` moet een
+ * CAREGIVER-account binnen dezelfde organisatie zijn (afgedwongen op de server).
+ */
+export const linkCaregiverRequestSchema = z.object({
+  accountId: z.string().min(1),
+  linked: z.boolean(),
+});
+export type LinkCaregiverRequest = z.infer<typeof linkCaregiverRequestSchema>;

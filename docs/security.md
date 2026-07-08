@@ -32,6 +32,9 @@
       dezelfde fout als "bestaat niet" om bestaan niet te lekken) in `auth/tenant.ts`. Elke
       tenant-gebonden query wordt op `organizationId` gefilterd. Getest op isolatie tussen
       twee organisaties en op 401/403 in `routes/accounts.test.ts` en `auth/tenant.test.ts`.
+      Fijnmaziger dan rol + tenant: een CAREGIVER ziet/beheert alléén de gebruikers waaraan hij
+      gekoppeld is (`assertCaregiverAccess`, `auth/caregivers.ts`) — niet-gekoppeld → `403`.
+      Getest in `routes/caregivers.test.ts` (T2.2).
 - [ ] **Uploads** — groottelimiet, content-type-check, ondertekende URL's (AAC-fase).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).

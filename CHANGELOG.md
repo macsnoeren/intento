@@ -6,6 +6,22 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.2 Begeleiders koppelen.** Prisma-model `CaregiverAssignment` (many-to-many
+  begeleider↔gebruiker, samengestelde PK `userId`+`accountId`, beide `onDelete: Cascade`),
+  migratie `caregiver_assignments`. Endpoints `GET /admin/users/{id}/caregivers` (ADMIN,
+  begeleiderlijst met `linked`-vlag) en `POST /admin/users/{id}/caregivers` (ADMIN, idempotent
+  koppelen/ontkoppelen via `{ accountId, linked }`); beide tenant-gebonden (gebruiker én
+  begeleider in de eigen organisatie, anders `403`; niet-CAREGIVER-account → `400 NOT_A_CAREGIVER`).
+  Nieuwe toegangsregel: een CAREGIVER ziet/beheert alléén gekoppelde gebruikers —
+  `assertCaregiverAccess` (`server/src/auth/caregivers.ts`) op `GET /users/{id}` en
+  `PUT /users/{id}/settings` geeft `403` bij een niet-gekoppelde begeleider (ADMIN onverkort
+  alle gebruikers van de eigen organisatie). Gedeelde schema's (`caregiverLinkSchema`,
+  `caregiverListResponseSchema`, `linkCaregiverRequestSchema`). Beheer-UI: `CaregiversPanel`
+  toont per geselecteerde gebruiker de begeleiders met aan/uit-schakelaars (via `Api`-methoden
+  `listCaregivers`/`linkCaregiver`). Server- en web-tests dekken koppelen/ontkoppelen,
+  idempotentie, rolcontrole en tenant-isolatie (niet-gekoppelde caregiver → 403). Gedocumenteerd
+  in `docs/api.md`, `docs/data-model.md`, `docs/security.md`.
+
 - **T2.1 Gebruikersbeheer en communicatieprofiel.** Prisma-modellen `User` (los van
   `Account`, tenant-gebonden, `active`-vlag) en `UserCommunicationProfile` (1-op-1:
   `iconsPerScreen` 2/4/6/8 standaard 4, `showText`, `aiLearningEnabled`, `supportMode`),

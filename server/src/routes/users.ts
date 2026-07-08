@@ -13,6 +13,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { UserModel, UserCommunicationProfileModel } from '../generated/prisma/models.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
 import { assertSameTenant, tenantScope } from '../auth/tenant.js';
+import { assertCaregiverAccess } from '../auth/caregivers.js';
 
 export interface UserRoutesDeps {
   prisma: PrismaClient;
@@ -65,8 +66,8 @@ function toPublic(user: UserWithProfile): UserPublic {
  * bewaakt (403 bij een andere organisatie — bestaan lekt niet). Rolverdeling:
  *   - aanmaken/verwijderen: **ADMIN** (beheerderstaak, FR-017);
  *   - bekijken/instellingen aanpassen: **ADMIN + CAREGIVER** (begeleider mag instellingen
- *     beheren, DESIGN §2). Koppeling begeleider→gebruiker (alleen eigen gebruikers zien)
- *     volgt in T2.2; nu ziet elke begeleider de gebruikers van de eigen organisatie.
+ *     beheren, DESIGN §2). Een CAREGIVER ziet en beheert echter alléén de gebruikers waaraan
+ *     hij gekoppeld is (`assertCaregiverAccess`, T2.2); een ADMIN alle van de eigen organisatie.
  */
 export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesDeps): void {
   // Aanmaken — ADMIN. Het communicatieprofiel wordt meteen met de standaardwaarden aangemaakt.
@@ -118,7 +119,10 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
         where: { id },
         include: { communicationProfile: true },
       });
-      return toPublic(assertSameTenant(account, user));
+      const safeUser = assertSameTenant(account, user);
+      // Begeleider ziet alléén gekoppelde gebruikers (T2.2); voor ADMIN een no-op.
+      await assertCaregiverAccess(prisma, account, id);
+      return toPublic(safeUser);
     },
   );
 
@@ -131,9 +135,10 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
       const { id } = userParamsSchema.parse(request.params);
       const settings = updateSettingsRequestSchema.parse(request.body);
 
-      // Eerst de tenant-grens bewaken op de gebruiker zelf, dan pas het profiel schrijven.
+      // Eerst de tenant-grens én begeleider-koppeling bewaken, dan pas het profiel schrijven.
       const existing = await prisma.user.findUnique({ where: { id } });
       assertSameTenant(account, existing);
+      await assertCaregiverAccess(prisma, account, id);
 
       await prisma.userCommunicationProfile.upsert({
         where: { userId: id },
