@@ -263,3 +263,20 @@ body {
   cursor: pointer;
   color: inherit;
 }
+
+/* Koppelcode voor tabletkoppeling (T2.3). Groot en goed leesbaar om over te typen. */
+.device-code {
+  margin-top: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+}
+
+.device-code__value {
+  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.35rem;
+  margin: 0.3rem 0;
+  color: var(--intento-accent);
+}

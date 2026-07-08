@@ -42,7 +42,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §2, §8.2, FR-017.* `POST /admin/users/{id}/caregivers`: caregiver-accounts aan gebruikers koppelen/ontkoppelen; caregiver ziet alleen gekoppelde gebruikers. UI in beheeromgeving.
   *Acceptatie:* koppeling werkt in UI; isolatietest: niet-gekoppelde caregiver krijgt 403.
 
-- [ ] **T2.3 Tabletkoppeling (device)**
+- [x] **T2.3 Tabletkoppeling (device)**
   *DESIGN: §6.2 (Device), §8.2, FR-018.* Koppelcode genereren in beheer, `POST /devices/link` wisselt code in voor langlevend gehasht apparaat-token gebonden aan één gebruiker; tablet start daarna direct in de gebruikersapp zonder dagelijkse login. Codes verlopen en zijn eenmalig.
   *Acceptatie:* koppelflow werkt end-to-end; verlopen/gebruikte code geweigerd; apparaat-token geeft alléén toegang tot eigen-gebruiker-endpoints.
 

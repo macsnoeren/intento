@@ -3,6 +3,7 @@ import type { AccountPublic, UpdateSettingsRequest, UserPublic } from '@intento/
 import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
+import { DevicePanel } from './DevicePanel.tsx';
 
 /**
  * Beheeromgeving — gebruikersbeheer (T2.1, DESIGN §5.2). Toont de gebruikerslijst van de
@@ -156,6 +157,15 @@ export function AdminUsersPage({
           {selected ? (
             <CaregiversPanel
               key={`caregivers-${selected.id}`}
+              api={api}
+              userId={selected.id}
+              userName={selected.name}
+            />
+          ) : null}
+
+          {selected ? (
+            <DevicePanel
+              key={`device-${selected.id}`}
               api={api}
               userId={selected.id}
               userName={selected.name}

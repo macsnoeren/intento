@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1) en begeleiderkoppeling (T2.2). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2) en tabletkoppeling (T2.3). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -124,6 +124,24 @@ schakelaar per begeleider.
 curl -sb cookies.txt http://127.0.0.1:3000/admin/users/<id>/caregivers
 curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/users/<id>/caregivers \
   -H 'content-type: application/json' -d '{"accountId":"<caregiver-account-id>","linked":true}'
+```
+
+### Tabletkoppeling (T2.3)
+
+Een beheerder genereert een koppelcode voor een gebruiker; die code wisselt de tablet
+eenmalig in voor een langlevend apparaat-token (cookie), waarna de tablet direct in de
+gebruikersapp start zonder dagelijkse login. Codes verlopen en zijn eenmalig; code en token
+staan alleen gehasht in de db. Het apparaat-token geeft alléén toegang tot de eigen gebruiker.
+In de web-app verschijnt per geselecteerde gebruiker het paneel "Tablet koppelen".
+
+```bash
+# 1) Beheerder genereert een koppelcode (ADMIN):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/users/<id>/device-code -d '{}'
+# 2) Tablet wisselt de code in (geen login) → zet de intento_device-cookie:
+curl -sc device.txt -X POST http://127.0.0.1:3000/devices/link \
+  -H 'content-type: application/json' -d '{"code":"<koppelcode>"}'
+# 3) Tablet haalt de eigen gebruiker op met het apparaat-token:
+curl -sb device.txt http://127.0.0.1:3000/device/me
 ```
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)

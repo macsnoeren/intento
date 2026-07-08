@@ -35,6 +35,15 @@
       Fijnmaziger dan rol + tenant: een CAREGIVER ziet/beheert alléén de gebruikers waaraan hij
       gekoppeld is (`assertCaregiverAccess`, `auth/caregivers.ts`) — niet-gekoppeld → `403`.
       Getest in `routes/caregivers.test.ts` (T2.2).
+- [x] **Apparaatkoppeling (T2.3)** — koppelcode én apparaat-token staan **gehasht at-rest**
+      (SHA-256, alleen de hash in de db, `auth/device.ts`), net als sessietokens. Codes hebben
+      ~40 bit entropie, zijn **eenmalig** (race-veilig geclaimd via conditionele update) en
+      **verlopen** (`DEVICE_CODE_TTL_MINUTES`); een nieuwe code maakt de vorige ongeldig. Het
+      apparaat-token leeft in een ondertekende httpOnly+Secure `intento_device`-cookie. `/devices/link`
+      is publiek maar streng per-IP rate-limited tegen het raden van codes, en weigert generiek
+      (`INVALID_LINK_CODE`) zonder onderscheid onbekend/verlopen/gebruikt. Het apparaat-token is
+      een **aparte auth-pijler**: het geeft alléén toegang tot de eigen-gebruiker-endpoints
+      (`/device/me`), nooit tot beheer-/accountroutes. Getest in `routes/devices.test.ts`.
 - [ ] **Uploads** — groottelimiet, content-type-check, ondertekende URL's (AAC-fase).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).

@@ -5,6 +5,7 @@ import type {
   CaregiverLink,
   CaregiverListResponse,
   CreateUserRequest,
+  DeviceCodeResponse,
   UpdateSettingsRequest,
   UserListResponse,
   UserPublic,
@@ -96,12 +97,19 @@ function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } =
     listCaregivers(userId: string): Promise<CaregiverListResponse> {
       return Promise.resolve({ caregivers: caregiversFor(userId) });
     },
-    linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse> {
+    linkCaregiver(
+      userId: string,
+      accountId: string,
+      linked: boolean,
+    ): Promise<CaregiverListResponse> {
       const set = linksByUser.get(userId) ?? new Set<string>();
       if (linked) set.add(accountId);
       else set.delete(accountId);
       linksByUser.set(userId, set);
       return Promise.resolve({ caregivers: caregiversFor(userId) });
+    },
+    generateDeviceCode(): Promise<DeviceCodeResponse> {
+      return Promise.resolve({ code: 'ABCD2345', expiresAt: '2026-07-08T10:15:00.000Z' });
     },
   };
 }
@@ -179,5 +187,22 @@ describe('beheeromgeving-app', () => {
     // Koppelen: schakelaar aan → blijft aangevinkt (server bevestigt de nieuwe stand).
     fireEvent.click(checkbox);
     await waitFor(() => expect(checkbox.checked).toBe(true));
+  });
+
+  it('laat een beheerder een koppelcode voor een tablet genereren', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    // Gebruiker aanmaken en selecteren.
+    fireEvent.change(screen.getByLabelText('Naam van de gebruiker'), {
+      target: { value: 'Sanne' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Toevoegen' }));
+    await screen.findByRole('button', { name: 'Sanne' });
+
+    // Koppelpaneel verschijnt; code genereren toont de code.
+    const panel = await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Koppelcode genereren' }));
+    expect((await within(panel).findByRole('status')).textContent).toContain('ABCD2345');
   });
 });

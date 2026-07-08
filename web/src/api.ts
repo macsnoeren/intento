@@ -2,11 +2,13 @@ import {
   apiErrorSchema,
   authResponseSchema,
   caregiverListResponseSchema,
+  deviceCodeResponseSchema,
   userListResponseSchema,
   userPublicSchema,
   type AuthResponse,
   type CaregiverListResponse,
   type CreateUserRequest,
+  type DeviceCodeResponse,
   type UpdateSettingsRequest,
   type UserListResponse,
   type UserPublic,
@@ -45,6 +47,7 @@ export interface Api {
   deleteUser(id: string): Promise<void>;
   listCaregivers(userId: string): Promise<CaregiverListResponse>;
   linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
+  generateDeviceCode(userId: string): Promise<DeviceCodeResponse>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -118,6 +121,11 @@ export const httpApi: Api = {
         method: 'POST',
         body: JSON.stringify({ accountId, linked }),
       }),
+    );
+  },
+  async generateDeviceCode(userId) {
+    return deviceCodeResponseSchema.parse(
+      await request(`/admin/users/${userId}/device-code`, { method: 'POST', body: '{}' }),
     );
   },
 };

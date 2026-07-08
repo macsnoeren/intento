@@ -49,7 +49,7 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 
 Het volledige model uit DESIGN §6.2 (PersonalContext, Preference, AacSymbol,
 AacConceptRelation, ConversationSession, ConversationStep, GeneratedMessage,
-CorrectionEvent, Device, ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
+CorrectionEvent, ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
@@ -59,13 +59,17 @@ CorrectionEvent, Device, ConceptProposal) wordt in latere taken toegevoegd. Nu b
 | **User** | `id`, `name`, `organizationId`, `active`, `createdAt` | De communicerende persoon (T2.1). Staat los van `Account`: een gebruiker hoeft geen eigen login te hebben. Tenant-gebonden via `organizationId`. `active` deactiveert zonder te verwijderen. |
 | **UserCommunicationProfile** | `userId` (PK), `iconsPerScreen`, `showText`, `aiLearningEnabled`, `supportMode` | 1-op-1 communicatie-instellingen (T2.1, DESIGN §5.3). `iconsPerScreen` alléén 2/4/6/8 (standaard 4), afgedwongen met zod op de API-grens. Standaarden: tekst aan, leren aan, ondersteuning uit. |
 | **CaregiverAssignment** | `userId` + `accountId` (samengestelde PK), `createdAt` | Koppeling begeleider↔gebruiker (T2.2, DESIGN §2, FR-017). Many-to-many tussen een CAREGIVER-`Account` en een `User`. Stuurt de toegang: een begeleider ziet/beheert alléén gekoppelde gebruikers. Samengestelde sleutel voorkomt dubbele koppelingen; tenant-grens (zelfde organisatie) op de API-grens bewaakt. |
+| **Device** | `id`, `userId`, `type`, `tokenHash` (uniek), `lastActive`, `createdAt` | Gekoppelde tablet (T2.3, DESIGN §6.2, FR-018), aan **precies één** `User` gebonden. Alleen de **SHA-256-hash** van het langlevende apparaat-token staat in de db; het rauwe token leeft in de `intento_device`-cookie. Geeft alléén toegang tot de eigen gebruiker. `lastActive` voor monitoring (geen communicatie-inhoud). |
+| **DeviceLinkCode** | `id`, `codeHash` (uniek), `userId`, `usedAt`, `expiresAt`, `createdAt` | Koppelcode die een beheerder genereert (T2.3, FR-018). Alleen de **SHA-256-hash** staat in de db; codes zijn **eenmalig** (`usedAt`) en **verlopen** (`expiresAt`). Wisselt op `POST /devices/link` in voor een `Device`. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
 Account` (cascade delete); `User.organizationId → Organization` (cascade delete);
 `UserCommunicationProfile.userId → User` (cascade delete); `CaregiverAssignment.userId →
 User` en `CaregiverAssignment.accountId → Account` (beide cascade delete — de koppeling
-verdwijnt als de gebruiker of het begeleider-account wordt verwijderd). Zo verdwijnt bij het
-verwijderen van een organisatie/gebruiker netjes alle onderliggende data.
+verdwijnt als de gebruiker of het begeleider-account wordt verwijderd); `Device.userId →
+User` en `DeviceLinkCode.userId → User` (beide cascade delete — apparaten en openstaande codes
+verdwijnen met de gebruiker). Zo verdwijnt bij het verwijderen van een organisatie/gebruiker
+netjes alle onderliggende data.
 
 ## Seed
 
@@ -80,3 +84,4 @@ Herseeden overschrijft een bestaand wachtwoord niet. AAC-bibliotheek volgt in T3
 - **`accounts_and_sessions`** (T1.1) — `Account`, `Session` + indexen/relaties.
 - **`users_and_communication_profile`** (T2.1) — `User`, `UserCommunicationProfile` + index/relaties.
 - **`caregiver_assignments`** (T2.2) — `CaregiverAssignment` (samengestelde PK + index op `accountId`).
+- **`devices_and_link_codes`** (T2.3) — `Device` en `DeviceLinkCode` (unieke `tokenHash`/`codeHash`, index op `userId`).

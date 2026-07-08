@@ -164,3 +164,53 @@ export const linkCaregiverRequestSchema = z.object({
   linked: z.boolean(),
 });
 export type LinkCaregiverRequest = z.infer<typeof linkCaregiverRequestSchema>;
+
+// --- Tabletkoppeling / apparaten (T2.3, DESIGN §6.2, §8.2, FR-018) ---
+
+/**
+ * Antwoord op `POST /admin/users/{id}/device-code`: de zojuist gegenereerde koppelcode en het
+ * moment waarop die verloopt. De **plaintext** code wordt hier één keer teruggegeven zodat de
+ * beheerder 'm op de tablet kan invoeren; daarna kent de server alleen nog de hash (de code is
+ * niet opnieuw op te vragen). De code is eenmalig en verloopt (DESIGN §3.7 stap 5, FR-018).
+ */
+export const deviceCodeResponseSchema = z.object({
+  code: z.string(),
+  expiresAt: z.iso.datetime(),
+});
+export type DeviceCodeResponse = z.infer<typeof deviceCodeResponseSchema>;
+
+/**
+ * Koppelverzoek van de tablet (`POST /devices/link`). Wisselt een koppelcode in voor een
+ * langlevend apparaat-token. De code wordt genormaliseerd (hoofdletters, scheidingstekens en
+ * spaties verwijderd) zodat invoervarianten als "abcd-efgh" of "ABCD EFGH" gelijk behandeld
+ * worden. Dit endpoint is bewust **niet** ingelogd (de tablet heeft nog geen sessie) en streng
+ * rate-limited op de server tegen het raden van codes.
+ */
+export const linkDeviceRequestSchema = z.object({
+  code: z
+    .string()
+    .min(1)
+    .max(64)
+    .transform((value) => value.replace(/[\s-]/g, '').toUpperCase()),
+});
+export type LinkDeviceRequest = z.infer<typeof linkDeviceRequestSchema>;
+
+/** Publieke weergave van een gekoppeld apparaat (nooit het token of de hash). */
+export const devicePublicSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  type: z.string(),
+  lastActive: z.iso.datetime(),
+});
+export type DevicePublic = z.infer<typeof devicePublicSchema>;
+
+/**
+ * Apparaat-sessieweergave (`POST /devices/link` en `GET /device/me`): het gekoppelde apparaat
+ * plus de gebruiker waaraan het gebonden is (met communicatieprofiel). Dit is alles waartoe een
+ * apparaat-token toegang geeft — de eigen gebruiker, nooit andere gebruikers of beheerdata.
+ */
+export const deviceSessionResponseSchema = z.object({
+  device: devicePublicSchema,
+  user: userPublicSchema,
+});
+export type DeviceSessionResponse = z.infer<typeof deviceSessionResponseSchema>;

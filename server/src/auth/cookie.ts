@@ -21,3 +21,23 @@ export function sessionCookieOptions(env: Env, maxAgeSeconds: number): CookieSer
     maxAge: maxAgeSeconds,
   };
 }
+
+/**
+ * Cookie voor het langlevende apparaat-token (T2.3, FR-018). Bewust een aparte cookie naast de
+ * sessie-cookie: een gekoppelde tablet start direct in de gebruikersapp zonder dagelijkse login,
+ * met een veel langere `maxAge`. Dezelfde harde beveiliging als de sessie-cookie
+ * (httpOnly + Secure + signed + sameSite lax), zodat het token niet via JS leesbaar of te
+ * knoeien is.
+ */
+export const DEVICE_COOKIE_NAME = 'intento_device';
+
+export function deviceCookieOptions(env: Env, maxAgeSeconds: number): CookieSerializeOptions {
+  return {
+    httpOnly: true,
+    secure: env.COOKIE_SECURE,
+    sameSite: 'lax',
+    signed: true,
+    path: '/',
+    maxAge: maxAgeSeconds,
+  };
+}

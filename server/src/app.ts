@@ -12,6 +12,7 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerUserRoutes } from './routes/users.js';
 import { registerCaregiverRoutes } from './routes/caregivers.js';
+import { registerDeviceRoutes } from './routes/devices.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -61,6 +62,7 @@ export async function buildApp({
   registerAccountRoutes(app, { prisma });
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });
+  registerDeviceRoutes(app, { env, prisma });
 
   return app;
 }

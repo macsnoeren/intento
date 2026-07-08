@@ -16,7 +16,11 @@
 - Fouten: consistente structuur `{ "error": { "code", "message" } }` (DESIGN §8.1).
   `ZodError` en Fastify-validatie → `400 VALIDATION_ERROR`; onbekende route →
   `404 NOT_FOUND`; onverwacht → `500 INTERNAL_ERROR` (zonder interne details).
-- Rate limiting: niet globaal; streng per-route waar geconfigureerd (nu `/auth/login`).
+- Rate limiting: niet globaal; streng per-route waar geconfigureerd (`/auth/login`, `/devices/link`).
+- Apparaat-auth (T2.3): een **tweede** authenticatiepijler naast de accounts. Een gekoppelde
+  tablet stuurt de ondertekende httpOnly+Secure `intento_device`-cookie mee; `deviceAuthorize`
+  zet het geverifieerde `Device` op de request. Een device-token werkt **niet** op account-/
+  beheerroutes en omgekeerd. Geen/ongeldig apparaat → `401 DEVICE_NOT_LINKED`.
 
 ## Endpoints
 
@@ -66,5 +70,17 @@ in de eigen organisatie zitten, anders `403`).
 |---|---|---|---|
 | GET | `/admin/users/{id}/caregivers` | ADMIN | Alle CAREGIVER-accounts van de eigen organisatie met per account of het aan deze gebruiker gekoppeld is (`caregiverListResponseSchema`). |
 | POST | `/admin/users/{id}/caregivers` | ADMIN | Koppelt (`{ accountId, linked: true }`) of ontkoppelt (`linked: false`) één begeleider (`linkCaregiverRequestSchema`); idempotent. `200` + de bijgewerkte lijst. Account is geen CAREGIVER → `400 NOT_A_CAREGIVER`; account uit een andere organisatie → `403 FORBIDDEN`. |
+
+### Tabletkoppeling (T2.3)
+Een tablet wordt via een koppelcode aan **precies één** gebruiker gebonden en start daarna
+direct in de gebruikersapp zonder dagelijkse login. Code én apparaat-token staan alléén gehasht
+in de db (SHA-256); codes verlopen (`DEVICE_CODE_TTL_MINUTES`) en zijn eenmalig. Het apparaat-token
+leeft in de langlevende `intento_device`-cookie (`DEVICE_TOKEN_TTL_DAYS`).
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| POST | `/admin/users/{id}/device-code` | ADMIN | Genereert een koppelcode voor een gebruiker in de eigen organisatie. `201` + `deviceCodeResponseSchema` (`{ code, expiresAt }`) — de **plaintext** code wordt hier één keer teruggegeven. Een eerdere ongebruikte code wordt ongeldig. Andere organisatie → `403 FORBIDDEN`. |
+| POST | `/devices/link` | publiek | Wisselt een koppelcode in (`linkDeviceRequestSchema`, `{ code }`; genormaliseerd). Bij succes: `201` + `deviceSessionResponseSchema` (`{ device, user }`) en de `intento_device`-cookie. Onbekend/verlopen/al gebruikt → `400 INVALID_LINK_CODE` (bewust generiek). Streng rate-limited per IP. |
+| GET | `/device/me` | apparaat | Eigen gebruiker + apparaat (`deviceSessionResponseSchema`). Enige data waartoe een apparaat-token toegang geeft. Geen/ongeldig apparaat → `401 DEVICE_NOT_LINKED`. |
 
 <Volgende domeinen (gesprek, AAC …) worden hier per taak toegevoegd.>

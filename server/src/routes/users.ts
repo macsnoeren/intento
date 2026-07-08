@@ -4,59 +4,21 @@ import {
   createUserRequestSchema,
   updateSettingsRequestSchema,
   userListResponseSchema,
-  userPublicSchema,
-  type CommunicationProfile,
   type UserListResponse,
   type UserPublic,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
-import type { UserModel, UserCommunicationProfileModel } from '../generated/prisma/models.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
 import { assertSameTenant, tenantScope } from '../auth/tenant.js';
 import { assertCaregiverAccess } from '../auth/caregivers.js';
+import { userToPublic as toPublic } from '../users/serialize.js';
 
 export interface UserRoutesDeps {
   prisma: PrismaClient;
 }
 
-/** De standaardinstellingen die bij een nieuwe gebruiker horen (DESIGN §5.3). */
-const DEFAULT_PROFILE: CommunicationProfile = {
-  iconsPerScreen: 4,
-  showText: true,
-  aiLearningEnabled: true,
-  supportMode: false,
-};
-
 /** Route-parameters: het gebruikers-id uit het pad. */
 const userParamsSchema = z.object({ id: z.string().min(1) });
-
-type UserWithProfile = UserModel & {
-  communicationProfile: UserCommunicationProfileModel | null;
-};
-
-/**
- * Mapt een gebruiker (met communicatieprofiel) naar de publieke weergave. Ontbreekt het
- * profiel onverhoopt, dan vallen we terug op de standaardwaarden zodat de client altijd een
- * volledig, gevalideerd profiel krijgt.
- */
-function toPublic(user: UserWithProfile): UserPublic {
-  const profile = user.communicationProfile;
-  return userPublicSchema.parse({
-    id: user.id,
-    name: user.name,
-    organizationId: user.organizationId,
-    active: user.active,
-    createdAt: user.createdAt.toISOString(),
-    communicationProfile: profile
-      ? {
-          iconsPerScreen: profile.iconsPerScreen,
-          showText: profile.showText,
-          aiLearningEnabled: profile.aiLearningEnabled,
-          supportMode: profile.supportMode,
-        }
-      : DEFAULT_PROFILE,
-  });
-}
 
 /**
  * Gebruikersbeheer (T2.1, DESIGN §2, §5.3, §6.2, FR-017).

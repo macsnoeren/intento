@@ -2,7 +2,7 @@ import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { loadEnv, type Env } from '../env.js';
 import { prisma } from '../db/prisma.js';
 import { hashPassword } from '../auth/password.js';
-import { SESSION_COOKIE_NAME } from '../auth/cookie.js';
+import { SESSION_COOKIE_NAME, DEVICE_COOKIE_NAME } from '../auth/cookie.js';
 
 /**
  * Testhulpjes voor de auth-tests. Bouwen een geldige env (met overrides), maken accounts
@@ -18,8 +18,10 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-/gebruikersdata (koppelingen → sessies → accounts → profielen → gebruikers → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (koppelingen/apparaten → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
+  await prisma.deviceLinkCode.deleteMany();
+  await prisma.device.deleteMany();
   await prisma.caregiverAssignment.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
@@ -90,9 +92,18 @@ export async function linkCaregiver(accountId: string, userId: string): Promise<
  * die 1-op-1 als `Cookie`-header teruggestuurd kan worden (ondertekende waarde intact).
  */
 export function sessionCookieHeader(response: LightMyRequestResponse): string | undefined {
+  return cookieHeader(response, SESSION_COOKIE_NAME);
+}
+
+/** Idem voor de device-cookie (T2.3), zodat een gekoppeld apparaat 1-op-1 kan terugsturen. */
+export function deviceCookieHeader(response: LightMyRequestResponse): string | undefined {
+  return cookieHeader(response, DEVICE_COOKIE_NAME);
+}
+
+function cookieHeader(response: LightMyRequestResponse, name: string): string | undefined {
   const raw = response.headers['set-cookie'];
   const headers = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  const match = headers.find((h) => h.startsWith(`${SESSION_COOKIE_NAME}=`));
+  const match = headers.find((h) => h.startsWith(`${name}=`));
   return match?.split(';', 1)[0];
 }
 

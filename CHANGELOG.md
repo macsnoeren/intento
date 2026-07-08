@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.3 Tabletkoppeling (device).** Prisma-modellen `Device` (gekoppelde tablet aan één
+  gebruiker; `tokenHash` uniek, `lastActive`) en `DeviceLinkCode` (koppelcode; `codeHash`
+  uniek, `usedAt`, `expiresAt`), beide `onDelete: Cascade`, migratie `devices_and_link_codes`.
+  Endpoints: `POST /admin/users/{id}/device-code` (ADMIN, tenant-gebonden, genereert een
+  eenmalige verlopende koppelcode — plaintext eenmalig terug, oude ongebruikte code vervalt),
+  `POST /devices/link` (publiek, streng rate-limited, wisselt code in voor een langlevend
+  apparaat-token in een ondertekende httpOnly+Secure `intento_device`-cookie) en `GET /device/me`
+  (device-auth, eigen gebruiker + apparaat). Nieuwe **aparte auth-pijler** `deviceAuthorize`
+  (`server/src/auth/device.ts`): code én token **gehasht at-rest** (SHA-256), eenmalig gebruik
+  race-veilig geclaimd; een device-token geeft alléén toegang tot eigen-gebruiker-endpoints,
+  nooit tot beheer-/accountroutes. Gedeelde schema's (`deviceCodeResponseSchema`,
+  `linkDeviceRequestSchema`, `devicePublicSchema`, `deviceSessionResponseSchema`). Env:
+  `DEVICE_CODE_TTL_MINUTES`, `DEVICE_TOKEN_TTL_DAYS`, `DEVICE_LINK_RATE_LIMIT_*`. Gebruiker-
+  serializer verplaatst naar `server/src/users/serialize.ts` (hergebruikt door device-routes).
+  Beheer-UI: `DevicePanel` genereert en toont een koppelcode per gebruiker (via `Api.generateDeviceCode`).
+  Server-tests dekken de end-to-end koppelflow, geweigerde verlopen/gebruikte/onbekende codes,
+  scheiding van de auth-pijlers en tenant-isolatie; web-test dekt het genereren. Gedocumenteerd
+  in `docs/api.md`, `docs/data-model.md`, `docs/security.md`, `.env.example`.
+
 - **T2.2 Begeleiders koppelen.** Prisma-model `CaregiverAssignment` (many-to-many
   begeleider↔gebruiker, samengestelde PK `userId`+`accountId`, beide `onDelete: Cascade`),
   migratie `caregiver_assignments`. Endpoints `GET /admin/users/{id}/caregivers` (ADMIN,

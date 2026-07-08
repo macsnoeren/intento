@@ -58,6 +58,10 @@ model User {
   communicationProfile UserCommunicationProfile?
   /// Gekoppelde begeleiders (CAREGIVER-accounts) die deze gebruiker mogen helpen.
   caregiverLinks       CaregiverAssignment[]
+  /// Gekoppelde apparaten (tablets) die als deze gebruiker in de gebruikersapp starten.
+  devices              Device[]
+  /// Openstaande/gebruikte koppelcodes waarmee een apparaat aan deze gebruiker koppelt.
+  deviceLinkCodes      DeviceLinkCode[]
 
   @@index([organizationId])
 }
@@ -123,6 +127,49 @@ model CaregiverAssignment {
 
   @@id([userId, accountId])
   @@index([accountId])
+}
+
+/// Een gekoppelde tablet (DESIGN §6.2, FR-018, T2.3). Een apparaat is aan **precies één**
+/// `User` gebonden en start daarna direct in de gebruikersapp zonder dagelijkse login. Net als
+/// bij sessies staat het apparaat-token NOOIT plaintext in de db — alleen de SHA-256-hash
+/// (`tokenHash`). De client krijgt het rauwe token als langlevende httpOnly+Secure cookie; bij
+/// elke request hashen we de cookie en zoeken hierop. Het token geeft alléén toegang tot de
+/// eigen-gebruiker-endpoints (device-scope), nooit tot beheer- of accountroutes. `lastActive`
+/// legt het laatste gebruik vast (monitoring, DESIGN §9.4 — geen communicatie-inhoud).
+model Device {
+  id         String   @id @default(cuid())
+  userId     String
+  /// Soort apparaat, bv. "tablet" (gevalideerd op de API-grens; geen native enum i.v.m.
+  /// SQLite/PostgreSQL-portabiliteit, zie schema-header).
+  type       String   @default("tablet")
+  /// SHA-256-hash (hex) van het langlevende apparaat-token. Uniek zodat lookup direct raakt.
+  tokenHash  String   @unique
+  lastActive DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Een koppelcode die een beheerder genereert om een tablet aan een gebruiker te koppelen
+/// (DESIGN §3.7 stap 5, FR-018, T2.3). De code wisselt op `POST /devices/link` in voor een
+/// apparaat-token. Beveiliging: de code staat **gehasht** at-rest (`codeHash`, SHA-256) — net
+/// als tokens lekt de db geen bruikbare codes. Codes zijn **eenmalig** (`usedAt` gezet zodra
+/// ingewisseld) en **verlopen** (`expiresAt`); een verlopen of gebruikte code wordt geweigerd.
+model DeviceLinkCode {
+  id        String    @id @default(cuid())
+  /// SHA-256-hash (hex) van de koppelcode. Uniek zodat inwisselen direct op de hash zoekt.
+  codeHash  String    @unique
+  userId    String
+  /// Moment van inwisselen; `null` zolang ongebruikt. Eenmalig gebruik wordt hierop bewaakt.
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren

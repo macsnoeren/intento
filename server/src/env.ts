@@ -50,6 +50,20 @@ const envSchema = z
     // Strenge rate limiting op de login-route: max verzoeken per IP per venster.
     LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
+    // Tabletkoppeling (T2.3, FR-018). Levensduur van een koppelcode in minuten — kort, want de
+    // beheerder voert 'm direct op de tablet in.
+    DEVICE_CODE_TTL_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(24 * 60)
+      .default(15),
+    // Levensduur van het apparaat-token (cookie + db-record) in dagen — lang, zodat de tablet
+    // niet dagelijks opnieuw gekoppeld hoeft te worden.
+    DEVICE_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(3650).default(365),
+    // Strenge rate limiting op /devices/link (publiek): tegen het raden van koppelcodes.
+    DEVICE_LINK_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
+    DEVICE_LINK_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
