@@ -1,0 +1,63 @@
+import { z } from 'zod';
+
+/**
+ * Zod-gevalideerde omgevingsconfiguratie (CLAUDE.md §7: valideer op elke grens).
+ *
+ * De env wordt één keer bij het opstarten gevalideerd; de rest van de app leest
+ * uit het getypeerde `env`-object en raakt `process.env` niet meer aan.
+ *
+ * Prod-guard: in productie mogen de dev-default-secrets niet blijven staan.
+ * De app weigert dan te starten in plaats van met een onveilige sleutel te draaien.
+ */
+
+const DEV_SECRET_DEFAULTS = new Set(['dev-only-change-me', 'dev-only-change-me-32-bytes-hex']);
+
+const booleanFromString = z.enum(['true', 'false']).transform((value) => value === 'true');
+
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PORT: z.coerce.number().int().positive().max(65535).default(3000),
+    // Herkomst die CORS mag aanspreken (de web-client tijdens ontwikkeling).
+    CORS_ORIGIN: z.url().default('http://localhost:5173'),
+    // Ondertekent sessie-cookies; versleutelt gevoelige velden at-rest (vanaf latere fases).
+    SIGNING_SECRET: z.string().min(1),
+    ENCRYPTION_KEY: z.string().min(1),
+    // `Secure`-vlag op cookies; true in productie (HTTPS).
+    COOKIE_SECURE: booleanFromString.default(false),
+    // Aantal proxy-hops voor correcte client-IP-bepaling achter een reverse proxy.
+    TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+  })
+  .superRefine((value, ctx) => {
+    if (value.NODE_ENV !== 'production') return;
+    for (const key of ['SIGNING_SECRET', 'ENCRYPTION_KEY'] as const) {
+      if (DEV_SECRET_DEFAULTS.has(value[key])) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} mag in productie niet de dev-default zijn; genereer een echte secret.`,
+        });
+      }
+    }
+    if (!value.COOKIE_SECURE) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['COOKIE_SECURE'],
+        message: 'COOKIE_SECURE moet true zijn in productie (HTTPS).',
+      });
+    }
+  });
+
+export type Env = z.infer<typeof envSchema>;
+
+/** Parseert en valideert de omgeving; gooit met een leesbare melding bij fouten. */
+export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+  const result = envSchema.safeParse(source);
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`Ongeldige omgevingsconfiguratie:\n${details}`);
+  }
+  return result.data;
+}

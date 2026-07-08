@@ -1,0 +1,7 @@
+node_modules/
+dist/
+build/
+coverage/
+PROJECT-NODEJS/
+INTENTO-DESIGN/
+*.md

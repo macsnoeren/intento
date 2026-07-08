@@ -1,0 +1,58 @@
+/* Tablet-first, rustig ontwerp met grote klikvlakken (DESIGN §5.1). */
+:root {
+  --intento-bg: #f4f6fb;
+  --intento-fg: #1c2536;
+  --intento-accent: #2f6fed;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  background: var(--intento-bg);
+  color: var(--intento-fg);
+  -webkit-text-size-adjust: 100%;
+}
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.app-shell__title {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  margin: 0;
+  color: var(--intento-accent);
+}
+
+.app-shell__tagline {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  margin: 0;
+}
+
+.app-shell__status {
+  font-size: 1rem;
+  opacity: 0.7;
+  margin: 0;
+}
