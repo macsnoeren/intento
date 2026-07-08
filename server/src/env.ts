@@ -18,6 +18,9 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().max(65535).default(3000),
+    // Prisma-databaseverbinding. Dev/test: SQLite-bestand (relatief aan de server-CWD).
+    // Prod: PostgreSQL-connectiestring. Zie ADR-0003 en docs/data-model.md.
+    DATABASE_URL: z.string().min(1).default('file:./prisma/dev.db'),
     // Herkomst die CORS mag aanspreken (de web-client tijdens ontwikkeling).
     CORS_ORIGIN: z.url().default('http://localhost:5173'),
     // Ondertekent sessie-cookies; versleutelt gevoelige velden at-rest (vanaf latere fases).

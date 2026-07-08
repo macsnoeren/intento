@@ -29,7 +29,7 @@ server niet uit elkaar lopen.
 | Validatie | zod | Runtime-validatie + type-inferentie, gedeeld client/server. |
 | Repostructuur | npm workspaces (`shared`/`server`/`web`) | Zie [adr/0002](adr/0002-monorepo-workspaces.md). |
 | Frontend | React 19 + Vite | Eén codebase voor de drie interfaces; tablet-first. |
-| Database | Prisma (SQLite dev → PostgreSQL prod) | Vanaf T0.2. |
+| Database | Prisma (SQLite dev → PostgreSQL prod) | Driver adapters; zie [adr/0003](adr/0003-persistence-prisma-sqlite-postgres.md). |
 | Auth | argon2id + gehashte sessietokens | Vanaf T1.1. |
 | AI | Externe LLM achter AI-Orchestrator | Vanaf fase 5; provider-agnostisch. |
 
@@ -38,7 +38,9 @@ server niet uit elkaar lopen.
 - `shared/src/` — zod-schema's en afgeleide types (`ApiError`, `HealthResponse`, …).
 - `server/src/` — `env.ts` (gevalideerde config), `app.ts` (`buildApp()`-factory),
   `server.ts` (entrypoint dat luistert), `errors.ts` (centrale foutafhandeling),
-  `routes/` (één bestand per domein).
+  `routes/` (één bestand per domein), `db/` (Prisma-client-singleton).
+- `server/prisma/` — `schema.prisma` (datamodel), `migrations/`, `seed.ts`. De
+  CLI-config staat in `server/prisma.config.ts`.
 - `web/src/` — `main.tsx` (mount), `App.tsx` (shell), `styles.css`.
 
 ## Belangrijke patronen
@@ -51,6 +53,9 @@ server niet uit elkaar lopen.
 - **Centrale foutafhandeling** — `ZodError → 400`, `HttpError → eigen status`,
   onbekende fouten → 500 zonder interne details te lekken. Alle fouten in de
   consistente structuur `{ error: { code, message } }` (DESIGN §8.1).
+- **Prisma-client-singleton** (`db/prisma.ts`) — verbindt via een driver adapter
+  (SQLite in dev/test) op basis van `DATABASE_URL`; wordt op `globalThis` bewaard zodat
+  `tsx watch` niet telkens een nieuwe verbinding opent. Zie [data-model.md](data-model.md).
 
 ## Gerelateerde documentatie
 

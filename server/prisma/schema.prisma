@@ -1,0 +1,37 @@
+// Prisma-schema voor Intento (DESIGN §6, §9.3).
+//
+// Bron van waarheid voor het relationele datamodel. DB-wijzigingen lopen ALTIJD via
+// migraties (`npm run db:migrate`), nooit ad-hoc — zie CLAUDE.md kernprincipe 9.
+//
+// Portabiliteit: dev draait op SQLite, productie op PostgreSQL. Het schema blijft
+// bewust PostgreSQL-compatibel: geen SQLite-only constructies en geen native enums
+// (SQLite kent die niet) — categorie-/type-velden zijn `String` met de toegestane
+// waarden in commentaar en worden op de grens met zod gevalideerd. Zie ADR-0003 en
+// docs/data-model.md.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  // Dev/test: SQLite. Prod: zet dit op "postgresql" (ADR-0003). De verbinding zelf
+  // staat niet meer in het schema (Prisma 7) maar in prisma.config.ts (CLI) en de
+  // driver adapter in src/db/prisma.ts (runtime).
+  provider = "sqlite"
+}
+
+/// Een Intento-omgeving (zorginstelling, familie of persoonlijk). Tenant-root: vrijwel
+/// alle latere entiteiten hangen hieronder en elke query wordt op `organizationId`
+/// gefilterd (multi-tenant-isolatie, DESIGN §9.4). Het eerste fundament-model in T0.2;
+/// accounts, gebruikers en de rest volgen in latere taken.
+model Organization {
+  id        String   @id @default(cuid())
+  /// Weergavenaam van de omgeving.
+  name      String
+  /// Soort omgeving: "family" | "care" | "personal" (gevalideerd op de API-grens).
+  type      String
+  createdAt DateTime @default(now())
+}

@@ -11,10 +11,13 @@ build/
 .env.*
 !.env.example
 
-# Database (dev)
+# Database (dev/test) — nooit committen; opnieuw op te bouwen via migraties/seed
 *.db
 *.db-journal
 *.sqlite
+
+# Gegenereerde Prisma-client (opnieuw op te bouwen via `prisma generate`)
+server/src/generated/
 
 # Test / coverage
 coverage/

@@ -13,6 +13,9 @@
     "server",
     "web"
   ],
+  "overrides": {
+    "@prisma/dev": "^0.24.14"
+  },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm run dev --workspace=server",

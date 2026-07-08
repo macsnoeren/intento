@@ -13,7 +13,7 @@ de gefaseerde takenlijst.
 | Workspace | Inhoud |
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
-| [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers. |
+| [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
 | [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving — nu nog een lege shell). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
@@ -21,13 +21,16 @@ Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md
 ## Vereisten
 
 - Node.js ≥ 22 (ontwikkeld op Node 24)
-- Nog geen database nodig (Prisma/SQLite komt in T0.2)
+- Database: SQLite in dev/test (geen installatie nodig; Prisma beheert het bestand),
+  PostgreSQL in productie. Zie [docs/adr/0003](docs/adr/0003-persistence-prisma-sqlite-postgres.md).
 
 ## Installeren
 
 ```bash
-npm install
+npm install                   # installeert deps en draait `prisma generate`
 cp .env.example server/.env   # vul waarden in; secrets genereren voor productie
+npm run db:migrate --workspace=server   # maakt de dev-database en past migraties toe
+npm run db:seed    --workspace=server   # (optioneel) demo-data
 ```
 
 ## Draaien
@@ -45,6 +48,23 @@ Snel controleren of de server leeft:
 curl http://127.0.0.1:3000/health
 # {"status":"ok","service":"intento-server","timestamp":"…"}
 ```
+
+## Database
+
+Prisma met SQLite (dev/test) en een PostgreSQL-compatibel schema. Schema:
+[`server/prisma/schema.prisma`](server/prisma/schema.prisma). Draai vanuit de root met
+`--workspace=server` (of vanuit `server/`):
+
+```bash
+npm run db:migrate --workspace=server          # nieuwe migratie maken + toepassen (dev)
+npm run db:migrate:deploy --workspace=server   # bestaande migraties toepassen (ci/prod)
+npm run db:seed --workspace=server             # seed-skelet draaien (idempotent)
+npm run db:reset --workspace=server            # db leegmaken + opnieuw migreren + seeden
+npm run db:studio --workspace=server           # Prisma Studio
+```
+
+Tests draaien tegen een aparte, per testrun verse testdatabase. Details:
+[docs/data-model.md](docs/data-model.md).
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

@@ -10,6 +10,8 @@ export default tseslint.config(
       '**/build/**',
       '**/node_modules/**',
       '**/coverage/**',
+      // Gegenereerde Prisma-client: niet linten (self-suppressed, wordt geregenereerd).
+      '**/src/generated/**',
       'PROJECT-NODEJS/**',
       'INTENTO-DESIGN/**',
     ],
@@ -30,8 +32,9 @@ export default tseslint.config(
     },
   },
   {
-    // Testbestanden en configs mogen soepeler zijn.
-    files: ['**/*.config.{js,ts}', '**/*.test.ts'],
+    // Testbestanden, configs en losstaande tooling-scripts (buiten de tsconfig-`src`)
+    // mogen soepeler zijn: geen type-aware linting die een tsconfig-project vereist.
+    files: ['**/*.config.{js,ts}', '**/*.test.ts', '**/vitest.*.ts', '**/prisma/seed.ts'],
     ...tseslint.configs.disableTypeChecked,
   },
 );

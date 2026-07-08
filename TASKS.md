@@ -18,7 +18,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §9.3.* Richt de repo-root in als npm-workspaces-monorepo (`server/`, `web/`, `shared/`; leg vast in ADR). Server: Fastify 5 met `buildApp()`-factory, zod-gevalideerde `env.ts` (met prod-guards), health-endpoint, centrale foutafhandeling (`ZodError → 400`), helmet/security headers. Web: React + Vite skelet (tablet-first, lege shell). Tooling: TypeScript strict, ESLint + Prettier, vitest, npm-scripts (`dev`, `build`, `typecheck`, `lint`, `test`). Instantieer `README.md`, `docs/` en `.env.example` op basis van `PROJECT-NODEJS/`-sjabloon, ingevuld voor Intento.
   *Acceptatie:* health-endpoint reageert via `inject()`-test én draaiende server; web-shell rendert; alle DoD-checks groen op lege codebase.
 
-- [ ] **T0.2 Database-fundament**
+- [x] **T0.2 Database-fundament**
   *DESIGN: §6, §9.3.* Prisma met SQLite (dev) en PostgreSQL-compatibel schema, migratie-workflow (`migrate dev`), gescheiden testdatabase met reset per testrun, seed-script-skelet. Documenteer in `docs/data-model.md`.
   *Acceptatie:* migratie draait schoon op lege db; voorbeeldtest schrijft/leest via Prisma in testdatabase.
 
