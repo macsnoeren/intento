@@ -30,6 +30,26 @@ const envSchema = z
     COOKIE_SECURE: booleanFromString.default(false),
     // Aantal proxy-hops voor correcte client-IP-bepaling achter een reverse proxy.
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+    // Levensduur van een login-sessie in uren (sessietoken-cookie + db-record).
+    SESSION_TTL_HOURS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(24 * 365)
+      .default(24 * 7),
+    // Account-lockout: na dit aantal opeenvolgende mislukte logins wordt het account
+    // tijdelijk geblokkeerd (brute-force-mitigatie).
+    LOGIN_MAX_ATTEMPTS: z.coerce.number().int().positive().max(100).default(5),
+    // Duur van de lockout in minuten nadat de drempel is bereikt.
+    LOGIN_LOCKOUT_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(24 * 60)
+      .default(15),
+    // Strenge rate limiting op de login-route: max verzoeken per IP per venster.
+    LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
+    LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;

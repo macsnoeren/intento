@@ -47,21 +47,29 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 
 ## Entiteiten
 
-Het volledige model uit DESIGN §6.2 (Account, User, UserCommunicationProfile,
-PersonalContext, Preference, AacSymbol, AacConceptRelation, ConversationSession,
-ConversationStep, GeneratedMessage, CorrectionEvent, Device, ConceptProposal) wordt in
-latere taken toegevoegd. Nu bestaat het fundament:
+Het volledige model uit DESIGN §6.2 (User, UserCommunicationProfile, PersonalContext,
+Preference, AacSymbol, AacConceptRelation, ConversationSession, ConversationStep,
+GeneratedMessage, CorrectionEvent, Device, ConceptProposal) wordt in latere taken
+toegevoegd. Nu bestaat het fundament:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
-| **Organization** | `id`, `name`, `type`, `createdAt` | Intento-omgeving (family/care/personal) en tenant-root. Fundament-model uit T0.2; de rest hangt hier later onder. |
+| **Organization** | `id`, `name`, `type`, `createdAt` | Intento-omgeving (family/care/personal) en tenant-root. Fundament-model uit T0.2; de rest hangt hier onder. |
+| **Account** | `id`, `email` (uniek), `passwordHash`, `role`, `organizationId`, `failedLoginAttempts`, `lockedUntil`, `createdAt` | Login voor een persoon (T1.1). `role` = `ADMIN`/`CAREGIVER`/`USER` (zod op de grens). Wachtwoord alleen als argon2id-hash. `email` platformbreed uniek (login-keuze, ADR-0004). Lockout-velden voor brute-force-mitigatie. |
+| **Session** | `id`, `tokenHash` (uniek), `accountId`, `createdAt`, `expiresAt` | Actieve login-sessie (T1.1). Alleen de **SHA-256-hash** van het sessietoken staat in de db; het rauwe token leeft in de httpOnly-cookie. Verlopen sessies zijn ongeldig en worden opgeruimd. |
+
+Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
+Account` (cascade delete). Zo verdwijnt bij het verwijderen van een organisatie/account
+netjes alle onderliggende auth-data.
 
 ## Seed
 
-[`server/prisma/seed.ts`](../server/prisma/seed.ts) is een idempotent skelet
-(`npm run db:seed`) dat nu één demo-organisatie plaatst. Echte seed-data (eerste
-admin-account in T1.1, AAC-bibliotheek in T3.1) komt hier in latere taken bij.
+[`server/prisma/seed.ts`](../server/prisma/seed.ts) is idempotent (`npm run db:seed`) en
+plaatst een demo-organisatie **en** een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
+`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (dev-default met waarschuwing als niet gezet).
+Herseeden overschrijft een bestaand wachtwoord niet. AAC-bibliotheek volgt in T3.1.
 
 ## Migratiegeschiedenis (kort)
 
 - **`init`** (T0.2) — `Organization`.
+- **`accounts_and_sessions`** (T1.1) — `Account`, `Session` + indexen/relaties.

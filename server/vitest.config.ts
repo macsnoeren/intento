@@ -9,6 +9,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: 'file:./prisma/test.db',
     },
+    // Alle testbestanden delen één SQLite-testdatabase; draai ze daarom serieel zodat
+    // db-schrijvende tests elkaar niet in de rede vallen (locks/kruislingse cleanup).
+    fileParallelism: false,
     globalSetup: ['./vitest.global-setup.ts'],
   },
 });

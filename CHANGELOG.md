@@ -6,6 +6,18 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T1.1 Accounts, login en organisaties.** Prisma-modellen `Account`
+  (rollen ADMIN/CAREGIVER/USER, platformbreed unieke e-mail, lockout-velden) en `Session`,
+  migratie `accounts_and_sessions`. `POST /auth/login` (argon2id-wachtwoordhash, generieke
+  constante-tijd foutrespons), `POST /auth/logout` en `GET /auth/me`. Sessietokens staan
+  **alleen gehasht** (SHA-256) in de db; het rauwe token zit in een ondertekende
+  httpOnly+Secure `intento_session`-cookie (`SameSite=Lax`). Account-lockout
+  (`LOGIN_MAX_ATTEMPTS`/`LOGIN_LOCKOUT_MINUTES`) en strenge per-IP rate limiting op login
+  (`@fastify/rate-limit`, `global: false`). Env uitgebreid met sessie-/lockout-/rate-limit-
+  variabelen; seed maakt nu ook een eerste ADMIN-account (`SEED_ADMIN_*`). Gedocumenteerd in
+  ADR-0004, `docs/api.md`, `docs/security.md`, `docs/data-model.md`. Nieuwe deps: `argon2`,
+  `@fastify/cookie`, `@fastify/rate-limit`. `npm audit` blijft 0.
+
 - **T0.2 Database-fundament.** Prisma 7 met SQLite (dev/test) en een PostgreSQL-compatibel
   schema (geen native enums; portabel). Verbinding via `prisma.config.ts` (CLI) en een
   `better-sqlite3` driver adapter in een Prisma-client-singleton (`server/src/db/prisma.ts`).

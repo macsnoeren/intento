@@ -66,6 +66,25 @@ npm run db:studio --workspace=server           # Prisma Studio
 Tests draaien tegen een aparte, per testrun verse testdatabase. Details:
 [docs/data-model.md](docs/data-model.md).
 
+## Auth (login)
+
+`npm run db:seed` maakt een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
+`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (default `admin@intento.local` /
+`change-me-admin` — buiten lokaal ontwikkelen overschrijven). Login zet een ondertekende
+httpOnly-sessie-cookie:
+
+```bash
+# Inloggen (cookie in cookies.txt bewaren) en het eigen account opvragen:
+curl -sc cookies.txt -X POST http://127.0.0.1:3000/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@intento.local","password":"change-me-admin"}'
+curl -sb cookies.txt http://127.0.0.1:3000/auth/me
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/auth/logout
+```
+
+Login is streng rate-limited en kent account-lockout na herhaald falen. Endpoints en
+foutcodes: [docs/api.md](docs/api.md); afwegingen: [docs/adr/0004](docs/adr/0004-authentication-sessions.md).
+
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 
 ```bash

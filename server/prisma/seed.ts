@@ -1,13 +1,21 @@
 import { prisma } from '../src/db/prisma.js';
+import { hashPassword } from '../src/auth/password.js';
 
 /**
- * Seed-skelet (T0.2).
+ * Seed-script (idempotent, `npm run db:seed`).
  *
- * Draaibaar en idempotent via `npm run db:seed`. Nu alleen een demo-organisatie zodat de
- * workflow staat; echte seed-data (eerste admin-account in T1.1, AAC-bibliotheek in T3.1)
- * wordt hier in latere taken aan toegevoegd. Idempotent via een vaste id, zodat herhaald
- * seeden geen dubbele rijen oplevert.
+ * Zet de minimale startdata neer: één demo-organisatie en een eerste ADMIN-account, zodat
+ * je direct kunt inloggen en de rest van de beheerflow kunt bouwen (T1.1). Idempotent via
+ * vaste id / unieke e-mail, zodat herhaald seeden geen dubbele rijen oplevert.
+ *
+ * Het admin-wachtwoord komt uit `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (env). Er is een
+ * dev-default zodat lokaal seeden werkt; in een gedeelde/productie-omgeving MOET je die
+ * overschrijven — het script waarschuwt als de default wordt gebruikt.
  */
+const DEV_DEFAULT_PASSWORD = 'change-me-admin';
+const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? 'admin@intento.local').toLowerCase();
+const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? DEV_DEFAULT_PASSWORD;
+
 async function main(): Promise<void> {
   const org = await prisma.organization.upsert({
     where: { id: 'seed-demo-org' },
@@ -15,7 +23,25 @@ async function main(): Promise<void> {
     create: { id: 'seed-demo-org', name: 'Demo-omgeving', type: 'family' },
   });
 
-  console.log(`Seed klaar: organisatie "${org.name}" (${org.id}).`);
+  const passwordHash = await hashPassword(adminPassword);
+  const admin = await prisma.account.upsert({
+    where: { email: adminEmail },
+    // Wachtwoord bij herseeden niet overschrijven (respecteert een later gewijzigd wachtwoord).
+    update: {},
+    create: {
+      email: adminEmail,
+      passwordHash,
+      role: 'ADMIN',
+      organizationId: org.id,
+    },
+  });
+
+  console.log(`Seed klaar: organisatie "${org.name}" (${org.id}), admin "${admin.email}".`);
+  if (adminPassword === DEV_DEFAULT_PASSWORD) {
+    console.warn(
+      '⚠️  SEED_ADMIN_PASSWORD niet gezet — dev-default gebruikt. Zet een echt wachtwoord buiten lokale ontwikkeling.',
+    );
+  }
 }
 
 main()

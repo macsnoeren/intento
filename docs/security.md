@@ -16,9 +16,15 @@
       externe input (body/query/params) via zod op elke grens.
 - [x] **Geen detail-lek** — onbekende fouten → `500 INTERNAL_ERROR` zonder stacktrace
       of interne melding naar de client.
-- [ ] **Injectie** — via Prisma (geparametriseerd), vanaf T0.2.
-- [ ] **Auth** — argon2id; sessietokens gehasht at-rest; httpOnly + Secure cookies (T1.1).
-- [ ] **Account-lockout / rate limiting** — streng op login (T1.1).
+- [x] **Injectie** — via Prisma (geparametriseerd), vanaf T0.2.
+- [x] **Auth** — argon2id-wachtwoordhash (`auth/password.ts`); sessietokens **gehasht
+      at-rest** (SHA-256, alleen de hash in de db) in ondertekende httpOnly+Secure cookies
+      met `SameSite=Lax` (`auth/session.ts`, `auth/cookie.ts`). Login-fouten zijn generiek
+      (`INVALID_CREDENTIALS`) en constante-tijd (dummy-verify bij onbekende e-mail) zodat
+      het bestaan van een account niet lekt. Getest in `auth/*.test.ts`, `routes/auth.test.ts`.
+- [x] **Account-lockout / rate limiting** — na `LOGIN_MAX_ATTEMPTS` mislukte pogingen
+      tijdelijke lockout (`LOGIN_LOCKOUT_MINUTES`); streng per-IP rate limit op `/auth/login`
+      (`@fastify/rate-limit`, `global: false`). Getest (lockout → 423, overschrijding → 429).
 - [ ] **Access control / IDOR** — elke query op eigenaar/tenant gefilterd + getest (T1.2).
 - [ ] **Uploads** — groottelimiet, content-type-check, ondertekende URL's (AAC-fase).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).

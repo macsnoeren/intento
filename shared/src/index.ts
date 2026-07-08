@@ -24,3 +24,36 @@ export const healthResponseSchema = z.object({
   timestamp: z.iso.datetime(),
 });
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+/** Rollen van een account (DESIGN §2). Ook de bron voor de db-validatie op de grens. */
+export const accountRoleSchema = z.enum(['ADMIN', 'CAREGIVER', 'USER']);
+export type AccountRole = z.infer<typeof accountRoleSchema>;
+
+/**
+ * Login-verzoek (`POST /auth/login`). E-mail wordt naar lowercase genormaliseerd zodat
+ * hoofdletters de login niet beïnvloeden. Wachtwoord alleen op niet-leeg gevalideerd —
+ * sterkte-eisen horen bij het aanmaken van accounts (latere taak), niet bij login.
+ */
+export const loginRequestSchema = z.object({
+  email: z
+    .email()
+    .max(320)
+    .transform((value) => value.toLowerCase()),
+  password: z.string().min(1).max(1024),
+});
+export type LoginRequest = z.infer<typeof loginRequestSchema>;
+
+/** Publieke weergave van het ingelogde account (nooit hash of interne lockout-velden). */
+export const accountPublicSchema = z.object({
+  id: z.string(),
+  email: z.email(),
+  role: accountRoleSchema,
+  organizationId: z.string(),
+});
+export type AccountPublic = z.infer<typeof accountPublicSchema>;
+
+/** Antwoord van `POST /auth/login` en `GET /auth/me`. */
+export const authResponseSchema = z.object({
+  account: accountPublicSchema,
+});
+export type AuthResponse = z.infer<typeof authResponseSchema>;

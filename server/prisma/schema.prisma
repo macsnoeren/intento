@@ -34,4 +34,50 @@ model Organization {
   /// Soort omgeving: "family" | "care" | "personal" (gevalideerd op de API-grens).
   type      String
   createdAt DateTime @default(now())
+
+  accounts Account[]
+}
+
+/// Een login voor een persoon met toegang tot een organisatie (DESIGN §2, §6.2). De rol
+/// bepaalt wat het account mag (ADMIN/CAREGIVER/USER). Wachtwoorden worden nooit
+/// plaintext opgeslagen — alleen een argon2id-hash. `email` is platformbreed uniek zodat
+/// login op e-mail alleen het account eenduidig bepaalt (MVP-keuze, zie ADR-0004).
+model Account {
+  id             String   @id @default(cuid())
+  /// Login-identiteit; platformbreed uniek (lowercase genormaliseerd op de API-grens).
+  email          String   @unique
+  /// argon2id-hash van het wachtwoord. Nooit het wachtwoord zelf.
+  passwordHash   String
+  /// Rol: "ADMIN" | "CAREGIVER" | "USER" (gevalideerd op de API-grens; geen native enum
+  /// i.v.m. PostgreSQL/SQLite-portabiliteit, zie schema-header en ADR-0003).
+  role           String
+  organizationId String
+  /// Account-lockout tegen brute force: telt opeenvolgende mislukte logins; `lockedUntil`
+  /// blokkeert login tot dat moment. Beide worden bij een geslaagde login gereset.
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sessions     Session[]
+
+  @@index([organizationId])
+}
+
+/// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren
+/// alleen een SHA-256-hash (`tokenHash`). De client krijgt het rauwe token als
+/// httpOnly+Secure cookie; bij elke request hashen we de cookie en zoeken hierop
+/// (DESIGN §9.4, CLAUDE.md security-checklist). Verlopen sessies (`expiresAt`) zijn
+/// ongeldig en worden opgeruimd.
+model Session {
+  id        String   @id @default(cuid())
+  /// SHA-256-hash (hex) van het sessietoken. Uniek zodat lookup op hash direct raakt.
+  tokenHash String   @unique
+  accountId String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
 }
