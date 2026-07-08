@@ -92,7 +92,11 @@ export function registerCaregiverRoutes(
       const caregiver = await prisma.account.findUnique({ where: { id: accountId } });
       if (!caregiver || caregiver.organizationId !== account.organizationId) {
         // Zelfde 403 als bij een andere tenant: bestaan van accounts elders lekt niet.
-        throw new HttpError(403, 'FORBIDDEN', 'Geen geldig begeleider-account in deze organisatie.');
+        throw new HttpError(
+          403,
+          'FORBIDDEN',
+          'Geen geldig begeleider-account in deze organisatie.',
+        );
       }
       if (caregiver.role !== 'CAREGIVER') {
         throw new HttpError(

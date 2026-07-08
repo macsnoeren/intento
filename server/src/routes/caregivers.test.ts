@@ -97,7 +97,12 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
     await seedAccount('cg2@intento.local', 'pw', 'CAREGIVER', org);
     // Ruis: een tweede admin (geen caregiver) en een caregiver in een andere organisatie.
     await seedAccount('admin2@intento.local', 'pw', 'ADMIN', org);
-    await seedAccount('cg-other@intento.local', 'pw', 'CAREGIVER', await seedOrganization('Andere'));
+    await seedAccount(
+      'cg-other@intento.local',
+      'pw',
+      'CAREGIVER',
+      await seedOrganization('Andere'),
+    );
     const user = await seedUser('Sanne', org);
     const cookie = await loginCookie(app, admin.email, admin.password);
 
@@ -222,7 +227,12 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
         method: 'PUT',
         url: `/users/${user.id}/settings`,
         headers: { cookie },
-        payload: { iconsPerScreen: 6, showText: false, aiLearningEnabled: false, supportMode: true },
+        payload: {
+          iconsPerScreen: 6,
+          showText: false,
+          aiLearningEnabled: false,
+          supportMode: true,
+        },
       });
       expect(put.statusCode).toBe(200);
     });

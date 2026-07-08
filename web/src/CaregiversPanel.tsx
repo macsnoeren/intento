@@ -53,10 +53,7 @@ export function CaregiversPanel({
   }
 
   return (
-    <section
-      className="panel"
-      aria-label={`Begeleiders voor ${userName}`}
-    >
+    <section className="panel" aria-label={`Begeleiders voor ${userName}`}>
       <h2 className="panel__subtitle">Gekoppelde begeleiders</h2>
       {error ? (
         <p className="form__error" role="alert">
