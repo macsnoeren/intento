@@ -556,3 +556,76 @@ export const attachOpenSymbolsRequestSchema = z.object({
   sourceUrl: httpsUrlSchema.nullable().optional(),
 });
 export type AttachOpenSymbolsRequest = z.infer<typeof attachOpenSymbolsRequestSchema>;
+
+// --- Gespreksflow: sessies en stappen (T4.1, DESIGN §3.1, §6.2, §8.2, FR-001/005/006/010) ---
+
+/**
+ * Status van een gespreksessie (`ConversationSession.status`, DESIGN §6.2). In T4.1 wordt alleen
+ * `ACTIVE` gebruikt; `COMPLETED` (bevestigde boodschap) en `ABANDONED` volgen in latere taken (T4.3).
+ * Bewust een gesloten lijst, gevalideerd op de API-grens (geen native enum i.v.m. portabiliteit).
+ */
+export const conversationStatusSchema = z.enum(['ACTIVE', 'COMPLETED', 'ABANDONED']);
+export type ConversationStatus = z.infer<typeof conversationStatusSchema>;
+
+/**
+ * Een vraag in het gesprek: de prompttekst plus de aangeboden pictogramopties (AAC-symbolen). De
+ * gescripte engine (T4.1) leidt dit af uit de AAC-relatieboom; de AI-orchestrator neemt die rol later
+ * over achter dezelfde vorm. `options` is nooit leeg zolang er een vraag is (bij een eindconcept is er
+ * geen vraag meer en geldt `done: true`).
+ */
+export const conversationQuestionSchema = z.object({
+  prompt: z.string(),
+  options: z.array(aacSymbolSchema),
+});
+export type ConversationQuestion = z.infer<typeof conversationQuestionSchema>;
+
+/**
+ * Eén afgelegde stap in de historie: de getoonde vraag en het gekozen symbool. Zo kan de UI de
+ * gekozen route (broodkruimel) tonen en herstelt de terug-functie de exacte vorige context.
+ */
+export const conversationStepSchema = z.object({
+  order: z.number().int().nonnegative(),
+  question: z.string(),
+  symbol: aacSymbolSchema,
+});
+export type ConversationStep = z.infer<typeof conversationStepSchema>;
+
+/**
+ * Keuzeverzoek voor `POST /conversation/{id}/next` en `.../choice`: het gekozen symbool-id. Het
+ * moet één van de op dat moment aangeboden opties zijn (anders `400 INVALID_CHOICE`), zodat een
+ * gesprek nooit buiten de aangeboden AAC-route kan springen.
+ */
+export const conversationChoiceRequestSchema = z.object({
+  symbolId: z.string().min(1),
+});
+export type ConversationChoiceRequest = z.infer<typeof conversationChoiceRequestSchema>;
+
+/**
+ * Gesprekstoestand na `start`, `next` of `back`: de sessie, de huidige vraag (of `null` als de route
+ * een eindconcept bereikte en `done: true`), en de tot nu toe afgelegde stappen. De tablet-UI (T4.2)
+ * rendert hieruit het keuzescherm; `done` markeert dat er een boodschap voorgesteld kan worden (T4.3).
+ */
+export const conversationStateResponseSchema = z.object({
+  sessionId: z.string(),
+  status: conversationStatusSchema,
+  question: conversationQuestionSchema.nullable(),
+  done: z.boolean(),
+  history: z.array(conversationStepSchema),
+});
+export type ConversationStateResponse = z.infer<typeof conversationStateResponseSchema>;
+
+/**
+ * Antwoord op `POST /conversation/{id}/choice`: de zojuist opgeslagen stap plus of er nog verfijning
+ * mogelijk is (`canRefine`). Bewust smaller dan de volledige toestand: `/choice` **slaat alleen op**
+ * (DESIGN §8.2 "keuze opslaan"), terwijl `/next` de keuze opslaat én de volgende vraag teruggeeft.
+ * Een normale gespreksbeurt gebruikt `/next`; `/choice` is de save-only primitive (o.a. voor het
+ * expliciet vastleggen van een eindkeuze en latere ondersteuningsmodus).
+ */
+export const conversationChoiceResponseSchema = z.object({
+  sessionId: z.string(),
+  status: conversationStatusSchema,
+  step: conversationStepSchema,
+  canRefine: z.boolean(),
+  history: z.array(conversationStepSchema),
+});
+export type ConversationChoiceResponse = z.infer<typeof conversationChoiceResponseSchema>;

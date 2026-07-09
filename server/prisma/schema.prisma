@@ -62,6 +62,8 @@ model User {
   devices              Device[]
   /// Openstaande/gebruikte koppelcodes waarmee een apparaat aan deze gebruiker koppelt.
   deviceLinkCodes      DeviceLinkCode[]
+  /// Gespreksessies van deze gebruiker (T4.1); verdwijnen mee als de gebruiker wordt verwijderd.
+  conversationSessions ConversationSession[]
 
   @@index([organizationId])
 }
@@ -283,6 +285,54 @@ model AacConceptRelation {
   @@unique([parentId, childId, relation])
   @@index([parentId])
   @@index([childId])
+}
+
+/// Een gespreksessie: het tijdelijke communicatieproces waarin een gebruiker via pictogramkeuzes
+/// zijn intentie opbouwt (T4.1, DESIGN §3.1, §6.2). De sessie is aan **precies één** `User` gebonden
+/// (gebruiker-isolatie, DESIGN §9.4): een tablet mag alleen de sessies van zijn eigen gebruiker zien.
+/// In deze fase draait de vraagselectie op een **gescripte engine** over de AAC-relatieboom; de
+/// AI-orchestrator neemt die rol later over achter dezelfde interface. Alleen bevestigde communicatie
+/// wordt uiteindelijk bewaard (DESIGN §3.6) — het genereren/bevestigen volgt in T4.3.
+model ConversationSession {
+  id        String   @id @default(cuid())
+  userId    String
+  /// Status: "ACTIVE" | "COMPLETED" | "ABANDONED" (gevalideerd op de API-grens; geen native enum
+  /// i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header). In T4.1 alleen ACTIVE; T4.3 rondt af.
+  status    String   @default("ACTIVE")
+  startedAt DateTime @default(now())
+
+  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps ConversationStep[]
+
+  @@index([userId])
+}
+
+/// Eén keuze in een gesprek (T4.1, DESIGN §3.1, §6.2). Elke stap legt vast wélke vraag getoond werd
+/// (`question`) en welk AAC-concept de gebruiker koos (`selectedConcept` + `selectedSymbolId`). `order`
+/// bepaalt de volgorde en maakt de terug-functie exact: de laatste stap verwijderen herstelt de vorige
+/// context. `confidence` is voorbereidend op de AI-fase (§7.4) en blijft `null` in de gescripte engine
+/// (er is nog geen AI-zekerheid). De samengestelde unieke sleutel `(sessionId, order)` voorkomt gaten/
+/// duplicaten in de volgorde.
+model ConversationStep {
+  id               String   @id @default(cuid())
+  sessionId        String
+  /// Positie in het gesprek (0-based); de terug-functie verwijdert de hoogste.
+  order            Int
+  /// De vraag (prompttekst) die bij deze stap getoond werd.
+  question         String
+  /// Het gekozen AAC-concept (canonieke sleutel, bv. "walking").
+  selectedConcept  String
+  /// Het gekozen `AacSymbol`-id; `null` als het symbool later verwijderd is (geen harde FK i.v.m.
+  /// de gedeelde, muteerbare bibliotheek). Zo blijft de historie leesbaar via `selectedConcept`.
+  selectedSymbolId String?
+  /// Voorbereidend op de AI-fase; `null` in de gescripte engine (nog geen AI-zekerheid).
+  confidence       Float?
+  createdAt        DateTime @default(now())
+
+  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, order])
+  @@index([sessionId])
 }
 
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren

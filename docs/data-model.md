@@ -48,8 +48,8 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 ## Entiteiten
 
 Het volledige model uit DESIGN §6.2 (PersonalContext, Preference,
-ConversationSession, ConversationStep, GeneratedMessage, CorrectionEvent,
-ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
+GeneratedMessage, CorrectionEvent, ConceptProposal) wordt in latere taken toegevoegd.
+Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
@@ -64,6 +64,8 @@ ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 | **DeviceLinkCode** | `id`, `codeHash` (uniek), `userId`, `usedAt`, `expiresAt`, `createdAt` | Koppelcode die een beheerder genereert (T2.3, FR-018). Alleen de **SHA-256-hash** staat in de db; codes zijn **eenmalig** (`usedAt`) en **verlopen** (`expiresAt`). Wisselt op `POST /devices/link` in voor een `Device`. |
 | **AacSymbol** | `id`, `concept` (uniek), `label`, `category`, `glyph`, `imageData`?, `imageMimeType`?, `imageVersion`, `imageLicense`?, `imageLicenseUrl`?, `imageAuthor`?, `imageAuthorUrl`?, `imageSourceUrl`?, `synonyms` (JSON), `searchText`, `createdAt` | Pictogram uit de AAC-bibliotheek (T3.1, uitgebreid in T3.2/T3.3; DESIGN §6.2, FR-015). **Platformbreed gedeeld**, niet tenant-gebonden. `concept` = canonieke lowercase sleutel waarnaar relaties (en straks de AI) verwijzen; `label` = Nederlandse weergavetekst; `category` op de grens gevalideerd (zod-enum). `glyph` = emoji-fallback waaruit de server een SVG-placeholder rendert. `imageData`/`imageMimeType` = een door een beheerder geüploade **of** via OpenSymbols opgehaalde afbeelding (T3.2/T3.3), **in de db** bewaard (`Bytes`, portabel op SQLite/PostgreSQL) en met voorrang bij het serveren; `null` = terugvallen op de glyph. `imageVersion` telt uploads en dient als cache-buster (`?v=`) in `imageUrl`. De `image*`-attributievelden (T3.3) dragen bron/licentie van een externe afbeelding (OpenSymbols) zodat de CC-attributie meereist; alle `null` bij een zelf-geüploade afbeelding of de glyph. `synonyms` = extra zoektermen. `searchText` = afgeleide, genormaliseerde (lowercase) zoekindex uit concept+label+synoniemen. |
 | **AacConceptRelation** | `id`, `parentId`, `childId`, `relation` (standaard `contains`) | Begripsrelatie tussen twee `AacSymbol`s (T3.1). Vormt de verfijningsboom (bv. `buiten` → `wandelen`, DESIGN §3.1). Samengestelde unieke sleutel `(parentId, childId, relation)` voorkomt dubbele relaties. |
+| **ConversationSession** | `id`, `userId`, `status`, `startedAt` | Tijdelijk communicatieproces waarin een gebruiker via pictogramkeuzes zijn intentie opbouwt (T4.1, DESIGN §3.1). Aan **precies één** `User` gebonden → gebruiker-isolatie: een tablet ziet alléén de eigen sessies. `status` = `ACTIVE`/`COMPLETED`/`ABANDONED` (zod op de grens); in T4.1 alleen `ACTIVE` (T4.3 rondt af). |
+| **ConversationStep** | `id`, `sessionId`, `order`, `question`, `selectedConcept`, `selectedSymbolId?`, `confidence?`, `createdAt` | Eén keuze in een gesprek (T4.1). `order` (0-based) bepaalt de volgorde en maakt de terug-functie exact (hoogste stap verwijderen herstelt de vorige context). `question` = de getoonde prompttekst; `selectedConcept`/`selectedSymbolId` = het gekozen concept/symbool (geen harde FK naar `AacSymbol` i.v.m. de muteerbare gedeelde bibliotheek — historie blijft leesbaar via `selectedConcept`). `confidence` is voorbereidend op de AI-fase en blijft `null` in de gescripte engine. Samengestelde unieke `(sessionId, order)`. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
 Account` (cascade delete); `EmailVerificationToken.accountId → Account` (cascade delete);
@@ -76,6 +78,10 @@ verdwijnen met de gebruiker). Zo verdwijnt bij het verwijderen van een organisat
 netjes alle onderliggende data. De AAC-bibliotheek staat hier **los** van: `AacSymbol`/
 `AacConceptRelation` zijn gedeeld en niet aan een organisatie of gebruiker gekoppeld;
 `AacConceptRelation.parentId`/`childId → AacSymbol` (beide cascade delete).
+`ConversationSession.userId → User` (cascade delete — sessies verdwijnen met de gebruiker);
+`ConversationStep.sessionId → ConversationSession` (cascade delete). `ConversationStep`
+heeft bewust géén FK naar `AacSymbol`: de gedeelde bibliotheek is muteerbaar, dus een verwijderd
+symbool mag de historie niet cascaderen — het `selectedConcept` blijft de leesbare sleutel.
 
 ## AAC-zoekindex en portabiliteit
 
@@ -110,3 +116,4 @@ relaties op hun unieke combinatie — idempotent, dus herseeden levert geen dupl
 - **`aac_opensymbols_attribution`** (T3.3) — `AacSymbol` uitgebreid met `imageLicense`, `imageLicenseUrl`, `imageAuthor`, `imageAuthorUrl` en `imageSourceUrl` (alle `String`, nullable) voor de bron/licentie van een via OpenSymbols gekoppelde afbeelding.
 - **`account_name`** (T1.3) — `Account` uitgebreid met `name` (`String`, nullable) voor de weergavenaam van de accounthouder bij zelfaanmelding.
 - **`email_verification`** (T1.4) — `Account` uitgebreid met `emailVerifiedAt` (`DateTime`, nullable) en de nieuwe tabel `EmailVerificationToken` (unieke `tokenHash`, index op `accountId`, cascade delete).
+- **`conversation_sessions_and_steps`** (T4.1) — `ConversationSession` (index op `userId`, cascade delete) en `ConversationStep` (samengestelde unieke `(sessionId, order)`, index op `sessionId`, cascade delete).

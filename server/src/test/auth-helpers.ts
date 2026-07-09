@@ -2,6 +2,7 @@ import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { loadEnv, type Env } from '../env.js';
 import { prisma } from '../db/prisma.js';
 import { hashPassword } from '../auth/password.js';
+import { createLinkCode } from '../auth/device.js';
 import { SESSION_COOKIE_NAME, DEVICE_COOKIE_NAME } from '../auth/cookie.js';
 
 /**
@@ -18,8 +19,10 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-/gebruikersdata (koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (gesprekken → koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
+  await prisma.conversationStep.deleteMany();
+  await prisma.conversationSession.deleteMany();
   await prisma.deviceLinkCode.deleteMany();
   await prisma.device.deleteMany();
   await prisma.caregiverAssignment.deleteMany();
@@ -92,6 +95,22 @@ export async function seedUser(
 /** Koppelt een begeleider-account rechtstreeks aan een gebruiker (voor toegangstests). */
 export async function linkCaregiver(accountId: string, userId: string): Promise<void> {
   await prisma.caregiverAssignment.create({ data: { accountId, userId } });
+}
+
+/**
+ * Koppelt een tablet aan een gebruiker via de echte koppelflow en geeft de device-cookie-header terug
+ * die als `Cookie` op vervolgverzoeken kan (gespreks-/apparaatroutes). Eén regel van "gebruiker" naar
+ * "gekoppeld apparaat" in tests, zonder de codegeneratie-route (ADMIN) te doorlopen.
+ */
+export async function deviceCookie(app: FastifyInstance, userId: string): Promise<string> {
+  const { code } = await createLinkCode(prisma, userId, 60);
+  const res = await app.inject({ method: 'POST', url: '/devices/link', payload: { code } });
+  if (res.statusCode !== 201) {
+    throw new Error(`Apparaat koppelen mislukte voor gebruiker ${userId}: status ${res.statusCode}`);
+  }
+  const cookie = deviceCookieHeader(res);
+  if (!cookie) throw new Error(`Geen device-cookie ontvangen voor gebruiker ${userId}`);
+  return cookie;
 }
 
 /**

@@ -128,4 +128,25 @@ als een upload), met bron/licentie op het symbool (`attribution`). Zie ADR-0006.
 | GET | `/admin/aac/opensymbols/search?q=&locale=` | ADMIN | Zoekt bij OpenSymbols (`openSymbolsSearchQuerySchema`). `200` + `openSymbolsSearchResponseSchema` (`{ results: [{ id, name, imageUrl, extension, license, licenseUrl, author, authorUrl, sourceUrl }] }`). Alleen resultaten met een `https`-`imageUrl` worden teruggegeven. Niet geconfigureerd → `503 OPENSYMBOLS_UNAVAILABLE`; externe fout → `502 OPENSYMBOLS_ERROR`. |
 | POST | `/admin/aac/symbols/{id}/opensymbols` | ADMIN | Gekozen afbeelding koppelen (`attachOpenSymbolsRequestSchema`: `imageUrl` (https), `license`, optioneel `licenseUrl`/`author`/`authorUrl`/`sourceUrl`). De backend haalt de bytes op (https-only + SSRF-guard), controleert content-type (PNG/JPEG/WebP → anders `415`) en grootte (`AAC_IMAGE_MAX_BYTES` → `413`), en slaat de afbeelding + bron/licentie op. `200` + `aacSymbolAdminSchema` (`hasImage: true`, `attribution` gevuld). Onbekend id → `404`; niet-`https`/interne host → `400 INVALID_IMAGE_URL`; externe/lege fout → `502`; niet geconfigureerd → `503`. |
 
-<Volgende domeinen (gesprek, …) worden hier per taak toegevoegd.>
+### Gespreksflow — sessies en stappen (T4.1)
+Een gespreksessie (`ConversationSession`) is het tijdelijke communicatieproces waarin een gebruiker
+via pictogramkeuzes zijn intentie opbouwt (DESIGN §3.1). Alle routes lopen op **apparaat-auth**
+(`deviceAuthorize`, de `intento_device`-cookie): de tablet is aan precies één gebruiker gebonden,
+dus elke sessie is automatisch **gebruiker-geïsoleerd** — een apparaat ziet nooit de sessies van een
+andere gebruiker (`404 SESSION_NOT_FOUND`, bestaan lekt niet). De vraagselectie draait in deze fase op
+een **gescripte engine** over de AAC-relatieboom (intentie-categorieën → verfijning); de AI-orchestrator
+neemt die rol later over achter dezelfde interface (fase 5). De "huidige vraag" is een **pure functie**
+van de reeds gezette stappen, waardoor de terug-functie de vorige opties exact herstelt.
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| POST | `/conversation/start` | apparaat | Start een `ACTIVE` sessie voor de eigen gebruiker. `201` + `conversationStateResponseSchema` (`{ sessionId, status, question: { prompt, options[] } \| null, done, history[] }`): de eerste vraag toont de intentie-categorieën. |
+| POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`). Bij een eindconcept: `question: null`, `done: true` (klaar voor een voorstel — T4.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
+| POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
+| POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. |
+
+Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_LINKED`. Alleen bevestigde
+communicatie wordt uiteindelijk bewaard (DESIGN §3.6); het genereren en bevestigen van de boodschap
+volgt in T4.3.
+
+<Volgende domeinen (AI-orchestrator, …) worden hier per taak toegevoegd.>

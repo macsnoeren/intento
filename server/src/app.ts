@@ -15,6 +15,7 @@ import { registerUserRoutes } from './routes/users.js';
 import { registerCaregiverRoutes } from './routes/caregivers.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
+import { registerConversationRoutes } from './routes/conversation.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 
@@ -83,6 +84,7 @@ export async function buildApp({
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
   registerAacRoutes(app, { prisma, env, openSymbols });
+  registerConversationRoutes(app, { prisma });
 
   return app;
 }

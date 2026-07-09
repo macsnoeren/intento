@@ -73,7 +73,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 4 — Gespreksflow (gescript, nog zonder AI)
 
-- [ ] **T4.1 Sessies en stappen**
+- [x] **T4.1 Sessies en stappen**
   *DESIGN: §3.1, §6.2 (ConversationSession, ConversationStep), §8.2, FR-001/005/006/010.* `POST /conversation/start`, `/next` (keuze in → volgende vraag + opties uit), `/choice`, en terug-functie (laatste stap verwijderen, vorige context herstellen). Vraagselectie is in deze fase een **gescripte engine** op de AAC-relatieboom (intentiecategorieën → verfijning) achter dezelfde interface die later de AI-orchestrator krijgt.
   *Acceptatie:* volledige voorbeeldroute uit DESIGN §3.1 via API-tests; terug herstelt de vorige opties exact; sessies gebruiker-gebonden (isolatietest).
 

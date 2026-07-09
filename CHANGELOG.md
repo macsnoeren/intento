@@ -6,6 +6,27 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T4.1 Gespreksflow: sessies en stappen.** Backend-fundament voor het communicatieproces
+  (DESIGN §3.1, FR-001/005/006/010). Nieuwe modellen `ConversationSession` (gebonden aan één
+  `User`) en `ConversationStep` (`order`, `question`, `selectedConcept`, `selectedSymbolId`,
+  `confidence?`), migratie `conversation_sessions_and_steps`. **Gescripte engine**
+  (`conversation/engine.ts`) over de AAC-relatieboom: de startvraag toont de intentie-categorieën,
+  elke volgende vraag de kinderen van het laatst gekozen concept — de "huidige vraag" is een
+  **pure functie** van de stappen, zodat de terug-functie de vorige opties exact herstelt. De engine
+  zit achter een smalle interface (`currentQuestion`/`resolveOption`) die de AI-orchestrator later
+  overneemt (fase 5). Endpoints op **apparaat-auth** (elke sessie automatisch gebruiker-geïsoleerd):
+  `POST /conversation/start` (eerste vraag), `POST /conversation/{id}/next` (kern-call: keuze in →
+  volgende vraag + opties uit; eindconcept → `done: true`), `POST /conversation/{id}/choice`
+  (save-only), `POST /conversation/{id}/back` (laatste keuze ongedaan, vorige context hersteld).
+  Randen: keuze buiten de opties → `400 INVALID_CHOICE`, afgeronde sessie → `409 SESSION_NOT_ACTIVE`,
+  andere gebruiker → `404 SESSION_NOT_FOUND`, niets om terug te doen → `400 NO_STEPS_TO_UNDO`. Gedeelde
+  schema's: `conversationStatusSchema`, `conversationQuestionSchema`, `conversationStepSchema`,
+  `conversationChoiceRequestSchema`, `conversationStateResponseSchema`, `conversationChoiceResponseSchema`.
+  Server-tests dekken de acceptatie: de volledige voorbeeldroute uit DESIGN §3.1
+  (willen → doen → buiten → wandelen → hond), terug herstelt de vorige opties exact, en
+  gebruiker-isolatie. Live happy path over HTTP gerookt. De tablet-UI erop volgt in T4.2, het
+  voorstellen/bevestigen van de boodschap in T4.3. Gedocumenteerd in `docs/api.md` en
+  `docs/data-model.md`.
 - **T1.4 E-mailverificatie.** Verificatie van het bij zelfaanmelding (T1.3) aangemaakte
   admin-account. Nieuw veld `Account.emailVerifiedAt` (nullable) en nieuwe tabel
   `EmailVerificationToken` (migratie `email_verification`): het token staat **gehasht at-rest**
