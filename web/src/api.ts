@@ -1,10 +1,15 @@
 import {
+  aacSymbolAdminSchema,
+  aacSymbolListResponseSchema,
   apiErrorSchema,
   authResponseSchema,
   caregiverListResponseSchema,
   deviceCodeResponseSchema,
   userListResponseSchema,
   userPublicSchema,
+  type AacSymbolAdmin,
+  type AacSymbolInput,
+  type AacSymbolListResponse,
   type AuthResponse,
   type CaregiverListResponse,
   type CreateUserRequest,
@@ -48,12 +53,30 @@ export interface Api {
   listCaregivers(userId: string): Promise<CaregiverListResponse>;
   linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
   generateDeviceCode(userId: string): Promise<DeviceCodeResponse>;
+  listAacSymbols(filter?: { q?: string; category?: string }): Promise<AacSymbolListResponse>;
+  createAacSymbol(body: AacSymbolInput): Promise<AacSymbolAdmin>;
+  updateAacSymbol(id: string, body: AacSymbolInput): Promise<AacSymbolAdmin>;
+  deleteAacSymbol(id: string): Promise<void>;
+  uploadAacImage(id: string, file: File): Promise<AacSymbolAdmin>;
+  createAacRelation(parentId: string, childId: string): Promise<AacSymbolAdmin>;
+  deleteAacRelation(id: string): Promise<void>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 
+/**
+ * Maakt van een relatief backend-pad (zoals een AAC-afbeeldings-URL `/aac/images/:id`) een
+ * absolute URL naar de API-host, zodat de web-client het als `<img src>` kan laden.
+ */
+export function apiUrl(path: string): string {
+  return `${BASE_URL}${path}`;
+}
+
 /** Voert een request uit, mapt een backend-fout naar `ApiRequestError` en geeft de rauwe JSON terug. */
 async function request(path: string, init: RequestInit = {}): Promise<unknown> {
+  // Bij een FormData-body (bestandsupload) zet de browser zélf de juiste
+  // `Content-Type` met multipart-boundary; die mogen we niet overschrijven.
+  const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
@@ -61,7 +84,7 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
       credentials: 'include',
       headers: {
         Accept: 'application/json',
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.body && !isFormData ? { 'Content-Type': 'application/json' } : {}),
         ...init.headers,
       },
     });
@@ -127,5 +150,45 @@ export const httpApi: Api = {
     return deviceCodeResponseSchema.parse(
       await request(`/admin/users/${userId}/device-code`, { method: 'POST', body: '{}' }),
     );
+  },
+  async listAacSymbols(filter) {
+    const params = new URLSearchParams();
+    if (filter?.q) params.set('q', filter.q);
+    if (filter?.category) params.set('category', filter.category);
+    const query = params.toString();
+    return aacSymbolListResponseSchema.parse(
+      await request(`/admin/aac/symbols${query ? `?${query}` : ''}`),
+    );
+  },
+  async createAacSymbol(body) {
+    return aacSymbolAdminSchema.parse(
+      await request('/admin/aac/symbols', { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
+  async updateAacSymbol(id, body) {
+    return aacSymbolAdminSchema.parse(
+      await request(`/admin/aac/symbols/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    );
+  },
+  async deleteAacSymbol(id) {
+    await request(`/admin/aac/symbols/${id}`, { method: 'DELETE' });
+  },
+  async uploadAacImage(id, file) {
+    const form = new FormData();
+    form.append('file', file);
+    return aacSymbolAdminSchema.parse(
+      await request(`/admin/aac/symbols/${id}/image`, { method: 'POST', body: form }),
+    );
+  },
+  async createAacRelation(parentId, childId) {
+    return aacSymbolAdminSchema.parse(
+      await request('/admin/aac/relations', {
+        method: 'POST',
+        body: JSON.stringify({ parentId, childId }),
+      }),
+    );
+  },
+  async deleteAacRelation(id) {
+    await request(`/admin/aac/relations/${id}`, { method: 'DELETE' });
   },
 };

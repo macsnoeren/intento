@@ -3,6 +3,7 @@ import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
+import multipart from '@fastify/multipart';
 import type { Env } from './env.js';
 import type { PrismaClient } from './generated/prisma/client.js';
 import { prisma as defaultPrisma } from './db/prisma.js';
@@ -55,6 +56,15 @@ export async function buildApp({
   // (streng op /auth/login). Zo blijft o.a. /health onbeperkt.
   await app.register(rateLimit, { global: false });
 
+  // Multipart-uploads (AAC-pictogrammen, T3.2). Eén bestand per request en een harde
+  // groottelimiet uit de env. `throwFileSizeLimit: false` laat de plugin een te groot bestand
+  // afkappen (`truncated`) i.p.v. zelf te gooien, zodat de route het weigert met onze eigen
+  // consistente foutstructuur (413 IMAGE_TOO_LARGE).
+  await app.register(multipart, {
+    throwFileSizeLimit: false,
+    limits: { fileSize: env.AAC_IMAGE_MAX_BYTES, files: 1 },
+  });
+
   app.setErrorHandler(errorHandler);
   app.setNotFoundHandler(notFoundHandler);
 
@@ -64,7 +74,7 @@ export async function buildApp({
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
-  registerAacRoutes(app, { prisma });
+  registerAacRoutes(app, { prisma, env });
 
   return app;
 }

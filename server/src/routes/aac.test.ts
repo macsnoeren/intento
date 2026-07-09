@@ -71,14 +71,19 @@ describe('AAC-bibliotheek — /aac', () => {
     const cookie = await loginCookie(app, admin.email, admin.password);
 
     // "lopen" is een synoniem van concept "walking" (label "Wandelen").
-    const res = await app.inject({ method: 'GET', url: '/aac/search?q=lopen', headers: { cookie } });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/aac/search?q=lopen',
+      headers: { cookie },
+    });
     expect(res.statusCode).toBe(200);
     const body = aacSearchResponseSchema.parse(res.json());
     const concepts = body.symbols.map((s) => s.concept);
     expect(concepts).toContain('walking');
-    // Het gevonden symbool draagt een bereikbare afbeeldings-URL en zijn synoniemen.
+    // Het gevonden symbool draagt een bereikbare afbeeldings-URL en zijn synoniemen. Zonder
+    // geüploade afbeelding is de URL het kale pad (zonder cache-buster); T3.2 voegt `?v=` toe bij upload.
     const walking = body.symbols.find((s) => s.concept === 'walking');
-    expect(walking?.imageUrl).toBe(`/aac/images/${walking?.id}.svg`);
+    expect(walking?.imageUrl).toBe(`/aac/images/${walking?.id}`);
     expect(walking?.synonyms).toContain('lopen');
   });
 

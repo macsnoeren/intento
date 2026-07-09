@@ -52,9 +52,10 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §6.2 (AacSymbol, AacConceptRelation), §8.2, FR-015.* Modellen voor symbolen (concept, image, categorie, synoniemen) en relaties (parent/child). Seed-set met voldoende concepten voor de voorbeeldflows uit DESIGN §3 (intenties, activiteiten, gevoelens, lichaamsdelen, eten/drinken, personen/plekken). `GET /aac/search?q=` zoekt op concept én synoniemen. Opslag/serving van pictogramafbeeldingen.
   *Acceptatie:* seed draait schoon; zoek-API vindt op synoniem; afbeeldingen bereikbaar vanuit web.
 
-- [ ] **T3.2 AAC-beheer-UI**
+- [x] **T3.2 AAC-beheer-UI**
   *DESIGN: §5.2 (beheeromgeving), FR-015.* Beheeromgeving: symbolen bekijken/zoeken, categorieën beheren, symbool toevoegen/bewerken (incl. afbeelding-upload met groottelimiet), relaties leggen.
   *Acceptatie:* admin voegt via UI een symbool met relatie toe en vindt het terug via zoeken; upload gevalideerd.
+  *Opmerking:* de categorieën vormen een **vaste, gesloten taxonomie** (zod-enum, DESIGN §3); "beheren" is hier filteren/toewijzen bij aanmaken/bewerken, geen dynamische categorie-CRUD.
 
 ## Fase 4 — Gespreksflow (gescript, nog zonder AI)
 

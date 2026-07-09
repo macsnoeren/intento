@@ -44,7 +44,13 @@
       (`INVALID_LINK_CODE`) zonder onderscheid onbekend/verlopen/gebruikt. Het apparaat-token is
       een **aparte auth-pijler**: het geeft alléén toegang tot de eigen-gebruiker-endpoints
       (`/device/me`), nooit tot beheer-/accountroutes. Getest in `routes/devices.test.ts`.
-- [ ] **Uploads** — groottelimiet, content-type-check, ondertekende URL's (AAC-fase).
+- [x] **Uploads (T3.2)** — AAC-pictogramupload (`POST /admin/aac/symbols/{id}/image`, ADMIN-only)
+      met **groottelimiet** (`AAC_IMAGE_MAX_BYTES`, `@fastify/multipart` kapt af → `413`) en een
+      **mime-allowlist**: alleen `image/png`/`image/jpeg`/`image/webp`, dus **geen SVG** (dat kan
+      script bevatten → XSS-risico bij serveren). Eén bestand per request. De bytes worden in de db
+      bewaard en met een vast `Content-Type` geserveerd; het publieke `/aac/images/{id}` blijft
+      niet-gevoelige presentatiedata (geen ondertekende URL's nodig in deze fase). Getest in
+      `routes/aac.admin.test.ts` (type → `415`, te groot → `413`).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

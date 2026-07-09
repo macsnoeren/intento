@@ -272,3 +272,99 @@ export const aacSearchResponseSchema = z.object({
   symbols: z.array(aacSymbolSchema),
 });
 export type AacSearchResponse = z.infer<typeof aacSearchResponseSchema>;
+
+// --- AAC-beheer (T3.2, DESIGN §5.2, FR-015) ---
+
+/**
+ * Canonieke conceptsleutel bij aanmaken/bewerken: lowercase, alleen letters/cijfers/koppeltekens
+ * (bv. "do-activity"). Bewust streng en taalneutraal — het concept is de stabiele sleutel waarnaar
+ * relaties en straks de AI-context verwijzen, niet de (Nederlandse) weergavetekst. Wordt getrimd en
+ * naar lowercase genormaliseerd zodat "Walking" en "walking" hetzelfde concept zijn.
+ */
+export const aacConceptKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .transform((value) => value.toLowerCase())
+  .refine((value) => /^[a-z0-9-]+$/.test(value), {
+    message: 'Concept mag alleen kleine letters, cijfers en koppeltekens bevatten.',
+  });
+
+/**
+ * Synoniemen bij aanmaken/bewerken: extra zoektermen. Elk synoniem wordt getrimd; lege waarden
+ * vallen weg en dubbelen (case-insensitief) worden ontdubbeld, zodat de zoekindex schoon blijft.
+ */
+export const aacSynonymsSchema = z
+  .array(z.string().trim().max(64))
+  .max(25)
+  .transform((values) => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const value of values) {
+      if (!value) continue;
+      const key = value.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(value);
+    }
+    return result;
+  });
+
+/**
+ * Aanmaak-/bewerkverzoek voor een AAC-symbool (`POST`/`PUT /admin/aac/symbols`). Beheerderstaak
+ * (DESIGN §2, §5.2). `glyph` blijft verplicht: het is de emoji-fallback waaruit de server een
+ * placeholder-pictogram rendert zolang er geen afbeelding is geüpload. Een geüploade afbeelding
+ * gaat via een apart endpoint (multipart), niet via deze JSON-body.
+ */
+export const aacSymbolInputSchema = z.object({
+  concept: aacConceptKeySchema,
+  label: z.string().trim().min(1).max(120),
+  category: aacCategorySchema,
+  glyph: z.string().trim().min(1).max(16),
+  synonyms: aacSynonymsSchema,
+});
+export type AacSymbolInput = z.infer<typeof aacSymbolInputSchema>;
+
+/**
+ * Eén relatie in de beheerweergave van een symbool: de andere kant van een `AacConceptRelation`
+ * plus het relatie-id (nodig om de relatie te kunnen verwijderen). Vanuit een symbool bekeken is
+ * `symbol` óf het kind (bij uitgaande relaties) óf de ouder (bij inkomende).
+ */
+export const aacRelationEdgeSchema = z.object({
+  relationId: z.string(),
+  relation: z.string(),
+  symbol: aacSymbolSchema,
+});
+export type AacRelationEdge = z.infer<typeof aacRelationEdgeSchema>;
+
+/**
+ * Beheerweergave van een AAC-symbool: de publieke velden plus of er een geüploade afbeelding is
+ * (`hasImage`) en de gelegde relaties. `children` = relaties waarin dit symbool de ouder is
+ * (bv. "buiten" → "wandelen"); `parents` = relaties waarin het het kind is. Zo kan de beheer-UI
+ * de begrippenboom tonen en beheren.
+ */
+export const aacSymbolAdminSchema = aacSymbolSchema.extend({
+  hasImage: z.boolean(),
+  children: z.array(aacRelationEdgeSchema),
+  parents: z.array(aacRelationEdgeSchema),
+});
+export type AacSymbolAdmin = z.infer<typeof aacSymbolAdminSchema>;
+
+/** Antwoord op `GET /admin/aac/symbols`: alle symbolen met relaties (niet tenant-gebonden). */
+export const aacSymbolListResponseSchema = z.object({
+  symbols: z.array(aacSymbolAdminSchema),
+});
+export type AacSymbolListResponse = z.infer<typeof aacSymbolListResponseSchema>;
+
+/**
+ * Aanmaakverzoek voor een relatie (`POST /admin/aac/relations`). Legt een begripsrelatie
+ * ouder → kind. `relation` typeert de relatie (standaard "contains"). Ouder en kind moeten
+ * verschillen (afgedwongen op de server: geen zelfrelatie).
+ */
+export const aacRelationInputSchema = z.object({
+  parentId: z.string().min(1),
+  childId: z.string().min(1),
+  relation: z.string().trim().min(1).max(32).default('contains'),
+});
+export type AacRelationInput = z.infer<typeof aacRelationInputSchema>;

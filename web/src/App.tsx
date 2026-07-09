@@ -3,6 +3,8 @@ import type { AccountPublic } from '@intento/shared';
 import { ApiRequestError, httpApi, type Api } from './api.ts';
 import { LoginForm } from './LoginForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
+import { AacLibraryPage } from './AacLibraryPage.tsx';
+import type { AdminView } from './AdminNav.tsx';
 
 /**
  * Beheeromgeving (fase 2). Regelt de sessie-toestand: eerst `GET /auth/me`; bij een geldige
@@ -14,6 +16,7 @@ import { AdminUsersPage } from './AdminUsersPage.tsx';
 export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
   const [account, setAccount] = useState<AccountPublic | null>(null);
   const [checking, setChecking] = useState(true);
+  const [view, setView] = useState<AdminView>('users');
 
   useEffect(() => {
     let active = true;
@@ -65,5 +68,23 @@ export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
     );
   }
 
-  return <AdminUsersPage api={api} account={account} onLogout={() => void handleLogout()} />;
+  if (view === 'aac') {
+    return (
+      <AacLibraryPage
+        api={api}
+        account={account}
+        onLogout={() => void handleLogout()}
+        onNavigate={setView}
+      />
+    );
+  }
+
+  return (
+    <AdminUsersPage
+      api={api}
+      account={account}
+      onLogout={() => void handleLogout()}
+      onNavigate={setView}
+    />
+  );
 }

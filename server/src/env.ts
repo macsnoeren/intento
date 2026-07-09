@@ -64,6 +64,14 @@ const envSchema = z
     // Strenge rate limiting op /devices/link (publiek): tegen het raden van koppelcodes.
     DEVICE_LINK_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     DEVICE_LINK_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
+    // AAC-pictogramupload (T3.2, FR-015). Maximale bestandsgrootte in bytes; groter wordt geweigerd
+    // (413). Standaard 512 KiB — ruim voor een pictogram, streng genoeg tegen misbruik/DoS.
+    AAC_IMAGE_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(10 * 1024 * 1024)
+      .default(512 * 1024),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;

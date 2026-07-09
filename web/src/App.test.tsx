@@ -111,6 +111,29 @@ function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } =
     generateDeviceCode(): Promise<DeviceCodeResponse> {
       return Promise.resolve({ code: 'ABCD2345', expiresAt: '2026-07-08T10:15:00.000Z' });
     },
+    // AAC-beheer wordt in AacLibraryPage.test.tsx apart gedekt; hier alleen stubs zodat de
+    // beheeromgeving-tests tegen de volledige `Api` compileren (standaardweergave is Gebruikers).
+    listAacSymbols() {
+      return Promise.resolve({ symbols: [] });
+    },
+    createAacSymbol() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    updateAacSymbol() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    deleteAacSymbol() {
+      return Promise.resolve();
+    },
+    uploadAacImage() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    createAacRelation() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    deleteAacRelation() {
+      return Promise.resolve();
+    },
   };
 }
 

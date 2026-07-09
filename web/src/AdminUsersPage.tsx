@@ -4,6 +4,7 @@ import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
+import { AdminNav, type AdminView } from './AdminNav.tsx';
 
 /**
  * Beheeromgeving — gebruikersbeheer (T2.1, DESIGN §5.2). Toont de gebruikerslijst van de
@@ -15,10 +16,12 @@ export function AdminUsersPage({
   api,
   account,
   onLogout,
+  onNavigate,
 }: {
   api: Api;
   account: AccountPublic;
   onLogout: () => void;
+  onNavigate: (view: AdminView) => void;
 }): React.JSX.Element {
   const [users, setUsers] = useState<UserPublic[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -76,7 +79,10 @@ export function AdminUsersPage({
   return (
     <main className="admin">
       <header className="admin__header">
-        <h1 className="panel__title">Gebruikersbeheer</h1>
+        <div>
+          <h1 className="panel__title">Gebruikersbeheer</h1>
+          <AdminNav active="users" onNavigate={onNavigate} />
+        </div>
         <div className="admin__account">
           <span>{account.email}</span>
           <button className="button" type="button" onClick={onLogout}>

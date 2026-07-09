@@ -183,25 +183,38 @@ model DeviceLinkCode {
 /// - `label`: weergavetekst voor de gebruiker (Nederlands, bv. "Wandelen").
 /// - `category`: categoriesleutel ("intent" | "activity" | ... ; gevalideerd op de API-grens,
 ///   geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
-/// - `glyph`: de visuele weergave. In de MVP een emoji waaruit de server een SVG-placeholder
-///   rendert (`GET /aac/images/:id.svg`); T3.2 vervangt dit door geüploade afbeeldingsbestanden.
-/// - `synonyms`: alternatieve zoektermen (JSON-array van strings) — gestructureerd bewaard zodat
-///   T3.2 ze los kan beheren en de zoek-API ze kan teruggeven.
+/// - `glyph`: de visuele weergave als emoji-fallback. Zolang er geen afbeelding is geüpload rendert
+///   de server hieruit een SVG-placeholder (`GET /aac/images/:id`). Beheerders beheren dit in T3.2.
+/// - `imageData` / `imageMimeType`: een door een beheerder geüpload pictogram (T3.2). Bewust **in de
+///   db** opgeslagen (Bytes) i.p.v. op het bestandssysteem: portabel op SQLite én PostgreSQL, één
+///   backup-/migratiepad en geen pad-/serving-beveiliging op schijf. Beide `null` = nog geen upload,
+///   dan valt serving terug op de glyph-placeholder. Alleen een mime-allowlist (raster) wordt
+///   geaccepteerd, met groottelimiet (zie env `AAC_IMAGE_MAX_BYTES`).
+/// - `imageVersion`: teller die bij elke upload omhooggaat en als cache-buster (`?v=`) in de
+///   afbeeldings-URL komt, zodat een vervangen pictogram niet uit de browsercache blijft komen.
+/// - `synonyms`: alternatieve zoektermen (JSON-array van strings) — gestructureerd bewaard zodat de
+///   beheer-UI ze los kan beheren en de zoek-API ze kan teruggeven.
 /// - `searchText`: afgeleide, genormaliseerde (lowercase) zoekindex = concept + label + synoniemen.
 ///   De zoek-API matcht hierop met één `contains`, wat **portabel én hoofdletterongevoelig** is op
 ///   zowel SQLite als PostgreSQL (beide kanten vooraf lowercase → geen DB-specifieke `mode` nodig).
-///   Wordt herbouwd bij elke wijziging van het symbool of zijn synoniemen (T3.2).
+///   Wordt herbouwd bij elke wijziging van het symbool of zijn synoniemen.
 model AacSymbol {
-  id         String   @id @default(cuid())
-  concept    String   @unique
-  label      String
-  category   String
-  glyph      String
+  id            String   @id @default(cuid())
+  concept       String   @unique
+  label         String
+  category      String
+  glyph         String
+  /// Geüploade afbeeldingsbytes (T3.2); `null` = terugvallen op de glyph-placeholder.
+  imageData     Bytes?
+  /// Mime-type van de geüploade afbeelding (uit de mime-allowlist); `null` als er geen upload is.
+  imageMimeType String?
+  /// Cache-buster: telt uploads, komt als `?v=` in de afbeeldings-URL.
+  imageVersion  Int      @default(0)
   /// JSON-array van synoniemen (zoektermen). Op de grens met zod gevalideerd/geparseerd.
-  synonyms   Json
+  synonyms      Json
   /// Genormaliseerde zoekindex (lowercase); afgeleid, nooit rechtstreeks aan de client getoond.
-  searchText String
-  createdAt  DateTime @default(now())
+  searchText    String
+  createdAt     DateTime @default(now())
 
   /// Relaties waarin dit symbool de ouder is (bv. "buiten" bevat "wandelen").
   parentLinks AacConceptRelation[] @relation("parent")

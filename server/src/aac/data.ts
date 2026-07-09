@@ -31,33 +31,129 @@ export interface AacSeedRelation {
 
 export const AAC_SEED_SYMBOLS: AacSeedSymbol[] = [
   // Startscherm-intenties (DESIGN §3.1).
-  { concept: 'say', label: 'Iets zeggen', category: 'intent', glyph: '🗣️', synonyms: ['vertellen', 'praten', 'zeggen'] },
-  { concept: 'feel', label: 'Hoe ik mij voel', category: 'intent', glyph: '❤️', synonyms: ['gevoel', 'voelen', 'emotie'] },
-  { concept: 'problem', label: 'Er is iets aan de hand', category: 'intent', glyph: '🤕', synonyms: ['probleem', 'hulp', 'mis'] },
-  { concept: 'ask', label: 'Een vraag stellen', category: 'intent', glyph: '❓', synonyms: ['vraag', 'vragen'] },
-  { concept: 'want', label: 'Iets willen', category: 'intent', glyph: '🎯', synonyms: ['willen', 'wil', 'nodig'] },
+  {
+    concept: 'say',
+    label: 'Iets zeggen',
+    category: 'intent',
+    glyph: '🗣️',
+    synonyms: ['vertellen', 'praten', 'zeggen'],
+  },
+  {
+    concept: 'feel',
+    label: 'Hoe ik mij voel',
+    category: 'intent',
+    glyph: '❤️',
+    synonyms: ['gevoel', 'voelen', 'emotie'],
+  },
+  {
+    concept: 'problem',
+    label: 'Er is iets aan de hand',
+    category: 'intent',
+    glyph: '🤕',
+    synonyms: ['probleem', 'hulp', 'mis'],
+  },
+  {
+    concept: 'ask',
+    label: 'Een vraag stellen',
+    category: 'intent',
+    glyph: '❓',
+    synonyms: ['vraag', 'vragen'],
+  },
+  {
+    concept: 'want',
+    label: 'Iets willen',
+    category: 'intent',
+    glyph: '🎯',
+    synonyms: ['willen', 'wil', 'nodig'],
+  },
 
   // Activiteiten (route §3.1).
-  { concept: 'do-activity', label: 'Iets doen', category: 'activity', glyph: '🚶', synonyms: ['doen', 'activiteit', 'bezig'] },
-  { concept: 'outside', label: 'Buiten', category: 'place', glyph: '🌳', synonyms: ['buiten', 'naar buiten', 'tuin'] },
-  { concept: 'walking', label: 'Wandelen', category: 'activity', glyph: '🚶‍♀️', synonyms: ['wandelen', 'lopen', 'wandeling'] },
-  { concept: 'cycling', label: 'Fietsen', category: 'activity', glyph: '🚴', synonyms: ['fietsen', 'fiets'] },
+  {
+    concept: 'do-activity',
+    label: 'Iets doen',
+    category: 'activity',
+    glyph: '🚶',
+    synonyms: ['doen', 'activiteit', 'bezig'],
+  },
+  {
+    concept: 'outside',
+    label: 'Buiten',
+    category: 'place',
+    glyph: '🌳',
+    synonyms: ['buiten', 'naar buiten', 'tuin'],
+  },
+  {
+    concept: 'walking',
+    label: 'Wandelen',
+    category: 'activity',
+    glyph: '🚶‍♀️',
+    synonyms: ['wandelen', 'lopen', 'wandeling'],
+  },
+  {
+    concept: 'cycling',
+    label: 'Fietsen',
+    category: 'activity',
+    glyph: '🚴',
+    synonyms: ['fietsen', 'fiets'],
+  },
 
   // Eten en drinken.
-  { concept: 'eat', label: 'Eten', category: 'food', glyph: '🍽️', synonyms: ['eten', 'honger', 'maaltijd'] },
-  { concept: 'bread', label: 'Brood', category: 'food', glyph: '🍞', synonyms: ['brood', 'boterham'] },
+  {
+    concept: 'eat',
+    label: 'Eten',
+    category: 'food',
+    glyph: '🍽️',
+    synonyms: ['eten', 'honger', 'maaltijd'],
+  },
+  {
+    concept: 'bread',
+    label: 'Brood',
+    category: 'food',
+    glyph: '🍞',
+    synonyms: ['brood', 'boterham'],
+  },
   { concept: 'apple', label: 'Appel', category: 'food', glyph: '🍎', synonyms: ['appel', 'fruit'] },
   { concept: 'soup', label: 'Soep', category: 'food', glyph: '🍲', synonyms: ['soep'] },
-  { concept: 'drink', label: 'Drinken', category: 'drink', glyph: '🥤', synonyms: ['drinken', 'dorst', 'drank'] },
+  {
+    concept: 'drink',
+    label: 'Drinken',
+    category: 'drink',
+    glyph: '🥤',
+    synonyms: ['drinken', 'dorst', 'drank'],
+  },
   { concept: 'water', label: 'Water', category: 'drink', glyph: '💧', synonyms: ['water'] },
-  { concept: 'juice', label: 'Sap', category: 'drink', glyph: '🧃', synonyms: ['sap', 'vruchtensap'] },
+  {
+    concept: 'juice',
+    label: 'Sap',
+    category: 'drink',
+    glyph: '🧃',
+    synonyms: ['sap', 'vruchtensap'],
+  },
   { concept: 'coffee', label: 'Koffie', category: 'drink', glyph: '☕', synonyms: ['koffie'] },
   { concept: 'milk', label: 'Melk', category: 'drink', glyph: '🥛', synonyms: ['melk'] },
 
   // Gevoelens.
-  { concept: 'happy', label: 'Blij', category: 'feeling', glyph: '😊', synonyms: ['blij', 'vrolijk', 'fijn'] },
-  { concept: 'sad', label: 'Verdrietig', category: 'feeling', glyph: '😢', synonyms: ['verdrietig', 'droevig', 'huilen'] },
-  { concept: 'tired', label: 'Moe', category: 'feeling', glyph: '😴', synonyms: ['moe', 'slaap', 'vermoeid'] },
+  {
+    concept: 'happy',
+    label: 'Blij',
+    category: 'feeling',
+    glyph: '😊',
+    synonyms: ['blij', 'vrolijk', 'fijn'],
+  },
+  {
+    concept: 'sad',
+    label: 'Verdrietig',
+    category: 'feeling',
+    glyph: '😢',
+    synonyms: ['verdrietig', 'droevig', 'huilen'],
+  },
+  {
+    concept: 'tired',
+    label: 'Moe',
+    category: 'feeling',
+    glyph: '😴',
+    synonyms: ['moe', 'slaap', 'vermoeid'],
+  },
   { concept: 'pain', label: 'Pijn', category: 'feeling', glyph: '🤕', synonyms: ['pijn', 'zeer'] },
 
   // Lichaamsdelen (bij "er is iets aan de hand").
@@ -66,12 +162,42 @@ export const AAC_SEED_SYMBOLS: AacSeedSymbol[] = [
   { concept: 'leg', label: 'Been', category: 'body', glyph: '🦵', synonyms: ['been', 'benen'] },
 
   // Personen, plekken en dieren.
-  { concept: 'mom', label: 'Mama', category: 'person', glyph: '👩', synonyms: ['mama', 'moeder', 'mam'] },
-  { concept: 'dad', label: 'Papa', category: 'person', glyph: '👨', synonyms: ['papa', 'vader', 'pap'] },
-  { concept: 'dog', label: 'Hond', category: 'animal', glyph: '🐕', synonyms: ['hond', 'hondje', 'met hond'] },
+  {
+    concept: 'mom',
+    label: 'Mama',
+    category: 'person',
+    glyph: '👩',
+    synonyms: ['mama', 'moeder', 'mam'],
+  },
+  {
+    concept: 'dad',
+    label: 'Papa',
+    category: 'person',
+    glyph: '👨',
+    synonyms: ['papa', 'vader', 'pap'],
+  },
+  {
+    concept: 'dog',
+    label: 'Hond',
+    category: 'animal',
+    glyph: '🐕',
+    synonyms: ['hond', 'hondje', 'met hond'],
+  },
   { concept: 'home', label: 'Thuis', category: 'place', glyph: '🏠', synonyms: ['thuis', 'huis'] },
-  { concept: 'toilet', label: 'Toilet', category: 'place', glyph: '🚽', synonyms: ['toilet', 'wc', 'plassen'] },
-  { concept: 'park', label: 'Park', category: 'place', glyph: '🏞️', synonyms: ['park', 'speeltuin'] },
+  {
+    concept: 'toilet',
+    label: 'Toilet',
+    category: 'place',
+    glyph: '🚽',
+    synonyms: ['toilet', 'wc', 'plassen'],
+  },
+  {
+    concept: 'park',
+    label: 'Park',
+    category: 'place',
+    glyph: '🏞️',
+    synonyms: ['park', 'speeltuin'],
+  },
 ];
 
 export const AAC_SEED_RELATIONS: AacSeedRelation[] = [

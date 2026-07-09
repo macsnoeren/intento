@@ -264,6 +264,122 @@ body {
   color: inherit;
 }
 
+/* Beheernavigatie tussen gebruikers en AAC-bibliotheek (T3.2) */
+.admin__nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.admin__tab {
+  font-size: 1rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  background: var(--intento-surface);
+  color: var(--intento-fg);
+  cursor: pointer;
+}
+
+.admin__tab--active {
+  background: var(--intento-accent);
+  border-color: var(--intento-accent);
+  color: #fff;
+  cursor: default;
+}
+
+/* AAC-symboollijst (T3.2) */
+.symbol-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.symbol-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 0.4rem;
+}
+
+.symbol-list__item--active {
+  border-color: var(--intento-accent);
+  box-shadow: 0 0 0 1px var(--intento-accent);
+}
+
+.symbol-list__select {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0.3rem 0.5rem;
+}
+
+.symbol-list__image {
+  border-radius: 8px;
+  background: var(--intento-bg);
+  object-fit: contain;
+  flex: none;
+}
+
+.symbol-list__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.symbol-list__label {
+  font-size: 1.1rem;
+}
+
+.symbol-list__meta {
+  font-size: 0.9rem;
+}
+
+/* AAC-symbooldetail: afbeelding en relaties (T3.2) */
+.symbol-image {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.symbol-image img {
+  border-radius: var(--intento-radius);
+  background: var(--intento-bg);
+  object-fit: contain;
+  flex: none;
+}
+
+.relation-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.relation-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 0.4rem 0.4rem 0.4rem 0.9rem;
+  font-size: 1.1rem;
+}
+
 /* Koppelcode voor tabletkoppeling (T2.3). Groot en goed leesbaar om over te typen. */
 .device-code {
   margin-top: 0.9rem;

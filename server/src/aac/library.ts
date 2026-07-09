@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { aacSymbolSchema, type AacSymbol as AacSymbolPublic } from '@intento/shared';
+import {
+  aacSymbolSchema,
+  aacSymbolAdminSchema,
+  type AacSymbol as AacSymbolPublic,
+  type AacSymbolAdmin,
+  type AacRelationEdge,
+} from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AacSymbolModel } from '../generated/prisma/models.js';
 import { AAC_SEED_RELATIONS, AAC_SEED_SYMBOLS, type AacSeedSymbol } from './data.js';
@@ -12,9 +18,15 @@ import { AAC_SEED_RELATIONS, AAC_SEED_SYMBOLS, type AacSeedSymbol } from './data
  * de route en de tests, zodat er één bron van waarheid is voor de zoekindex en de afbeeldings-URL.
  */
 
-/** Publiek pad waarop een pictogram bereikbaar is (server-gerenderde SVG in de MVP). */
-export function imageUrlFor(symbolId: string): string {
-  return `/aac/images/${symbolId}.svg`;
+/**
+ * Publiek pad waarop een pictogram bereikbaar is. Zonder geüploade afbeelding rendert de server
+ * een SVG-placeholder uit de glyph; met upload wordt de geüploade afbeelding geserveerd. Bij een
+ * upload (`imageVersion > 0`) hangen we een cache-buster `?v=` aan, zodat een vervangen pictogram
+ * niet uit de browsercache blijft komen (de serving zet een lange `Cache-Control`).
+ */
+export function imageUrlFor(symbolId: string, imageVersion = 0): string {
+  const base = `/aac/images/${symbolId}`;
+  return imageVersion > 0 ? `${base}?v=${imageVersion}` : base;
 }
 
 /**
@@ -43,9 +55,45 @@ export function symbolToPublic(symbol: AacSymbolModel): AacSymbolPublic {
     category: symbol.category,
     glyph: symbol.glyph,
     synonyms: synonymsSchema.parse(symbol.synonyms),
-    imageUrl: imageUrlFor(symbol.id),
+    imageUrl: imageUrlFor(symbol.id, symbol.imageVersion),
   });
 }
+
+/** Een symbool met zijn relaties, zoals de admin-query het teruggeeft (parent/child ge-include). */
+export interface AacSymbolWithRelations extends AacSymbolModel {
+  parentLinks: { id: string; relation: string; child: AacSymbolModel }[];
+  childLinks: { id: string; relation: string; parent: AacSymbolModel }[];
+}
+
+/**
+ * Serialiseert een symbool naar de beheerweergave: publieke velden + of er een afbeelding is en de
+ * gelegde relaties. `children` = uitgaande relaties (dit symbool is de ouder, `parentLinks`);
+ * `parents` = inkomende relaties (dit symbool is het kind, `childLinks`).
+ */
+export function symbolToAdmin(symbol: AacSymbolWithRelations): AacSymbolAdmin {
+  const children: AacRelationEdge[] = symbol.parentLinks.map((link) => ({
+    relationId: link.id,
+    relation: link.relation,
+    symbol: symbolToPublic(link.child),
+  }));
+  const parents: AacRelationEdge[] = symbol.childLinks.map((link) => ({
+    relationId: link.id,
+    relation: link.relation,
+    symbol: symbolToPublic(link.parent),
+  }));
+  return aacSymbolAdminSchema.parse({
+    ...symbolToPublic(symbol),
+    hasImage: symbol.imageMimeType !== null,
+    children,
+    parents,
+  });
+}
+
+/** Prisma-`include` dat de relaties met hun tegen-symbool ophaalt voor `symbolToAdmin`. */
+export const adminSymbolInclude = {
+  parentLinks: { include: { child: true }, orderBy: { child: { label: 'asc' } } },
+  childLinks: { include: { parent: true }, orderBy: { parent: { label: 'asc' } } },
+} as const;
 
 /**
  * Seedt (of werkt bij) de volledige AAC-bibliotheek — idempotent, veilig herhaald uit te voeren.
