@@ -31,6 +31,7 @@ function makeSymbol(
     glyph: overrides.glyph ?? '🔷',
     synonyms: overrides.synonyms ?? [],
     imageUrl: `/aac/images/${overrides.id}`,
+    attribution: overrides.attribution ?? null,
     hasImage: overrides.hasImage ?? false,
     children: overrides.children ?? [],
     parents: overrides.parents ?? [],
@@ -116,6 +117,41 @@ function fakeApi(): Api {
       symbols[index] = updated;
       return Promise.resolve(updated);
     },
+    searchOpenSymbols(q: string) {
+      if (q.toLowerCase() === 'leeg') return Promise.resolve({ results: [] });
+      return Promise.resolve({
+        results: [
+          {
+            id: 'os-1',
+            name: `${q}-pictogram`,
+            imageUrl: 'https://example.org/os-1.png',
+            extension: 'png',
+            license: 'CC BY-SA',
+            licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+            author: 'ARASAAC',
+            authorUrl: 'https://arasaac.org',
+            sourceUrl: 'https://www.opensymbols.org/symbols/os-1',
+          },
+        ],
+      });
+    },
+    attachOpenSymbols(id: string): Promise<AacSymbolAdmin> {
+      const index = symbols.findIndex((s) => s.id === id);
+      const updated = {
+        ...symbols[index]!,
+        hasImage: true,
+        imageUrl: `/aac/images/${id}?v=1`,
+        attribution: {
+          license: 'CC BY-SA',
+          licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+          author: 'ARASAAC',
+          authorUrl: 'https://arasaac.org',
+          sourceUrl: 'https://www.opensymbols.org/symbols/os-1',
+        },
+      };
+      symbols[index] = updated;
+      return Promise.resolve(updated);
+    },
     createAacRelation(parentId: string, childId: string): Promise<AacSymbolAdmin> {
       const parent = symbols.find((s) => s.id === parentId)!;
       const child = symbols.find((s) => s.id === childId)!;
@@ -132,6 +168,7 @@ function fakeApi(): Api {
             glyph: child.glyph,
             synonyms: child.synonyms,
             imageUrl: child.imageUrl,
+            attribution: child.attribution,
           },
         },
       ];
@@ -253,5 +290,39 @@ describe('AAC-bibliotheekbeheer', () => {
     expect((await within(imagePanel).findByRole('alert')).textContent).toContain(
       'Alleen afbeeldingen',
     );
+  });
+
+  it('zoekt in OpenSymbols en koppelt een resultaat met bronvermelding', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Wandelen' }));
+
+    const panel = await screen.findByRole('region', { name: 'OpenSymbols zoeken voor Wandelen' });
+    // De zoekterm is voorgevuld met het label; gewoon zoeken.
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zoek pictogram' }));
+
+    const attach = await within(panel).findByRole('button', {
+      name: /Koppel .* aan Wandelen/,
+    });
+    fireEvent.click(attach);
+
+    // Na koppelen toont het pictogram-paneel de bronvermelding en licentie.
+    await waitFor(() => {
+      const imagePanel = screen.getByRole('region', { name: 'Afbeelding voor Wandelen' });
+      expect(within(imagePanel).getByText(/ARASAAC/)).toBeTruthy();
+      expect(within(imagePanel).getByText(/CC BY-SA/)).toBeTruthy();
+    });
+  });
+
+  it('toont een lege-resultatenmelding bij OpenSymbols', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Wandelen' }));
+
+    const panel = await screen.findByRole('region', { name: 'OpenSymbols zoeken voor Wandelen' });
+    fireEvent.change(within(panel).getByLabelText('OpenSymbols-zoekterm'), {
+      target: { value: 'leeg' },
+    });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Zoek pictogram' }));
+
+    expect(await within(panel).findByText('Geen resultaten gevonden.')).toBeTruthy();
   });
 });

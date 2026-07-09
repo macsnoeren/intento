@@ -83,7 +83,7 @@ leeft in de langlevende `intento_device`-cookie (`DEVICE_TOKEN_TTL_DAYS`).
 | POST | `/devices/link` | publiek | Wisselt een koppelcode in (`linkDeviceRequestSchema`, `{ code }`; genormaliseerd). Bij succes: `201` + `deviceSessionResponseSchema` (`{ device, user }`) en de `intento_device`-cookie. Onbekend/verlopen/al gebruikt → `400 INVALID_LINK_CODE` (bewust generiek). Streng rate-limited per IP. |
 | GET | `/device/me` | apparaat | Eigen gebruiker + apparaat (`deviceSessionResponseSchema`). Enige data waartoe een apparaat-token toegang geeft. Geen/ongeldig apparaat → `401 DEVICE_NOT_LINKED`. |
 
-### AAC-bibliotheek (T3.1, T3.2)
+### AAC-bibliotheek (T3.1, T3.2, T3.3)
 De AAC-bibliotheek (`AacSymbol` + `AacConceptRelation`) is de beheerde woordenschat die de AI
 begrenst (DESIGN §7.6). Ze is **gedeeld** — niet tenant-gebonden — maar niet publiek: zoeken vereist
 een ingelogd account **óf** een gekoppeld apparaat (de tablet zoekt tijdens communicatie). Een
@@ -94,7 +94,7 @@ pictogram is óf een door een beheerder **geüploade afbeelding** (voorrang) óf
 
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
-| GET | `/aac/search?q=…` | account **of** apparaat | Zoekt hoofdletterongevoelig op concept, label én synoniemen (`aacSearchQuerySchema`; lege `q` → `400`). `200` + `aacSearchResponseSchema` (`{ symbols: [{ id, concept, label, category, glyph, synonyms, imageUrl }] }`). Zonder account- of apparaat-auth → `401 NOT_AUTHENTICATED`. |
+| GET | `/aac/search?q=…` | account **of** apparaat | Zoekt hoofdletterongevoelig op concept, label én synoniemen (`aacSearchQuerySchema`; lege `q` → `400`). `200` + `aacSearchResponseSchema` (`{ symbols: [{ id, concept, label, category, glyph, synonyms, imageUrl, attribution }] }`; `attribution` = bron/licentie of `null`). Zonder account- of apparaat-auth → `401 NOT_AUTHENTICATED`. |
 | GET | `/aac/images/{id}` | publiek | Pictogram van een symbool: de geüploade afbeelding met haar eigen `Content-Type`, of anders een `image/svg+xml`-placeholder (uit `glyph`+`label`), cachebaar. Bewust publiek: presentatiedata die de web-client als `<img src>` laadt. Onbekend id → `404 SYMBOL_NOT_FOUND`. `imageUrl` in de payload draagt na een upload een cache-buster `?v=<imageVersion>`. (Het oude pad met `.svg`-suffix blijft werken.) |
 
 **Beheer (T3.2) — alléén ADMIN.** De bibliotheek is platformbreed gedeeld, dus deze routes worden
@@ -110,5 +110,16 @@ toevoegen/bewerken/verwijderen (incl. afbeelding-upload) en relaties leggen.
 | POST | `/admin/aac/symbols/{id}/image` | ADMIN | Pictogram uploaden (`multipart/form-data`, veld `file`). Allowlist PNG/JPEG/WebP → anders `415 UNSUPPORTED_IMAGE_TYPE`; groter dan `AAC_IMAGE_MAX_BYTES` → `413 IMAGE_TOO_LARGE`; geen bestand → `400 NO_FILE`. `200` + `aacSymbolAdminSchema` (`hasImage: true`). |
 | POST | `/admin/aac/relations` | ADMIN | Relatie ouder→kind leggen (`aacRelationInputSchema`; `relation` standaard `"contains"`). `201` + het bijgewerkte oudersymbool. Zelfrelatie → `400 INVALID_RELATION`; onbekend symbool → `404 SYMBOL_NOT_FOUND`; bestaande relatie → `409 RELATION_EXISTS`. |
 | DELETE | `/admin/aac/relations/{id}` | ADMIN | Relatie verwijderen. `204`. Onbekend id → `404 RELATION_NOT_FOUND`. |
+
+**OpenSymbols-integratie (T3.3) — alléén ADMIN.** De backend proxyt namens de beheer-UI naar
+[OpenSymbols](https://www.opensymbols.org/) (de client praat **nooit** rechtstreeks met externe
+diensten, DESIGN §8.1). De integratie is uit als `OPENSYMBOLS_SECRET` leeg is → `503`. Een gekoppelde
+afbeelding wordt **server-side** opgehaald en lokaal opgeslagen (dezelfde `AacSymbol.imageData`-opslag
+als een upload), met bron/licentie op het symbool (`attribution`). Zie ADR-0006.
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/admin/aac/opensymbols/search?q=&locale=` | ADMIN | Zoekt bij OpenSymbols (`openSymbolsSearchQuerySchema`). `200` + `openSymbolsSearchResponseSchema` (`{ results: [{ id, name, imageUrl, extension, license, licenseUrl, author, authorUrl, sourceUrl }] }`). Alleen resultaten met een `https`-`imageUrl` worden teruggegeven. Niet geconfigureerd → `503 OPENSYMBOLS_UNAVAILABLE`; externe fout → `502 OPENSYMBOLS_ERROR`. |
+| POST | `/admin/aac/symbols/{id}/opensymbols` | ADMIN | Gekozen afbeelding koppelen (`attachOpenSymbolsRequestSchema`: `imageUrl` (https), `license`, optioneel `licenseUrl`/`author`/`authorUrl`/`sourceUrl`). De backend haalt de bytes op (https-only + SSRF-guard), controleert content-type (PNG/JPEG/WebP → anders `415`) en grootte (`AAC_IMAGE_MAX_BYTES` → `413`), en slaat de afbeelding + bron/licentie op. `200` + `aacSymbolAdminSchema` (`hasImage: true`, `attribution` gevuld). Onbekend id → `404`; niet-`https`/interne host → `400 INVALID_IMAGE_URL`; externe/lege fout → `502`; niet geconfigureerd → `503`. |
 
 <Volgende domeinen (gesprek, …) worden hier per taak toegevoegd.>

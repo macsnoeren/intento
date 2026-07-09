@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -144,18 +144,25 @@ curl -sc device.txt -X POST http://127.0.0.1:3000/devices/link \
 curl -sb device.txt http://127.0.0.1:3000/device/me
 ```
 
-## AAC-bibliotheek (T3.1, T3.2)
+## AAC-bibliotheek (T3.1, T3.2, T3.3)
 
 De AAC-bibliotheek is de gedeelde, beheerde pictogramwoordenschat die de AI begrenst (DESIGN §7.6).
 `npm run db:seed` vult ze met een startset (~31 symbolen + relaties voor de voorbeeldflows uit
 DESIGN §3). Zoeken kan met een ingelogd account **of** een gekoppeld apparaat en is
 hoofdletterongevoelig op concept, label én synoniem. Een pictogram is óf een door een beheerder
-geüploade afbeelding óf een server-gerenderde SVG-placeholder uit de emoji-`glyph`.
+geüploade/gekoppelde afbeelding óf een server-gerenderde SVG-placeholder uit de emoji-`glyph`.
 
 Een **beheerder** onderhoudt de bibliotheek in de beheeromgeving (tab *AAC-bibliotheek*):
 symbolen zoeken/filteren, toevoegen/bewerken/verwijderen, een pictogram uploaden (PNG/JPEG/WebP,
 max `AAC_IMAGE_MAX_BYTES`) en begripsrelaties leggen (`POST /admin/aac/…`, ADMIN-only). De
 bibliotheek is platformbreed gedeeld, dus dit is een rol-beperkte (niet tenant-gebonden) taak.
+
+In plaats van zelf uploaden kan een beheerder ook een bestaand, vrij te gebruiken pictogram bij
+[OpenSymbols](https://www.opensymbols.org/) opzoeken en koppelen (T3.3). De **backend** proxyt de
+zoekactie en haalt de gekozen afbeelding **server-side** op (`https`-only + SSRF-guard + mime-/
+groottecontrole), slaat 'm lokaal op en bewaart bron/licentie op het symbool. Zet
+`OPENSYMBOLS_SECRET` (en eventueel `OPENSYMBOLS_API_URL`) in de env; zonder secret is de integratie
+uit (endpoints antwoorden `503`). Zie [docs/adr/0006](docs/adr/0006-external-service-proxy-opensymbols.md).
 
 ```bash
 # Zoeken op synoniem ("lopen" vindt concept "walking"); levert o.a. een imageUrl per symbool:
@@ -166,6 +173,8 @@ curl -s http://127.0.0.1:3000/aac/images/<symbol-id>
 curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/aac/symbols \
   -H 'Content-Type: application/json' \
   -d '{"concept":"reading","label":"Lezen","category":"activity","glyph":"📖","synonyms":["boek lezen"]}'
+# OpenSymbols zoeken (ADMIN; vereist OPENSYMBOLS_SECRET):
+curl -sb cookies.txt "http://127.0.0.1:3000/admin/aac/opensymbols/search?q=dog"
 ```
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)

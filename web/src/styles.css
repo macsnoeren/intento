@@ -380,6 +380,46 @@ body {
   font-size: 1.1rem;
 }
 
+/* Bronvermelding onder een pictogram met externe herkomst (OpenSymbols, T3.3). */
+.symbol-attribution {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+}
+
+/* OpenSymbols-zoekresultaten (T3.3): pictogram + herkomst + koppelknop. */
+.opensymbols-results {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.opensymbols-results__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 0.4rem;
+}
+
+.opensymbols-results__image {
+  border-radius: 8px;
+  background: var(--intento-bg);
+  object-fit: contain;
+  flex: none;
+}
+
+.opensymbols-results__meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
 /* Koppelcode voor tabletkoppeling (T2.3). Groot en goed leesbaar om over te typen. */
 .device-code {
   margin-top: 0.9rem;

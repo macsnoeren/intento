@@ -134,6 +134,12 @@ function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } =
     deleteAacRelation() {
       return Promise.resolve();
     },
+    searchOpenSymbols() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    attachOpenSymbols() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
   };
 }
 

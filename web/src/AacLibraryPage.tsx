@@ -5,6 +5,7 @@ import {
   type AacSymbolAdmin,
   type AacSymbolInput,
   type AccountPublic,
+  type OpenSymbolsResult,
 } from '@intento/shared';
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
 import { AdminNav } from './AdminNav.tsx';
@@ -454,6 +455,19 @@ function AacSymbolDetail({
               : 'Nog geen afbeelding; nu wordt de emoji-glyph getoond.'}
           </p>
         </div>
+        {symbol.attribution ? (
+          <p className="muted symbol-attribution">
+            Bron: {symbol.attribution.author ?? 'onbekend'} — licentie {symbol.attribution.license}
+            {symbol.attribution.sourceUrl ? (
+              <>
+                {' · '}
+                <a href={symbol.attribution.sourceUrl} target="_blank" rel="noreferrer noopener">
+                  bron
+                </a>
+              </>
+            ) : null}
+          </p>
+        ) : null}
         <label className="field">
           <span className="field__label">Afbeelding uploaden (PNG, JPEG of WebP)</span>
           <input
@@ -474,6 +488,8 @@ function AacSymbolDetail({
           </p>
         ) : null}
       </section>
+
+      <OpenSymbolsPanel api={api} symbol={symbol} onChanged={onChanged} />
 
       <section className="panel" aria-label={`Relaties voor ${symbol.label}`}>
         <h2 className="panel__subtitle">Relaties</h2>
@@ -540,5 +556,132 @@ function AacSymbolDetail({
         ) : null}
       </section>
     </>
+  );
+}
+
+/**
+ * OpenSymbols-paneel (T3.3): een beheerder zoekt in de vrij te gebruiken OpenSymbols-bibliotheek
+ * en koppelt een gevonden pictogram aan het geselecteerde symbool. De backend proxyt de zoekactie
+ * én haalt de gekozen afbeelding server-side op (de client praat nooit rechtstreeks met de externe
+ * dienst); hier tonen we alleen de resultaten met bronvermelding en de fout-/lege toestanden.
+ */
+function OpenSymbolsPanel({
+  api,
+  symbol,
+  onChanged,
+}: {
+  api: Api;
+  symbol: AacSymbolAdmin;
+  onChanged: (updated: AacSymbolAdmin) => void;
+}): React.JSX.Element {
+  const [q, setQ] = useState(symbol.label);
+  const [results, setResults] = useState<OpenSymbolsResult[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [attachingId, setAttachingId] = useState<string | null>(null);
+
+  async function handleSearch(event: FormEvent): Promise<void> {
+    event.preventDefault();
+    if (!q.trim()) return;
+    setError(null);
+    setSearching(true);
+    setResults(null);
+    try {
+      const { results: found } = await api.searchOpenSymbols(q.trim());
+      setResults(found);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Zoeken bij OpenSymbols mislukt.');
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleAttach(result: OpenSymbolsResult): Promise<void> {
+    setError(null);
+    setAttachingId(result.id);
+    try {
+      const updated = await api.attachOpenSymbols(symbol.id, {
+        imageUrl: result.imageUrl,
+        license: result.license,
+        licenseUrl: result.licenseUrl,
+        author: result.author,
+        authorUrl: result.authorUrl,
+        sourceUrl: result.sourceUrl,
+      });
+      onChanged(updated);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Koppelen mislukt.');
+    } finally {
+      setAttachingId(null);
+    }
+  }
+
+  return (
+    <section className="panel" aria-label={`OpenSymbols zoeken voor ${symbol.label}`}>
+      <h2 className="panel__subtitle">Zoek in OpenSymbols</h2>
+      <p className="muted">
+        Zoek een vrij te gebruiken pictogram in OpenSymbols en koppel het. De afbeelding wordt
+        lokaal opgeslagen met bronvermelding en licentie.
+      </p>
+
+      <form
+        className="form form--inline"
+        onSubmit={(e) => void handleSearch(e)}
+        aria-label="OpenSymbols zoeken"
+        role="search"
+      >
+        <input
+          className="field__input"
+          type="search"
+          placeholder="Zoekterm (bv. dog)"
+          aria-label="OpenSymbols-zoekterm"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button className="button" type="submit" disabled={searching}>
+          {searching ? 'Zoeken…' : 'Zoek pictogram'}
+        </button>
+      </form>
+
+      {error ? (
+        <p className="form__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {results && results.length === 0 ? <p className="muted">Geen resultaten gevonden.</p> : null}
+
+      {results && results.length > 0 ? (
+        <ul className="opensymbols-results">
+          {results.map((result) => (
+            <li key={result.id} className="opensymbols-results__item">
+              <img
+                className="opensymbols-results__image"
+                src={result.imageUrl}
+                alt={result.name}
+                width={64}
+                height={64}
+                loading="lazy"
+              />
+              <span className="opensymbols-results__meta">
+                <span>{result.name}</span>
+                <span className="muted">
+                  {result.author ?? 'onbekend'} · {result.license}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="button button--primary"
+                disabled={attachingId !== null}
+                onClick={() => void handleAttach(result)}
+                aria-label={`Koppel ${result.name} aan ${symbol.label}`}
+              >
+                {attachingId === result.id ? 'Koppelen…' : 'Koppelen'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }

@@ -46,6 +46,22 @@ export function buildSearchText(symbol: AacSeedSymbol): string {
 /** Synoniemen worden als JSON opgeslagen; bij het lezen valideren we de vorm expliciet. */
 const synonymsSchema = z.array(z.string());
 
+/**
+ * Bouwt het attributie-object uit de opgeslagen bron-/licentievelden, of `null` als er geen
+ * externe bron is (zelf-geüploade afbeelding of glyph-placeholder). De licentie is de dragende
+ * waarde: zonder licentie is er geen te tonen attributie.
+ */
+function attributionOf(symbol: AacSymbolModel): AacSymbolPublic['attribution'] {
+  if (!symbol.imageLicense) return null;
+  return {
+    license: symbol.imageLicense,
+    licenseUrl: symbol.imageLicenseUrl ?? null,
+    author: symbol.imageAuthor ?? null,
+    authorUrl: symbol.imageAuthorUrl ?? null,
+    sourceUrl: symbol.imageSourceUrl ?? null,
+  };
+}
+
 /** Serialiseert een db-symbool naar de publieke (zod-gevalideerde) zoekresultaatvorm. */
 export function symbolToPublic(symbol: AacSymbolModel): AacSymbolPublic {
   return aacSymbolSchema.parse({
@@ -56,6 +72,7 @@ export function symbolToPublic(symbol: AacSymbolModel): AacSymbolPublic {
     glyph: symbol.glyph,
     synonyms: synonymsSchema.parse(symbol.synonyms),
     imageUrl: imageUrlFor(symbol.id, symbol.imageVersion),
+    attribution: attributionOf(symbol),
   });
 }
 

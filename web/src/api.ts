@@ -5,15 +5,18 @@ import {
   authResponseSchema,
   caregiverListResponseSchema,
   deviceCodeResponseSchema,
+  openSymbolsSearchResponseSchema,
   userListResponseSchema,
   userPublicSchema,
   type AacSymbolAdmin,
   type AacSymbolInput,
   type AacSymbolListResponse,
+  type AttachOpenSymbolsRequest,
   type AuthResponse,
   type CaregiverListResponse,
   type CreateUserRequest,
   type DeviceCodeResponse,
+  type OpenSymbolsSearchResponse,
   type UpdateSettingsRequest,
   type UserListResponse,
   type UserPublic,
@@ -60,6 +63,8 @@ export interface Api {
   uploadAacImage(id: string, file: File): Promise<AacSymbolAdmin>;
   createAacRelation(parentId: string, childId: string): Promise<AacSymbolAdmin>;
   deleteAacRelation(id: string): Promise<void>;
+  searchOpenSymbols(q: string): Promise<OpenSymbolsSearchResponse>;
+  attachOpenSymbols(id: string, body: AttachOpenSymbolsRequest): Promise<AacSymbolAdmin>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -190,5 +195,19 @@ export const httpApi: Api = {
   },
   async deleteAacRelation(id) {
     await request(`/admin/aac/relations/${id}`, { method: 'DELETE' });
+  },
+  async searchOpenSymbols(q) {
+    const params = new URLSearchParams({ q });
+    return openSymbolsSearchResponseSchema.parse(
+      await request(`/admin/aac/opensymbols/search?${params.toString()}`),
+    );
+  },
+  async attachOpenSymbols(id, body) {
+    return aacSymbolAdminSchema.parse(
+      await request(`/admin/aac/symbols/${id}/opensymbols`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    );
   },
 };

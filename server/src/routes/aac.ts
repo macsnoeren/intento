@@ -6,9 +6,13 @@ import {
   aacSymbolInputSchema,
   aacSymbolListResponseSchema,
   aacRelationInputSchema,
+  attachOpenSymbolsRequestSchema,
+  openSymbolsSearchQuerySchema,
+  openSymbolsSearchResponseSchema,
   type AacSearchResponse,
   type AacSymbolAdmin,
   type AacSymbolListResponse,
+  type OpenSymbolsSearchResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { Env } from '../env.js';
@@ -25,10 +29,13 @@ import {
   symbolToAdmin,
   symbolToPublic,
 } from '../aac/library.js';
+import { assertSafeImageUrl, type OpenSymbolsClient } from '../aac/opensymbols.js';
 
 export interface AacRoutesDeps {
   prisma: PrismaClient;
   env: Env;
+  /** OpenSymbols-proxy (T3.3); injecteerbaar zodat tests een mock zonder netwerk kunnen meegeven. */
+  openSymbols: OpenSymbolsClient;
 }
 
 /** Route-parameter: het symbool-id uit het pad (met `.svg`-suffix afgekapt in de handler). */
@@ -92,8 +99,13 @@ async function loadAdminSymbol(prisma: PrismaClient, id: string): Promise<AacSym
  * - `POST /admin/aac/symbols/:id/image` — pictogram uploaden (multipart; mime-allowlist + limiet).
  * - `POST /admin/aac/relations` — relatie ouder→kind leggen (geen zelfrelatie; dubbel → 409).
  * - `DELETE /admin/aac/relations/:id` — relatie verwijderen.
+ * - `GET /admin/aac/opensymbols/search?q=…` — proxy naar OpenSymbols (T3.3); gesaneerde resultaten.
+ * - `POST /admin/aac/symbols/:id/opensymbols` — gekozen OpenSymbols-afbeelding lokaal koppelen.
  */
-export function registerAacRoutes(app: FastifyInstance, { prisma, env }: AacRoutesDeps): void {
+export function registerAacRoutes(
+  app: FastifyInstance,
+  { prisma, env, openSymbols }: AacRoutesDeps,
+): void {
   // Zoeken — ingelogd account of gekoppeld apparaat.
   app.get(
     '/aac/search',
@@ -268,6 +280,13 @@ export function registerAacRoutes(app: FastifyInstance, { prisma, env }: AacRout
           imageData: new Uint8Array(buffer),
           imageMimeType: file.mimetype,
           imageVersion: { increment: 1 },
+          // Een zelf-geüploade afbeelding heeft geen externe bron; wis eventuele oude attributie
+          // zodat er geen onjuiste licentie/bron blijft hangen (bv. na een eerdere OpenSymbols-koppeling).
+          imageLicense: null,
+          imageLicenseUrl: null,
+          imageAuthor: null,
+          imageAuthorUrl: null,
+          imageSourceUrl: null,
         },
         include: adminSymbolInclude,
       });
@@ -321,6 +340,111 @@ export function registerAacRoutes(app: FastifyInstance, { prisma, env }: AacRout
       if (!existing) throw new HttpError(404, 'RELATION_NOT_FOUND', 'Relatie bestaat niet.');
       await prisma.aacConceptRelation.delete({ where: { id } });
       reply.status(204).send();
+    },
+  );
+
+  // --- OpenSymbols-integratie (T3.3) ---
+
+  // Zoeken bij OpenSymbols via de backend-proxy (de client praat nooit rechtstreeks, DESIGN §8.1).
+  // Zonder configuratie: 503; een externe fout wordt netjes als 502 teruggegeven (nooit lekken).
+  app.get(
+    '/admin/aac/opensymbols/search',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<OpenSymbolsSearchResponse> => {
+      const { q, locale } = openSymbolsSearchQuerySchema.parse(request.query);
+      if (!openSymbols.isConfigured()) {
+        throw new HttpError(
+          503,
+          'OPENSYMBOLS_UNAVAILABLE',
+          'OpenSymbols is niet geconfigureerd op deze server.',
+        );
+      }
+      let results;
+      try {
+        results = await openSymbols.search(q, locale);
+      } catch (err) {
+        request.log.error({ err }, 'OpenSymbols-zoekopdracht mislukt');
+        throw new HttpError(
+          502,
+          'OPENSYMBOLS_ERROR',
+          'OpenSymbols is momenteel niet bereikbaar. Probeer het later opnieuw.',
+        );
+      }
+      return openSymbolsSearchResponseSchema.parse({ results });
+    },
+  );
+
+  // Een gekozen OpenSymbols-afbeelding lokaal koppelen aan een symbool. De backend haalt de bytes
+  // zelf op (https-only + SSRF-guard + content-type + groottelimiet) en legt de bron/licentie vast.
+  app.post(
+    '/admin/aac/symbols/:id/opensymbols',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<AacSymbolAdmin> => {
+      const { id } = idParamsSchema.parse(request.params);
+      const input = attachOpenSymbolsRequestSchema.parse(request.body);
+
+      const existing = await prisma.aacSymbol.findUnique({ where: { id } });
+      if (!existing) throw new HttpError(404, 'SYMBOL_NOT_FOUND', 'Pictogram bestaat niet.');
+
+      if (!openSymbols.isConfigured()) {
+        throw new HttpError(
+          503,
+          'OPENSYMBOLS_UNAVAILABLE',
+          'OpenSymbols is niet geconfigureerd op deze server.',
+        );
+      }
+
+      // Guard vóór elke download: https-only + geen interne/loopback-hosts (SSRF).
+      assertSafeImageUrl(input.imageUrl);
+
+      let image;
+      try {
+        image = await openSymbols.fetchImage(input.imageUrl);
+      } catch (err) {
+        // Een groottefout van de proxy is al een nette HttpError; die laten we door.
+        if (err instanceof HttpError) throw err;
+        request.log.error({ err }, 'OpenSymbols-afbeelding ophalen mislukt');
+        throw new HttpError(
+          502,
+          'OPENSYMBOLS_ERROR',
+          'De gekozen afbeelding kon niet worden opgehaald.',
+        );
+      }
+
+      if (image.bytes.byteLength === 0) {
+        throw new HttpError(502, 'OPENSYMBOLS_ERROR', 'De opgehaalde afbeelding is leeg.');
+      }
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(image.contentType)) {
+        throw new HttpError(
+          415,
+          'UNSUPPORTED_IMAGE_TYPE',
+          'De gekozen afbeelding heeft een niet-ondersteund type (alleen PNG, JPEG of WebP).',
+        );
+      }
+      if (image.bytes.byteLength > env.AAC_IMAGE_MAX_BYTES) {
+        throw new HttpError(
+          413,
+          'IMAGE_TOO_LARGE',
+          `Afbeelding is te groot (max ${env.AAC_IMAGE_MAX_BYTES} bytes).`,
+        );
+      }
+
+      const updated = await prisma.aacSymbol.update({
+        where: { id },
+        data: {
+          // Kopieer naar een Uint8Array met een gewone ArrayBuffer-backing (Prisma Bytes-eis).
+          imageData: new Uint8Array(image.bytes),
+          imageMimeType: image.contentType,
+          imageVersion: { increment: 1 },
+          imageLicense: input.license,
+          imageLicenseUrl: input.licenseUrl ?? null,
+          imageAuthor: input.author ?? null,
+          imageAuthorUrl: input.authorUrl ?? null,
+          imageSourceUrl: input.sourceUrl ?? null,
+        },
+        include: adminSymbolInclude,
+      });
+      return symbolToAdmin(updated);
     },
   );
 }

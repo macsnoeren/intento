@@ -51,6 +51,18 @@
       bewaard en met een vast `Content-Type` geserveerd; het publieke `/aac/images/{id}` blijft
       niet-gevoelige presentatiedata (geen ondertekende URL's nodig in deze fase). Getest in
       `routes/aac.admin.test.ts` (type → `415`, te groot → `413`).
+- [x] **Externe integratie / SSRF (T3.3)** — de OpenSymbols-koppeling loopt **volledig server-side**
+      (`server/src/aac/opensymbols.ts`): de client praat nooit rechtstreeks met de externe dienst
+      (DESIGN §8.1), credentials (`OPENSYMBOLS_SECRET`) staan alleen in de env. Elke te downloaden
+      bron-URL moet **`https`** zijn (zod `httpsUrlSchema`) én passeert `assertSafeImageUrl`, die
+      `localhost`, `*.local`/`*.internal` en loopback/link-local/private IP-bereiken (IPv4 + IPv6)
+      weigert (SSRF-mitigatie). De opgehaalde afbeelding valt onder dezelfde **mime-allowlist**
+      (PNG/JPEG/WebP, geen SVG → `415`) en **groottelimiet** (`AAC_IMAGE_MAX_BYTES` → `413`,
+      inclusief een vroege `Content-Length`-check) als een upload; redirects worden geweigerd
+      (`redirect: 'error'`) en er geldt een time-out. Externe fouten worden **niet gelekt** (nette
+      `502`); zoekresultaten zonder `https`-afbeelding worden weggefilterd vóór ze de client bereiken.
+      Getest in `routes/aac.opensymbols.test.ts` (niet-`https` → `400`, interne host → `400`,
+      `415`/`413`/`502`/`503`, sanering van niet-`https`-resultaten).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

@@ -237,8 +237,29 @@ export const aacCategorySchema = z.enum([
 export type AacCategory = z.infer<typeof aacCategorySchema>;
 
 /**
+ * Bronvermelding en licentie van een pictogramafbeelding (T3.3). Wordt gevuld wanneer een
+ * afbeelding uit een externe bron (OpenSymbols) is gekoppeld, zodat de licentie-attributie
+ * altijd met het pictogram meereist (CC-attributie vereist auteur + bron + licentie). Bij een
+ * zelf-geüploade afbeelding of de glyph-placeholder is dit `null`.
+ */
+export const aacAttributionSchema = z.object({
+  /** Naam van de licentie, bv. "CC BY-SA". */
+  license: z.string(),
+  /** URL naar de licentietekst (indien bekend). */
+  licenseUrl: z.string().nullable(),
+  /** Auteur/maker van het pictogram (indien bekend). */
+  author: z.string().nullable(),
+  /** URL naar de auteur (indien bekend). */
+  authorUrl: z.string().nullable(),
+  /** Bron-URL van het pictogram bij de externe dienst (indien bekend). */
+  sourceUrl: z.string().nullable(),
+});
+export type AacAttribution = z.infer<typeof aacAttributionSchema>;
+
+/**
  * Publieke weergave van een AAC-symbool (zoekresultaat). `imageUrl` is het pad waarop het
  * pictogram bereikbaar is (`GET /aac/images/:id.svg`); de web-client toont dat rechtstreeks.
+ * `attribution` draagt de bron/licentie van een gekoppelde externe afbeelding (T3.3), of `null`.
  * `searchText` en interne velden worden nooit meegestuurd.
  */
 export const aacSymbolSchema = z.object({
@@ -249,6 +270,7 @@ export const aacSymbolSchema = z.object({
   glyph: z.string(),
   synonyms: z.array(z.string()),
   imageUrl: z.string(),
+  attribution: aacAttributionSchema.nullable(),
 });
 export type AacSymbol = z.infer<typeof aacSymbolSchema>;
 
@@ -368,3 +390,74 @@ export const aacRelationInputSchema = z.object({
   relation: z.string().trim().min(1).max(32).default('contains'),
 });
 export type AacRelationInput = z.infer<typeof aacRelationInputSchema>;
+
+// --- OpenSymbols-integratie (T3.3, DESIGN §6.2, §8.2, FR-015) ---
+
+/**
+ * Een `https`-URL. Bewust géén `http`/`data:`/andere schema's: die zijn ofwel onveilig als
+ * afbeeldingsbron (XSS via `javascript:`/`data:`) of ongeschikt (SSRF/plain-HTTP). Bron- en
+ * licentie-URL's van externe pictogrammen moeten altijd `https` zijn (T3.3-veiligheidseis).
+ */
+export const httpsUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((value) => /^https:\/\//i.test(value), {
+    message: 'Alleen https-URL’s zijn toegestaan.',
+  });
+
+/**
+ * Zoekverzoek tegen de OpenSymbols-proxy (`GET /admin/aac/opensymbols/search?q=…`). De backend
+ * praat namens de client met OpenSymbols (de client nooit rechtstreeks, DESIGN §8.1). `locale`
+ * stuurt de taal van de zoekresultaten (standaard Nederlands).
+ */
+export const openSymbolsSearchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(100),
+  locale: z
+    .string()
+    .trim()
+    .regex(/^[a-z]{2}$/i, 'Locale is een tweeletterige taalcode.')
+    .optional(),
+});
+export type OpenSymbolsSearchQuery = z.infer<typeof openSymbolsSearchQuerySchema>;
+
+/**
+ * Eén (reeds gesaneerd) OpenSymbols-zoekresultaat zoals de backend het aan de beheer-UI teruggeeft.
+ * `imageUrl` is gegarandeerd een `https`-URL (anders is het resultaat door de proxy weggelaten).
+ * De licentie-/bronvelden worden bij het koppelen op het `AacSymbol` vastgelegd (attributie).
+ */
+export const openSymbolsResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  imageUrl: httpsUrlSchema,
+  extension: z.string(),
+  license: z.string(),
+  licenseUrl: z.string().nullable(),
+  author: z.string().nullable(),
+  authorUrl: z.string().nullable(),
+  sourceUrl: z.string().nullable(),
+});
+export type OpenSymbolsResult = z.infer<typeof openSymbolsResultSchema>;
+
+/** Antwoord op de OpenSymbols-zoekproxy: de gesaneerde resultaten (niet tenant-gebonden). */
+export const openSymbolsSearchResponseSchema = z.object({
+  results: z.array(openSymbolsResultSchema),
+});
+export type OpenSymbolsSearchResponse = z.infer<typeof openSymbolsSearchResponseSchema>;
+
+/**
+ * Koppelverzoek (`POST /admin/aac/symbols/:id/opensymbols`): een gekozen OpenSymbols-afbeelding aan
+ * een bestaand symbool koppelen. De backend haalt de afbeelding zelf op (`https`-only, content-type
+ * + groottelimiet gecontroleerd), slaat 'm lokaal op en legt de bron/licentie vast. De client stuurt
+ * alléén de bron-URL en de attributie-metadata mee — de bytes worden server-side opgehaald, nooit
+ * door de client aangeleverd.
+ */
+export const attachOpenSymbolsRequestSchema = z.object({
+  imageUrl: httpsUrlSchema,
+  license: z.string().trim().min(1).max(200),
+  licenseUrl: httpsUrlSchema.nullable().optional(),
+  author: z.string().trim().max(200).nullable().optional(),
+  authorUrl: httpsUrlSchema.nullable().optional(),
+  sourceUrl: httpsUrlSchema.nullable().optional(),
+});
+export type AttachOpenSymbolsRequest = z.infer<typeof attachOpenSymbolsRequestSchema>;

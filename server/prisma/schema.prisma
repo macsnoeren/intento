@@ -210,6 +210,14 @@ model AacSymbol {
   imageMimeType String?
   /// Cache-buster: telt uploads, komt als `?v=` in de afbeeldings-URL.
   imageVersion  Int      @default(0)
+  /// Bronvermelding/licentie van een gekoppelde externe afbeelding (OpenSymbols, T3.3). Alle `null`
+  /// bij een zelf-geüploade afbeelding of de glyph-placeholder. Reist mee met het pictogram zodat de
+  /// licentie-attributie altijd zichtbaar is (CC-attributie: auteur + bron + licentie).
+  imageLicense    String?
+  imageLicenseUrl String?
+  imageAuthor     String?
+  imageAuthorUrl  String?
+  imageSourceUrl  String?
   /// JSON-array van synoniemen (zoektermen). Op de grens met zod gevalideerd/geparseerd.
   synonyms      Json
   /// Genormaliseerde zoekindex (lowercase); afgeleid, nooit rechtstreeks aan de client getoond.

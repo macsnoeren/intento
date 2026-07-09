@@ -15,6 +15,7 @@ import { registerUserRoutes } from './routes/users.js';
 import { registerCaregiverRoutes } from './routes/caregivers.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
+import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -22,6 +23,8 @@ export interface BuildAppOptions {
   prisma?: PrismaClient;
   /** Fastify-logger; standaard uit in tests, aan bij de echte server. */
   logger?: boolean;
+  /** OpenSymbols-proxy (T3.3); standaard uit de env, injecteerbaar zodat tests een mock meegeven. */
+  openSymbols?: OpenSymbolsClient;
 }
 
 /**
@@ -33,6 +36,7 @@ export async function buildApp({
   env,
   prisma = defaultPrisma,
   logger = false,
+  openSymbols = createOpenSymbolsClient(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger,
@@ -74,7 +78,7 @@ export async function buildApp({
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
-  registerAacRoutes(app, { prisma, env });
+  registerAacRoutes(app, { prisma, env, openSymbols });
 
   return app;
 }

@@ -66,7 +66,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *Acceptatie:* admin voegt via UI een symbool met relatie toe en vindt het terug via zoeken; upload gevalideerd.
   *Opmerking:* de categorieën vormen een **vaste, gesloten taxonomie** (zod-enum, DESIGN §3); "beheren" is hier filteren/toewijzen bij aanmaken/bewerken, geen dynamische categorie-CRUD.
 
-- [ ] **T3.3 OpenSymbols-integratie (bestaande symbolen opzoeken)**
+- [x] **T3.3 OpenSymbols-integratie (bestaande symbolen opzoeken)**
   *DESIGN: §6.2 (AacSymbol), §8.2, FR-015.* Bij het toevoegen/bewerken van een symbool in de beheer-UI (T3.2) een zoekactie tegen [OpenSymbols](https://www.opensymbols.org/) om bestaande, vrij te gebruiken pictogrammen te vinden i.p.v. zelf te uploaden. Server-side proxy naar de OpenSymbols-API (client praat nooit rechtstreeks met externe diensten; API-key/credentials via env), zoekresultaten zod-gevalideerd, gekozen afbeelding wordt lokaal opgeslagen/geserveerd (T3.1) met bronvermelding en licentie op het `AacSymbol`. XSS/SSRF-veilig: alleen `https`-bron-URL's, groottelimiet, contenttype gecontroleerd.
   *Acceptatie:* beheerder zoekt in de UI op een concept, ziet OpenSymbols-resultaten en koppelt er één aan een symbool; de afbeelding wordt lokaal opgeslagen met licentie/bron; externe fout of leeg resultaat wordt netjes afgehandeld; geen niet-`https`-URL passeert de validatie (test).
   *Opmerking:* controleer de OpenSymbols-gebruiksvoorwaarden/licenties en respecteer per-symbool de licentie-attributie.

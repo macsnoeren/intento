@@ -65,13 +65,23 @@ const envSchema = z
     DEVICE_LINK_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     DEVICE_LINK_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
     // AAC-pictogramupload (T3.2, FR-015). Maximale bestandsgrootte in bytes; groter wordt geweigerd
-    // (413). Standaard 512 KiB — ruim voor een pictogram, streng genoeg tegen misbruik/DoS.
+    // (413). Standaard 512 KiB — ruim voor een pictogram, streng genoeg tegen misbruik/DoS. Geldt
+    // ook voor een via OpenSymbols opgehaalde afbeelding (T3.3).
     AAC_IMAGE_MAX_BYTES: z.coerce
       .number()
       .int()
       .positive()
       .max(10 * 1024 * 1024)
       .default(512 * 1024),
+    // OpenSymbols-integratie (T3.3, FR-015). De backend proxyt namens de client naar de
+    // OpenSymbols-API; de client praat nooit rechtstreeks met externe diensten (DESIGN §8.1).
+    // Basis-URL van de API (moet https zijn buiten test — SSRF/vertrouwelijkheid).
+    OPENSYMBOLS_API_URL: z.url().default('https://www.opensymbols.org'),
+    // Gedeeld geheim om een kortlevend access-token op te halen. Leeg = integratie uitgeschakeld
+    // (de zoek-/koppelendpoints antwoorden dan met 503 FEATURE_UNAVAILABLE i.p.v. te falen).
+    OPENSYMBOLS_SECRET: z.string().default(''),
+    // Time-out (ms) voor externe OpenSymbols-aanroepen, zodat een trage dienst de app niet ophoudt.
+    OPENSYMBOLS_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
