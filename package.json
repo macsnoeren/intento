@@ -17,7 +17,7 @@
     "@prisma/dev": "^0.24.14"
   },
   "scripts": {
-    "dev": "concurrently -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
+    "dev": "concurrently --raw \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm run dev --workspace=server",
     "dev:web": "npm run dev --workspace=web",
     "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=web",

@@ -71,6 +71,11 @@ function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } =
       session = true;
       return Promise.resolve({ account: adminAccount });
     },
+    register(): Promise<AuthResponse> {
+      // Zelfaanmelding maakt een nieuwe omgeving + admin en logt meteen in (T1.3).
+      session = true;
+      return Promise.resolve({ account: adminAccount });
+    },
     logout(): Promise<void> {
       session = false;
       return Promise.resolve();
@@ -160,6 +165,32 @@ describe('beheeromgeving-app', () => {
     expect((await screen.findByRole('alert')).textContent).toContain(
       'Onjuiste e-mail of wachtwoord.',
     );
+  });
+
+  it('laat een nieuwe bezoeker via zelfaanmelding een omgeving aanmaken en logt meteen in', async () => {
+    render(<App api={fakeApi()} />);
+    await screen.findByRole('button', { name: 'Inloggen' });
+
+    // Vanaf het loginscherm naar het aanmeldscherm.
+    fireEvent.click(screen.getByRole('button', { name: 'Nieuwe omgeving aanmelden' }));
+    const form = await screen.findByRole('form', { name: 'Aanmelden' });
+
+    fireEvent.change(within(form).getByLabelText('Naam van de organisatie of familie'), {
+      target: { value: 'Familie De Vries' },
+    });
+    fireEvent.change(within(form).getByLabelText('Jouw naam (beheerder)'), {
+      target: { value: 'Kim' },
+    });
+    fireEvent.change(within(form).getByLabelText('E-mail'), {
+      target: { value: 'admin@intento.local' },
+    });
+    fireEvent.change(within(form).getByLabelText('Wachtwoord (minstens 12 tekens)'), {
+      target: { value: 'sterk-wachtwoord-123' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Omgeving aanmaken' }));
+
+    // Direct ingelogd → beheeromgeving verschijnt zonder aparte login.
+    expect(await screen.findByRole('heading', { name: 'Gebruikersbeheer' })).toBeTruthy();
   });
 
   it('laat een beheerder een gebruiker aanmaken, instellen en verwijderen', async () => {

@@ -65,6 +65,7 @@ function fakeApi(): Api {
   return {
     me: notImplemented,
     login: notImplemented,
+    register: notImplemented,
     logout: () => Promise.resolve(),
     listUsers: notImplemented,
     createUser: notImplemented,

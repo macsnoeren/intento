@@ -91,6 +91,9 @@ model Account {
   id             String   @id @default(cuid())
   /// Login-identiteit; platformbreed uniek (lowercase genormaliseerd op de API-grens).
   email          String   @unique
+  /// Weergavenaam van de accounthouder (bv. de admin die zich zelf aanmeldde, T1.3).
+  /// Nullable: geseede/bestaande accounts hebben geen naam en login vereist er geen.
+  name           String?
   /// argon2id-hash van het wachtwoord. Nooit het wachtwoord zelf.
   passwordHash   String
   /// Rol: "ADMIN" | "CAREGIVER" | "USER" (gevalideerd op de API-grens; geen native enum

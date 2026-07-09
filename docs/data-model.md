@@ -53,8 +53,8 @@ ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
-| **Organization** | `id`, `name`, `type`, `createdAt` | Intento-omgeving (family/care/personal) en tenant-root. Fundament-model uit T0.2; de rest hangt hier onder. |
-| **Account** | `id`, `email` (uniek), `passwordHash`, `role`, `organizationId`, `failedLoginAttempts`, `lockedUntil`, `createdAt` | Login voor een persoon (T1.1). `role` = `ADMIN`/`CAREGIVER`/`USER` (zod op de grens). Wachtwoord alleen als argon2id-hash. `email` platformbreed uniek (login-keuze, ADR-0004). Lockout-velden voor brute-force-mitigatie. |
+| **Organization** | `id`, `name`, `type`, `createdAt` | Intento-omgeving (family/care/personal) en tenant-root. Fundament-model uit T0.2; via zelfaanmelding (T1.3) maakt een bezoeker er zelf één aan. `type` gevalideerd op de grens (`organizationTypeSchema`). |
+| **Account** | `id`, `email` (uniek), `name?`, `passwordHash`, `role`, `organizationId`, `failedLoginAttempts`, `lockedUntil`, `createdAt` | Login voor een persoon (T1.1). `role` = `ADMIN`/`CAREGIVER`/`USER` (zod op de grens). `name` is de weergavenaam van de accounthouder (gevuld bij zelfaanmelding T1.3; nullable — geseede accounts en login vereisen er geen). Wachtwoord alleen als argon2id-hash. `email` platformbreed uniek (login-keuze, ADR-0004). Lockout-velden voor brute-force-mitigatie. |
 | **Session** | `id`, `tokenHash` (uniek), `accountId`, `createdAt`, `expiresAt` | Actieve login-sessie (T1.1). Alleen de **SHA-256-hash** van het sessietoken staat in de db; het rauwe token leeft in de httpOnly-cookie. Verlopen sessies zijn ongeldig en worden opgeruimd. |
 | **User** | `id`, `name`, `organizationId`, `active`, `createdAt` | De communicerende persoon (T2.1). Staat los van `Account`: een gebruiker hoeft geen eigen login te hebben. Tenant-gebonden via `organizationId`. `active` deactiveert zonder te verwijderen. |
 | **UserCommunicationProfile** | `userId` (PK), `iconsPerScreen`, `showText`, `aiLearningEnabled`, `supportMode` | 1-op-1 communicatie-instellingen (T2.1, DESIGN §5.3). `iconsPerScreen` alléén 2/4/6/8 (standaard 4), afgedwongen met zod op de API-grens. Standaarden: tekst aan, leren aan, ondersteuning uit. |
@@ -105,3 +105,4 @@ relaties op hun unieke combinatie — idempotent, dus herseeden levert geen dupl
 - **`aac_library`** (T3.1) — `AacSymbol` (uniek `concept`, index op `category`) en `AacConceptRelation` (samengestelde unieke `(parentId, childId, relation)`, indexen op `parentId`/`childId`).
 - **`aac_admin_images`** (T3.2) — `AacSymbol` uitgebreid met `imageData` (`Bytes`, nullable), `imageMimeType` (nullable) en `imageVersion` (`Int`, default 0) voor geüploade pictogrammen.
 - **`aac_opensymbols_attribution`** (T3.3) — `AacSymbol` uitgebreid met `imageLicense`, `imageLicenseUrl`, `imageAuthor`, `imageAuthorUrl` en `imageSourceUrl` (alle `String`, nullable) voor de bron/licentie van een via OpenSymbols gekoppelde afbeelding.
+- **`account_name`** (T1.3) — `Account` uitgebreid met `name` (`String`, nullable) voor de weergavenaam van de accounthouder bij zelfaanmelding.

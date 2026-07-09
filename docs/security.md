@@ -25,6 +25,16 @@
 - [x] **Account-lockout / rate limiting** — na `LOGIN_MAX_ATTEMPTS` mislukte pogingen
       tijdelijke lockout (`LOGIN_LOCKOUT_MINUTES`); streng per-IP rate limit op `/auth/login`
       (`@fastify/rate-limit`, `global: false`). Getest (lockout → 423, overschrijding → 429).
+- [x] **Zelfaanmelding (T1.3)** — `POST /auth/register` maakt organisatie + eerste ADMIN in
+      één transactie (rolt terug bij een botsing, dus nooit een lege org zonder eigenaar).
+      Wachtwoordsterkte-eis op de grens (`strongPasswordSchema`, ≥12 tekens). Uniciteit van de
+      e-mail leunt op de db-constraint (`Account.email @unique`), niet op een losse "bestaat
+      al?"-check — dat voorkomt een race én verraadt niet via responstijd of het adres bestaat.
+      Een botsing geeft een **generieke** `409 REGISTRATION_FAILED` (geen account-enumeratie);
+      volledige non-enumeratie (neutrale "check je mail"-respons) volgt met de e-mailverificatie
+      in T1.4. Streng per-IP rate limit (`REGISTER_RATE_LIMIT_*`). De nieuwe org start leeg en
+      volledig tenant-geïsoleerd. Getest in `routes/register.test.ts` (isolatie, generieke
+      weigering, zwak wachtwoord/ongeldig type → 400, rate limit → 429).
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op

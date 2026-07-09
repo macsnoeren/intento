@@ -10,9 +10,12 @@ import { ApiRequestError, type Api } from './api.ts';
 export function LoginForm({
   api,
   onLoggedIn,
+  onRegister,
 }: {
   api: Api;
   onLoggedIn: (auth: AuthResponse) => void;
+  /** Optioneel: schakelt naar het zelfaanmeldscherm (T1.3). */
+  onRegister?: () => void;
 }): React.JSX.Element {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -67,6 +70,11 @@ export function LoginForm({
           {busy ? 'Bezig…' : 'Inloggen'}
         </button>
       </form>
+      {onRegister ? (
+        <button className="button" type="button" onClick={onRegister}>
+          Nieuwe omgeving aanmelden
+        </button>
+      ) : null}
     </main>
   );
 }

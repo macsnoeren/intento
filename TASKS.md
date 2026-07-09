@@ -32,7 +32,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §2, §9.4.* Autorisatie-middleware: rolcontrole per route + verplichte filtering op `organizationId` in elke query. Herbruikbare testhelpers die isolatie aantonen (org A kan nooit data van org B zien).
   *Acceptatie:* isolatietests voor elk bestaand endpoint; ongeautoriseerde toegang geeft 403 met consistente foutstructuur.
 
-- [ ] **T1.3 Zelfaanmelding van een organisatie/familie**
+- [x] **T1.3 Zelfaanmelding van een organisatie/familie**
   *DESIGN: §2, §3.7 (stap 1), §6.2 (Organization, Account), §8.2, §9.4.* Publiek registratie-endpoint `POST /auth/register`: maakt in één transactie een nieuwe `Organization` (naam + `type` family/care/personal) plus het eerste `Account` met rol ADMIN (argon2id), en logt daarna in (zelfde sessiemechanisme als T1.1). Aanmeldscherm/-formulier in de web-UI (organisatienaam, type, adminnaam, e-mail, wachtwoord). Security: strenge rate limiting op registratie, e-mail uniek (geen account-enumeratie via foutmeldingen), wachtwoordsterkte-eis, alle input zod-gevalideerd; de nieuwe org start leeg en volledig geïsoleerd (tenant-isolatie uit T1.2 blijft gelden). E-mailverificatie is optioneel/voorbereidend — noteer als aparte taak indien buiten scope.
   *Acceptatie:* nieuwe bezoeker registreert een organisatie + admin via de UI en is meteen ingelogd; tweede registratie met hetzelfde e-mailadres wordt geweigerd zonder te lekken of het adres bestaat; rate limit op `/auth/register` getest; de aangemaakte org ziet geen data van andere orgs (isolatietest); ongeldige `type` of zwak wachtwoord → 400.
 

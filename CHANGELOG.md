@@ -6,6 +6,28 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T1.3 Zelfaanmelding van een organisatie/familie.** Publiek registratie-endpoint
+  `POST /auth/register`: maakt in **één transactie** een nieuwe `Organization` (`name` +
+  `type` ∈ family/care/personal) plus het eerste `Account` met rol ADMIN (argon2id) en logt
+  daarna meteen in (zelfde sessiemechanisme als T1.1: gehasht sessietoken in een ondertekende
+  httpOnly+Secure cookie), respons `201` + `{ account }`. Security: de uniciteit van de e-mail
+  leunt op de db-constraint (`Account.email @unique`) i.p.v. een losse "bestaat al?"-check —
+  dat sluit een race tussen gelijktijdige registraties uit en verraadt niet via responstijd of
+  een adres bestaat; een botsing → generieke `409 REGISTRATION_FAILED` (**geen account-enumeratie**,
+  volledige non-enumeratie volgt met de e-mailverificatie in T1.4). Wachtwoordsterkte-eis op de
+  grens (`strongPasswordSchema`, ≥12 tekens, niet één herhaald teken), streng per-IP rate limit
+  (`REGISTER_RATE_LIMIT_*`), alle input zod-gevalideerd; de nieuwe org start leeg en volledig
+  tenant-geïsoleerd (T1.2 blijft gelden). Nieuw (nullable) veld `Account.name` voor de
+  weergavenaam van de admin (migratie `account_name`). Gedeelde schema's: `organizationTypeSchema`,
+  `strongPasswordSchema`, `registerRequestSchema`. Web: **zelfaanmeldscherm** (`RegisterForm`,
+  organisatienaam + type + adminnaam + e-mail + wachtwoord) met heen-en-weer-link vanaf het
+  loginscherm; bij succes meteen in de beheeromgeving. Env: `REGISTER_RATE_LIMIT_MAX`,
+  `REGISTER_RATE_LIMIT_WINDOW_MINUTES`. Server- en web-tests dekken de acceptatie (registreren →
+  meteen ingelogd, generieke weigering bij dubbele e-mail zonder te lekken, tenant-isolatie,
+  zwak wachtwoord/ongeldig type → 400, rate limit → 429). E-mailverificatie is als aparte taak
+  T1.4 genoteerd. Gedocumenteerd in `docs/api.md`, `docs/data-model.md`, `docs/security.md`,
+  `.env.example`.
+
 - **T3.3 OpenSymbols-integratie.** In het AAC-beheer kan een beheerder nu een bestaand, vrij te
   gebruiken pictogram bij [OpenSymbols](https://www.opensymbols.org/) opzoeken en koppelen i.p.v.
   zelf te uploaden. De backend **proxyt** de externe dienst (de client praat nooit rechtstreeks,

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AccountPublic } from '@intento/shared';
 import { ApiRequestError, httpApi, type Api } from './api.ts';
 import { LoginForm } from './LoginForm.tsx';
+import { RegisterForm } from './RegisterForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
 import type { AdminView } from './AdminNav.tsx';
@@ -17,6 +18,8 @@ export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
   const [account, setAccount] = useState<AccountPublic | null>(null);
   const [checking, setChecking] = useState(true);
   const [view, setView] = useState<AdminView>('users');
+  // Ongeauthenticeerde weergave: inloggen of zelf een nieuwe omgeving aanmelden (T1.3).
+  const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     let active = true;
@@ -53,7 +56,22 @@ export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
   }
 
   if (!account) {
-    return <LoginForm api={api} onLoggedIn={({ account: me }) => setAccount(me)} />;
+    if (authScreen === 'register') {
+      return (
+        <RegisterForm
+          api={api}
+          onRegistered={({ account: me }) => setAccount(me)}
+          onBackToLogin={() => setAuthScreen('login')}
+        />
+      );
+    }
+    return (
+      <LoginForm
+        api={api}
+        onLoggedIn={({ account: me }) => setAccount(me)}
+        onRegister={() => setAuthScreen('register')}
+      />
+    );
   }
 
   if (account.role !== 'ADMIN') {

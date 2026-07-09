@@ -17,6 +17,7 @@ import {
   type CreateUserRequest,
   type DeviceCodeResponse,
   type OpenSymbolsSearchResponse,
+  type RegisterRequest,
   type UpdateSettingsRequest,
   type UserListResponse,
   type UserPublic,
@@ -48,6 +49,7 @@ export class ApiRequestError extends Error {
 export interface Api {
   me(): Promise<AuthResponse>;
   login(email: string, password: string): Promise<AuthResponse>;
+  register(body: RegisterRequest): Promise<AuthResponse>;
   logout(): Promise<void>;
   listUsers(): Promise<UserListResponse>;
   createUser(body: CreateUserRequest): Promise<UserPublic>;
@@ -119,6 +121,11 @@ export const httpApi: Api = {
   async login(email, password) {
     return authResponseSchema.parse(
       await request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    );
+  },
+  async register(body) {
+    return authResponseSchema.parse(
+      await request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
     );
   },
   async logout() {

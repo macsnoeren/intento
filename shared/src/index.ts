@@ -30,6 +30,47 @@ export const accountRoleSchema = z.enum(['ADMIN', 'CAREGIVER', 'USER']);
 export type AccountRole = z.infer<typeof accountRoleSchema>;
 
 /**
+ * Soort omgeving (`Organization.type`, DESIGN §6.2): een familie, een zorginstelling of een
+ * persoonlijke omgeving. Bewust een gesloten lijst — gevalideerd op de API-grens (geen native
+ * enum i.v.m. SQLite/PostgreSQL-portabiliteit). Een ongeldige waarde levert een 400.
+ */
+export const organizationTypeSchema = z.enum(['family', 'care', 'personal']);
+export type OrganizationType = z.infer<typeof organizationTypeSchema>;
+
+/**
+ * Wachtwoordsterkte-eis bij het aanmaken van een account (zelfaanmelding, T1.3). Bewust
+ * strenger dan bij login (die valideert alleen niet-leeg): minstens 12 tekens en niet louter
+ * herhaling van één teken, zodat een zwak wachtwoord al op de grens (400) wordt geweigerd.
+ * De bovengrens beschermt tegen argon2-DoS met absurd lange invoer.
+ */
+export const strongPasswordSchema = z
+  .string()
+  .min(12, 'Wachtwoord moet minstens 12 tekens bevatten.')
+  .max(200, 'Wachtwoord mag hoogstens 200 tekens bevatten.')
+  .refine((value) => new Set(value).size > 1, {
+    message: 'Kies een sterker wachtwoord (niet één herhaald teken).',
+  });
+
+/**
+ * Registratieverzoek (`POST /auth/register`, T1.3, DESIGN §2, §3.7 stap 1). Een nieuwe bezoeker
+ * meldt in één keer een organisatie/familie aan én maakt het eerste ADMIN-account. `email` wordt
+ * genormaliseerd naar lowercase (zoals bij login) zodat hoofdletters niet tot dubbele accounts
+ * leiden; `password` moet aan de sterkte-eis voldoen. Alle velden worden op de server opnieuw
+ * gevalideerd — dit schema is de gedeelde bron van waarheid.
+ */
+export const registerRequestSchema = z.object({
+  organizationName: z.string().trim().min(1).max(200),
+  organizationType: organizationTypeSchema,
+  adminName: z.string().trim().min(1).max(200),
+  email: z
+    .email()
+    .max(320)
+    .transform((value) => value.toLowerCase()),
+  password: strongPasswordSchema,
+});
+export type RegisterRequest = z.infer<typeof registerRequestSchema>;
+
+/**
  * Login-verzoek (`POST /auth/login`). E-mail wordt naar lowercase genormaliseerd zodat
  * hoofdletters de login niet beïnvloeden. Wachtwoord alleen op niet-leeg gevalideerd —
  * sterkte-eisen horen bij het aanmaken van accounts (latere taak), niet bij login.

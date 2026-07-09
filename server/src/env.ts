@@ -50,6 +50,10 @@ const envSchema = z
     // Strenge rate limiting op de login-route: max verzoeken per IP per venster.
     LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
+    // Strenge rate limiting op de zelfaanmelding (T1.3, publiek): tegen massaal aanmaken van
+    // organisaties/accounts en account-enumeratie. Streng, want registreren is zeldzaam.
+    REGISTER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(5),
+    REGISTER_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
     // Tabletkoppeling (T2.3, FR-018). Levensduur van een koppelcode in minuten — kort, want de
     // beheerder voert 'm direct op de tablet in.
     DEVICE_CODE_TTL_MINUTES: z.coerce

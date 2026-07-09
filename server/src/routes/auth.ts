@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   accountPublicSchema,
   loginRequestSchema,
+  registerRequestSchema,
   type AuthResponse,
   type AccountPublic,
 } from '@intento/shared';
@@ -10,6 +11,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AccountModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { verifyLogin } from '../auth/service.js';
+import { registerOrganization } from '../auth/register.js';
 import { createSession, deleteSessionByToken } from '../auth/session.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from '../auth/cookie.js';
 import { readSessionToken } from '../auth/request.js';
@@ -72,6 +74,41 @@ export function registerAuthRoutes(app: FastifyInstance, { env, prisma }: AuthRo
       const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);
       reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(env, sessionMaxAgeSeconds));
 
+      return { account: toPublic(result.account) };
+    },
+  );
+
+  app.post(
+    '/auth/register',
+    {
+      config: {
+        rateLimit: {
+          max: env.REGISTER_RATE_LIMIT_MAX,
+          timeWindow: env.REGISTER_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+        },
+      },
+    },
+    async (request, reply): Promise<AuthResponse> => {
+      const input = registerRequestSchema.parse(request.body);
+
+      const result = await registerOrganization(prisma, input);
+
+      if (!result.ok) {
+        // Bewust generiek: geen bevestiging dat de e-mail al bestaat (geen account-enumeratie).
+        // Volledige non-enumeratie (neutrale "check je mail"-respons) komt met de
+        // e-mailverificatie in T1.4; tot dan houden we de melding neutraal.
+        throw new HttpError(
+          409,
+          'REGISTRATION_FAILED',
+          'Registratie kon niet worden voltooid. Controleer je gegevens of log in.',
+        );
+      }
+
+      // Meteen ingelogd na registratie (zelfde sessiemechanisme als login, T1.1).
+      const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);
+      reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(env, sessionMaxAgeSeconds));
+
+      reply.status(201);
       return { account: toPublic(result.account) };
     },
   );

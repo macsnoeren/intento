@@ -68,8 +68,19 @@ Tests draaien tegen een aparte, per testrun verse testdatabase. Details:
 
 ## Auth (login)
 
-`npm run db:seed` maakt een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
-`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (default `admin@intento.local` /
+Een nieuwe bezoeker kan zichzelf aanmelden (T1.3): `POST /auth/register` maakt in één
+transactie een organisatie/familie + eerste `ADMIN`-account aan en logt meteen in. In de
+web-app zit dit achter "Nieuwe omgeving aanmelden" op het loginscherm.
+
+```bash
+# Zelfaanmelding: organisatie + admin aanmaken en meteen ingelogd zijn.
+curl -sc cookies.txt -X POST http://127.0.0.1:3000/auth/register \
+  -H 'content-type: application/json' \
+  -d '{"organizationName":"Familie De Vries","organizationType":"family","adminName":"Kim","email":"kim@intento.local","password":"sterk-wachtwoord-123"}'
+```
+
+Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account. E-mail/
+wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (default `admin@intento.local` /
 `change-me-admin` — buiten lokaal ontwikkelen overschrijven) en seedt daarnaast de gedeelde
 AAC-bibliotheek (T3.1). Login zet een ondertekende httpOnly-sessie-cookie:
 
