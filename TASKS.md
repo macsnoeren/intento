@@ -32,6 +32,15 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §2, §9.4.* Autorisatie-middleware: rolcontrole per route + verplichte filtering op `organizationId` in elke query. Herbruikbare testhelpers die isolatie aantonen (org A kan nooit data van org B zien).
   *Acceptatie:* isolatietests voor elk bestaand endpoint; ongeautoriseerde toegang geeft 403 met consistente foutstructuur.
 
+- [ ] **T1.3 Zelfaanmelding van een organisatie/familie**
+  *DESIGN: §2, §3.7 (stap 1), §6.2 (Organization, Account), §8.2, §9.4.* Publiek registratie-endpoint `POST /auth/register`: maakt in één transactie een nieuwe `Organization` (naam + `type` family/care/personal) plus het eerste `Account` met rol ADMIN (argon2id), en logt daarna in (zelfde sessiemechanisme als T1.1). Aanmeldscherm/-formulier in de web-UI (organisatienaam, type, adminnaam, e-mail, wachtwoord). Security: strenge rate limiting op registratie, e-mail uniek (geen account-enumeratie via foutmeldingen), wachtwoordsterkte-eis, alle input zod-gevalideerd; de nieuwe org start leeg en volledig geïsoleerd (tenant-isolatie uit T1.2 blijft gelden). E-mailverificatie is optioneel/voorbereidend — noteer als aparte taak indien buiten scope.
+  *Acceptatie:* nieuwe bezoeker registreert een organisatie + admin via de UI en is meteen ingelogd; tweede registratie met hetzelfde e-mailadres wordt geweigerd zonder te lekken of het adres bestaat; rate limit op `/auth/register` getest; de aangemaakte org ziet geen data van andere orgs (isolatietest); ongeldige `type` of zwak wachtwoord → 400.
+
+- [ ] **T1.4 E-mailverificatie**
+  *DESIGN: §2, §3.7 (stap 1), §6.2 (Account), §9.4.* E-mailverificatie voor het bij zelfaanmelding (T1.3) aangemaakte admin-account: `verifiedAt`/`emailVerified` op `Account`, verificatietoken **gehasht at-rest** met vervaltijd, verstuurd via een provider-agnostische mail-service (SMTP-config via env; in tests/dev een mock/log-transport). `GET/POST /auth/verify-email` wisselt het token in; `POST /auth/verify-email/resend` (rate-limited) verstuurt opnieuw. Onbevestigde accounts blijven beperkt volgens beleid (bv. inloggen mag, maar gevoelige acties geblokkeerd tot verificatie — leg de gekozen grens vast). Security: eenmalige, verlopende tokens, geen account-enumeratie bij resend (altijd neutrale respons), rate limiting.
+  *Acceptatie:* na registratie wordt een verificatiemail verstuurd (mock-transport in test); geldig token → account geverifieerd; verlopen/gebruikt/ongeldig token geweigerd; resend rate-limited en lekt niet of het adres bestaat; token nergens plaintext opgeslagen.
+  *Opmerking:* T1.3 blijft functioneren zonder mailserver (verificatie is een aanvulling, geen harde blokkade op registratie) — kies en documenteer expliciet welke acties verificatie vereisen.
+
 ## Fase 2 — Gebruikers en profielen
 
 - [x] **T2.1 Gebruikersbeheer en communicatieprofiel**
@@ -56,6 +65,11 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §5.2 (beheeromgeving), FR-015.* Beheeromgeving: symbolen bekijken/zoeken, categorieën beheren, symbool toevoegen/bewerken (incl. afbeelding-upload met groottelimiet), relaties leggen.
   *Acceptatie:* admin voegt via UI een symbool met relatie toe en vindt het terug via zoeken; upload gevalideerd.
   *Opmerking:* de categorieën vormen een **vaste, gesloten taxonomie** (zod-enum, DESIGN §3); "beheren" is hier filteren/toewijzen bij aanmaken/bewerken, geen dynamische categorie-CRUD.
+
+- [ ] **T3.3 OpenSymbols-integratie (bestaande symbolen opzoeken)**
+  *DESIGN: §6.2 (AacSymbol), §8.2, FR-015.* Bij het toevoegen/bewerken van een symbool in de beheer-UI (T3.2) een zoekactie tegen [OpenSymbols](https://www.opensymbols.org/) om bestaande, vrij te gebruiken pictogrammen te vinden i.p.v. zelf te uploaden. Server-side proxy naar de OpenSymbols-API (client praat nooit rechtstreeks met externe diensten; API-key/credentials via env), zoekresultaten zod-gevalideerd, gekozen afbeelding wordt lokaal opgeslagen/geserveerd (T3.1) met bronvermelding en licentie op het `AacSymbol`. XSS/SSRF-veilig: alleen `https`-bron-URL's, groottelimiet, contenttype gecontroleerd.
+  *Acceptatie:* beheerder zoekt in de UI op een concept, ziet OpenSymbols-resultaten en koppelt er één aan een symbool; de afbeelding wordt lokaal opgeslagen met licentie/bron; externe fout of leeg resultaat wordt netjes afgehandeld; geen niet-`https`-URL passeert de validatie (test).
+  *Opmerking:* controleer de OpenSymbols-gebruiksvoorwaarden/licenties en respecteer per-symbool de licentie-attributie.
 
 ## Fase 4 — Gespreksflow (gescript, nog zonder AI)
 
@@ -88,6 +102,15 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 - [ ] **T5.4 Correctieflow**
   *DESIGN: §3.4, §6.2 (CorrectionEvent), §7.6, FR-009.* `POST /conversation/{id}/correction` (`wrong_guess`): orchestrator heranalyseert de route, bepaalt de waarschijnlijk foute stap en stelt een gerichtere vraag; dezelfde route wordt niet herhaald. Correctiescherm in de UI (niet terug naar start). CorrectionEvents opgeslagen; er wordt **niet** van geleerd.
   *Acceptatie:* na ❌ volgt een gerichte hervraag over de vermoedelijke foutstap (test met mock); afgewezen route niet opnieuw aangeboden; geen Preference-mutaties door correcties.
+
+- [ ] **T5.5 Externe AI-workers: wachtrij en worker-protocol (backend)**
+  *DESIGN: §7.2, §7.7, §9.2, §9.3, §9.4.* ADR: keuze voor een gedistribueerd worker-model naast de lokale provider. Nieuwe `AiProvider`-implementatie die aanvragen op een **wachtrij** zet i.p.v. synchroon uit te voeren; een pool van externe workers (bv. Ollama op een andere machine) haalt jobs op en levert gestructureerde output terug via dezelfde zod-schema's als T5.1. Worker-protocol: worker-**initiated** verbinding (long-poll of WS vanaf de worker, robuust achter NAT), authenticatie met een apart **worker-token** (gehasht at-rest, intrekbaar, met scope/rate limit), claim → resultaat/heartbeat → timeout-teruglegging bij crash. **Configureerbaar maximum** aan gelijktijdige jobs (backpressure): bij vol → aanvraag in wachtrij met status `WAITING_FOR_WORKER` en positie/schatting, zodat de website responsive blijft; verlopen wachtrij-items nette timeout. Alle worker-input opnieuw gevalideerd en door de validatielaag (T5.2) — een externe worker wordt nooit vertrouwd.
+  *Acceptatie:* met een test-/mock-worker doorloopt een aanvraag queue → claim → resultaat; bij overschrijding van de max krijgt de client een `WAITING`-status i.p.v. te blokkeren (test); ongeldig/ontbrekend worker-token → 401/403; job van een gecrashte worker wordt na timeout opnieuw aangeboden (test); onbekend concept van een worker bereikt de gebruiker nooit (validatietest).
+  *Opmerking:* het worker-token is een **infrastructuur**-credential, los van gebruiker/device-tokens; de externe worker is backend-infrastructuur — de client praat nog steeds nooit rechtstreeks met de AI.
+
+- [ ] **T5.6 Standalone Ollama-worker (Python)**
+  *DESIGN: §7.2, §7.7, §9.2, §9.3.* Aparte, deploybare applicatie (`ai-worker/`, Python) die met een worker-token (T5.5) verbinding maakt met de backend, jobs ophaalt en tegen een **Ollama**-endpoint op een andere computer draait; gestructureerde output (question/options/reason) afgedwongen en teruggestuurd. **Multi-threading met een configureerbaar maximum** aan gelijktijdige Ollama-aanroepen, zodat de worker (en daarmee de site) niet wordt overvraagd; nette afhandeling van Ollama-fouten/timeouts en teruggave van de job bij falen. Config via env (backend-URL, worker-token, Ollama-URL/model, max threads). Eigen README met opzet/draaien/testen en `.env.example`; tests voor de job-loop en concurrency-limiet (Ollama gemockt).
+  *Acceptatie:* worker verbindt met een geldig token, verwerkt een job end-to-end tegen een (gemockte) Ollama en levert geldige output; meer jobs dan `max_threads` overschrijden de limiet niet (test); Ollama-fout → job netjes teruggelegd, geen crash; met een echte Ollama op een tweede machine loopt de flow live (handmatige rooktest gerapporteerd).
 
 ## Fase 6 — Persoonlijke context en leren
 
