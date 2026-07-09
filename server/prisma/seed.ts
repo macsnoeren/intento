@@ -34,6 +34,9 @@ async function main(): Promise<void> {
       passwordHash,
       role: 'ADMIN',
       organizationId: org.id,
+      // Bootstrap-admin (door de operator geseed, niet via publieke zelfaanmelding): meteen
+      // geverifieerd zodat alle beheeracties direct beschikbaar zijn (T1.4).
+      emailVerifiedAt: new Date(),
     },
   });
 

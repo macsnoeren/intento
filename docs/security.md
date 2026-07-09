@@ -30,11 +30,24 @@
       Wachtwoordsterkte-eis op de grens (`strongPasswordSchema`, ≥12 tekens). Uniciteit van de
       e-mail leunt op de db-constraint (`Account.email @unique`), niet op een losse "bestaat
       al?"-check — dat voorkomt een race én verraadt niet via responstijd of het adres bestaat.
-      Een botsing geeft een **generieke** `409 REGISTRATION_FAILED` (geen account-enumeratie);
-      volledige non-enumeratie (neutrale "check je mail"-respons) volgt met de e-mailverificatie
-      in T1.4. Streng per-IP rate limit (`REGISTER_RATE_LIMIT_*`). De nieuwe org start leeg en
+      Een botsing geeft een **generieke** `409 REGISTRATION_FAILED` (geen account-enumeratie).
+      Streng per-IP rate limit (`REGISTER_RATE_LIMIT_*`). De nieuwe org start leeg en
       volledig tenant-geïsoleerd. Getest in `routes/register.test.ts` (isolatie, generieke
       weigering, zwak wachtwoord/ongeldig type → 400, rate limit → 429).
+- [x] **E-mailverificatie (T1.4)** — verificatietoken **gehasht at-rest** (SHA-256, alleen de
+      hash in de db, `auth/email-verification.ts`), net als sessie-/apparaat-tokens; het rauwe
+      256-bit token gaat alléén per mail naar de accounthouder. Tokens zijn **eenmalig**
+      (`usedAt`) en **verlopen** (`EMAIL_VERIFICATION_TTL_HOURS`); een resend maakt het vorige
+      ongebruikte token ongeldig. Inwisselen (`/auth/verify-email`) weigert onbekend/verlopen/
+      gebruikt met dezelfde neutrale `400 INVALID_VERIFICATION_TOKEN`. **Opnieuw versturen**
+      (`/auth/verify-email/resend`) is publiek, streng per-IP rate-limited (`RESEND_RATE_LIMIT_*`)
+      en antwoordt **altijd** neutraal — of het adres bestaat, al geverifieerd is of onbekend
+      (geen account-enumeratie). De mail-service is provider-agnostisch (`mail/transport.ts`):
+      SMTP in productie (verplicht via prod-guard), log-transport in dev, geheugen-transport in
+      tests. **Gekozen verificatie-gate:** onbevestigde accounts mogen inloggen en hun eigen
+      gegevens bekijken, maar het aanmaken van gebruikers (`POST /users`, privacygevoelige
+      personen) is geblokkeerd → `403 EMAIL_NOT_VERIFIED` (`requireVerifiedEmail`). Getest in
+      `auth/email-verification.test.ts` en `routes/email-verification.test.ts`.
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op

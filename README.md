@@ -79,10 +79,18 @@ curl -sc cookies.txt -X POST http://127.0.0.1:3000/auth/register \
   -d '{"organizationName":"Familie De Vries","organizationType":"family","adminName":"Kim","email":"kim@intento.local","password":"sterk-wachtwoord-123"}'
 ```
 
-Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account. E-mail/
-wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (default `admin@intento.local` /
-`change-me-admin` — buiten lokaal ontwikkelen overschrijven) en seedt daarnaast de gedeelde
-AAC-bibliotheek (T3.1). Login zet een ondertekende httpOnly-sessie-cookie:
+Na registratie stuurt de server een **verificatiemail** (T1.4). Zonder `SMTP_URL` draait een
+log-transport: de mail (met verificatielink) verschijnt in de serverlog i.p.v. echt verstuurd te
+worden, zodat je lokaal zonder mailserver kunt verifiëren. Klik op de link (`.../verify-email?token=…`)
+of wissel het token direct in via `POST /auth/verify-email`. Onbevestigde accounts mogen inloggen,
+maar het aanmaken van gebruikers (`POST /users`) is geblokkeerd tot verificatie
+(`403 EMAIL_NOT_VERIFIED`). Opnieuw versturen kan via `POST /auth/verify-email/resend` (neutraal,
+rate-limited). Zie [docs/api.md](docs/api.md) en [docs/adr/0007](docs/adr/0007-email-verification-and-mail-transport.md).
+
+Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account (meteen als
+geverifieerd aangemaakt). E-mail/wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`
+(default `admin@intento.local` / `change-me-admin` — buiten lokaal ontwikkelen overschrijven) en
+seedt daarnaast de gedeelde AAC-bibliotheek (T3.1). Login zet een ondertekende httpOnly-sessie-cookie:
 
 ```bash
 # Inloggen (cookie in cookies.txt bewaren) en het eigen account opvragen:

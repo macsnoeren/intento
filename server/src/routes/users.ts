@@ -8,7 +8,7 @@ import {
   type UserPublic,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
-import { authorize, requireAccount } from '../auth/authorize.js';
+import { authorize, requireAccount, requireVerifiedEmail } from '../auth/authorize.js';
 import { assertSameTenant, tenantScope } from '../auth/tenant.js';
 import { assertCaregiverAccess } from '../auth/caregivers.js';
 import { userToPublic as toPublic } from '../users/serialize.js';
@@ -32,10 +32,11 @@ const userParamsSchema = z.object({ id: z.string().min(1) });
  *     hij gekoppeld is (`assertCaregiverAccess`, T2.2); een ADMIN alle van de eigen organisatie.
  */
 export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesDeps): void {
-  // Aanmaken — ADMIN. Het communicatieprofiel wordt meteen met de standaardwaarden aangemaakt.
+  // Aanmaken — ADMIN, én e-mail geverifieerd (T1.4): voor je echte personen (privacygevoelig)
+  // toevoegt, moet de admin zijn adres hebben bevestigd. Bekijken/inloggen mag wél ongeverifieerd.
   app.post(
     '/users',
-    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    { preHandler: [authorize(prisma, { roles: ['ADMIN'] }), requireVerifiedEmail()] },
     async (request, reply): Promise<UserPublic> => {
       const account = requireAccount(request);
       const { name, active } = createUserRequestSchema.parse(request.body);

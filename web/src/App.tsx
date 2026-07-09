@@ -5,7 +5,18 @@ import { LoginForm } from './LoginForm.tsx';
 import { RegisterForm } from './RegisterForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
+import { VerifyEmailPage } from './VerifyEmailPage.tsx';
+import { VerificationBanner } from './VerificationBanner.tsx';
 import type { AdminView } from './AdminNav.tsx';
+
+/**
+ * Leest een verificatietoken (`?token=…`) uit de huidige URL (de link uit de verificatiemail,
+ * T1.4). `null` als er geen token in de URL staat. Injecteerbaar (`search`) voor tests.
+ */
+function readVerificationToken(search: string = window.location.search): string | null {
+  const token = new URLSearchParams(search).get('token');
+  return token && token.length > 0 ? token : null;
+}
 
 /**
  * Beheeromgeving (fase 2). Regelt de sessie-toestand: eerst `GET /auth/me`; bij een geldige
@@ -14,12 +25,33 @@ import type { AdminView } from './AdminNav.tsx';
  *
  * `api` is injecteerbaar zodat tests een in-memory backend kunnen meegeven.
  */
-export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
+export function App({
+  api = httpApi,
+  initialVerificationToken = readVerificationToken(),
+}: {
+  api?: Api;
+  /** Verificatietoken uit de URL (T1.4); injecteerbaar in tests. */
+  initialVerificationToken?: string | null;
+} = {}): React.JSX.Element {
   const [account, setAccount] = useState<AccountPublic | null>(null);
   const [checking, setChecking] = useState(true);
   const [view, setView] = useState<AdminView>('users');
   // Ongeauthenticeerde weergave: inloggen of zelf een nieuwe omgeving aanmelden (T1.3).
   const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
+  // Verificatietoken uit de e-maillink (T1.4): zolang gezet tonen we de verificatiepagina.
+  const [verificationToken, setVerificationToken] = useState<string | null>(
+    initialVerificationToken,
+  );
+
+  async function refreshAccount(): Promise<void> {
+    try {
+      const { account: me } = await api.me();
+      setAccount(me);
+    } catch (err) {
+      if (!(err instanceof ApiRequestError)) throw err;
+      setAccount(null);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -45,6 +77,25 @@ export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
     } finally {
       setAccount(null);
     }
+  }
+
+  // Verificatielink uit de mail (T1.4): eerst het token inwisselen, daarna terug naar de app.
+  if (verificationToken) {
+    return (
+      <VerifyEmailPage
+        api={api}
+        token={verificationToken}
+        onDone={() => {
+          // Token uit de URL halen zodat een refresh 'm niet opnieuw inwisselt, en de
+          // accountstatus verversen (emailVerified kan nu gewijzigd zijn).
+          if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+          setVerificationToken(null);
+          void refreshAccount();
+        }}
+      />
+    );
   }
 
   if (checking) {
@@ -74,9 +125,15 @@ export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
     );
   }
 
+  // Herinneringsbanner zolang het e-mailadres niet is bevestigd (T1.4).
+  const banner = account.emailVerified ? null : (
+    <VerificationBanner api={api} email={account.email} />
+  );
+
   if (account.role !== 'ADMIN') {
     return (
       <main className="panel panel--narrow">
+        {banner}
         <h1 className="panel__title">Intento</h1>
         <p>Alleen beheerders hebben toegang tot het gebruikersbeheer.</p>
         <button className="button" type="button" onClick={() => void handleLogout()}>
@@ -88,21 +145,27 @@ export function App({ api = httpApi }: { api?: Api } = {}): React.JSX.Element {
 
   if (view === 'aac') {
     return (
-      <AacLibraryPage
+      <>
+        {banner}
+        <AacLibraryPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {banner}
+      <AdminUsersPage
         api={api}
         account={account}
         onLogout={() => void handleLogout()}
         onNavigate={setView}
       />
-    );
-  }
-
-  return (
-    <AdminUsersPage
-      api={api}
-      account={account}
-      onLogout={() => void handleLogout()}
-      onNavigate={setView}
-    />
+    </>
   );
 }

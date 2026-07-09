@@ -54,8 +54,9 @@ ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 | Entiteit | Velden | Toelichting |
 |---|---|---|
 | **Organization** | `id`, `name`, `type`, `createdAt` | Intento-omgeving (family/care/personal) en tenant-root. Fundament-model uit T0.2; via zelfaanmelding (T1.3) maakt een bezoeker er zelf één aan. `type` gevalideerd op de grens (`organizationTypeSchema`). |
-| **Account** | `id`, `email` (uniek), `name?`, `passwordHash`, `role`, `organizationId`, `failedLoginAttempts`, `lockedUntil`, `createdAt` | Login voor een persoon (T1.1). `role` = `ADMIN`/`CAREGIVER`/`USER` (zod op de grens). `name` is de weergavenaam van de accounthouder (gevuld bij zelfaanmelding T1.3; nullable — geseede accounts en login vereisen er geen). Wachtwoord alleen als argon2id-hash. `email` platformbreed uniek (login-keuze, ADR-0004). Lockout-velden voor brute-force-mitigatie. |
+| **Account** | `id`, `email` (uniek), `name?`, `passwordHash`, `role`, `organizationId`, `failedLoginAttempts`, `lockedUntil`, `emailVerifiedAt?`, `createdAt` | Login voor een persoon (T1.1). `role` = `ADMIN`/`CAREGIVER`/`USER` (zod op de grens). `name` is de weergavenaam van de accounthouder (gevuld bij zelfaanmelding T1.3; nullable — geseede accounts en login vereisen er geen). Wachtwoord alleen als argon2id-hash. `email` platformbreed uniek (login-keuze, ADR-0004). Lockout-velden voor brute-force-mitigatie. `emailVerifiedAt` (T1.4): `null` = nog niet geverifieerd (geseede/bestaande accounts blijven `null`; de bootstrap-seed-admin wordt wél geverifieerd), anders het bevestigingsmoment. |
 | **Session** | `id`, `tokenHash` (uniek), `accountId`, `createdAt`, `expiresAt` | Actieve login-sessie (T1.1). Alleen de **SHA-256-hash** van het sessietoken staat in de db; het rauwe token leeft in de httpOnly-cookie. Verlopen sessies zijn ongeldig en worden opgeruimd. |
+| **EmailVerificationToken** | `id`, `tokenHash` (uniek), `accountId`, `usedAt`, `expiresAt`, `createdAt` | E-mailverificatietoken (T1.4). Alleen de **SHA-256-hash** staat in de db; het rauwe token gaat per mail naar de accounthouder. Tokens zijn **eenmalig** (`usedAt`) en **verlopen** (`expiresAt`); een nieuw token (resend) maakt het vorige ongebruikte token van dat account ongeldig. Cascade delete met het account. |
 | **User** | `id`, `name`, `organizationId`, `active`, `createdAt` | De communicerende persoon (T2.1). Staat los van `Account`: een gebruiker hoeft geen eigen login te hebben. Tenant-gebonden via `organizationId`. `active` deactiveert zonder te verwijderen. |
 | **UserCommunicationProfile** | `userId` (PK), `iconsPerScreen`, `showText`, `aiLearningEnabled`, `supportMode` | 1-op-1 communicatie-instellingen (T2.1, DESIGN §5.3). `iconsPerScreen` alléén 2/4/6/8 (standaard 4), afgedwongen met zod op de API-grens. Standaarden: tekst aan, leren aan, ondersteuning uit. |
 | **CaregiverAssignment** | `userId` + `accountId` (samengestelde PK), `createdAt` | Koppeling begeleider↔gebruiker (T2.2, DESIGN §2, FR-017). Many-to-many tussen een CAREGIVER-`Account` en een `User`. Stuurt de toegang: een begeleider ziet/beheert alléén gekoppelde gebruikers. Samengestelde sleutel voorkomt dubbele koppelingen; tenant-grens (zelfde organisatie) op de API-grens bewaakt. |
@@ -65,7 +66,8 @@ ConceptProposal) wordt in latere taken toegevoegd. Nu bestaat:
 | **AacConceptRelation** | `id`, `parentId`, `childId`, `relation` (standaard `contains`) | Begripsrelatie tussen twee `AacSymbol`s (T3.1). Vormt de verfijningsboom (bv. `buiten` → `wandelen`, DESIGN §3.1). Samengestelde unieke sleutel `(parentId, childId, relation)` voorkomt dubbele relaties. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
-Account` (cascade delete); `User.organizationId → Organization` (cascade delete);
+Account` (cascade delete); `EmailVerificationToken.accountId → Account` (cascade delete);
+`User.organizationId → Organization` (cascade delete);
 `UserCommunicationProfile.userId → User` (cascade delete); `CaregiverAssignment.userId →
 User` en `CaregiverAssignment.accountId → Account` (beide cascade delete — de koppeling
 verdwijnt als de gebruiker of het begeleider-account wordt verwijderd); `Device.userId →
@@ -90,7 +92,8 @@ opties. `searchText` wordt herbouwd bij elke wijziging (nu in de seed; T3.2 bij 
 [`server/prisma/seed.ts`](../server/prisma/seed.ts) is idempotent (`npm run db:seed`) en
 plaatst een demo-organisatie **en** een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
 `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (dev-default met waarschuwing als niet gezet).
-Herseeden overschrijft een bestaand wachtwoord niet. Het script seedt óók de **AAC-bibliotheek**
+De geseede bootstrap-admin wordt meteen als **geverifieerd** aangemaakt (T1.4) — die is door de
+operator ingericht, niet via publieke zelfaanmelding. Herseeden overschrijft een bestaand wachtwoord niet. Het script seedt óók de **AAC-bibliotheek**
 (T3.1) via [`server/src/aac/library.ts`](../server/src/aac/library.ts) met de dataset uit
 [`server/src/aac/data.ts`](../server/src/aac/data.ts): symbolen worden op `concept` ge-upsert en
 relaties op hun unieke combinatie — idempotent, dus herseeden levert geen duplicaten.
@@ -106,3 +109,4 @@ relaties op hun unieke combinatie — idempotent, dus herseeden levert geen dupl
 - **`aac_admin_images`** (T3.2) — `AacSymbol` uitgebreid met `imageData` (`Bytes`, nullable), `imageMimeType` (nullable) en `imageVersion` (`Int`, default 0) voor geüploade pictogrammen.
 - **`aac_opensymbols_attribution`** (T3.3) — `AacSymbol` uitgebreid met `imageLicense`, `imageLicenseUrl`, `imageAuthor`, `imageAuthorUrl` en `imageSourceUrl` (alle `String`, nullable) voor de bron/licentie van een via OpenSymbols gekoppelde afbeelding.
 - **`account_name`** (T1.3) — `Account` uitgebreid met `name` (`String`, nullable) voor de weergavenaam van de accounthouder bij zelfaanmelding.
+- **`email_verification`** (T1.4) — `Account` uitgebreid met `emailVerifiedAt` (`DateTime`, nullable) en de nieuwe tabel `EmailVerificationToken` (unieke `tokenHash`, index op `accountId`, cascade delete).

@@ -86,6 +86,28 @@ const envSchema = z
     OPENSYMBOLS_SECRET: z.string().default(''),
     // Time-out (ms) voor externe OpenSymbols-aanroepen, zodat een trage dienst de app niet ophoudt.
     OPENSYMBOLS_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
+    // E-mailverificatie (T1.4, DESIGN §2, §9.4). Provider-agnostische mail-service.
+    // Afzenderadres van systeemmails (verificatiemail). RFC 5322-vorm mag ("Naam <adres>").
+    MAIL_FROM: z.string().min(1).default('Intento <no-reply@intento.local>'),
+    // SMTP-verbindingsstring (bv. smtps://user:pass@smtp.host:465). LEEG = log-transport: mails
+    // worden niet echt verstuurd maar gelogd (dev/test), zodat de app zonder mailserver draait
+    // (T1.3 blijft functioneren). In productie wordt een niet-lege SMTP_URL afgedwongen.
+    SMTP_URL: z.string().default(''),
+    // Basis-URL waarnaar de verificatielink in de mail wijst; de server hangt er `?token=…` achter.
+    // Wijst naar de web-app, die het token inwisselt via de API. Buiten test moet dit https zijn.
+    EMAIL_VERIFICATION_URL_BASE: z.url().default('http://localhost:5173/verify-email'),
+    // Levensduur van een verificatietoken in uren — kort genoeg om lekkage te beperken, lang
+    // genoeg om op je gemak op de link te klikken.
+    EMAIL_VERIFICATION_TTL_HOURS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(24 * 30)
+      .default(24),
+    // Strenge rate limiting op /auth/verify-email/resend (publiek): tegen mailbommen en het
+    // aftasten van adressen. Streng, want opnieuw versturen hoort zelden nodig te zijn.
+    RESEND_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(3),
+    RESEND_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
@@ -103,6 +125,24 @@ const envSchema = z
         code: 'custom',
         path: ['COOKIE_SECURE'],
         message: 'COOKIE_SECURE moet true zijn in productie (HTTPS).',
+      });
+    }
+    // In productie mag e-mailverificatie niet stilletjes op het log-transport draaien: dan zou
+    // niemand ooit een mail krijgen. Een echte SMTP_URL is verplicht.
+    if (!value.SMTP_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMTP_URL'],
+        message:
+          'SMTP_URL is verplicht in productie (anders worden verificatiemails niet verstuurd).',
+      });
+    }
+    // De verificatielink moet in productie https zijn (token gaat niet over plain HTTP).
+    if (!/^https:\/\//i.test(value.EMAIL_VERIFICATION_URL_BASE)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_VERIFICATION_URL_BASE'],
+        message: 'EMAIL_VERIFICATION_URL_BASE moet https zijn in productie.',
       });
     }
   });

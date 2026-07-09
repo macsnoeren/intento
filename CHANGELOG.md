@@ -6,6 +6,30 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T1.4 E-mailverificatie.** Verificatie van het bij zelfaanmelding (T1.3) aangemaakte
+  admin-account. Nieuw veld `Account.emailVerifiedAt` (nullable) en nieuwe tabel
+  `EmailVerificationToken` (migratie `email_verification`): het token staat **gehasht at-rest**
+  (SHA-256, alleen de hash in de db), is **eenmalig** (`usedAt`) en **verloopt**
+  (`EMAIL_VERIFICATION_TTL_HOURS`); een resend maakt het vorige ongebruikte token ongeldig.
+  Endpoints: `POST`/`GET /auth/verify-email` wisselt het token in (`200 { verified, account }`;
+  ongeldig/verlopen/gebruikt → neutrale `400 INVALID_VERIFICATION_TOKEN`) en
+  `POST /auth/verify-email/resend` (publiek, streng rate-limited, **altijd** neutrale respons —
+  geen account-enumeratie). Registratie verstuurt voortaan een verificatiemail (best-effort — een
+  falende mailserver blokkeert de registratie niet). **Provider-agnostische mail-service**
+  (`mail/transport.ts`): SMTP via nodemailer in productie (verplicht via prod-guard),
+  log-transport in dev, geheugen-transport in tests (injecteerbaar via `buildApp({ mail })`).
+  **Verificatie-gate:** onbevestigde accounts mogen inloggen en hun eigen gegevens bekijken, maar
+  gebruikers aanmaken (`POST /users`) is geblokkeerd → `403 EMAIL_NOT_VERIFIED`
+  (`requireVerifiedEmail`); de bootstrap-seed-admin is meteen geverifieerd. Publiek veld
+  `account.emailVerified`. Web: **verificatiebanner** met "opnieuw versturen"-knop voor een
+  onbevestigd account, en een **verificatiepagina** die het token uit de e-maillink (`?token=`)
+  inwisselt. Gedeelde schema's: `verifyEmailRequestSchema`, `resendVerificationRequestSchema`,
+  `verifyEmailResponseSchema`, `resendVerificationResponseSchema`. Env: `MAIL_FROM`, `SMTP_URL`,
+  `EMAIL_VERIFICATION_URL_BASE`, `EMAIL_VERIFICATION_TTL_HOURS`, `RESEND_RATE_LIMIT_*`. ADR-0007.
+  Server-, unit- en web-tests dekken de acceptatie (mail verstuurd bij registratie, geldig token →
+  geverifieerd, verlopen/gebruikt/ongeldig geweigerd, resend rate-limited en enumeratie-veilig,
+  token nergens plaintext, gate → 403). Gedocumenteerd in `docs/api.md`, `docs/data-model.md`,
+  `docs/security.md`, `docs/adr/0007-*`, `.env.example`.
 - **T1.3 Zelfaanmelding van een organisatie/familie.** Publiek registratie-endpoint
   `POST /auth/register`: maakt in **één transactie** een nieuwe `Organization` (`name` +
   `type` ∈ family/care/personal) plus het eerste `Account` met rol ADMIN (argon2id) en logt

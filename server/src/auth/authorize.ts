@@ -1,4 +1,4 @@
-import type { FastifyRequest, preHandlerAsyncHookHandler } from 'fastify';
+import type { FastifyRequest, preHandlerAsyncHookHandler, preHandlerHookHandler } from 'fastify';
 import type { AccountRole } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AccountModel } from '../generated/prisma/models.js';
@@ -53,6 +53,30 @@ export function authorize(
       throw new HttpError(403, 'FORBIDDEN', 'Je hebt geen toegang tot deze actie.');
     }
     request.account = account;
+  };
+}
+
+/**
+ * Extra preHandler dat een **geverifieerd e-mailadres** eist (T1.4). Hangt ná `authorize(...)`
+ * (die `request.account` vult) en geeft 403 `EMAIL_NOT_VERIFIED` als het account nog niet
+ * geverifieerd is. Bewust een aparte, expliciete guard op alléén gevoelige acties: inloggen en
+ * de eigen gegevens bekijken mag ongeverifieerd, maar bv. gebruikers (echte personen) aanmaken
+ * niet — zie docs/security.md voor de gekozen grens.
+ */
+export function requireVerifiedEmail(): preHandlerHookHandler {
+  return (request, _reply, done) => {
+    const account = requireAccount(request);
+    if (account.emailVerifiedAt === null) {
+      done(
+        new HttpError(
+          403,
+          'EMAIL_NOT_VERIFIED',
+          'Bevestig eerst je e-mailadres om deze actie uit te voeren.',
+        ),
+      );
+      return;
+    }
+    done();
   };
 }
 

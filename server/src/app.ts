@@ -16,6 +16,7 @@ import { registerCaregiverRoutes } from './routes/caregivers.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
+import { createMailTransport, type MailTransport } from './mail/transport.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -25,6 +26,8 @@ export interface BuildAppOptions {
   logger?: boolean;
   /** OpenSymbols-proxy (T3.3); standaard uit de env, injecteerbaar zodat tests een mock meegeven. */
   openSymbols?: OpenSymbolsClient;
+  /** Mail-transport (T1.4); standaard uit de env (log/SMTP), injecteerbaar zodat tests de mail opvangen. */
+  mail?: MailTransport;
 }
 
 /**
@@ -37,6 +40,7 @@ export async function buildApp({
   prisma = defaultPrisma,
   logger = false,
   openSymbols = createOpenSymbolsClient(env),
+  mail = createMailTransport(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger,
@@ -73,7 +77,7 @@ export async function buildApp({
   app.setNotFoundHandler(notFoundHandler);
 
   registerHealthRoutes(app);
-  registerAuthRoutes(app, { env, prisma });
+  registerAuthRoutes(app, { env, prisma, mail });
   registerAccountRoutes(app, { prisma });
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });

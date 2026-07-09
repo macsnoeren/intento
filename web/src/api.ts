@@ -6,8 +6,10 @@ import {
   caregiverListResponseSchema,
   deviceCodeResponseSchema,
   openSymbolsSearchResponseSchema,
+  resendVerificationResponseSchema,
   userListResponseSchema,
   userPublicSchema,
+  verifyEmailResponseSchema,
   type AacSymbolAdmin,
   type AacSymbolInput,
   type AacSymbolListResponse,
@@ -18,9 +20,11 @@ import {
   type DeviceCodeResponse,
   type OpenSymbolsSearchResponse,
   type RegisterRequest,
+  type ResendVerificationResponse,
   type UpdateSettingsRequest,
   type UserListResponse,
   type UserPublic,
+  type VerifyEmailResponse,
 } from '@intento/shared';
 
 /**
@@ -50,6 +54,8 @@ export interface Api {
   me(): Promise<AuthResponse>;
   login(email: string, password: string): Promise<AuthResponse>;
   register(body: RegisterRequest): Promise<AuthResponse>;
+  verifyEmail(token: string): Promise<VerifyEmailResponse>;
+  resendVerification(email: string): Promise<ResendVerificationResponse>;
   logout(): Promise<void>;
   listUsers(): Promise<UserListResponse>;
   createUser(body: CreateUserRequest): Promise<UserPublic>;
@@ -126,6 +132,19 @@ export const httpApi: Api = {
   async register(body) {
     return authResponseSchema.parse(
       await request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
+  async verifyEmail(token) {
+    return verifyEmailResponseSchema.parse(
+      await request('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
+    );
+  },
+  async resendVerification(email) {
+    return resendVerificationResponseSchema.parse(
+      await request('/auth/verify-email/resend', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
     );
   },
   async logout() {

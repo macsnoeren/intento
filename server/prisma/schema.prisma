@@ -104,14 +104,43 @@ model Account {
   /// blokkeert login tot dat moment. Beide worden bij een geslaagde login gereset.
   failedLoginAttempts Int      @default(0)
   lockedUntil         DateTime?
+  /// E-mailverificatie (T1.4, DESIGN §2, §9.4). `null` = nog niet geverifieerd; anders het moment
+  /// waarop het e-mailadres via een verificatietoken is bevestigd. Onbevestigde accounts mogen
+  /// inloggen maar bepaalde gevoelige acties (bv. gebruikers aanmaken) zijn geblokkeerd tot
+  /// verificatie — zie docs/security.md. Geseede/bestaande accounts (vóór T1.4) blijven `null`.
+  emailVerifiedAt DateTime?
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sessions     Session[]
   /// Gebruikers waaraan dit account (als CAREGIVER) gekoppeld is.
   caregiverLinks CaregiverAssignment[]
+  /// Openstaande/gebruikte e-mailverificatietokens van dit account.
+  emailVerificationTokens EmailVerificationToken[]
 
   @@index([organizationId])
+}
+
+/// Een e-mailverificatietoken (T1.4, DESIGN §2, §9.4). Wordt bij zelfaanmelding (T1.3) en bij
+/// `resend` aangemaakt en per e-mail als **rauwe** token naar de accounthouder gestuurd. Net als
+/// sessie- en apparaat-tokens staat het token NOOIT plaintext in de db — alleen de SHA-256-hash
+/// (`tokenHash`). Bij inwisselen (`/auth/verify-email`) hashen we het aangeboden token en zoeken
+/// hierop. Tokens zijn **eenmalig** (`usedAt` gezet zodra ingewisseld) en **verlopen** (`expiresAt`);
+/// een verlopen of gebruikt token wordt geweigerd. `onDelete: Cascade` ruimt tokens op als het
+/// account verdwijnt.
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  /// SHA-256-hash (hex) van het verificatietoken. Uniek zodat inwisselen direct op de hash zoekt.
+  tokenHash String    @unique
+  accountId String
+  /// Moment van inwisselen; `null` zolang ongebruikt. Eenmalig gebruik wordt hierop bewaakt.
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
 }
 
 /// Koppeling tussen een begeleider (CAREGIVER-`Account`) en een `User` (T2.2, DESIGN §2,

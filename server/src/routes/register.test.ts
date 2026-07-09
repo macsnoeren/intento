@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { authResponseSchema, type RegisterRequest } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
+import { MemoryMailTransport } from '../mail/transport.js';
 import { resetAuthData, seedAccount, sessionCookieHeader, testEnv } from '../test/auth-helpers.js';
 
 /**
@@ -22,12 +23,15 @@ const validBody: RegisterRequest = {
 
 describe('register-routes', () => {
   let app: FastifyInstance;
+  let mail: MemoryMailTransport;
 
   beforeEach(async () => {
     await resetAuthData();
+    mail = new MemoryMailTransport();
     // Ruime rate-limit zodat de functionele tests er niet tegenaan lopen (aparte test hieronder).
     app = await buildApp({
       env: testEnv({ REGISTER_RATE_LIMIT_MAX: '100', LOGIN_RATE_LIMIT_MAX: '100' }),
+      mail,
     });
   });
 
@@ -75,6 +79,15 @@ describe('register-routes', () => {
     const stored = await prisma.session.findFirst();
     expect(stored).not.toBeNull();
     expect(cookie).not.toContain(stored?.tokenHash);
+
+    // Nieuw account is nog niet geverifieerd; er is een verificatiemail verstuurd (T1.4).
+    expect(body.account.emailVerified).toBe(false);
+    expect(mail.sent).toHaveLength(1);
+    expect(mail.last()?.to).toBe(validBody.email);
+    // Het token staat gehasht in de db, nooit plaintext in de verzonden mail.
+    const tokenRow = await prisma.emailVerificationToken.findFirst();
+    expect(tokenRow).not.toBeNull();
+    expect(mail.last()?.text).not.toContain(tokenRow?.tokenHash);
   });
 
   it('normaliseert de e-mail naar lowercase', async () => {
@@ -159,7 +172,10 @@ describe('register-routes rate limiting', () => {
 
   beforeEach(async () => {
     await resetAuthData();
-    app = await buildApp({ env: testEnv({ REGISTER_RATE_LIMIT_MAX: '3' }) });
+    app = await buildApp({
+      env: testEnv({ REGISTER_RATE_LIMIT_MAX: '3' }),
+      mail: new MemoryMailTransport(),
+    });
   });
 
   afterEach(async () => {

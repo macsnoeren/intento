@@ -1,14 +1,15 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
-  accountPublicSchema,
   loginRequestSchema,
   registerRequestSchema,
+  resendVerificationRequestSchema,
+  verifyEmailRequestSchema,
   type AuthResponse,
-  type AccountPublic,
+  type ResendVerificationResponse,
+  type VerifyEmailResponse,
 } from '@intento/shared';
 import type { Env } from '../env.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
-import type { AccountModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { verifyLogin } from '../auth/service.js';
 import { registerOrganization } from '../auth/register.js';
@@ -16,29 +17,33 @@ import { createSession, deleteSessionByToken } from '../auth/session.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from '../auth/cookie.js';
 import { readSessionToken } from '../auth/request.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
+import { accountToPublic as toPublic } from '../auth/serialize.js';
+import { sendVerificationEmail, verifyEmailToken } from '../auth/email-verification.js';
+import type { MailTransport } from '../mail/transport.js';
 
 export interface AuthRoutesDeps {
   env: Env;
   prisma: PrismaClient;
+  mail: MailTransport;
 }
 
-/** Mapt een account naar de publieke, veilige weergave (nooit hash of lockout-velden). */
-function toPublic(account: AccountModel): AccountPublic {
-  return accountPublicSchema.parse({
-    id: account.id,
-    email: account.email,
-    role: account.role,
-    organizationId: account.organizationId,
-  });
-}
+/** Neutrale melding op /auth/verify-email/resend — altijd hetzelfde (geen account-enumeratie). */
+const RESEND_NEUTRAL_MESSAGE =
+  'Als dit e-mailadres bij ons bekend is en nog niet is bevestigd, is er een nieuwe verificatiemail verstuurd.';
 
 /**
- * Auth-routes (T1.1, DESIGN §8.2): login, logout en het opvragen van het eigen account.
+ * Auth-routes (T1.1, T1.4, DESIGN §8.2): login, logout, het eigen account, en e-mailverificatie.
  *
  * Login is streng rate-limited (per IP) én kent account-lockout; sessietokens gaan als
- * ondertekende httpOnly+Secure cookie mee en staan alleen gehasht in de db.
+ * ondertekende httpOnly+Secure cookie mee en staan alleen gehasht in de db. E-mailverificatie
+ * (T1.4) stuurt bij registratie een verificatiemail en wisselt het (gehashte, eenmalige,
+ * verlopende) token weer in; opnieuw versturen is publiek, rate-limited en lekt niet of het adres
+ * bestaat.
  */
-export function registerAuthRoutes(app: FastifyInstance, { env, prisma }: AuthRoutesDeps): void {
+export function registerAuthRoutes(
+  app: FastifyInstance,
+  { env, prisma, mail }: AuthRoutesDeps,
+): void {
   const sessionMaxAgeSeconds = env.SESSION_TTL_HOURS * 60 * 60;
 
   app.post(
@@ -108,8 +113,71 @@ export function registerAuthRoutes(app: FastifyInstance, { env, prisma }: AuthRo
       const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);
       reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(env, sessionMaxAgeSeconds));
 
+      // Verificatiemail versturen (T1.4). Bewust best-effort: een falende mailserver mag de
+      // registratie niet laten mislukken — de gebruiker is al ingelogd en kan later "opnieuw
+      // versturen". Fouten loggen we, maar gooien we niet door.
+      try {
+        await sendVerificationEmail(prisma, mail, env, result.account);
+      } catch (error) {
+        request.log.error({ err: error }, 'Verificatiemail versturen mislukt bij registratie');
+      }
+
       reply.status(201);
       return { account: toPublic(result.account) };
+    },
+  );
+
+  // --- E-mailverificatie (T1.4) ---
+
+  // Token inwisselen. Zowel POST (web-app) als GET (directe link) — beide via dezelfde logica.
+  // Ongeldig/verlopen/gebruikt token → 400 met neutrale melding (geen enumeratie).
+  const verifyEmailHandler = async (
+    source: unknown,
+    reply: FastifyReply,
+  ): Promise<VerifyEmailResponse> => {
+    const { token } = verifyEmailRequestSchema.parse(source);
+    const result = await verifyEmailToken(prisma, token);
+    if (!result.ok) {
+      throw new HttpError(
+        400,
+        'INVALID_VERIFICATION_TOKEN',
+        'Deze verificatielink is ongeldig of verlopen. Vraag een nieuwe aan.',
+      );
+    }
+    reply.status(200);
+    return { verified: true, account: toPublic(result.account) };
+  };
+
+  app.post('/auth/verify-email', (request, reply) => verifyEmailHandler(request.body, reply));
+  app.get('/auth/verify-email', (request, reply) => verifyEmailHandler(request.query, reply));
+
+  // Opnieuw versturen. Publiek, streng rate-limited, en **altijd** een neutrale respons: of het
+  // adres nu bestaat, al geverifieerd is, of onbekend — de client leert niets (geen enumeratie).
+  app.post(
+    '/auth/verify-email/resend',
+    {
+      config: {
+        rateLimit: {
+          max: env.RESEND_RATE_LIMIT_MAX,
+          timeWindow: env.RESEND_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+        },
+      },
+    },
+    async (request): Promise<ResendVerificationResponse> => {
+      const { email } = resendVerificationRequestSchema.parse(request.body);
+
+      // Alleen versturen als er een nog niet geverifieerd account bij dit adres hoort. Alle
+      // andere gevallen leiden tot dezelfde neutrale respons zonder iets te doen.
+      const account = await prisma.account.findUnique({ where: { email } });
+      if (account && account.emailVerifiedAt === null) {
+        try {
+          await sendVerificationEmail(prisma, mail, env, account);
+        } catch (error) {
+          request.log.error({ err: error }, 'Verificatiemail opnieuw versturen mislukt');
+        }
+      }
+
+      return { message: RESEND_NEUTRAL_MESSAGE };
     },
   );
 

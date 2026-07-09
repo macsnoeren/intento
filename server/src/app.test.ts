@@ -70,12 +70,39 @@ describe('loadEnv prod-guards', () => {
     ).toThrow(/COOKIE_SECURE/);
   });
 
+  it('eist een SMTP_URL in productie (anders geen verificatiemails)', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SIGNING_SECRET: 'een-echte-secret',
+        ENCRYPTION_KEY: 'een-echte-sleutel',
+        COOKIE_SECURE: 'true',
+        EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+      }),
+    ).toThrow(/SMTP_URL/);
+  });
+
+  it('eist een https-verificatielink in productie', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SIGNING_SECRET: 'een-echte-secret',
+        ENCRYPTION_KEY: 'een-echte-sleutel',
+        COOKIE_SECURE: 'true',
+        SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
+        EMAIL_VERIFICATION_URL_BASE: 'http://app.intento.test/verify-email',
+      }),
+    ).toThrow(/EMAIL_VERIFICATION_URL_BASE/);
+  });
+
   it('accepteert een geldige productie-configuratie', () => {
     const env = loadEnv({
       NODE_ENV: 'production',
       SIGNING_SECRET: 'een-echte-secret',
       ENCRYPTION_KEY: 'een-echte-sleutel',
       COOKIE_SECURE: 'true',
+      SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
+      EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
     });
     expect(env.NODE_ENV).toBe('production');
     expect(env.COOKIE_SECURE).toBe(true);

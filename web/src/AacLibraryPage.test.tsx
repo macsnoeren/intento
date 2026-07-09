@@ -20,6 +20,7 @@ const adminAccount: AccountPublic = {
   email: 'admin@intento.local',
   role: 'ADMIN',
   organizationId: 'org-1',
+  emailVerified: true,
 };
 
 function makeSymbol(
@@ -66,6 +67,8 @@ function fakeApi(): Api {
     me: notImplemented,
     login: notImplemented,
     register: notImplemented,
+    verifyEmail: notImplemented,
+    resendVerification: notImplemented,
     logout: () => Promise.resolve(),
     listUsers: notImplemented,
     createUser: notImplemented,

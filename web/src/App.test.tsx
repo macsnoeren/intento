@@ -6,9 +6,11 @@ import type {
   CaregiverListResponse,
   CreateUserRequest,
   DeviceCodeResponse,
+  ResendVerificationResponse,
   UpdateSettingsRequest,
   UserListResponse,
   UserPublic,
+  VerifyEmailResponse,
 } from '@intento/shared';
 import { App } from './App.tsx';
 import { ApiRequestError, type Api } from './api.ts';
@@ -24,6 +26,7 @@ const adminAccount = {
   email: 'admin@intento.local',
   role: 'ADMIN' as const,
   organizationId: 'org-1',
+  emailVerified: true,
 };
 
 function makeUser(id: string, name: string): UserPublic {
@@ -43,8 +46,12 @@ function makeUser(id: string, name: string): UserPublic {
 }
 
 /** Bouwt een stateful nep-backend; `loggedIn` bepaalt of er al een sessie is. */
-function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } = {}): Api {
+function fakeApi(
+  options: { loggedIn?: boolean; caregivers?: CaregiverLink[]; emailVerified?: boolean } = {},
+): Api {
   let session = options.loggedIn ?? false;
+  let emailVerified = options.emailVerified ?? true;
+  const account = (): typeof adminAccount => ({ ...adminAccount, emailVerified });
   const users: UserPublic[] = [];
   let counter = 0;
   // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
@@ -59,7 +66,7 @@ function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } =
   return {
     me(): Promise<AuthResponse> {
       return session
-        ? Promise.resolve({ account: adminAccount })
+        ? Promise.resolve({ account: account() })
         : Promise.reject(new ApiRequestError(401, 'NOT_AUTHENTICATED', 'Niet ingelogd.'));
     },
     login(email: string): Promise<AuthResponse> {
@@ -69,12 +76,19 @@ function fakeApi(options: { loggedIn?: boolean; caregivers?: CaregiverLink[] } =
         );
       }
       session = true;
-      return Promise.resolve({ account: adminAccount });
+      return Promise.resolve({ account: account() });
     },
     register(): Promise<AuthResponse> {
       // Zelfaanmelding maakt een nieuwe omgeving + admin en logt meteen in (T1.3).
       session = true;
-      return Promise.resolve({ account: adminAccount });
+      return Promise.resolve({ account: account() });
+    },
+    verifyEmail(): Promise<VerifyEmailResponse> {
+      emailVerified = true;
+      return Promise.resolve({ verified: true, account: account() });
+    },
+    resendVerification(): Promise<ResendVerificationResponse> {
+      return Promise.resolve({ message: 'Als het adres bekend is, is er een mail verstuurd.' });
     },
     logout(): Promise<void> {
       session = false;
@@ -264,5 +278,46 @@ describe('beheeromgeving-app', () => {
     const panel = await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Koppelcode genereren' }));
     expect((await within(panel).findByRole('status')).textContent).toContain('ABCD2345');
+  });
+
+  it('toont een verificatiebanner voor een onbevestigd account en verstuurt opnieuw (T1.4)', async () => {
+    render(<App api={fakeApi({ loggedIn: true, emailVerified: false })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    // Banner zichtbaar met een "opnieuw versturen"-knop.
+    const resend = await screen.findByRole('button', {
+      name: 'Verificatiemail opnieuw versturen',
+    });
+    fireEvent.click(resend);
+
+    // Na versturen een neutrale bevestiging (geen enumeratie).
+    expect(await screen.findByText(/nieuwe verificatiemail verstuurd/i)).toBeTruthy();
+  });
+
+  it('geen verificatiebanner voor een bevestigd account', async () => {
+    render(<App api={fakeApi({ loggedIn: true, emailVerified: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+    expect(screen.queryByRole('button', { name: 'Verificatiemail opnieuw versturen' })).toBeNull();
+  });
+
+  it('wisselt een token uit de e-maillink in via de verificatiepagina (T1.4)', async () => {
+    render(
+      <App
+        api={fakeApi({ loggedIn: true, emailVerified: false })}
+        initialVerificationToken="tok-123"
+      />,
+    );
+
+    // Verificatiepagina toont succes en een doorgaan-knop.
+    expect(await screen.findByText(/e-mailadres is bevestigd/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Doorgaan' }));
+
+    // Terug in de beheeromgeving; het account geldt nu als geverifieerd (geen banner).
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Verificatiemail opnieuw versturen' }),
+      ).toBeNull(),
+    );
   });
 });

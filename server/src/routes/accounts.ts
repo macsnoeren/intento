@@ -1,27 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import {
-  accountListResponseSchema,
-  accountPublicSchema,
-  type AccountListResponse,
-  type AccountPublic,
-} from '@intento/shared';
+import { accountListResponseSchema, type AccountListResponse } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
-import type { AccountModel } from '../generated/prisma/models.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
+import { accountToPublic as toPublic } from '../auth/serialize.js';
 import { tenantScope } from '../auth/tenant.js';
 
 export interface AccountRoutesDeps {
   prisma: PrismaClient;
-}
-
-/** Mapt een account naar de publieke, veilige weergave (nooit hash of lockout-velden). */
-function toPublic(account: AccountModel): AccountPublic {
-  return accountPublicSchema.parse({
-    id: account.id,
-    email: account.email,
-    role: account.role,
-    organizationId: account.organizationId,
-  });
 }
 
 /**

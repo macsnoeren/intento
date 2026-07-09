@@ -90,6 +90,12 @@ export const accountPublicSchema = z.object({
   email: z.email(),
   role: accountRoleSchema,
   organizationId: z.string(),
+  /**
+   * Of het e-mailadres is geverifieerd (T1.4). Onbevestigde accounts mogen inloggen, maar
+   * bepaalde gevoelige acties zijn geblokkeerd tot verificatie; de web-UI toont hierop een
+   * herinnerings-banner met een "opnieuw versturen"-knop.
+   */
+  emailVerified: z.boolean(),
 });
 export type AccountPublic = z.infer<typeof accountPublicSchema>;
 
@@ -98,6 +104,54 @@ export const authResponseSchema = z.object({
   account: accountPublicSchema,
 });
 export type AuthResponse = z.infer<typeof authResponseSchema>;
+
+// --- E-mailverificatie (T1.4, DESIGN §2, §3.7 stap 1, §9.4) ---
+
+/**
+ * Inwisselverzoek van een verificatietoken (`POST /auth/verify-email`, of `GET` met `?token=`).
+ * Het rauwe token komt uit de verificatiemail; de server hasht het en zoekt op de hash. Bewust
+ * begrensd op lengte tegen absurde invoer; de eigenlijke geldigheid (bestaat/verlopen/gebruikt)
+ * wordt server-side bepaald en levert altijd dezelfde neutrale foutmelding (geen enumeratie).
+ */
+export const verifyEmailRequestSchema = z.object({
+  token: z.string().trim().min(1).max(512),
+});
+export type VerifyEmailRequest = z.infer<typeof verifyEmailRequestSchema>;
+
+/**
+ * Opnieuw-versturen-verzoek (`POST /auth/verify-email/resend`). Publiek en streng rate-limited.
+ * Neemt alléén een e-mailadres; het antwoord is **altijd** neutraal, ongeacht of het adres
+ * bestaat of al geverifieerd is (geen account-enumeratie). E-mail naar lowercase genormaliseerd,
+ * net als bij login/registratie.
+ */
+export const resendVerificationRequestSchema = z.object({
+  email: z
+    .email()
+    .max(320)
+    .transform((value) => value.toLowerCase()),
+});
+export type ResendVerificationRequest = z.infer<typeof resendVerificationRequestSchema>;
+
+/**
+ * Antwoord op `POST /auth/verify-email`: of de verificatie is geslaagd. Bij een ongeldig,
+ * verlopen of reeds gebruikt token is `verified: false` met een neutrale melding in de body van
+ * de foutrespons — nooit een hint of het adres/token bestond.
+ */
+export const verifyEmailResponseSchema = z.object({
+  verified: z.literal(true),
+  account: accountPublicSchema,
+});
+export type VerifyEmailResponse = z.infer<typeof verifyEmailResponseSchema>;
+
+/**
+ * Neutraal antwoord op `POST /auth/verify-email/resend`: altijd hetzelfde, of het adres nu
+ * bestond of niet. De web-UI toont een generieke "als het adres bestaat, is er een mail
+ * verstuurd"-melding.
+ */
+export const resendVerificationResponseSchema = z.object({
+  message: z.string(),
+});
+export type ResendVerificationResponse = z.infer<typeof resendVerificationResponseSchema>;
 
 /**
  * Antwoord van `GET /admin/accounts`: de logins binnen de eigen organisatie (ADMIN-only).

@@ -18,11 +18,12 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-/gebruikersdata (koppelingen/apparaten → sessies → accounts → profielen → gebruikers → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
   await prisma.deviceLinkCode.deleteMany();
   await prisma.device.deleteMany();
   await prisma.caregiverAssignment.deleteMany();
+  await prisma.emailVerificationToken.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.userCommunicationProfile.deleteMany();
@@ -47,12 +48,17 @@ export async function seedOrganization(name = 'Testorganisatie'): Promise<string
  * Maakt een account met bekend wachtwoord voor de tests. Zonder `organizationId` wordt er
  * een nieuwe organisatie aangemaakt; geef er één mee om meerdere accounts in dezélfde
  * organisatie te zetten (nodig om tenant-isolatie tussen twee organisaties aan te tonen).
+ *
+ * Standaard **geverifieerd** (T1.4): geseede accounts staan voor reeds ingerichte omgevingen,
+ * zodat bestaande tests niet op de verificatie-gate lopen. Zet `emailVerified: false` om een
+ * vers-aangemeld, nog niet bevestigd account na te bootsen.
  */
 export async function seedAccount(
   email = 'admin@intento.local',
   password = 'correct horse battery staple',
   role = 'ADMIN',
   organizationId?: string,
+  options: { emailVerified?: boolean } = {},
 ): Promise<SeededAccount> {
   const orgId = organizationId ?? (await seedOrganization());
   const account = await prisma.account.create({
@@ -61,6 +67,7 @@ export async function seedAccount(
       passwordHash: await hashPassword(password),
       role,
       organizationId: orgId,
+      emailVerifiedAt: options.emailVerified === false ? null : new Date(),
     },
   });
   return { organizationId: orgId, accountId: account.id, email, password };

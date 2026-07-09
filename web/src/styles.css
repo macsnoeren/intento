@@ -436,3 +436,37 @@ body {
   margin: 0.3rem 0;
   color: var(--intento-accent);
 }
+
+/* E-mailverificatie-banner (T1.4) */
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 auto 1rem;
+  max-width: 900px;
+  padding: 0.75rem 1rem;
+  border-radius: var(--intento-radius);
+}
+
+.banner--warning {
+  background: #fff4e5;
+  color: #7a4a00;
+  border: 1px solid #f0c98a;
+}
+
+/* Tekstknop (bv. "opnieuw versturen" in de banner) — als link, niet als grote knop. */
+.button--link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--intento-accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.button--link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
