@@ -187,6 +187,11 @@ export const communicationProfileSchema = z.object({
   showText: z.boolean(),
   aiLearningEnabled: z.boolean(),
   supportMode: z.boolean(),
+  /**
+   * Contextindicator (broodkruimel van het afgelegde pad) in de gebruikersapp tonen (DESIGN §5.3,
+   * T2.4). Standaard aan; uit → de tablet toont het gekozen pad niet meer.
+   */
+  contextIndicator: z.boolean(),
 });
 export type CommunicationProfile = z.infer<typeof communicationProfileSchema>;
 

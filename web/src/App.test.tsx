@@ -41,6 +41,7 @@ function makeUser(id: string, name: string): UserPublic {
       showText: true,
       aiLearningEnabled: true,
       supportMode: false,
+      contextIndicator: true,
     },
   };
 }

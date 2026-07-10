@@ -75,12 +75,15 @@ model User {
 /// - `showText`: tekst onder pictogrammen tonen (ondersteunend, standaard aan).
 /// - `aiLearningEnabled`: leren van bevestigde communicatie toestaan (uitschakelbaar).
 /// - `supportMode`: ondersteuningsmodus (begeleider tikt aan namens de gebruiker).
+/// - `contextIndicator`: contextindicator (broodkruimel van het afgelegde pad) in de
+///   gebruikersapp tonen (DESIGN §5.3, standaard aan).
 model UserCommunicationProfile {
   userId            String  @id
   iconsPerScreen    Int     @default(4)
   showText          Boolean @default(true)
   aiLearningEnabled Boolean @default(true)
   supportMode       Boolean @default(false)
+  contextIndicator  Boolean @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

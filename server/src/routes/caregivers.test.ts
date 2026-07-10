@@ -203,7 +203,13 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
         method: 'PUT',
         url: `/users/${user.id}/settings`,
         headers: { cookie },
-        payload: { iconsPerScreen: 2, showText: true, aiLearningEnabled: true, supportMode: false },
+        payload: {
+          iconsPerScreen: 2,
+          showText: true,
+          aiLearningEnabled: true,
+          supportMode: false,
+          contextIndicator: true,
+        },
       });
       expect(put.statusCode).toBe(403);
       expect(put.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
@@ -232,6 +238,7 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
           showText: false,
           aiLearningEnabled: false,
           supportMode: true,
+          contextIndicator: true,
         },
       });
       expect(put.statusCode).toBe(200);

@@ -52,12 +52,14 @@ describe('gebruikersbeheer — /users', () => {
     expect(user.name).toBe('Sanne');
     expect(user.active).toBe(true);
     expect(user.organizationId).toBe(admin.organizationId);
-    // Standaardwaarden (DESIGN §5.3): 4 opties, tekst aan, leren aan, ondersteuning uit.
+    // Standaardwaarden (DESIGN §5.3): 4 opties, tekst aan, leren aan, ondersteuning uit,
+    // contextindicator aan.
     expect(user.communicationProfile).toEqual({
       iconsPerScreen: 4,
       showText: true,
       aiLearningEnabled: true,
       supportMode: false,
+      contextIndicator: true,
     });
   });
 
@@ -114,7 +116,13 @@ describe('gebruikersbeheer — /users', () => {
       method: 'PUT',
       url: `/users/${user.id}/settings`,
       headers: { cookie },
-      payload: { iconsPerScreen: 6, showText: false, aiLearningEnabled: false, supportMode: true },
+      payload: {
+        iconsPerScreen: 6,
+        showText: false,
+        aiLearningEnabled: false,
+        supportMode: true,
+        contextIndicator: false,
+      },
     });
     expect(ok.statusCode).toBe(200);
     expect(userPublicSchema.parse(ok.json()).communicationProfile).toEqual({
@@ -122,6 +130,7 @@ describe('gebruikersbeheer — /users', () => {
       showText: false,
       aiLearningEnabled: false,
       supportMode: true,
+      contextIndicator: false,
     });
 
     // 3 is geen geldige waarde → 400.
@@ -129,7 +138,13 @@ describe('gebruikersbeheer — /users', () => {
       method: 'PUT',
       url: `/users/${user.id}/settings`,
       headers: { cookie },
-      payload: { iconsPerScreen: 3, showText: true, aiLearningEnabled: true, supportMode: false },
+      payload: {
+        iconsPerScreen: 3,
+        showText: true,
+        aiLearningEnabled: true,
+        supportMode: false,
+        contextIndicator: true,
+      },
     });
     expect(bad.statusCode).toBe(400);
     expect(bad.json()).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
@@ -150,7 +165,13 @@ describe('gebruikersbeheer — /users', () => {
       method: 'PUT',
       url: `/users/${user.id}/settings`,
       headers: { cookie },
-      payload: { iconsPerScreen: 2, showText: true, aiLearningEnabled: true, supportMode: false },
+      payload: {
+        iconsPerScreen: 2,
+        showText: true,
+        aiLearningEnabled: true,
+        supportMode: false,
+        contextIndicator: true,
+      },
     });
     expect(put.statusCode).toBe(200);
 

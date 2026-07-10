@@ -6,6 +6,17 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.4 Contextindicator-instelling (per-user aan/uit).** De contextindicator (broodkruimel van
+  het gekozen pad) in de tablet-UI (T4.2) is nu **per gebruiker** in of uit te schakelen (DESIGN
+  §5.2–5.3). Nieuw veld `UserCommunicationProfile.contextIndicator` (`Boolean`, standaard aan,
+  migratie `contextindicator_setting`) — draait schoon op een lege db. Meegenomen in het gedeelde
+  `communicationProfileSchema` (en daarmee `updateSettingsRequestSchema`/`userPublicSchema`), zodat
+  `PUT /users/{id}/settings` de waarde zod-gevalideerd zet en de tablet 'm via `GET /device/me`
+  meekrijgt. Web: extra schakelaar in het instellingenformulier (`SettingsForm`) en de tablet-UI
+  (`TabletApp`) toont de broodkruimel (`nav[aria-label="Gekozen pad"]`) alleen nog als
+  `contextIndicator` aanstaat. Server- en web-tests uitgebreid (roundtrip van de instelling; tablet
+  verbergt de contextindicator bij uit). Gedocumenteerd in `docs/api.md`, `docs/data-model.md` en
+  `docs/architecture.md`.
 - **T4.2 Tablet-UI: startscherm en keuzescherm.** De **gebruikersapp op de tablet** (DESIGN §5.1–5.3,
   FR-001/003) — de derde interface naast de beheeromgeving en de latere begeleiderinterface. Nieuwe
   component `web/src/TabletApp.tsx`, geopend op de `/tablet`-URL (routing in `main.tsx`), draaiend op

@@ -13,6 +13,7 @@ export const DEFAULT_PROFILE: CommunicationProfile = {
   showText: true,
   aiLearningEnabled: true,
   supportMode: false,
+  contextIndicator: true,
 };
 
 export type UserWithProfile = UserModel & {
@@ -38,6 +39,7 @@ export function userToPublic(user: UserWithProfile): UserPublic {
           showText: profile.showText,
           aiLearningEnabled: profile.aiLearningEnabled,
           supportMode: profile.supportMode,
+          contextIndicator: profile.contextIndicator,
         }
       : DEFAULT_PROFILE,
   });

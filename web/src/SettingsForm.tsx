@@ -88,6 +88,15 @@ export function SettingsForm({
         <span>Ondersteuningsmodus (begeleider tikt aan)</span>
       </label>
 
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={settings.contextIndicator}
+          onChange={(e) => setSettings((s) => ({ ...s, contextIndicator: e.target.checked }))}
+        />
+        <span>Contextindicator tonen (broodkruimel van het gekozen pad)</span>
+      </label>
+
       <div className="form__actions">
         <button className="button button--primary" type="submit" disabled={busy}>
           {busy ? 'Opslaan…' : 'Instellingen opslaan'}

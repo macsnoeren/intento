@@ -56,6 +56,7 @@ function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationPr
     showText: true,
     aiLearningEnabled: true,
     supportMode: false,
+    contextIndicator: true,
     ...overrides,
   };
 }
@@ -230,5 +231,17 @@ describe('gebruikersapp op de tablet', () => {
     // De knop houdt zijn toegankelijke naam (aria-label), maar toont de zichtbare tekst niet.
     const button = screen.getByRole('button', { name: 'Iets willen' });
     expect(button.textContent).toBe('');
+  });
+
+  it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {
+    render(
+      <TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ contextIndicator: false }) })} />,
+    );
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    // Maak een keuze zodat er een afgelegd pad is; de broodkruimel blijft niettemin verborgen.
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByRole('heading', { name: 'Wat wil je?' });
+    expect(screen.queryByRole('navigation', { name: 'Gekozen pad' })).toBeNull();
   });
 });

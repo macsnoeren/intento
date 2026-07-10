@@ -82,7 +82,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *Acceptatie:* gebruiker doorloopt de gescripte flow op de tablet-UI; instellingen (2/4/6/8, tekst aan/uit) zichtbaar effectief.
   *Opmerking:* de `/tablet`-URL toont de gebruikersapp (device-auth). De contextindicator staat nu **altijd** aan; de per-user aan/uit-schakelaar uit DESIGN §5.3 vereist een nieuw veld op `UserCommunicationProfile` (migratie) → belegd als T2.4 hieronder.
 
-- [ ] **T2.4 Contextindicator-instelling (per-user aan/uit)**
+- [x] **T2.4 Contextindicator-instelling (per-user aan/uit)**
   *DESIGN: §5.2, §5.3.* Voeg `contextIndicator` (boolean, standaard aan) toe aan `UserCommunicationProfile` (migratie + zod-schema + `PUT /users/{id}/settings`), toon het als schakelaar in het instellingenformulier (T2.1), en laat de tablet-UI (T4.2) de contextindicator (broodkruimel) tonen/verbergen volgens deze instelling.
   *Acceptatie:* schakelaar uit → de tablet toont geen contextindicator meer (web-test); waarde zod-gevalideerd; migratie draait schoon op lege db.
 

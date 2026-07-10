@@ -129,8 +129,9 @@ function DeviceLinkScreen({
 /**
  * Gespreksscherm: startscherm (intentie-categorieën) en keuzescherm (vraag + N pictogramopties),
  * één keuze per scherm. Toont de opties begrensd tot `iconsPerScreen` uit het communicatieprofiel
- * en de tekstlabels alleen als `showText` aanstaat. `↩ Terug` maakt de laatste keuze ongedaan; een
- * contextindicator toont het afgelegde pad. Wanneer de route een eindconcept bereikt (`done`), is
+ * en de tekstlabels alleen als `showText` aanstaat. `↩ Terug` maakt de laatste keuze ongedaan; de
+ * contextindicator (broodkruimel van het afgelegde pad) verschijnt alleen als `contextIndicator`
+ * in het profiel aanstaat (T2.4). Wanneer de route een eindconcept bereikt (`done`), is
  * er (nog) geen volgende vraag — het voorstellen/bevestigen van een boodschap volgt in T4.3.
  */
 function ConversationScreen({
@@ -184,7 +185,7 @@ function ConversationScreen({
 
   return (
     <main className="tablet">
-      {hasHistory ? (
+      {hasHistory && profile.contextIndicator ? (
         <nav className="breadcrumb" aria-label="Gekozen pad">
           {state.history.map((step) => (
             <span key={step.order} className="breadcrumb__item">

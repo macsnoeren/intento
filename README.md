@@ -124,7 +124,7 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/users \
 curl -sb cookies.txt http://127.0.0.1:3000/admin/users
 curl -sb cookies.txt -X PUT http://127.0.0.1:3000/users/<id>/settings \
   -H 'content-type: application/json' \
-  -d '{"iconsPerScreen":6,"showText":false,"aiLearningEnabled":false,"supportMode":true}'
+  -d '{"iconsPerScreen":6,"showText":false,"aiLearningEnabled":false,"supportMode":true,"contextIndicator":true}'
 curl -sb cookies.txt -X DELETE http://127.0.0.1:3000/users/<id>
 ```
 
@@ -208,9 +208,9 @@ De flow zelf (DESIGN §3.1) draait op de **gescripte engine** (T4.1): een **star
 intentievraag ("Wat wil je duidelijk maken?") en de categorieën, gevolgd door **keuzeschermen** met
 telkens één vraag en grote pictogramopties. Het communicatieprofiel van de gebruiker stuurt de UI:
 het aantal opties is begrensd tot `iconsPerScreen` (2/4/6/8) en tekstlabels verschijnen alleen bij
-`showText`. Er is altijd een `↩ Terug`-knop (herstelt de vorige opties exact) en een
-contextindicator die het afgelegde pad toont. Het voorstellen en bevestigen van de uiteindelijke
-boodschap volgt in T4.3.
+`showText`. Er is altijd een `↩ Terug`-knop (herstelt de vorige opties exact) en — als
+`contextIndicator` in het profiel aanstaat (T2.4, per gebruiker) — een contextindicator die het
+afgelegde pad toont. Het voorstellen en bevestigen van de uiteindelijke boodschap volgt in T4.3.
 
 De backend-endpoints (apparaat-auth, elke sessie automatisch gebruiker-geïsoleerd):
 
