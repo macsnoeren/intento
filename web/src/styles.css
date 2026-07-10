@@ -437,6 +437,108 @@ body {
   color: var(--intento-accent);
 }
 
+/* Gebruikersapp op de tablet (T4.2): rustig, grote klikvlakken, één keuze per scherm. */
+.tablet {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tablet__prompt {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  text-align: center;
+  margin: 0;
+  color: var(--intento-fg);
+}
+
+/* Contextindicator: het afgelegde pad van keuzes (DESIGN §5.2). */
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  color: var(--intento-muted);
+}
+
+.breadcrumb__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--intento-border);
+  border-radius: 999px;
+  background: var(--intento-surface);
+  font-size: 1.05rem;
+}
+
+/* Keuzeraster: grote pictogramknoppen, vloeiend van 2 tot 8 opties. */
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 1rem;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.25rem;
+  min-height: 12rem;
+  border: 2px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  background: var(--intento-surface);
+  color: var(--intento-fg);
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--intento-accent);
+}
+
+.option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.option__image {
+  width: 7.5rem;
+  height: 7.5rem;
+  object-fit: contain;
+  border-radius: 8px;
+  background: var(--intento-bg);
+}
+
+.option__label {
+  font-size: 1.35rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.tablet__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+/* Onderbalk met de altijd beschikbare Terug-knop. */
+.tablet__bar {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.tablet__bar .button {
+  font-size: 1.25rem;
+  padding: 1rem 1.75rem;
+}
+
 /* E-mailverificatie-banner (T1.4) */
 .banner {
   display: flex;

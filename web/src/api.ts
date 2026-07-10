@@ -4,7 +4,9 @@ import {
   apiErrorSchema,
   authResponseSchema,
   caregiverListResponseSchema,
+  conversationStateResponseSchema,
   deviceCodeResponseSchema,
+  deviceSessionResponseSchema,
   openSymbolsSearchResponseSchema,
   resendVerificationResponseSchema,
   userListResponseSchema,
@@ -16,8 +18,10 @@ import {
   type AttachOpenSymbolsRequest,
   type AuthResponse,
   type CaregiverListResponse,
+  type ConversationStateResponse,
   type CreateUserRequest,
   type DeviceCodeResponse,
+  type DeviceSessionResponse,
   type OpenSymbolsSearchResponse,
   type RegisterRequest,
   type ResendVerificationResponse,
@@ -75,6 +79,25 @@ export interface Api {
   attachOpenSymbols(id: string, body: AttachOpenSymbolsRequest): Promise<AacSymbolAdmin>;
 }
 
+/**
+ * API-client voor de **gebruikersapp op de tablet** (T4.2). Bewust losgekoppeld van de
+ * beheer-`Api`: een gekoppeld apparaat werkt op device-auth (aparte cookie) en heeft alléén
+ * toegang tot de eigen gebruiker en zijn gesprek — nooit tot beheer- of accountroutes. Zo hoeft
+ * de tablet-UI geen beheermethodes te kennen en omgekeerd.
+ */
+export interface DeviceApi {
+  /** Huidige apparaat-sessie (eigen gebruiker + communicatieprofiel); 401 als niet gekoppeld. */
+  deviceMe(): Promise<DeviceSessionResponse>;
+  /** Koppelcode inwisselen voor een apparaat-token (cookie) en de sessie teruggeven. */
+  linkDevice(code: string): Promise<DeviceSessionResponse>;
+  /** Nieuw gesprek starten; geeft de startvraag (intentie-categorieën) terug. */
+  startConversation(): Promise<ConversationStateResponse>;
+  /** Keuze insturen → volgende vraag + opties (of `done`). */
+  conversationNext(sessionId: string, symbolId: string): Promise<ConversationStateResponse>;
+  /** Laatste keuze ongedaan maken; herstelt de vorige vraag/opties exact. */
+  conversationBack(sessionId: string): Promise<ConversationStateResponse>;
+}
+
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
 
 /**
@@ -120,7 +143,7 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
 }
 
 /** De echte, op `fetch` gebaseerde client (standaard in productie). */
-export const httpApi: Api = {
+export const httpApi: Api & DeviceApi = {
   async me() {
     return authResponseSchema.parse(await request('/auth/me'));
   },
@@ -234,6 +257,32 @@ export const httpApi: Api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    );
+  },
+  async deviceMe() {
+    return deviceSessionResponseSchema.parse(await request('/device/me'));
+  },
+  async linkDevice(code) {
+    return deviceSessionResponseSchema.parse(
+      await request('/devices/link', { method: 'POST', body: JSON.stringify({ code }) }),
+    );
+  },
+  async startConversation() {
+    return conversationStateResponseSchema.parse(
+      await request('/conversation/start', { method: 'POST', body: '{}' }),
+    );
+  },
+  async conversationNext(sessionId, symbolId) {
+    return conversationStateResponseSchema.parse(
+      await request(`/conversation/${sessionId}/next`, {
+        method: 'POST',
+        body: JSON.stringify({ symbolId }),
+      }),
+    );
+  },
+  async conversationBack(sessionId) {
+    return conversationStateResponseSchema.parse(
+      await request(`/conversation/${sessionId}/back`, { method: 'POST', body: '{}' }),
     );
   },
 };

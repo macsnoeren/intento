@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -194,6 +194,34 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/aac/symbols \
   -d '{"concept":"reading","label":"Lezen","category":"activity","glyph":"📖","synonyms":["boek lezen"]}'
 # OpenSymbols zoeken (ADMIN; vereist OPENSYMBOLS_SECRET):
 curl -sb cookies.txt "http://127.0.0.1:3000/admin/aac/opensymbols/search?q=dog"
+```
+
+## Gespreksflow op de tablet (T4.1 backend, T4.2 UI)
+
+De **gebruikersapp op de tablet** is de derde interface (naast beheer- en begeleiderinterface) en
+draait op de `/tablet`-URL: `npm run dev:web`, open <http://localhost:5173/tablet>. Ze werkt op het
+apparaat-token uit de tabletkoppeling (hierboven) — geen dagelijkse login. Is het apparaat nog niet
+gekoppeld, dan toont de app een koppelscherm dat een koppelcode inwisselt; daarna start ze direct in
+de gespreksflow.
+
+De flow zelf (DESIGN §3.1) draait op de **gescripte engine** (T4.1): een **startscherm** met de
+intentievraag ("Wat wil je duidelijk maken?") en de categorieën, gevolgd door **keuzeschermen** met
+telkens één vraag en grote pictogramopties. Het communicatieprofiel van de gebruiker stuurt de UI:
+het aantal opties is begrensd tot `iconsPerScreen` (2/4/6/8) en tekstlabels verschijnen alleen bij
+`showText`. Er is altijd een `↩ Terug`-knop (herstelt de vorige opties exact) en een
+contextindicator die het afgelegde pad toont. Het voorstellen en bevestigen van de uiteindelijke
+boodschap volgt in T4.3.
+
+De backend-endpoints (apparaat-auth, elke sessie automatisch gebruiker-geïsoleerd):
+
+```bash
+# 1) Gesprek starten → eerste vraag (intentie-categorieën):
+curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/start
+# 2) Keuze insturen → volgende vraag + opties (of done):
+curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/next \
+  -H 'content-type: application/json' -d '{"symbolId":"<optie-id>"}'
+# 3) Laatste keuze ongedaan maken → vorige vraag/opties exact hersteld:
+curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/back
 ```
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)

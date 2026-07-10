@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T4.2 Tablet-UI: startscherm en keuzescherm.** De **gebruikersapp op de tablet** (DESIGN §5.1–5.3,
+  FR-001/003) — de derde interface naast de beheeromgeving en de latere begeleiderinterface. Nieuwe
+  component `web/src/TabletApp.tsx`, geopend op de `/tablet`-URL (routing in `main.tsx`), draaiend op
+  **device-auth** (aparte cookie, T2.3): het apparaat is aan één gebruiker gebonden en start direct in
+  de gespreksflow zonder dagelijkse login. Bij het openen wordt `GET /device/me` opgehaald; ontbreekt
+  de koppeling, dan verschijnt een **koppelscherm** dat een koppelcode inwisselt (`POST /devices/link`).
+  De flow draait op de gescripte engine (T4.1): **startscherm** met de intentievraag + categorieën en
+  **keuzescherm** met de vraag + grote pictogramopties, één keuze per scherm. Het communicatieprofiel
+  stuurt de UI: opties begrensd tot `iconsPerScreen` (2/4/6/8) en tekstlabels alleen bij `showText`
+  (de afbeelding houdt altijd een `alt` voor toegankelijkheid). Altijd een `↩ Terug`-knop (maakt de
+  laatste keuze ongedaan, herstelt de vorige opties exact) en een **contextindicator** (broodkruimel van
+  het afgelegde pad). Bij een eindconcept (`done`) een tussenscherm "Klaar met kiezen" + "Opnieuw
+  beginnen" — het voorstellen/bevestigen van de boodschap volgt in T4.3. Nieuwe, van de beheer-`Api`
+  losgekoppelde `DeviceApi`-client (`deviceMe`, `linkDevice`, `startConversation`, `conversationNext`,
+  `conversationBack`) zodat de tablet alléén eigen-gebruiker-endpoints kent. Web-tests
+  (`TabletApp.test.tsx`) dekken de acceptatie: koppelen → startscherm → keuzescherm → terug herstelt de
+  vorige opties, het eindscherm, en dat `iconsPerScreen`/`showText` zichtbaar effect hebben. Geen
+  backend- of datamodelwijziging (leunt op T4.1 en T2.3). Gedocumenteerd in `README.md` en
+  `docs/architecture.md`.
 - **T4.1 Gespreksflow: sessies en stappen.** Backend-fundament voor het communicatieproces
   (DESIGN §3.1, FR-001/005/006/010). Nieuwe modellen `ConversationSession` (gebonden aan één
   `User`) en `ConversationStep` (`order`, `question`, `selectedConcept`, `selectedSymbolId`,

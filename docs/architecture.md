@@ -41,9 +41,28 @@ server niet uit elkaar lopen.
   `routes/` (één bestand per domein), `db/` (Prisma-client-singleton).
 - `server/prisma/` — `schema.prisma` (datamodel), `migrations/`, `seed.ts`. De
   CLI-config staat in `server/prisma.config.ts`.
-- `web/src/` — `main.tsx` (mount), `App.tsx` (sessie-toestand + weergavekeuze), `api.ts`
-  (injecteerbare, zod-validerende `Api`-client naar de backend), beheercomponenten
-  (`LoginForm`, `AdminUsersPage`, `SettingsForm`), `styles.css`.
+- `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
+  anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
+  `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`
+  (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
+  `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
+  `styles.css`.
+
+## Interfaces in de web-app
+
+De web-app bundelt de drie interfaces uit DESIGN §5.2, gescheiden op de URL en op
+authenticatiepijler:
+
+- **Gebruikersapp (tablet)** — `/tablet`, `TabletApp.tsx`, op **device-auth** (aparte cookie,
+  T2.3). Kent via de `DeviceApi` alléén eigen-gebruiker-endpoints (`/device/me`, `/devices/link`,
+  `/conversation/*`) — nooit beheer- of accountroutes. Rendert de gescripte gespreksflow (T4.1):
+  startscherm + keuzeschermen, begrensd door het communicatieprofiel (`iconsPerScreen`, `showText`),
+  met `↩ Terug` en contextindicator.
+- **Beheeromgeving** — overige paden, `App.tsx`, op **account-auth** (`/auth/*`, ADMIN/CAREGIVER).
+- **Begeleiderinterface** — volgt in latere fases (vraag- en ondersteuningsmodus, fase 7).
+
+Deze scheiding is bewust ook in de client zichtbaar: een tablet-token werkt niet op accountroutes
+en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
 
 ## Belangrijke patronen
 
