@@ -48,7 +48,7 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 ## Entiteiten
 
 Het volledige model uit DESIGN §6.2 (PersonalContext, Preference,
-GeneratedMessage, CorrectionEvent, ConceptProposal) wordt in latere taken toegevoegd.
+CorrectionEvent, ConceptProposal) wordt in latere taken toegevoegd.
 Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
@@ -66,6 +66,7 @@ Nu bestaat:
 | **AacConceptRelation** | `id`, `parentId`, `childId`, `relation` (standaard `contains`) | Begripsrelatie tussen twee `AacSymbol`s (T3.1). Vormt de verfijningsboom (bv. `buiten` → `wandelen`, DESIGN §3.1). Samengestelde unieke sleutel `(parentId, childId, relation)` voorkomt dubbele relaties. |
 | **ConversationSession** | `id`, `userId`, `status`, `startedAt` | Tijdelijk communicatieproces waarin een gebruiker via pictogramkeuzes zijn intentie opbouwt (T4.1, DESIGN §3.1). Aan **precies één** `User` gebonden → gebruiker-isolatie: een tablet ziet alléén de eigen sessies. `status` = `ACTIVE`/`COMPLETED`/`ABANDONED` (zod op de grens); in T4.1 alleen `ACTIVE` (T4.3 rondt af). |
 | **ConversationStep** | `id`, `sessionId`, `order`, `question`, `selectedConcept`, `selectedSymbolId?`, `confidence?`, `createdAt` | Eén keuze in een gesprek (T4.1). `order` (0-based) bepaalt de volgorde en maakt de terug-functie exact (hoogste stap verwijderen herstelt de vorige context). `question` = de getoonde prompttekst; `selectedConcept`/`selectedSymbolId` = het gekozen concept/symbool (geen harde FK naar `AacSymbol` i.v.m. de muteerbare gedeelde bibliotheek — historie blijft leesbaar via `selectedConcept`). `confidence` is voorbereidend op de AI-fase en blijft `null` in de gescripte engine. Samengestelde unieke `(sessionId, order)`. |
+| **GeneratedMessage** | `id`, `sessionId`, `message`, `confirmed`, `createdAt` | Door de (gescripte) engine voorgestelde en door de gebruiker **bevestigde** boodschap (T4.3, DESIGN §3.1, §3.6, §6.2, FR-007). Kernprincipe: alleen **bevestigde** communicatie wordt bewaard — een rij bestaat pas na `POST /conversation/{id}/confirm`; het voorstellen (`/generate`) is vluchtig en raakt de db niet. `message` = de sjabloon-gebaseerde zin uit de gekozen concepten (de AI-orchestrator neemt dit later over — T5.3). `confirmed` in de MVP altijd `true` (afgewezen voorstellen worden nooit opgeslagen); expliciet gemodelleerd conform DESIGN §6.2. In de MVP hoogstens één per sessie (bevestigen rondt de sessie af → `COMPLETED`). |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
 Account` (cascade delete); `EmailVerificationToken.accountId → Account` (cascade delete);
@@ -79,7 +80,9 @@ netjes alle onderliggende data. De AAC-bibliotheek staat hier **los** van: `AacS
 `AacConceptRelation` zijn gedeeld en niet aan een organisatie of gebruiker gekoppeld;
 `AacConceptRelation.parentId`/`childId → AacSymbol` (beide cascade delete).
 `ConversationSession.userId → User` (cascade delete — sessies verdwijnen met de gebruiker);
-`ConversationStep.sessionId → ConversationSession` (cascade delete). `ConversationStep`
+`ConversationStep.sessionId → ConversationSession` (cascade delete) en
+`GeneratedMessage.sessionId → ConversationSession` (cascade delete — bevestigde boodschappen
+verdwijnen met de sessie). `ConversationStep`
 heeft bewust géén FK naar `AacSymbol`: de gedeelde bibliotheek is muteerbaar, dus een verwijderd
 symbool mag de historie niet cascaderen — het `selectedConcept` blijft de leesbare sleutel.
 
@@ -118,3 +121,4 @@ relaties op hun unieke combinatie — idempotent, dus herseeden levert geen dupl
 - **`email_verification`** (T1.4) — `Account` uitgebreid met `emailVerifiedAt` (`DateTime`, nullable) en de nieuwe tabel `EmailVerificationToken` (unieke `tokenHash`, index op `accountId`, cascade delete).
 - **`conversation_sessions_and_steps`** (T4.1) — `ConversationSession` (index op `userId`, cascade delete) en `ConversationStep` (samengestelde unieke `(sessionId, order)`, index op `sessionId`, cascade delete).
 - **`contextindicator_setting`** (T2.4) — `UserCommunicationProfile` uitgebreid met `contextIndicator` (`Boolean`, default `true`) voor de per-user aan/uit-schakelaar van de contextindicator in de tablet-UI.
+- **`generated_messages`** (T4.3) — nieuwe tabel `GeneratedMessage` (`sessionId`, `message`, `confirmed` (`Boolean`, default `true`), index op `sessionId`, cascade delete) voor de bij bevestiging opgeslagen boodschap.

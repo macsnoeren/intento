@@ -3,8 +3,12 @@ import { z } from 'zod';
 import {
   conversationChoiceRequestSchema,
   conversationChoiceResponseSchema,
+  conversationConfirmResponseSchema,
+  conversationGenerateResponseSchema,
   conversationStateResponseSchema,
   type ConversationChoiceResponse,
+  type ConversationConfirmResponse,
+  type ConversationGenerateResponse,
   type ConversationStateResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
@@ -16,6 +20,12 @@ import type {
 import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
+import {
+  generateMessage,
+  SCRIPTED_CONFIDENCE,
+  type ChosenConcept,
+} from '../conversation/message.js';
+import { symbolToPublic } from '../aac/library.js';
 
 export interface ConversationRoutesDeps {
   prisma: PrismaClient;
@@ -48,13 +58,36 @@ function loadSteps(prisma: PrismaClient, sessionId: string): Promise<Conversatio
 
 /** Bouwt de geserialiseerde historie: laadt de bij de stappen horende symbolen en koppelt ze. */
 async function buildHistory(prisma: PrismaClient, steps: ConversationStepModel[]) {
-  const ids = steps
-    .map((step) => step.selectedSymbolId)
-    .filter((id): id is string => id !== null);
+  const ids = steps.map((step) => step.selectedSymbolId).filter((id): id is string => id !== null);
   const symbols =
     ids.length > 0 ? await prisma.aacSymbol.findMany({ where: { id: { in: ids } } }) : [];
   const byId = new Map<string, AacSymbolModel>(symbols.map((symbol) => [symbol.id, symbol]));
   return serializeHistory(steps, byId);
+}
+
+/**
+ * Bouwt de invoer voor de boodschapgeneratie uit de opgeslagen stappen: de pictogramreeks (publieke
+ * symbolen, op volgorde) en de gekozen concepten (concept + label) voor de sjabloon-zin. Een stap
+ * waarvan het symbool intussen verwijderd is, houdt zijn concept (label = concept als terugval), zodat
+ * de zin binnen de gekozen concepten blijft (DESIGN §7.8).
+ */
+async function buildMessageInput(
+  prisma: PrismaClient,
+  steps: ConversationStepModel[],
+): Promise<{ symbols: ReturnType<typeof symbolToPublic>[]; chosen: ChosenConcept[] }> {
+  const ids = steps.map((step) => step.selectedSymbolId).filter((id): id is string => id !== null);
+  const models =
+    ids.length > 0 ? await prisma.aacSymbol.findMany({ where: { id: { in: ids } } }) : [];
+  const byId = new Map<string, AacSymbolModel>(models.map((symbol) => [symbol.id, symbol]));
+
+  const symbols: ReturnType<typeof symbolToPublic>[] = [];
+  const chosen: ChosenConcept[] = [];
+  for (const step of steps) {
+    const model = step.selectedSymbolId ? byId.get(step.selectedSymbolId) : undefined;
+    if (model) symbols.push(symbolToPublic(model));
+    chosen.push({ concept: step.selectedConcept, label: model?.label ?? step.selectedConcept });
+  }
+  return { symbols, chosen };
 }
 
 /** Bouwt de volledige gesprekstoestand (huidige vraag + historie) voor `start`/`next`/`back`. */
@@ -89,6 +122,8 @@ async function buildState(
  * - `POST /conversation/{id}/next` — **kern-call:** keuze insturen → volgende vraag + opties terug.
  * - `POST /conversation/{id}/choice` — keuze alléén opslaan (save-only primitive; geen volgende vraag).
  * - `POST /conversation/{id}/back` — laatste keuze ongedaan maken; vorige vraag/opties exact hersteld.
+ * - `POST /conversation/{id}/generate` — boodschap voorstellen (sjabloon-zin + confidence; T4.3, vluchtig).
+ * - `POST /conversation/{id}/confirm` — bevestigen → sessie afronden en de boodschap opslaan (T4.3).
  */
 export function registerConversationRoutes(
   app: FastifyInstance,
@@ -211,6 +246,81 @@ export function registerConversationRoutes(
       await prisma.conversationStep.delete({ where: { id: last.id } });
 
       return buildState(prisma, session, await loadSteps(prisma, session.id));
+    },
+  );
+
+  // Boodschap voorstellen (T4.3) — sjabloon-gebaseerde zin uit de gekozen concepten, met confidence en
+  // de pictogramreeks voor het voorstelscherm. Bewust **vluchtig**: er wordt niets opgeslagen (DESIGN
+  // §3.6, geen afgewezen voorstellen in de db). De zin is een pure functie van de opgeslagen keuzes.
+  app.post(
+    '/conversation/:id/generate',
+    { preHandler: deviceAuthorize(prisma) },
+    async (request): Promise<ConversationGenerateResponse> => {
+      const device = requireDevice(request);
+      const { id } = sessionParamsSchema.parse(request.params);
+
+      const session = await loadOwnedSession(prisma, device.userId, id);
+      if (session.status !== 'ACTIVE') {
+        throw new HttpError(409, 'SESSION_NOT_ACTIVE', 'Dit gesprek is al afgerond.');
+      }
+
+      const steps = await loadSteps(prisma, session.id);
+      if (steps.length === 0) {
+        throw new HttpError(400, 'NO_STEPS_TO_GENERATE', 'Maak eerst een keuze.');
+      }
+
+      const { symbols, chosen } = await buildMessageInput(prisma, steps);
+      return conversationGenerateResponseSchema.parse({
+        sessionId: session.id,
+        status: session.status,
+        message: generateMessage(chosen),
+        confidence: SCRIPTED_CONFIDENCE,
+        symbols,
+        history: await buildHistory(prisma, steps),
+      });
+    },
+  );
+
+  // Boodschap bevestigen (T4.3) — rondt de sessie af en slaat de boodschap op. De server hergenereert
+  // de zin deterministisch uit de opgeslagen keuzes (nooit vrije clienttekst), zodat de bewaarde
+  // boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Alleen **bevestigde** communicatie
+  // wordt bewaard (DESIGN §3.6). Een afwijzing verloopt via `/back`, niet hier.
+  app.post(
+    '/conversation/:id/confirm',
+    { preHandler: deviceAuthorize(prisma) },
+    async (request): Promise<ConversationConfirmResponse> => {
+      const device = requireDevice(request);
+      const { id } = sessionParamsSchema.parse(request.params);
+
+      const session = await loadOwnedSession(prisma, device.userId, id);
+      if (session.status !== 'ACTIVE') {
+        throw new HttpError(409, 'SESSION_NOT_ACTIVE', 'Dit gesprek is al afgerond.');
+      }
+
+      const steps = await loadSteps(prisma, session.id);
+      if (steps.length === 0) {
+        throw new HttpError(400, 'NO_STEPS_TO_GENERATE', 'Maak eerst een keuze.');
+      }
+
+      const { chosen } = await buildMessageInput(prisma, steps);
+      const message = generateMessage(chosen);
+
+      // Bevestigde boodschap opslaan én de sessie afronden in één transactie.
+      await prisma.$transaction([
+        prisma.generatedMessage.create({
+          data: { sessionId: session.id, message, confirmed: true },
+        }),
+        prisma.conversationSession.update({
+          where: { id: session.id },
+          data: { status: 'COMPLETED' },
+        }),
+      ]);
+
+      return conversationConfirmResponseSchema.parse({
+        sessionId: session.id,
+        status: 'COMPLETED',
+        message,
+      });
     },
   );
 }

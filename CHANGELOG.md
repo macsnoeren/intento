@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T4.3 Boodschap voorstellen en bevestigen (gescript).** De gespreksflow (DESIGN §3.1, §3.6, FR-007)
+  eindigt nu in een **voorstel- en bevestigingsstap**. Twee nieuwe endpoints op device-auth:
+  `POST /conversation/{id}/generate` vormt uit de gekozen concepten een **sjabloon-gebaseerde** zin
+  (bv. "Ik wil buiten wandelen met mijn hond.") met `confidence` en de pictogramreeks, en is bewust
+  **vluchtig** — het slaat niets op (DESIGN §3.6, geen afgewezen voorstellen in de db);
+  `POST /conversation/{id}/confirm` rondt de sessie af (`status COMPLETED`) en slaat de boodschap op
+  (`GeneratedMessage`, `confirmed: true`). De server **hergenereert** de zin deterministisch uit de
+  opgeslagen keuzes, zodat de bewaarde boodschap binnen de gekozen concepten blijft (DESIGN §7.8) en
+  nooit vrije clienttekst wordt vertrouwd. De zinbouw leeft in een aparte, goed gedocumenteerde module
+  (`server/src/conversation/message.ts`) achter een smalle interface — de AI-orchestrator (T5.3) neemt
+  dit later over zonder de route-laag te raken. Nieuw model **`GeneratedMessage`** (migratie
+  `generated_messages`, draait schoon op een lege db; cascade delete met de sessie). Web: de tablet-UI
+  (`TabletApp`) toont bij een eindconcept een **voorstelscherm** (pictogramreeks + zin + ✅ Ja / ❌ Nee);
+  ✅ bevestigt en toont de opgeslagen boodschap ("Opnieuw beginnen"), ❌ gaat terug naar de laatste vraag
+  (via `/back`, er wordt niets opgeslagen). Nieuwe `DeviceApi`-methodes `conversationGenerate`/
+  `conversationConfirm`. Server- en web-tests uitgebreid: de volledige DESIGN §3.1-route → voorstel →
+  bevestiging, sjabloon-zinnen per intentie, "alleen bevestigde boodschappen in de db", `409` op een
+  tweede bevestiging, `400 NO_STEPS_TO_GENERATE` zonder keuzes, en gebruiker-isolatie (`404`).
+  Gedocumenteerd in `docs/api.md` en `docs/data-model.md`.
 - **T2.4 Contextindicator-instelling (per-user aan/uit).** De contextindicator (broodkruimel van
   het gekozen pad) in de tablet-UI (T4.2) is nu **per gebruiker** in of uit te schakelen (DESIGN
   §5.2–5.3). Nieuw veld `UserCommunicationProfile.contextIndicator` (`Boolean`, standaard aan,

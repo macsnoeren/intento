@@ -527,6 +527,42 @@ body {
   text-align: center;
 }
 
+/* De bevestigde boodschap groot en rustig weergegeven. */
+.tablet__message {
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  text-align: center;
+  color: var(--intento-fg);
+  margin: 0;
+}
+
+/* Voorstelscherm (T4.3): de gekozen pictogramreeks + zin + ✅/❌. */
+.proposal__symbols {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.proposal__symbol {
+  width: clamp(64px, 12vw, 96px);
+  height: auto;
+}
+
+.proposal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.proposal__actions .button {
+  font-size: 1.5rem;
+  padding: 1rem 2.25rem;
+}
+
 /* Onderbalk met de altijd beschikbare Terug-knop. */
 .tablet__bar {
   margin-top: auto;

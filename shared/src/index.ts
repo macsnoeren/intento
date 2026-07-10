@@ -634,3 +634,38 @@ export const conversationChoiceResponseSchema = z.object({
   history: z.array(conversationStepSchema),
 });
 export type ConversationChoiceResponse = z.infer<typeof conversationChoiceResponseSchema>;
+
+// --- Boodschap voorstellen en bevestigen (T4.3, DESIGN §3.1, §3.6, §6.2, §8.2, FR-007) ---
+
+/**
+ * Antwoord op `POST /conversation/{id}/generate` (DESIGN §8.2): een **voorstel** voor de boodschap,
+ * gevormd uit de tot nu toe gekozen concepten. In deze fase sjabloon-gebaseerd; de AI-orchestrator
+ * neemt het genereren later over achter dezelfde vorm (T5.3). Bevat de geformuleerde `message`, de
+ * `confidence` (DESIGN §7.4; in de gescripte engine deterministisch) en de `symbols` (de pictogramreeks
+ * van de gekozen route) zodat het voorstelscherm de reeks + zin kan tonen. Bewust **vluchtig**: het
+ * genereren slaat niets op — pas bij `confirm` wordt de boodschap bewaard (DESIGN §3.6, geen afgewezen
+ * voorstellen in de db).
+ */
+export const conversationGenerateResponseSchema = z.object({
+  sessionId: z.string(),
+  status: conversationStatusSchema,
+  message: z.string(),
+  confidence: z.number().min(0).max(1),
+  symbols: z.array(aacSymbolSchema),
+  history: z.array(conversationStepSchema),
+});
+export type ConversationGenerateResponse = z.infer<typeof conversationGenerateResponseSchema>;
+
+/**
+ * Antwoord op `POST /conversation/{id}/confirm` (DESIGN §8.2): de sessie is afgerond (`status`
+ * `COMPLETED`) en de bevestigde `message` is opgeslagen (`GeneratedMessage`, DESIGN §6.2). De server
+ * hergenereert de boodschap deterministisch uit de opgeslagen keuzes, zodat de bevaarde zin altijd
+ * binnen de gekozen concepten blijft (de client levert geen vrije tekst aan). Een afwijzing verloopt
+ * niet via dit endpoint maar via `/back` (terug naar de laatste vraag) — er wordt dan niets opgeslagen.
+ */
+export const conversationConfirmResponseSchema = z.object({
+  sessionId: z.string(),
+  status: conversationStatusSchema,
+  message: z.string(),
+});
+export type ConversationConfirmResponse = z.infer<typeof conversationConfirmResponseSchema>;

@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type {
   AacSymbol,
+  ConversationConfirmResponse,
+  ConversationGenerateResponse,
   CommunicationProfile,
   ConversationStateResponse,
   ConversationStep,
@@ -82,10 +84,17 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
   };
   let linked = options.linked ?? false;
   let history: ConversationStep[] = [];
+  let status: ConversationStateResponse['status'] = 'ACTIVE';
 
   function currentKey(): string {
     const last = history[history.length - 1];
     return last ? last.symbol.concept : '__root__';
+  }
+
+  // Deterministische sjabloon-zin uit de laatste keuze (de echte generator is server-side gedekt).
+  function message(): string {
+    const last = history[history.length - 1];
+    return last ? `Ik wil ${last.symbol.label.toLowerCase()}.` : 'Ik wil iets duidelijk maken.';
   }
 
   function buildState(): ConversationStateResponse {
@@ -122,6 +131,7 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
     },
     startConversation(): Promise<ConversationStateResponse> {
       history = [];
+      status = 'ACTIVE';
       return Promise.resolve(buildState());
     },
     conversationNext(_sessionId: string, symbolId: string): Promise<ConversationStateResponse> {
@@ -138,6 +148,21 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
     conversationBack(): Promise<ConversationStateResponse> {
       history = history.slice(0, -1);
       return Promise.resolve(buildState());
+    },
+    conversationGenerate(): Promise<ConversationGenerateResponse> {
+      return Promise.resolve({
+        sessionId: 's-1',
+        status,
+        message: message(),
+        confidence: 0.95,
+        symbols: history.map((step) => step.symbol),
+        history: [...history],
+      });
+    },
+    conversationConfirm(): Promise<ConversationConfirmResponse> {
+      const confirmed = message();
+      status = 'COMPLETED';
+      return Promise.resolve({ sessionId: 's-1', status, message: confirmed });
     },
   };
 }
@@ -198,19 +223,44 @@ describe('gebruikersapp op de tablet', () => {
     expect(screen.getByRole('button', { name: 'Iets drinken' })).toBeTruthy();
   });
 
-  it('bereikt het eindscherm en kan opnieuw beginnen', async () => {
-    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+  /** Loopt de gescripte boom af tot het eindconcept "Buiten" (dan verschijnt het voorstelscherm). */
+  async function walkToProposal(): Promise<void> {
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
-
     fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
     await screen.findByRole('button', { name: 'Iets doen' });
     fireEvent.click(screen.getByRole('button', { name: 'Iets doen' }));
     await screen.findByRole('button', { name: 'Buiten' });
     fireEvent.click(screen.getByRole('button', { name: 'Buiten' }));
+  }
 
-    expect(await screen.findByRole('heading', { name: 'Klaar met kiezen' })).toBeTruthy();
+  it('stelt bij een eindconcept een boodschap voor, bevestigt en begint opnieuw', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await walkToProposal();
+
+    // Voorstelscherm: de gegenereerde zin + ✅/❌.
+    expect(await screen.findByRole('heading', { name: 'Ik wil buiten.' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Bevestigen' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Nee, terug' })).toBeTruthy();
+
+    // Bevestigen → bevestigingsscherm met de boodschap; daarna opnieuw beginnen.
+    fireEvent.click(screen.getByRole('button', { name: 'Bevestigen' }));
+    expect(await screen.findByRole('heading', { name: 'Boodschap bevestigd' })).toBeTruthy();
+    expect(screen.getByText('Ik wil buiten.')).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: 'Opnieuw beginnen' }));
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+  });
+
+  it('gaat bij ❌ Nee terug naar de laatste vraag zonder te bevestigen', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await walkToProposal();
+
+    await screen.findByRole('heading', { name: 'Ik wil buiten.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Nee, terug' }));
+
+    // Terug naar de laatste vraag ("Wat wil je doen?"), waar "Buiten" opnieuw gekozen kan worden.
+    await screen.findByRole('heading', { name: 'Wat wil je doen?' });
+    expect(screen.getByRole('button', { name: 'Buiten' })).toBeTruthy();
   });
 
   it('begrenst het aantal opties tot iconsPerScreen', async () => {
@@ -235,7 +285,9 @@ describe('gebruikersapp op de tablet', () => {
 
   it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {
     render(
-      <TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ contextIndicator: false }) })} />,
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: profile({ contextIndicator: false }) })}
+      />,
     );
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
 

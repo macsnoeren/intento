@@ -128,7 +128,7 @@ als een upload), met bron/licentie op het symbool (`attribution`). Zie ADR-0006.
 | GET | `/admin/aac/opensymbols/search?q=&locale=` | ADMIN | Zoekt bij OpenSymbols (`openSymbolsSearchQuerySchema`). `200` + `openSymbolsSearchResponseSchema` (`{ results: [{ id, name, imageUrl, extension, license, licenseUrl, author, authorUrl, sourceUrl }] }`). Alleen resultaten met een `https`-`imageUrl` worden teruggegeven. Niet geconfigureerd → `503 OPENSYMBOLS_UNAVAILABLE`; externe fout → `502 OPENSYMBOLS_ERROR`. |
 | POST | `/admin/aac/symbols/{id}/opensymbols` | ADMIN | Gekozen afbeelding koppelen (`attachOpenSymbolsRequestSchema`: `imageUrl` (https), `license`, optioneel `licenseUrl`/`author`/`authorUrl`/`sourceUrl`). De backend haalt de bytes op (https-only + SSRF-guard), controleert content-type (PNG/JPEG/WebP → anders `415`) en grootte (`AAC_IMAGE_MAX_BYTES` → `413`), en slaat de afbeelding + bron/licentie op. `200` + `aacSymbolAdminSchema` (`hasImage: true`, `attribution` gevuld). Onbekend id → `404`; niet-`https`/interne host → `400 INVALID_IMAGE_URL`; externe/lege fout → `502`; niet geconfigureerd → `503`. |
 
-### Gespreksflow — sessies en stappen (T4.1)
+### Gespreksflow — sessies, stappen en boodschap (T4.1, T4.3)
 Een gespreksessie (`ConversationSession`) is het tijdelijke communicatieproces waarin een gebruiker
 via pictogramkeuzes zijn intentie opbouwt (DESIGN §3.1). Alle routes lopen op **apparaat-auth**
 (`deviceAuthorize`, de `intento_device`-cookie): de tablet is aan precies één gebruiker gebonden,
@@ -144,9 +144,11 @@ van de reeds gezette stappen, waardoor de terug-functie de vorige opties exact h
 | POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`). Bij een eindconcept: `question: null`, `done: true` (klaar voor een voorstel — T4.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
 | POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. |
+| POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T4.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). Sjabloon-gebaseerde zin (de AI-orchestrator neemt dit later over — T5.3); `confidence` deterministisch (>85%). **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
+| POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T4.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hergenereert de zin deterministisch uit de opgeslagen keuzes (nooit vrije clienttekst; DESIGN §7.8). Een **afwijzing** verloopt via `/back`, niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). |
 
-Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_LINKED`. Alleen bevestigde
-communicatie wordt uiteindelijk bewaard (DESIGN §3.6); het genereren en bevestigen van de boodschap
-volgt in T4.3.
+Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_LINKED`. Alleen **bevestigde**
+communicatie wordt bewaard (DESIGN §3.6): `/generate` is vluchtig en afgewezen voorstellen belanden nooit
+in de db — een `GeneratedMessage` bestaat pas na `/confirm`.
 
 <Volgende domeinen (AI-orchestrator, …) worden hier per taak toegevoegd.>

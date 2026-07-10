@@ -86,7 +86,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §5.2, §5.3.* Voeg `contextIndicator` (boolean, standaard aan) toe aan `UserCommunicationProfile` (migratie + zod-schema + `PUT /users/{id}/settings`), toon het als schakelaar in het instellingenformulier (T2.1), en laat de tablet-UI (T4.2) de contextindicator (broodkruimel) tonen/verbergen volgens deze instelling.
   *Acceptatie:* schakelaar uit → de tablet toont geen contextindicator meer (web-test); waarde zod-gevalideerd; migratie draait schoon op lege db.
 
-- [ ] **T4.3 Boodschap voorstellen en bevestigen (gescript)**
+- [x] **T4.3 Boodschap voorstellen en bevestigen (gescript)**
   *DESIGN: §3.1, §3.6, §5.2, §6.2 (GeneratedMessage), §8.2, FR-007.* `/generate` (sjabloon-gebaseerde zin uit gekozen concepten) en `/confirm`. Voorstelscherm: pictogramreeks + zin + ✅/❌. Bij bevestiging: sessie afronden en boodschap opslaan; bij afwijzing nog simpel terug naar laatste vraag (echte correctieflow volgt in T5.4). Afgewezen voorstellen worden niet opgeslagen.
   *Acceptatie:* end-to-end van start tot bevestigde boodschap in de UI; alleen bevestigde boodschappen in de db.
 

@@ -304,10 +304,35 @@ model ConversationSession {
   status    String   @default("ACTIVE")
   startedAt DateTime @default(now())
 
-  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  steps ConversationStep[]
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps    ConversationStep[]
+  /// De bij bevestiging opgeslagen boodschap(pen) van deze sessie (T4.3). In de MVP hoogstens één:
+  /// een sessie wordt bij `confirm` afgerond (COMPLETED). Afgewezen voorstellen worden NOOIT opgeslagen.
+  messages GeneratedMessage[]
 
   @@index([userId])
+}
+
+/// Een door de (in deze fase gescripte) engine voorgestelde en door de gebruiker **bevestigde**
+/// boodschap (T4.3, DESIGN §3.1, §3.6, §6.2 GeneratedMessage, FR-007). Kernprincipe (DESIGN §3.6):
+/// alleen **bevestigde** communicatie wordt bewaard — een rij bestaat pas na `POST /conversation/{id}/
+/// confirm`. Onzekere aannames en **afgewezen** voorstellen worden nooit opgeslagen; het genereren
+/// (`/generate`) is dus bewust vluchtig en raakt de db niet. `confirmed` is daarmee in de MVP altijd
+/// `true`, maar blijft expliciet in het model conform DESIGN §6.2 (en als anker voor latere statussen).
+model GeneratedMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  /// De geformuleerde zin uit de gekozen concepten (sjabloon-gebaseerd in deze fase; de
+  /// AI-orchestrator neemt dit later over achter dezelfde interface — T5.3).
+  message   String
+  /// Of de gebruiker de boodschap bevestigde. In de MVP altijd `true` (alleen bevestigde
+  /// boodschappen worden opgeslagen); expliciet gemodelleerd conform DESIGN §6.2.
+  confirmed Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
 }
 
 /// Eén keuze in een gesprek (T4.1, DESIGN §3.1, §6.2). Elke stap legt vast wélke vraag getoond werd

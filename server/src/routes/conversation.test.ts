@@ -2,6 +2,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import {
   conversationChoiceResponseSchema,
+  conversationConfirmResponseSchema,
+  conversationGenerateResponseSchema,
   conversationStateResponseSchema,
   type ConversationStateResponse,
 } from '@intento/shared';
@@ -85,7 +87,9 @@ describe('gespreksflow — /conversation', () => {
     expect(state.status).toBe('ACTIVE');
     expect(state.done).toBe(false);
     expect(state.question?.prompt).toBe(ROOT_PROMPT);
-    expect(concepts(state)).toEqual(expect.arrayContaining(['want', 'feel', 'problem', 'ask', 'say']));
+    expect(concepts(state)).toEqual(
+      expect.arrayContaining(['want', 'feel', 'problem', 'ask', 'say']),
+    );
     expect(state.history).toEqual([]);
   });
 
@@ -235,5 +239,152 @@ describe('gespreksflow — /conversation', () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json()).toMatchObject({ error: { code: 'NO_STEPS_TO_UNDO' } });
+  });
+
+  // --- Boodschap voorstellen en bevestigen (T4.3, DESIGN §3.1, §3.6, FR-007) ---
+
+  /** Loopt de voorbeeldroute uit DESIGN §3.1 af en geeft cookie + sessionId terug (klaar voor generate). */
+  async function walkExampleRoute(): Promise<{ cookie: string; sessionId: string }> {
+    const { cookie, state } = await startSession();
+    const sessionId = state.sessionId;
+    for (const concept of ['want', 'do-activity', 'outside', 'walking', 'dog']) {
+      await next(cookie, sessionId, concept);
+    }
+    return { cookie, sessionId };
+  }
+
+  it('stelt de boodschap uit DESIGN §3.1 voor zonder iets op te slaan', async () => {
+    const { cookie, sessionId } = await walkExampleRoute();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/generate`,
+      headers: { cookie },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    const body = conversationGenerateResponseSchema.parse(res.json());
+    expect(body.message).toBe('Ik wil buiten wandelen met mijn hond.');
+    expect(body.confidence).toBeGreaterThan(0.85);
+    expect(body.symbols.map((s) => s.concept)).toEqual([
+      'want',
+      'do-activity',
+      'outside',
+      'walking',
+      'dog',
+    ]);
+
+    // Voorstellen is vluchtig: geen GeneratedMessage, sessie blijft ACTIVE (DESIGN §3.6).
+    expect(await prisma.generatedMessage.count()).toBe(0);
+    const session = await prisma.conversationSession.findUnique({ where: { id: sessionId } });
+    expect(session?.status).toBe('ACTIVE');
+  });
+
+  it('bevestigen rondt de sessie af en slaat alleen de bevestigde boodschap op', async () => {
+    const { cookie, sessionId } = await walkExampleRoute();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    const body = conversationConfirmResponseSchema.parse(res.json());
+    expect(body.status).toBe('COMPLETED');
+    expect(body.message).toBe('Ik wil buiten wandelen met mijn hond.');
+
+    // Precies één opgeslagen, bevestigde boodschap; de zin hoort bij de gekozen route.
+    const stored = await prisma.generatedMessage.findMany({ where: { sessionId } });
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.confirmed).toBe(true);
+    expect(stored[0]!.message).toBe('Ik wil buiten wandelen met mijn hond.');
+
+    const session = await prisma.conversationSession.findUnique({ where: { id: sessionId } });
+    expect(session?.status).toBe('COMPLETED');
+  });
+
+  it('genereert per intentie een passende sjabloon-zin', async () => {
+    // Hoe ik mij voel → blij.
+    {
+      const { cookie, state } = await startSession();
+      await next(cookie, state.sessionId, 'feel');
+      await next(cookie, state.sessionId, 'happy');
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${state.sessionId}/generate`,
+        headers: { cookie },
+        payload: {},
+      });
+      expect(conversationGenerateResponseSchema.parse(res.json()).message).toBe('Ik voel me blij.');
+    }
+    // Er is iets aan de hand → pijn → hoofd.
+    {
+      const { cookie, state } = await startSession();
+      await next(cookie, state.sessionId, 'problem');
+      await next(cookie, state.sessionId, 'pain');
+      await next(cookie, state.sessionId, 'head');
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${state.sessionId}/generate`,
+        headers: { cookie },
+        payload: {},
+      });
+      expect(conversationGenerateResponseSchema.parse(res.json()).message).toBe(
+        'Ik heb pijn aan mijn hoofd.',
+      );
+    }
+  });
+
+  it('weigert genereren of bevestigen zonder gekozen concepten (400)', async () => {
+    const { cookie, state } = await startSession();
+    for (const path of ['generate', 'confirm']) {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${state.sessionId}/${path}`,
+        headers: { cookie },
+        payload: {},
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json()).toMatchObject({ error: { code: 'NO_STEPS_TO_GENERATE' } });
+    }
+  });
+
+  it('weigert een tweede bevestiging op een afgeronde sessie (409)', async () => {
+    const { cookie, sessionId } = await walkExampleRoute();
+    const first = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie },
+      payload: {},
+    });
+    expect(first.statusCode).toBe(200);
+
+    const second = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie },
+      payload: {},
+    });
+    expect(second.statusCode).toBe(409);
+    expect(second.json()).toMatchObject({ error: { code: 'SESSION_NOT_ACTIVE' } });
+    // Nog steeds precies één opgeslagen boodschap.
+    expect(await prisma.generatedMessage.count({ where: { sessionId } })).toBe(1);
+  });
+
+  it('isoleert generate/confirm per gebruiker: een ander apparaat krijgt 404', async () => {
+    const { sessionId } = await walkExampleRoute();
+    const userB = await seedUser('Ben');
+    const cookieB = await deviceCookie(app, userB.id);
+    for (const path of ['generate', 'confirm']) {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/${path}`,
+        headers: { cookie: cookieB },
+        payload: {},
+      });
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({ error: { code: 'SESSION_NOT_FOUND' } });
+    }
   });
 });

@@ -4,6 +4,8 @@ import {
   apiErrorSchema,
   authResponseSchema,
   caregiverListResponseSchema,
+  conversationConfirmResponseSchema,
+  conversationGenerateResponseSchema,
   conversationStateResponseSchema,
   deviceCodeResponseSchema,
   deviceSessionResponseSchema,
@@ -18,6 +20,8 @@ import {
   type AttachOpenSymbolsRequest,
   type AuthResponse,
   type CaregiverListResponse,
+  type ConversationConfirmResponse,
+  type ConversationGenerateResponse,
   type ConversationStateResponse,
   type CreateUserRequest,
   type DeviceCodeResponse,
@@ -96,6 +100,10 @@ export interface DeviceApi {
   conversationNext(sessionId: string, symbolId: string): Promise<ConversationStateResponse>;
   /** Laatste keuze ongedaan maken; herstelt de vorige vraag/opties exact. */
   conversationBack(sessionId: string): Promise<ConversationStateResponse>;
+  /** Boodschap laten voorstellen uit de gekozen concepten (sjabloon-zin + confidence; slaat niets op). */
+  conversationGenerate(sessionId: string): Promise<ConversationGenerateResponse>;
+  /** Boodschap bevestigen → sessie afronden en de boodschap opslaan. */
+  conversationConfirm(sessionId: string): Promise<ConversationConfirmResponse>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -283,6 +291,16 @@ export const httpApi: Api & DeviceApi = {
   async conversationBack(sessionId) {
     return conversationStateResponseSchema.parse(
       await request(`/conversation/${sessionId}/back`, { method: 'POST', body: '{}' }),
+    );
+  },
+  async conversationGenerate(sessionId) {
+    return conversationGenerateResponseSchema.parse(
+      await request(`/conversation/${sessionId}/generate`, { method: 'POST', body: '{}' }),
+    );
+  },
+  async conversationConfirm(sessionId) {
+    return conversationConfirmResponseSchema.parse(
+      await request(`/conversation/${sessionId}/confirm`, { method: 'POST', body: '{}' }),
     );
   },
 };

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type {
   AacSymbol,
+  ConversationConfirmResponse,
+  ConversationGenerateResponse,
   ConversationStateResponse,
   DeviceSessionResponse,
   UserPublic,
@@ -131,8 +133,11 @@ function DeviceLinkScreen({
  * één keuze per scherm. Toont de opties begrensd tot `iconsPerScreen` uit het communicatieprofiel
  * en de tekstlabels alleen als `showText` aanstaat. `↩ Terug` maakt de laatste keuze ongedaan; de
  * contextindicator (broodkruimel van het afgelegde pad) verschijnt alleen als `contextIndicator`
- * in het profiel aanstaat (T2.4). Wanneer de route een eindconcept bereikt (`done`), is
- * er (nog) geen volgende vraag — het voorstellen/bevestigen van een boodschap volgt in T4.3.
+ * in het profiel aanstaat (T2.4).
+ *
+ * Wanneer de route een eindconcept bereikt (`done`), toont de app het **voorstelscherm** (T4.3):
+ * de gekozen pictogramreeks + de gegenereerde zin met ✅ Bevestigen / ❌ Nee. Bevestigen rondt de
+ * sessie af en slaat de boodschap op; ❌ gaat terug naar de laatste vraag (er wordt niets opgeslagen).
  */
 function ConversationScreen({
   api,
@@ -143,14 +148,17 @@ function ConversationScreen({
 }): React.JSX.Element {
   const profile = user.communicationProfile;
   const [state, setState] = useState<ConversationStateResponse | null>(null);
+  const [confirmed, setConfirmed] = useState<ConversationConfirmResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Verpakt een gesprekscall: fouten netjes tonen en dubbele taps blokkeren tijdens het laden.
+  // Verpakt een gesprekscall die een nieuwe toestand teruggeeft: fouten netjes tonen, dubbele taps
+  // blokkeren en een eventueel bevestigd-scherm opheffen (we keren terug naar de keuzeflow).
   async function run(action: () => Promise<ConversationStateResponse>): Promise<void> {
     setError(null);
     setBusy(true);
     try {
+      setConfirmed(null);
       setState(await action());
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Er ging iets mis. Probeer opnieuw.');
@@ -164,6 +172,26 @@ function ConversationScreen({
     void run(() => api.startConversation());
   }, [api]);
 
+  // Na bevestiging: de opgeslagen boodschap tonen met de mogelijkheid opnieuw te beginnen.
+  if (confirmed) {
+    return (
+      <main className="tablet">
+        <section className="tablet__done">
+          <h1 className="tablet__prompt">Boodschap bevestigd</h1>
+          <p className="tablet__message">{confirmed.message}</p>
+          <button
+            className="button button--primary"
+            type="button"
+            disabled={busy}
+            onClick={() => void run(() => api.startConversation())}
+          >
+            Opnieuw beginnen
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   if (!state) {
     return (
       <main className="tablet">
@@ -175,6 +203,19 @@ function ConversationScreen({
           <p className="muted">Laden…</p>
         )}
       </main>
+    );
+  }
+
+  // Route bij een eindconcept: het voorstelscherm neemt het over (genereert zelf de boodschap).
+  if (state.done) {
+    return (
+      <ProposalScreen
+        api={api}
+        sessionId={state.sessionId}
+        showText={profile.showText}
+        onConfirmed={setConfirmed}
+        onReject={() => void run(() => api.conversationBack(state.sessionId))}
+      />
     );
   }
 
@@ -216,22 +257,7 @@ function ConversationScreen({
             ))}
           </div>
         </>
-      ) : (
-        <section className="tablet__done">
-          <h1 className="tablet__prompt">Klaar met kiezen</h1>
-          <p className="muted">
-            Het voorstellen en bevestigen van de boodschap komt in een volgende stap.
-          </p>
-          <button
-            className="button button--primary"
-            type="button"
-            disabled={busy}
-            onClick={() => void run(() => api.startConversation())}
-          >
-            Opnieuw beginnen
-          </button>
-        </section>
-      )}
+      ) : null}
 
       <div className="tablet__bar">
         <button
@@ -241,6 +267,122 @@ function ConversationScreen({
           onClick={() => void run(() => api.conversationBack(state.sessionId))}
         >
           ↩ Terug
+        </button>
+      </div>
+    </main>
+  );
+}
+
+/**
+ * Voorstelscherm (T4.3, DESIGN §5.2): toont de gekozen pictogramreeks + de door de (gescripte) engine
+ * geformuleerde zin, met ✅ Bevestigen en ❌ Nee. Genereert de boodschap zelf bij binnenkomst
+ * (`/generate`, vluchtig — er wordt niets opgeslagen tot bevestiging). Bevestigen rondt de sessie af
+ * (`onConfirmed`); ❌ gaat terug naar de laatste vraag (`onReject`), waarna er niets bewaard is.
+ */
+function ProposalScreen({
+  api,
+  sessionId,
+  showText,
+  onConfirmed,
+  onReject,
+}: {
+  api: DeviceApi;
+  sessionId: string;
+  showText: boolean;
+  onConfirmed: (result: ConversationConfirmResponse) => void;
+  onReject: () => void;
+}): React.JSX.Element {
+  const [proposal, setProposal] = useState<ConversationGenerateResponse | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Bij binnenkomst het voorstel ophalen. `active` voorkomt een state-update na unmount.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const result = await api.conversationGenerate(sessionId);
+        if (active) setProposal(result);
+      } catch (err) {
+        if (active) {
+          setError(
+            err instanceof ApiRequestError ? err.message : 'Er ging iets mis. Probeer opnieuw.',
+          );
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [api, sessionId]);
+
+  async function confirm(): Promise<void> {
+    setError(null);
+    setBusy(true);
+    try {
+      onConfirmed(await api.conversationConfirm(sessionId));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Er ging iets mis. Probeer opnieuw.');
+      setBusy(false);
+    }
+  }
+
+  if (!proposal) {
+    return (
+      <main className="tablet">
+        {error ? (
+          <p className="form__error" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className="muted">Even nadenken…</p>
+        )}
+      </main>
+    );
+  }
+
+  return (
+    <main className="tablet">
+      <div className="proposal__symbols" aria-hidden="true">
+        {proposal.symbols.map((symbol, index) => (
+          <img
+            key={`${symbol.id}-${index}`}
+            className="proposal__symbol"
+            src={apiUrl(symbol.imageUrl)}
+            alt=""
+            width={96}
+            height={96}
+          />
+        ))}
+      </div>
+
+      <h1 className="tablet__prompt">{proposal.message}</h1>
+      {showText ? <p className="muted">Klopt dit?</p> : null}
+
+      {error ? (
+        <p className="form__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="proposal__actions">
+        <button
+          className="button button--primary"
+          type="button"
+          disabled={busy}
+          aria-label="Bevestigen"
+          onClick={() => void confirm()}
+        >
+          ✅ Ja
+        </button>
+        <button
+          className="button"
+          type="button"
+          disabled={busy}
+          aria-label="Nee, terug"
+          onClick={onReject}
+        >
+          ❌ Nee
         </button>
       </div>
     </main>
