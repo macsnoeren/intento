@@ -224,17 +224,24 @@ curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/next 
 curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/back
 ```
 
-## AI-fundament (T5.1)
+## AI-orchestrator, validatielaag en confidence (T5.1/T5.2)
 
-De AI-fase begint met het **fundament** onder de vraagselectie (`server/src/ai/`), nog **zonder** de
-gescripte engine te vervangen (dat is T5.2, achter dezelfde `/conversation/{id}/next`). Het bestaat uit
-een provider-agnostische **`AiProvider`**-interface, een **`AiOrchestrator`** die per aanroep de
-**beperkte, verse context** samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext +
-gesprekscontext + laatste keuze; **geen** chatgeschiedenis) en de provider-uitvoer opnieuw valideert, en
-een **deterministische mock-provider** voor dev en tests. De client praat nooit rechtstreeks met de AI
-(DESIGN §8.1); de AI-schema's staan server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `ollama`
-volgt in T5.5/T5.6). Zie [docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md) en
-[docs/api.md](docs/api.md).
+De vraagselectie achter `POST /conversation/{id}/next` draait vanaf **T5.2** op de **AI-orchestrator**
+(`server/src/ai/`), niet meer op de gescripte engine. Het fundament (T5.1): een provider-agnostische
+**`AiProvider`**-interface, een **`AiOrchestrator`** die per aanroep de **beperkte, verse context**
+samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext + gesprekscontext + laatste keuze;
+**geen** chatgeschiedenis) en de provider-uitvoer opnieuw valideert, en een **deterministische
+mock-provider** voor dev en tests.
+
+Daaromheen leggen T5.2's lagen de harde waarborgen uit DESIGN §7 op (`server/src/conversation/decision.ts`):
+de **AAC-relatieboom** levert de begrensde kandidaten, **herhaling** wordt vermeden (reeds gekozen
+concepten uitgesloten, terug blijft exact), de **validatielaag** (`ai/validation.ts`) houdt onbekende
+concepten tegen (→ `ConceptProposal` voor de beheerder, T7.3) en de **interpretatie-zekerheid**
+(`ai/thresholds.ts`, §7.4) bepaalt de fase `select`/`refine`/`propose`. Een verzonnen concept bereikt de
+gebruiker **nooit**. De client praat nooit rechtstreeks met de AI (DESIGN §8.1); de AI-schema's staan
+server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `ollama` volgt in T5.5/T5.6). Zie
+[docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
+[docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md) en [docs/api.md](docs/api.md).
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

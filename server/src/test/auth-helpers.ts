@@ -106,7 +106,9 @@ export async function deviceCookie(app: FastifyInstance, userId: string): Promis
   const { code } = await createLinkCode(prisma, userId, 60);
   const res = await app.inject({ method: 'POST', url: '/devices/link', payload: { code } });
   if (res.statusCode !== 201) {
-    throw new Error(`Apparaat koppelen mislukte voor gebruiker ${userId}: status ${res.statusCode}`);
+    throw new Error(
+      `Apparaat koppelen mislukte voor gebruiker ${userId}: status ${res.statusCode}`,
+    );
   }
   const cookie = deviceCookieHeader(res);
   if (!cookie) throw new Error(`Geen device-cookie ontvangen voor gebruiker ${userId}`);

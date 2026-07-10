@@ -14,8 +14,10 @@ import type { AiProvider } from './provider.js';
 
 export * from './provider.js';
 export * from './prompt.js';
+export * from './thresholds.js';
 export { AiOrchestrator } from './orchestrator.js';
 export { MockAiProvider } from './mock-provider.js';
+export { validateAiOptions, type ValidatedOption, type ValidationResult } from './validation.js';
 
 /** Bouwt de AI-provider uit de env. Zie `Env.AI_PROVIDER`. */
 export function createAiProvider(env: Env): AiProvider {

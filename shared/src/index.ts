@@ -606,15 +606,31 @@ export const conversationChoiceRequestSchema = z.object({
 export type ConversationChoiceRequest = z.infer<typeof conversationChoiceRequestSchema>;
 
 /**
+ * Fase van de gespreksbeslissing (T5.2, DESIGN §7.4), afgeleid uit de interpretatie-zekerheid van de
+ * AI: `select` (<60% — nieuwe pictogramvraag), `refine` (60–85% — verder verfijnen), `propose` (>85%
+ * of een eindconcept — boodschap voorstellen). De UI kan hiermee de juiste toon aanslaan; `propose`
+ * valt samen met `done: true`.
+ */
+export const conversationPhaseSchema = z.enum(['select', 'refine', 'propose']);
+export type ConversationPhase = z.infer<typeof conversationPhaseSchema>;
+
+/**
  * Gesprekstoestand na `start`, `next` of `back`: de sessie, de huidige vraag (of `null` als de route
  * een eindconcept bereikte en `done: true`), en de tot nu toe afgelegde stappen. De tablet-UI (T4.2)
  * rendert hieruit het keuzescherm; `done` markeert dat er een boodschap voorgesteld kan worden (T4.3).
+ *
+ * Vanaf T5.2 wordt de vraag door de AI-orchestrator gekozen (mock in tests) i.p.v. de gescripte engine.
+ * `confidence` (de interpretatie-zekerheid, DESIGN §7.4) en `phase` (de afgeleide band) zijn optioneel
+ * meegegeven zodat de UI/latere taken de zekerheid kunnen tonen; ze ontbreken alleen wanneer er geen
+ * vraag meer is en er geen zekerheid te melden valt.
  */
 export const conversationStateResponseSchema = z.object({
   sessionId: z.string(),
   status: conversationStatusSchema,
   question: conversationQuestionSchema.nullable(),
   done: z.boolean(),
+  confidence: z.number().min(0).max(1).optional(),
+  phase: conversationPhaseSchema.optional(),
   history: z.array(conversationStepSchema),
 });
 export type ConversationStateResponse = z.infer<typeof conversationStateResponseSchema>;

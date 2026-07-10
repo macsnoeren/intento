@@ -133,15 +133,17 @@ Een gespreksessie (`ConversationSession`) is het tijdelijke communicatieproces w
 via pictogramkeuzes zijn intentie opbouwt (DESIGN §3.1). Alle routes lopen op **apparaat-auth**
 (`deviceAuthorize`, de `intento_device`-cookie): de tablet is aan precies één gebruiker gebonden,
 dus elke sessie is automatisch **gebruiker-geïsoleerd** — een apparaat ziet nooit de sessies van een
-andere gebruiker (`404 SESSION_NOT_FOUND`, bestaan lekt niet). De vraagselectie draait in deze fase op
-een **gescripte engine** over de AAC-relatieboom (intentie-categorieën → verfijning); de AI-orchestrator
-neemt die rol later over achter dezelfde interface (fase 5). De "huidige vraag" is een **pure functie**
-van de reeds gezette stappen, waardoor de terug-functie de vorige opties exact herstelt.
+andere gebruiker (`404 SESSION_NOT_FOUND`, bestaan lekt niet). De vraagselectie draait vanaf T5.2 op de
+**AI-orchestrator**: de AAC-relatieboom levert de begrensde kandidaten (intentie-categorieën →
+verfijning), de AI kiest/ordent daarbinnen, de **validatielaag** houdt onbekende concepten tegen en de
+**interpretatie-zekerheid** (§7.4) bepaalt de fase. De beslissing is een **pure functie** van de reeds
+gezette stappen (met de deterministische mock in tests), waardoor de terug-functie de vorige opties exact
+herstelt.
 
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
-| POST | `/conversation/start` | apparaat | Start een `ACTIVE` sessie voor de eigen gebruiker. `201` + `conversationStateResponseSchema` (`{ sessionId, status, question: { prompt, options[] } \| null, done, history[] }`): de eerste vraag toont de intentie-categorieën. |
-| POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`). Bij een eindconcept: `question: null`, `done: true` (klaar voor een voorstel — T4.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
+| POST | `/conversation/start` | apparaat | Start een `ACTIVE` sessie voor de eigen gebruiker. `201` + `conversationStateResponseSchema` (`{ sessionId, status, question: { prompt, options[] } \| null, done, confidence?, phase?, history[] }`): de eerste vraag toont de intentie-categorieën. |
+| POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de door de **AI-orchestrator** gekozen **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`), AAC-begrensd, gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence` (interpretatie-zekerheid, §7.4) en `phase` (`select`/`refine`/`propose`) reizen mee. Bij een eindconcept of >85% zekerheid: `question: null`, `done: true`, `phase: 'propose'` (klaar voor een voorstel — T4.3/T5.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
 | POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. |
 | POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T4.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). Sjabloon-gebaseerde zin (de AI-orchestrator neemt dit later over — T5.3); `confidence` deterministisch (>85%). **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
@@ -151,12 +153,12 @@ Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_L
 communicatie wordt bewaard (DESIGN §3.6): `/generate` is vluchtig en afgewezen voorstellen belanden nooit
 in de db — een `GeneratedMessage` bestaat pas na `/confirm`.
 
-## AI-orchestrator (intern, T5.1)
+## AI-orchestrator en validatielaag (intern, T5.1/T5.2)
 
 De AI is een **interne** laag; er is bewust **geen client-endpoint** dat rechtstreeks met de AI praat
 (DESIGN §8.1). De interne interface backend ↔ orchestrator (DESIGN §8.2, `POST /ai/next-decision`) leeft
-in `server/src/ai/` en wordt in T5.2 achter `/conversation/{id}/next` gezet — dan verschijnt hier geen
-nieuwe publieke route, maar wisselt de vraagselectie van de gescripte engine naar de orchestrator.
+in `server/src/ai/` en is vanaf T5.2 achter `/conversation/{id}/next` gezet — er is dus **geen** nieuwe
+publieke route; de vraagselectie is van de gescripte engine naar de orchestrator gewisseld.
 
 De vorm van de interne AI-in-/uitvoer (zod, `server/src/ai/provider.ts` — **niet** in `@intento/shared`,
 want de client kent ze niet):
@@ -164,11 +166,25 @@ want de client kent ze niet):
 - **Prompt (in):** `{ task: 'select_next_question', systemRules[], goal, aacRules[], userContext[],
   conversationContext[{concept, label}], lastChoice, availableSymbols[{concept, label}] }` — de beperkte,
   verse context (DESIGN §7.7), **zonder** chatgeschiedenis. `buildAiPrompt` is de enige bouwer; de
-  sleutelset is gesloten.
-- **Decision (uit):** `{ question, options[{symbol, confidence}], reason }` — `symbol` is een
-  **conceptsleutel**; `confidence ∈ [0,1]`. De orchestrator valideert de provider-uitvoer opnieuw (een
-  provider/worker wordt nooit vertrouwd). De AAC-existentiecheck van `symbol` en de confidence-drempels
-  (DESIGN §7.4) volgen in de validatielaag (T5.2).
+  sleutelset is gesloten. `availableSymbols` bevat alléén AAC-begrensde kandidaten, al ontdaan van reeds
+  gekozen/afgewezen concepten (herhaling vermijden, §7.5).
+- **Decision (uit):** `{ question, options[{symbol, confidence}], reason, confidence? }` — `symbol` is een
+  **conceptsleutel**; per-optie-`confidence ∈ [0,1]`; de optionele top-level `confidence` is de
+  **interpretatie-zekerheid** (§7.4). De orchestrator valideert de provider-uitvoer opnieuw (een
+  provider/worker wordt nooit vertrouwd).
+
+**Validatielaag en confidence (T5.2, `ai/validation.ts` + `ai/thresholds.ts` + `conversation/decision.ts`):**
+
+- **AAC-existentiecheck (§7.6, §7.8):** elk voorgesteld `symbol` moet bestaan in de bibliotheek. Bestaand
+  concept → houden; synoniem/label → omzetten naar het echte concept; anders → een `ConceptProposal`
+  (status `PENDING`) aanmaken en de optie **weglaten**. Een onbekend concept bereikt de gebruiker nooit.
+- **Herhaling vermijden (§7.5):** al gekozen concepten (en optioneel expliciet uitgesloten concepten, bv.
+  afgewezen keuzes bij een correctie — T5.4) vallen weg, vóór én na de AI-aanroep.
+- **Confidence-drempels (§7.4):** de interpretatie-zekerheid bepaalt de fase — `select` (<60%, nieuwe
+  vraag), `refine` (60–85%, verfijnen), `propose` (>85% of een eindconcept, boodschap voorstellen). Bij
+  `propose` is er geen vraag meer (`question: null`, `done: true`). Overgebleven opties worden op zekerheid
+  geordend (meest waarschijnlijke eerst).
 
 Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test) of `ollama` (nog niet aangesloten —
-weigert te starten tot T5.5/T5.6). Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
+weigert te starten tot T5.5/T5.6). Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
+[adr/0009](adr/0009-validation-layer-and-confidence-policy.md).

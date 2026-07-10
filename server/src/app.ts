@@ -18,6 +18,7 @@ import { registerAacRoutes } from './routes/aac.js';
 import { registerConversationRoutes } from './routes/conversation.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
+import { createAiOrchestrator, type AiOrchestrator } from './ai/index.js';
 
 export interface BuildAppOptions {
   env: Env;
@@ -29,6 +30,8 @@ export interface BuildAppOptions {
   openSymbols?: OpenSymbolsClient;
   /** Mail-transport (T1.4); standaard uit de env (log/SMTP), injecteerbaar zodat tests de mail opvangen. */
   mail?: MailTransport;
+  /** AI-orchestrator (T5.2); standaard uit de env (mock/echt), injecteerbaar zodat tests een provider mocken. */
+  orchestrator?: AiOrchestrator;
 }
 
 /**
@@ -42,6 +45,7 @@ export async function buildApp({
   logger = false,
   openSymbols = createOpenSymbolsClient(env),
   mail = createMailTransport(env),
+  orchestrator = createAiOrchestrator(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger,
@@ -84,7 +88,7 @@ export async function buildApp({
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
   registerAacRoutes(app, { prisma, env, openSymbols });
-  registerConversationRoutes(app, { prisma });
+  registerConversationRoutes(app, { prisma, orchestrator });
 
   return app;
 }

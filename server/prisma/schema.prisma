@@ -363,6 +363,31 @@ model ConversationStep {
   @@index([sessionId])
 }
 
+/// Een door de AI voorgesteld nieuw begrip dat (nog) niet in de AAC-bibliotheek bestaat (DESIGN §6.2,
+/// §7.6, FR-016, T5.2/T7.3). De **validatielaag** (T5.2) maakt zo'n voorstel aan wanneer de AI tijdens
+/// communicatie een concept aandraagt dat noch als concept, noch als synoniem in de bibliotheek bestaat:
+/// de optie wordt weggelaten (bereikt de gebruiker NOOIT — DESIGN §7.6) en het begrip belandt hier ter
+/// beoordeling door een beheerder. Pas na goedkeuring (koppeling aan een `AacSymbol`, T7.3) mag de AI het
+/// gebruiken. `concept` is uniek zodat herhaalde voorstellen van hetzelfde begrip één openstaand item
+/// vormen (idempotente upsert), i.p.v. de reviewlijst te overspoelen.
+model ConceptProposal {
+  id             String   @id @default(cuid())
+  /// De canonieke conceptsleutel die de AI voorstelde (lowercase-genormaliseerd), uniek.
+  concept        String   @unique
+  /// Korte onderbouwing waarom dit begrip nodig zou zijn (uit de `reason` van de AI-beslissing).
+  reason         String
+  /// Status: "PENDING" | "APPROVED" | "REJECTED" (gevalideerd op de grens; geen native enum i.v.m.
+  /// SQLite/PostgreSQL-portabiliteit — zie schema-header). Nieuw voorstel start PENDING; T7.3 beoordeelt.
+  status         String   @default("PENDING")
+  /// Na goedkeuring: het `AacSymbol` waaraan het begrip gekoppeld is (T7.3). `null` zolang niet gekoppeld.
+  /// Bewust geen harde FK (net als `ConversationStep.selectedSymbolId`) i.v.m. de muteerbare bibliotheek.
+  linkedSymbolId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([status])
+}
+
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren
 /// alleen een SHA-256-hash (`tokenHash`). De client krijgt het rauwe token als
 /// httpOnly+Secure cookie; bij elke request hashen we de cookie en zoeken hierop

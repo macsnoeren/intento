@@ -41,10 +41,17 @@ server niet uit elkaar lopen.
   `routes/` (één bestand per domein), `db/` (Prisma-client-singleton).
 - `server/prisma/` — `schema.prisma` (datamodel), `migrations/`, `seed.ts`. De
   CLI-config staat in `server/prisma.config.ts`.
-- `server/src/ai/` — het AI-fundament (T5.1): de provider-agnostische `AiProvider`-interface
-  (`provider.ts`), de `AiOrchestrator` (`orchestrator.ts`), de beperkte-context-bouw (`prompt.ts`) en
-  de deterministische `MockAiProvider` (`mock-provider.ts`). Server-intern — de client praat nooit met
-  de AI. Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
+- `server/src/ai/` — de AI-laag: de provider-agnostische `AiProvider`-interface (`provider.ts`), de
+  `AiOrchestrator` (`orchestrator.ts`), de beperkte-context-bouw (`prompt.ts`) en de deterministische
+  `MockAiProvider` (`mock-provider.ts`) uit T5.1, plus vanaf T5.2 de **validatielaag** (`validation.ts`,
+  die AI-opties tegen de AAC-bibliotheek toetst en onbekende concepten als `ConceptProposal` afvangt) en
+  de **confidence-drempels** (`thresholds.ts`, §7.4). Server-intern — de client praat nooit met de AI.
+  Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
+  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
+- `server/src/conversation/decision.ts` — de **AI-beslissingslaag** (T5.2) die achter `/next` de
+  gescripte vraagselectie vervangt: AAC-begrensde kandidaten uit de relatieboom → herhaling vermijden →
+  orchestrator → validatielaag → confidence-gestuurde ordening/fase. Puur uit de opgeslagen stappen,
+  zodat de terug-functie exact blijft en alles deterministisch met de mock te testen is.
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`
@@ -94,6 +101,15 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   **valideert de provider-uitvoer opnieuw** met zod. De provider zit achter de injecteerbare
   `AiProvider`-interface (mock in tests, self-hosted LLM later), net als de OpenSymbols-client. Zie
   [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
+- **Validatielaag + confidence** (`ai/validation.ts`, `ai/thresholds.ts`, `conversation/decision.ts`,
+  T5.2) — het harde vangnet achter de provider (DESIGN §7.4–7.6, §7.8). De beslissingslaag laadt de
+  AAC-begrensde kandidaten uit de relatieboom, sluit reeds gekozen/afgewezen concepten uit (herhaling
+  vermijden), laat de orchestrator kiezen/ordenen, en toetst **elke** voorgestelde optie tegen de
+  bibliotheek: bestaand concept → houden; synoniem/label → omzetten; anders → `ConceptProposal` +
+  weglaten. Een onbekend/verzonnen concept bereikt de gebruiker dus **nooit** — ook niet van een
+  onbetrouwbare provider of latere externe worker. De **interpretatie-zekerheid** (§7.4) bepaalt de fase
+  (`select` <60% / `refine` 60–85% / `propose` >85% of eindconcept). Zie
+  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
 
 ## Gerelateerde documentatie
 

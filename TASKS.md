@@ -96,7 +96,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §7.2, §7.7, §9.2, §9.3.* ADR: keuze LLM-provider. Provider-agnostische `AiProvider`-interface + AI-Orchestrator-service die per aanroep de beperkte context samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext + gesprekscontext + laatste keuze; géén chatgeschiedenis) en gestructureerde output afdwingt (`question`, `options[{symbol, confidence}]`, `reason`). Deterministische mock-provider voor alle tests; API-key via env.
   *Acceptatie:* orchestrator levert met mock-provider geldige, zod-gevalideerde output; prompt bevat aantoonbaar alléén toegestane context.
 
-- [ ] **T5.2 Validatielaag en confidence-gestuurde vraagselectie**
+- [x] **T5.2 Validatielaag en confidence-gestuurde vraagselectie**
   *DESIGN: §7.3–7.6, §7.8, §8.2 (interne interface), FR-002/004/009 (herhaling).* Validatielaag: elk door AI voorgesteld symbool moet bestaan in de AAC-bibliotheek (anders: synoniem zoeken → ConceptProposal aanmaken → optie weglaten). Confidence-drempels (<60% nieuwe vraag, 60–85% verfijnen, >85% voorstel). Herhaling vermijden: eerdere vragen, getoonde opties en afgewezen keuzes bijhouden en uitsluiten. Vervang de gescripte engine achter `/next` door de orchestrator (mock in tests, echte provider via env).
   *Acceptatie:* AI-output met onbekend concept bereikt de gebruiker nooit (test); herhaalde vraag/optie uitgesloten (test); flow werkt live met echte provider (handmatige rooktest gerapporteerd).
 

@@ -20,6 +20,8 @@ import type {
 import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
+import { decideNextQuestion } from '../conversation/decision.js';
+import type { AiOrchestrator } from '../ai/orchestrator.js';
 import {
   generateMessage,
   SCRIPTED_CONFIDENCE,
@@ -29,6 +31,8 @@ import { symbolToPublic } from '../aac/library.js';
 
 export interface ConversationRoutesDeps {
   prisma: PrismaClient;
+  /** AI-orchestrator die de volgende vraag kiest (mock in tests, echte provider via env — T5.2). */
+  orchestrator: AiOrchestrator;
 }
 
 /** Route-parameter: het sessie-id uit het pad. */
@@ -90,21 +94,28 @@ async function buildMessageInput(
   return { symbols, chosen };
 }
 
-/** Bouwt de volledige gesprekstoestand (huidige vraag + historie) voor `start`/`next`/`back`. */
+/**
+ * Bouwt de volledige gesprekstoestand (AI-gekozen vraag + historie) voor `start`/`next`/`back`. De
+ * volgende vraag komt vanaf T5.2 uit de AI-beslissingslaag (`decideNextQuestion`): AAC-begrensd,
+ * gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence`/`phase` reizen mee (§7.4).
+ */
 async function buildState(
   prisma: PrismaClient,
+  orchestrator: AiOrchestrator,
   session: ConversationSessionModel,
   steps: ConversationStepModel[],
 ): Promise<ConversationStateResponse> {
-  const [question, history] = await Promise.all([
-    currentQuestion(prisma, steps),
+  const [decision, history] = await Promise.all([
+    decideNextQuestion(prisma, orchestrator, steps),
     buildHistory(prisma, steps),
   ]);
   return conversationStateResponseSchema.parse({
     sessionId: session.id,
     status: session.status,
-    question,
-    done: question === null,
+    question: decision.question,
+    done: decision.done,
+    confidence: decision.confidence,
+    phase: decision.phase,
     history,
   });
 }
@@ -114,9 +125,10 @@ async function buildState(
  *
  * Alle routes lopen op **apparaat-auth** (`deviceAuthorize`): de tablet start het gesprek en is aan
  * precies één gebruiker gebonden, zodat elke sessie automatisch gebruiker-gebonden en -geïsoleerd is
- * (een apparaat ziet nooit de sessies van een andere gebruiker → `404`). De vraagselectie draait in
- * deze fase op de gescripte engine over de AAC-relatieboom; de AI-orchestrator neemt die rol later
- * over achter dezelfde interface (fase 5).
+ * (een apparaat ziet nooit de sessies van een andere gebruiker → `404`). De vraagselectie draait vanaf
+ * T5.2 op de **AI-orchestrator** (`decideNextQuestion`): de AAC-relatieboom levert de begrensde
+ * kandidaten, de AI kiest/ordent daarbinnen, de validatielaag houdt onbekende concepten tegen en de
+ * confidence bepaalt de fase (§7.4). In tests draait de deterministische mock-provider.
  *
  * - `POST /conversation/start` — nieuwe sessie; eerste vraag (intentie-categorieën) terug.
  * - `POST /conversation/{id}/next` — **kern-call:** keuze insturen → volgende vraag + opties terug.
@@ -127,7 +139,7 @@ async function buildState(
  */
 export function registerConversationRoutes(
   app: FastifyInstance,
-  { prisma }: ConversationRoutesDeps,
+  { prisma, orchestrator }: ConversationRoutesDeps,
 ): void {
   // Sessie starten — apparaat-auth. Maakt een ACTIVE sessie voor de eigen gebruiker en geeft de
   // startvraag terug (nog geen stappen).
@@ -140,7 +152,7 @@ export function registerConversationRoutes(
         data: { userId: device.userId, status: 'ACTIVE' },
       });
       reply.status(201);
-      return buildState(prisma, session, []);
+      return buildState(prisma, orchestrator, session, []);
     },
   );
 
@@ -164,7 +176,7 @@ export function registerConversationRoutes(
         throw new HttpError(400, 'INVALID_CHOICE', 'Deze keuze hoort niet bij de huidige vraag.');
       }
 
-      await prisma.conversationStep.create({
+      const created = await prisma.conversationStep.create({
         data: {
           sessionId: session.id,
           order: steps.length,
@@ -175,7 +187,21 @@ export function registerConversationRoutes(
         },
       });
 
-      return buildState(prisma, session, await loadSteps(prisma, session.id));
+      const state = await buildState(
+        prisma,
+        orchestrator,
+        session,
+        await loadSteps(prisma, session.id),
+      );
+      // De interpretatie-zekerheid van de nieuwe toestand vastleggen op de zojuist gezette stap
+      // (§7.4; `ConversationStep.confidence` was `null` in de gescripte engine).
+      if (typeof state.confidence === 'number') {
+        await prisma.conversationStep.update({
+          where: { id: created.id },
+          data: { confidence: state.confidence },
+        });
+      }
+      return state;
     },
   );
 
@@ -245,7 +271,7 @@ export function registerConversationRoutes(
       const last = steps[steps.length - 1]!;
       await prisma.conversationStep.delete({ where: { id: last.id } });
 
-      return buildState(prisma, session, await loadSteps(prisma, session.id));
+      return buildState(prisma, orchestrator, session, await loadSteps(prisma, session.id));
     },
   );
 

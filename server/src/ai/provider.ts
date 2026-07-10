@@ -78,11 +78,18 @@ export type AiOption = z.infer<typeof aiOptionSchema>;
  * De gestructureerde AI-uitvoer voor `select_next_question` (DESIGN §7.7): de volgende vraag, de
  * voorgestelde opties met zekerheid en een korte onderbouwing. De orchestrator dwingt deze vorm af met
  * `aiQuestionDecisionSchema.parse(...)` — vrije/ongestructureerde modeluitvoer bereikt de flow nooit.
+ *
+ * `confidence` is de **interpretatie-zekerheid** (DESIGN §7.4): hoe zeker het model is dat het de intentie
+ * van de gebruiker nu begrijpt (los van de per-optie-zekerheid, die over de *volgende* keuze gaat). De
+ * confidence-drempels (<60% nieuwe vraag, 60–85% verfijnen, >85% voorstel) worden hierop toegepast
+ * (`phaseForDecision`, thresholds.ts). Optioneel zodat een provider die geen interpretatie-zekerheid
+ * levert niet faalt; de beslissingslaag valt dan terug op een neutrale waarde.
  */
 export const aiQuestionDecisionSchema = z.object({
   question: z.string().min(1),
   options: z.array(aiOptionSchema),
   reason: z.string(),
+  confidence: z.number().min(0).max(1).optional(),
 });
 export type AiQuestionDecision = z.infer<typeof aiQuestionDecisionSchema>;
 

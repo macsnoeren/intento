@@ -6,6 +6,32 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.2 Validatielaag en confidence-gestuurde vraagselectie.** De **AI-orchestrator vervangt de gescripte
+  engine** achter `POST /conversation/{id}/next` (DESIGN §7.3–7.6, §7.8, FR-002/004/009). Nieuwe
+  AI-beslissingslaag (`server/src/conversation/decision.ts`) die per beurt: (1) de **AAC-begrensde
+  kandidaten** uit de relatieboom laadt (intentie-categorieën → verfijning), (2) **herhaling vermijdt**
+  door reeds gekozen (en optioneel expliciet uitgesloten) concepten weg te filteren — vóór én na de
+  AI-aanroep, stateloos zodat de terug-functie **exact** blijft, (3) de orchestrator laat kiezen/ordenen,
+  (4) de uitvoer door de **validatielaag** (`server/src/ai/validation.ts`) haalt en (5) op zekerheid
+  ordent en de fase bepaalt. **Validatielaag (§7.6, §7.8):** elk voorgesteld symbool moet in de
+  AAC-bibliotheek bestaan — bestaand concept → houden, synoniem/label → omzetten naar het echte concept,
+  anders → een **`ConceptProposal`** (`status: PENDING`) aanmaken en de optie **weglaten**. Een onbekend/
+  verzonnen concept bereikt de gebruiker dus **nooit** (ook niet van een onbetrouwbare provider of latere
+  externe worker), maar belandt in de reviewlijst voor de beheerder (T7.3). **Confidence (§7.4):** de AI
+  levert een optionele **interpretatie-zekerheid**; de drempels (`server/src/ai/thresholds.ts`) bepalen de
+  fase — `select` (<60%), `refine` (60–85%), `propose` (>85% of een eindconcept). Bij `propose` is er geen
+  vraag meer (`question: null`, `done: true`, klaar voor een voorstel — T4.3/T5.3). `confidence`/`phase`
+  reizen mee in `conversationStateResponseSchema` (optioneel) en de interpretatie-zekerheid wordt op de
+  `ConversationStep` vastgelegd (was `null` in de gescripte engine). Nieuw model **`ConceptProposal`**
+  (migratie `concept_proposals`, draait schoon op een lege db; `concept` uniek → idempotente voorstellen,
+  index op `status`). De orchestrator is via `buildApp` injecteerbaar (mock in tests, echte provider via
+  `AI_PROVIDER`). Tests: validatielaag (bestaand/synoniem/onbekend, idempotent, ontdubbeling), de
+  beslissingslaag (herhaling uitsluiten, onbekend concept nooit getoond, fasen select/refine/propose,
+  ordening op zekerheid, vroegtijdig voorstel bij >85%), de confidence-banden, en end-to-end via HTTP een
+  provider die een verzonnen concept teruggeeft (tegengehouden + als voorstel vastgelegd). Beslissing en
+  begrenzing vastgelegd in **ADR-0009**; gedocumenteerd in `docs/architecture.md`, `docs/api.md` en
+  `docs/data-model.md`. *(Live rooktest met een echte provider volgt in T5.5/T5.6: `AI_PROVIDER=ollama`
+  is nog niet aangesloten; de flow is nu volledig gedekt met de deterministische mock.)*
 - **T5.1 Provider-interface en promptfundament.** Het **fundament onder de AI-fase** (DESIGN §7.2, §7.7,
   §9.2) — nog zonder de gescripte engine te vervangen (dat is T5.2). Nieuwe module `server/src/ai/`:
   een provider-agnostische **`AiProvider`**-interface (`selectNextQuestion(prompt) → {question,

@@ -45,15 +45,20 @@ function promptFor(concept: string, label: string): string {
 }
 
 /** Haalt de intentie-symbolen op (startscherm-categorieën), gesorteerd voor een stabiele volgorde. */
-async function loadIntentSymbols(prisma: PrismaClient): Promise<AacSymbolModel[]> {
+export async function loadIntentSymbols(prisma: PrismaClient): Promise<AacSymbolModel[]> {
   return prisma.aacSymbol.findMany({ where: { category: 'intent' }, orderBy: { label: 'asc' } });
 }
 
 /**
  * Haalt de kinderen (verfijningen) van een concept op via `AacConceptRelation`, gesorteerd op label.
- * Geeft een lege lijst als het concept onbekend is of geen kinderen heeft (= eindconcept).
+ * Geeft een lege lijst als het concept onbekend is of geen kinderen heeft (= eindconcept). Dit is de
+ * **AAC-begrensde kandidatenset** (DESIGN §7.6): de AI mag hierbinnen kiezen/ordenen, maar niets
+ * daarbuiten voorstellen. De AI-beslissingslaag (decision.ts) gebruikt deze loaders als bron.
  */
-async function loadChildSymbols(prisma: PrismaClient, concept: string): Promise<AacSymbolModel[]> {
+export async function loadChildSymbols(
+  prisma: PrismaClient,
+  concept: string,
+): Promise<AacSymbolModel[]> {
   const parent = await prisma.aacSymbol.findUnique({ where: { concept } });
   if (!parent) return [];
   const relations = await prisma.aacConceptRelation.findMany({
@@ -88,7 +93,10 @@ export async function currentQuestion(
   const children = await loadChildSymbols(prisma, last.selectedConcept);
   if (children.length === 0) return null;
   const parent = await prisma.aacSymbol.findUnique({ where: { concept: last.selectedConcept } });
-  return toQuestion(promptFor(last.selectedConcept, parent?.label ?? last.selectedConcept), children);
+  return toQuestion(
+    promptFor(last.selectedConcept, parent?.label ?? last.selectedConcept),
+    children,
+  );
 }
 
 export interface ResolvedOption {

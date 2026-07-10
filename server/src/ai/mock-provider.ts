@@ -19,6 +19,16 @@ const TOP_CONFIDENCE = 0.9;
 const CONFIDENCE_STEP = 0.15;
 const MIN_CONFIDENCE = 0.3;
 
+/**
+ * Bovengrens voor de **interpretatie-zekerheid** van de mock: bewust onder de voorsteldrempel (0.85,
+ * DESIGN §7.4). Zo forceert de deterministische mock nooit vanzelf een boodschapvoorstel midden in een
+ * route — het voorstel-moment blijft in de gescripte flow bij een eindconcept (geen opties meer). Meer
+ * aangeboden opties = minder zekerheid over de intentie, zodat de mock toch de band-variatie
+ * (select/refine) uit §7.4 laat zien zonder de voorbeeldroute te breken.
+ */
+const MAX_INTERPRETATION_CONFIDENCE = 0.8;
+const INTERPRETATION_PENALTY_PER_OPTION = 0.06;
+
 /** Rondt af op 2 decimalen zodat de uitvoer stabiel en leesbaar is (geen drijvende-komma-ruis). */
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -27,6 +37,16 @@ function round2(value: number): number {
 /** Zekerheid voor de optie op positie `index`: aflopend vanaf de top, geklemd op de ondergrens. */
 function confidenceForIndex(index: number): number {
   return round2(Math.max(MIN_CONFIDENCE, TOP_CONFIDENCE - index * CONFIDENCE_STEP));
+}
+
+/**
+ * Interpretatie-zekerheid (DESIGN §7.4) als deterministische functie van het aantal opties: hoe meer
+ * opties nog openstaan, hoe onzekerder de intentie. Geklemd op [`MIN_CONFIDENCE`,
+ * `MAX_INTERPRETATION_CONFIDENCE`] zodat de mock nooit boven de voorsteldrempel komt.
+ */
+function interpretationConfidence(optionCount: number): number {
+  const raw = MAX_INTERPRETATION_CONFIDENCE - INTERPRETATION_PENALTY_PER_OPTION * (optionCount - 1);
+  return round2(Math.min(MAX_INTERPRETATION_CONFIDENCE, Math.max(MIN_CONFIDENCE, raw)));
 }
 
 export class MockAiProvider implements AiProvider {
@@ -47,6 +67,7 @@ export class MockAiProvider implements AiProvider {
     return Promise.resolve({
       question,
       options,
+      confidence: interpretationConfidence(options.length),
       reason: `mock: ${options.length} optie(s) in bibliotheekvolgorde, aflopende zekerheid`,
     });
   }
