@@ -108,8 +108,46 @@ const envSchema = z
     // aftasten van adressen. Streng, want opnieuw versturen hoort zelden nodig te zijn.
     RESEND_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(3),
     RESEND_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
+    // AI-orchestrator (T5.1, DESIGN §7, §9.2). De backend praat namens de client met de LLM — de
+    // client nooit rechtstreeks (DESIGN §8.1). De provider zit achter een provider-agnostische
+    // interface (zie ADR-0008); welke concrete provider gebruikt wordt, bepaalt `AI_PROVIDER`.
+    // `mock` is de deterministische provider voor dev/test (geen netwerk, geen key nodig); echte
+    // providers (bv. een self-hosted `ollama`) worden in T5.2/T5.6 aangesloten.
+    AI_PROVIDER: z.enum(['mock', 'ollama']).default('mock'),
+    // Verbindingsgegevens voor een echte LLM-provider. Leeg bij de mock. De sleutel is een
+    // infrastructuur-credential (nooit naar de client); buiten test moet de URL https zijn.
+    AI_API_URL: z.string().default(''),
+    AI_API_KEY: z.string().default(''),
+    // Model-identifier van de echte provider (bv. een Ollama-modelnaam). Leeg bij de mock.
+    AI_MODEL: z.string().default(''),
+    // Time-out (ms) voor een AI-aanroep, zodat een trage/hangende provider de flow niet ophoudt.
+    AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
   })
   .superRefine((value, ctx) => {
+    // Een echte (niet-mock) AI-provider heeft een verbindings-URL en model nodig; anders zou de
+    // orchestrator bij de eerste aanroep stilletjes falen. Deze eis geldt in elke omgeving.
+    if (value.AI_PROVIDER !== 'mock') {
+      if (!value.AI_API_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AI_API_URL'],
+          message: `AI_API_URL is verplicht bij AI_PROVIDER=${value.AI_PROVIDER}.`,
+        });
+      } else if (!/^https:\/\//i.test(value.AI_API_URL) && value.NODE_ENV === 'production') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AI_API_URL'],
+          message: 'AI_API_URL moet https zijn in productie.',
+        });
+      }
+      if (!value.AI_MODEL) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AI_MODEL'],
+          message: `AI_MODEL is verplicht bij AI_PROVIDER=${value.AI_PROVIDER}.`,
+        });
+      }
+    }
     if (value.NODE_ENV !== 'production') return;
     for (const key of ['SIGNING_SECRET', 'ENCRYPTION_KEY'] as const) {
       if (DEV_SECRET_DEFAULTS.has(value[key])) {

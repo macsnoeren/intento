@@ -86,6 +86,17 @@
       `502`); zoekresultaten zonder `https`-afbeelding worden weggefilterd vóór ze de client bereiken.
       Getest in `routes/aac.opensymbols.test.ts` (niet-`https` → `400`, interne host → `400`,
       `415`/`413`/`502`/`503`, sanering van niet-`https`-resultaten).
+- [x] **AI-grens en promptbegrenzing (T5.1)** — de AI loopt **volledig server-side** achter de
+      AI-Orchestrator (`server/src/ai/`); de client praat nooit rechtstreeks met de LLM (DESIGN §8.1) en
+      de AI-schema's staan bewust server-intern (niet in `@intento/shared`). Elke aanroep krijgt alléén de
+      **beperkte, verse context** (systeemregels + doel + AAC-regels + toegestane gebruikerscontext +
+      gesprekscontext + laatste keuze; **geen** chatgeschiedenis) via `buildAiPrompt`, waarvan de
+      sleutelset gesloten is — er kan geen ongevraagde context (PII, vrije tekst) inlekken. De harde
+      veiligheidsregels (DESIGN §7.8: nooit verzinnen/namens de gebruiker spreken/buiten de AAC-concepten)
+      reizen als systeemregels mee. De provider-uitvoer wordt **opnieuw** zod-gevalideerd (een provider/
+      worker wordt nooit vertrouwd; de AAC-existentiecheck volgt in T5.2). `AI_API_KEY` is een
+      infrastructuur-credential in de env, nooit richting client. Gekozen richting: een **self-hosted**
+      LLM (privacy by design), niet een externe cloud-API (ADR-0008). Getest in `server/src/ai/*.test.ts`.
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

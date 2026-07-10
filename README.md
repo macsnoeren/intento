@@ -224,6 +224,18 @@ curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/next 
 curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/back
 ```
 
+## AI-fundament (T5.1)
+
+De AI-fase begint met het **fundament** onder de vraagselectie (`server/src/ai/`), nog **zonder** de
+gescripte engine te vervangen (dat is T5.2, achter dezelfde `/conversation/{id}/next`). Het bestaat uit
+een provider-agnostische **`AiProvider`**-interface, een **`AiOrchestrator`** die per aanroep de
+**beperkte, verse context** samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext +
+gesprekscontext + laatste keuze; **geen** chatgeschiedenis) en de provider-uitvoer opnieuw valideert, en
+een **deterministische mock-provider** voor dev en tests. De client praat nooit rechtstreeks met de AI
+(DESIGN §8.1); de AI-schema's staan server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `ollama`
+volgt in T5.5/T5.6). Zie [docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md) en
+[docs/api.md](docs/api.md).
+
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 
 ```bash

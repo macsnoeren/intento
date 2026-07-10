@@ -7,8 +7,8 @@
 ## Overzicht
 
 Intento is een monorepo met drie workspaces. De web-app (tablet) praat uitsluitend
-met de backend-API; de backend praat later met de externe LLM via een AI-Orchestrator
-met validatielaag. De client praat **nooit** rechtstreeks met de AI (DESIGN §8.1).
+met de backend-API; de backend praat met de LLM via een AI-Orchestrator met validatielaag
+(fundament vanaf T5.1, `server/src/ai/`). De client praat **nooit** rechtstreeks met de AI (DESIGN §8.1).
 
 ```
 web (React/Vite, tablet)  ──HTTP──▶  server (Fastify 5)  ──▶  AI-Orchestrator + AAC (later)
@@ -31,7 +31,7 @@ server niet uit elkaar lopen.
 | Frontend | React 19 + Vite | Eén codebase voor de drie interfaces; tablet-first. |
 | Database | Prisma (SQLite dev → PostgreSQL prod) | Driver adapters; zie [adr/0003](adr/0003-persistence-prisma-sqlite-postgres.md). |
 | Auth | argon2id + gehashte sessietokens | Vanaf T1.1. |
-| AI | Externe LLM achter AI-Orchestrator | Vanaf fase 5; provider-agnostisch. |
+| AI | Self-hosted LLM achter AI-Orchestrator | Fundament vanaf T5.1; provider-agnostisch, mock in tests. Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md). |
 
 ## Mappenstructuur
 
@@ -41,6 +41,10 @@ server niet uit elkaar lopen.
   `routes/` (één bestand per domein), `db/` (Prisma-client-singleton).
 - `server/prisma/` — `schema.prisma` (datamodel), `migrations/`, `seed.ts`. De
   CLI-config staat in `server/prisma.config.ts`.
+- `server/src/ai/` — het AI-fundament (T5.1): de provider-agnostische `AiProvider`-interface
+  (`provider.ts`), de `AiOrchestrator` (`orchestrator.ts`), de beperkte-context-bouw (`prompt.ts`) en
+  de deterministische `MockAiProvider` (`mock-provider.ts`). Server-intern — de client praat nooit met
+  de AI. Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`
@@ -84,6 +88,12 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
 - **Prisma-client-singleton** (`db/prisma.ts`) — verbindt via een driver adapter
   (SQLite in dev/test) op basis van `DATABASE_URL`; wordt op `globalThis` bewaard zodat
   `tsx watch` niet telkens een nieuwe verbinding opent. Zie [data-model.md](data-model.md).
+- **AI-Orchestrator** (`ai/`) — de tussenlaag tussen de gespreksflow en de LLM. Per aanroep stelt hij
+  de **beperkte, verse context** samen (`buildAiPrompt`: systeemregels + doel + AAC-regels +
+  gebruikerscontext + gesprekscontext + laatste keuze + toegestane opties — géén chatgeschiedenis) en
+  **valideert de provider-uitvoer opnieuw** met zod. De provider zit achter de injecteerbare
+  `AiProvider`-interface (mock in tests, self-hosted LLM later), net als de OpenSymbols-client. Zie
+  [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
 
 ## Gerelateerde documentatie
 

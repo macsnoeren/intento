@@ -151,4 +151,24 @@ Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_L
 communicatie wordt bewaard (DESIGN §3.6): `/generate` is vluchtig en afgewezen voorstellen belanden nooit
 in de db — een `GeneratedMessage` bestaat pas na `/confirm`.
 
-<Volgende domeinen (AI-orchestrator, …) worden hier per taak toegevoegd.>
+## AI-orchestrator (intern, T5.1)
+
+De AI is een **interne** laag; er is bewust **geen client-endpoint** dat rechtstreeks met de AI praat
+(DESIGN §8.1). De interne interface backend ↔ orchestrator (DESIGN §8.2, `POST /ai/next-decision`) leeft
+in `server/src/ai/` en wordt in T5.2 achter `/conversation/{id}/next` gezet — dan verschijnt hier geen
+nieuwe publieke route, maar wisselt de vraagselectie van de gescripte engine naar de orchestrator.
+
+De vorm van de interne AI-in-/uitvoer (zod, `server/src/ai/provider.ts` — **niet** in `@intento/shared`,
+want de client kent ze niet):
+
+- **Prompt (in):** `{ task: 'select_next_question', systemRules[], goal, aacRules[], userContext[],
+  conversationContext[{concept, label}], lastChoice, availableSymbols[{concept, label}] }` — de beperkte,
+  verse context (DESIGN §7.7), **zonder** chatgeschiedenis. `buildAiPrompt` is de enige bouwer; de
+  sleutelset is gesloten.
+- **Decision (uit):** `{ question, options[{symbol, confidence}], reason }` — `symbol` is een
+  **conceptsleutel**; `confidence ∈ [0,1]`. De orchestrator valideert de provider-uitvoer opnieuw (een
+  provider/worker wordt nooit vertrouwd). De AAC-existentiecheck van `symbol` en de confidence-drempels
+  (DESIGN §7.4) volgen in de validatielaag (T5.2).
+
+Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test) of `ollama` (nog niet aangesloten —
+weigert te starten tot T5.5/T5.6). Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).

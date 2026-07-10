@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.1 Provider-interface en promptfundament.** Het **fundament onder de AI-fase** (DESIGN §7.2, §7.7,
+  §9.2) — nog zonder de gescripte engine te vervangen (dat is T5.2). Nieuwe module `server/src/ai/`:
+  een provider-agnostische **`AiProvider`**-interface (`selectNextQuestion(prompt) → {question,
+  options[{symbol, confidence}], reason}`, zod-gevalideerd), een **`AiOrchestrator`** die per aanroep de
+  **beperkte, verse context** samenstelt (`systeemregels + doel + AAC-regels + gebruikerscontext +
+  gesprekscontext + laatste keuze + toegestane opties`; **geen** chatgeschiedenis, DESIGN §7.7/§7.8) via
+  `buildAiPrompt` en de provider-uitvoer **opnieuw valideert** (een provider/worker wordt nooit
+  vertrouwd), en een **deterministische `MockAiProvider`** voor dev en alle tests (geen netwerk, geen
+  key; stelt uitsluitend aangeboden, AAC-begrensde opties voor met aflopende, geklemde confidence). De
+  AI werkt in **concept-ruimte** (conceptsleutels, niet symbool-id's of vrije tekst), zodat de uitvoer
+  koppelbaar blijft aan de AAC-bibliotheek. De AI-schema's staan bewust **server-intern** (niet in
+  `@intento/shared`): de client praat nooit met de AI (DESIGN §8.1). Providerkeuze via env
+  (`AI_PROVIDER` = `mock`|`ollama`, plus `AI_API_URL`/`AI_API_KEY`/`AI_MODEL`/`AI_REQUEST_TIMEOUT_MS`);
+  `createAiProvider` bouwt in T5.1 alleen de mock — `AI_PROVIDER=ollama` weigert bewust te starten tot
+  T5.5/T5.6 (fail-loud i.p.v. stil "geen AI"). Env-validatie eist bij een echte provider een URL + model
+  (https in productie). Tests: de prompt heeft aantoonbaar een **gesloten sleutelset** (geen
+  chatgeschiedenis/vrije velden), de mock is deterministisch en AAC-begrensd, en de orchestrator gooit op
+  ongeldige provider-uitvoer. Providerkeuze en begrenzing vastgelegd in **ADR-0008**; gedocumenteerd in
+  `docs/architecture.md`, `docs/api.md`, `docs/security.md` en `.env.example`.
 - **T4.3 Boodschap voorstellen en bevestigen (gescript).** De gespreksflow (DESIGN §3.1, §3.6, FR-007)
   eindigt nu in een **voorstel- en bevestigingsstap**. Twee nieuwe endpoints op device-auth:
   `POST /conversation/{id}/generate` vormt uit de gekozen concepten een **sjabloon-gebaseerde** zin

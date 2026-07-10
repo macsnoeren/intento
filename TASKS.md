@@ -92,7 +92,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 5 — AI-orchestrator
 
-- [ ] **T5.1 Provider-interface en promptfundament**
+- [x] **T5.1 Provider-interface en promptfundament**
   *DESIGN: §7.2, §7.7, §9.2, §9.3.* ADR: keuze LLM-provider. Provider-agnostische `AiProvider`-interface + AI-Orchestrator-service die per aanroep de beperkte context samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext + gesprekscontext + laatste keuze; géén chatgeschiedenis) en gestructureerde output afdwingt (`question`, `options[{symbol, confidence}]`, `reason`). Deterministische mock-provider voor alle tests; API-key via env.
   *Acceptatie:* orchestrator levert met mock-provider geldige, zod-gevalideerde output; prompt bevat aantoonbaar alléén toegestane context.
 
