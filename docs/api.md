@@ -197,6 +197,36 @@ want de client kent ze niet):
   `propose` is er geen vraag meer (`question: null`, `done: true`). Overgebleven opties worden op zekerheid
   geordend (meest waarschijnlijke eerst).
 
-Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test) of `ollama` (nog niet aangesloten —
-weigert te starten tot T5.5/T5.6). Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
+Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test), `queue` (gedistribueerde workers —
+T5.5, zie hieronder) of `ollama` (niet in-process; Ollama draait als worker achter de wachtrij — T5.6).
+Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
 [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
+
+## Gedistribueerde AI-workers — wachtrij en worker-protocol (T5.5, intern)
+
+Bij `AI_PROVIDER=queue` zet de `QueueAiProvider` elke AI-aanvraag op een **DB-wachtrij** (`AiJob`) i.p.v.
+ze in-process uit te voeren; externe workers (T5.6) halen jobs op en leveren gestructureerde output
+terug. De client praat nog steeds **nooit** rechtstreeks met de AI — een worker is backend-infrastructuur.
+De worker-uitvoer doorloopt exact dezelfde zod-parse (orchestrator) én AAC-validatielaag (T5.2), dus een
+onbekend concept van een worker bereikt de gebruiker nooit. Zie [adr/0010](adr/0010-distributed-ai-worker-queue.md).
+
+**Backpressure.** Boven `AI_WORKER_MAX_CONCURRENT_JOBS` gelijktijdige jobs krijgt de aanvrager
+`WAITING_FOR_WORKER` met een positie; de gespreks-endpoints antwoorden dan met
+`503 AI_WORKER_BUSY` + `Retry-After` (body: `{ error, waiting: true, position, retryAfterMs }`) i.p.v. te
+blokkeren. Time-out/mislukking → `503 AI_WORKER_UNAVAILABLE`.
+
+**Worker-endpoints** (`server/src/routes/ai-worker.ts`) — **worker-initiated** (long-poll, robuust achter
+NAT), authenticatie met een **worker-token** in de `Authorization: Bearer …`-header (apart van gebruiker-/
+device-/sessietokens; **gehasht** at-rest, scope `ai:process`, intrekbaar/verlopend), per-IP rate-limited:
+
+| Methode | Pad | Doel |
+|---|---|---|
+| POST | `/ai/worker/claim` | Claim de oudste wachtende job (long-poll). `200` + `{ job: { id, task, payload } }` (payload = de beperkte prompt-context) of `204` als er niets claimbaar is. |
+| POST | `/ai/worker/jobs/{id}/heartbeat` | Lease verlengen tijdens lange inferentie. `200` + `{ leaseExpiresAt }`; niet (meer) eigenaar → `409 JOB_NOT_CLAIMED`. |
+| POST | `/ai/worker/jobs/{id}/result` | Gestructureerd resultaat inleveren; **op de grens gevalideerd** tegen het bij de taak horende zod-schema (verkeerde vorm → `400`). `200`; niet (meer) eigenaar → `409`. |
+| POST | `/ai/worker/jobs/{id}/fail` | Nette teruggave bij een fout (`{ message? }`): terug in de wachtrij (pogingen over) of afgeschreven. `200`; niet (meer) eigenaar → `409`. |
+
+Auth-fouten: geen/onbekend token → `401 WORKER_UNAUTHENTICATED`; ingetrokken/verlopen → `403
+WORKER_TOKEN_INACTIVE`; ontbrekende scope → `403 WORKER_SCOPE_DENIED`. Een worker-token wordt gemunt via
+`npm run worker-token:create --workspace=server -- --name <label> [--ttl-days N] [--scopes ai:process]`
+(het rauwe token wordt één keer getoond).

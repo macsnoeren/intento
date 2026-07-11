@@ -1,6 +1,10 @@
 import type { Env } from '../env.js';
+import type { PrismaClient } from '../generated/prisma/client.js';
+import { prisma as defaultPrisma } from '../db/prisma.js';
 import { MockAiProvider } from './mock-provider.js';
 import { AiOrchestrator } from './orchestrator.js';
+import { QueueAiProvider } from './queue-provider.js';
+import { queueConfigFromEnv } from './job-queue.js';
 import type { AiProvider } from './provider.js';
 
 /**
@@ -17,18 +21,28 @@ export * from './prompt.js';
 export * from './thresholds.js';
 export { AiOrchestrator } from './orchestrator.js';
 export { MockAiProvider } from './mock-provider.js';
+export { QueueAiProvider } from './queue-provider.js';
+export { AiWorkerBusyError, AiWorkerUnavailableError } from './errors.js';
 export { validateAiOptions, type ValidatedOption, type ValidationResult } from './validation.js';
 
-/** Bouwt de AI-provider uit de env. Zie `Env.AI_PROVIDER`. */
-export function createAiProvider(env: Env): AiProvider {
+/**
+ * Bouwt de AI-provider uit de env (zie `Env.AI_PROVIDER`). `queue` heeft de Prisma-client nodig (de
+ * wachtrij leeft in de db); voor de mock is die niet nodig.
+ */
+export function createAiProvider(env: Env, prisma: PrismaClient = defaultPrisma): AiProvider {
   switch (env.AI_PROVIDER) {
     case 'mock':
       return new MockAiProvider();
+    case 'queue':
+      // Gedistribueerde workers (T5.5, ADR-0010): de backend zet jobs op de wachtrij; externe workers
+      // (T5.6) verwerken ze en leveren gestructureerde output terug.
+      return new QueueAiProvider(prisma, queueConfigFromEnv(env));
     case 'ollama':
-      // De echte, wachtrij-/worker-gebaseerde Ollama-provider volgt in T5.5/T5.6. Tot die tijd
-      // weigeren we te starten zodat een misconfiguratie niet stil op "geen AI" uitkomt.
+      // Een directe, in-process Ollama-provider is bewust niet gebouwd: Ollama draait als losstaande
+      // worker (T5.6) achter de wachtrij (AI_PROVIDER=queue). Weigeren zodat een misconfiguratie niet
+      // stil op "geen AI" uitkomt.
       throw new Error(
-        'AI_PROVIDER=ollama is nog niet aangesloten (volgt in T5.5/T5.6); gebruik AI_PROVIDER=mock.',
+        'AI_PROVIDER=ollama is niet in-process aangesloten; draai Ollama als worker (T5.6) met AI_PROVIDER=queue.',
       );
     default: {
       // Exhaustiveness-guard: dwingt af dat elke nieuwe AI_PROVIDER-waarde hier wordt afgehandeld.
@@ -39,6 +53,6 @@ export function createAiProvider(env: Env): AiProvider {
 }
 
 /** Gemak: bouwt een orchestrator met de uit de env gekozen provider. */
-export function createAiOrchestrator(env: Env): AiOrchestrator {
-  return new AiOrchestrator(createAiProvider(env));
+export function createAiOrchestrator(env: Env, prisma: PrismaClient = defaultPrisma): AiOrchestrator {
+  return new AiOrchestrator(createAiProvider(env, prisma));
 }

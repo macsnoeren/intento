@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadEnv } from '../env.js';
-import { createAiOrchestrator, createAiProvider, MockAiProvider } from './index.js';
+import { createAiOrchestrator, createAiProvider, MockAiProvider, QueueAiProvider } from './index.js';
+import { prisma } from '../db/prisma.js';
 
 /** Minimale, geldige env voor de tests (dev-defaults volstaan). */
 const baseEnv = {
@@ -21,14 +22,21 @@ describe('createAiProvider — providerkeuze uit de env (ADR-0008)', () => {
     expect(createAiOrchestrator(env).providerName).toBe('mock');
   });
 
-  it('weigert een echte provider te starten zolang die niet is aangesloten (T5.5/T5.6)', () => {
+  it('bouwt de wachtrij-provider bij AI_PROVIDER=queue (T5.5)', () => {
+    const env = loadEnv({ ...baseEnv, AI_PROVIDER: 'queue' });
+    const provider = createAiProvider(env, prisma);
+    expect(provider).toBeInstanceOf(QueueAiProvider);
+    expect(provider.name).toBe('queue');
+  });
+
+  it('weigert een in-process ollama-provider (Ollama draait als worker achter de wachtrij, T5.6)', () => {
     const env = loadEnv({
       ...baseEnv,
       AI_PROVIDER: 'ollama',
       AI_API_URL: 'https://ollama.local',
       AI_MODEL: 'llama3',
     });
-    expect(() => createAiProvider(env)).toThrow(/nog niet aangesloten/i);
+    expect(() => createAiProvider(env)).toThrow(/niet in-process aangesloten/i);
   });
 });
 

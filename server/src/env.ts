@@ -113,7 +113,7 @@ const envSchema = z
     // interface (zie ADR-0008); welke concrete provider gebruikt wordt, bepaalt `AI_PROVIDER`.
     // `mock` is de deterministische provider voor dev/test (geen netwerk, geen key nodig); echte
     // providers (bv. een self-hosted `ollama`) worden in T5.2/T5.6 aangesloten.
-    AI_PROVIDER: z.enum(['mock', 'ollama']).default('mock'),
+    AI_PROVIDER: z.enum(['mock', 'ollama', 'queue']).default('mock'),
     // Verbindingsgegevens voor een echte LLM-provider. Leeg bij de mock. De sleutel is een
     // infrastructuur-credential (nooit naar de client); buiten test moet de URL https zijn.
     AI_API_URL: z.string().default(''),
@@ -121,12 +121,38 @@ const envSchema = z
     // Model-identifier van de echte provider (bv. een Ollama-modelnaam). Leeg bij de mock.
     AI_MODEL: z.string().default(''),
     // Time-out (ms) voor een AI-aanroep, zodat een trage/hangende provider de flow niet ophoudt.
+    // Bij `AI_PROVIDER=queue` is dit óók de maximale tijd dat de backend op een worker-resultaat wacht.
     AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
+    // --- Gedistribueerde AI-workers (T5.5, DESIGN §7.2, §9.2, ADR-0010) ---
+    // Alleen van kracht bij AI_PROVIDER=queue. De backend zet AI-aanvragen op een DB-wachtrij; externe
+    // workers halen ze op (worker-initiated long-poll) en leveren gestructureerde output terug.
+    // Maximum aantal gelijktijdig actieve jobs (QUEUED+CLAIMED). Daarboven → WAITING_FOR_WORKER
+    // (backpressure): de aanvrager krijgt een wacht-signaal i.p.v. te blokkeren.
+    AI_WORKER_MAX_CONCURRENT_JOBS: z.coerce.number().int().positive().max(1000).default(4),
+    // Lease-duur (ms) van een geclaimde job: verstrijkt die zonder heartbeat/resultaat, dan is de worker
+    // vermoedelijk gecrasht en wordt de job teruggelegd in de wachtrij. Korter = sneller herstel.
+    AI_WORKER_LEASE_MS: z.coerce.number().int().positive().max(600_000).default(30_000),
+    // Maximaal aantal claim-pogingen voordat een job als FAILED wordt afgeschreven (crash-lus vermijden).
+    AI_WORKER_MAX_ATTEMPTS: z.coerce.number().int().positive().max(100).default(3),
+    // Uiterste wachttijd (ms) dat een niet-opgepakte job in de wachtrij mag staan → daarna EXPIRED
+    // (nette wachtrij-timeout, geen eeuwig hangende aanvraag).
+    AI_WORKER_QUEUE_TTL_MS: z.coerce.number().int().positive().max(3_600_000).default(60_000),
+    // Hoe lang de claim-endpoint (long-poll) op een job wacht voordat hij 204 teruggeeft. 0 = niet
+    // wachten (direct antwoord). Kort houden i.v.m. open verbindingen achter een proxy.
+    AI_WORKER_CLAIM_LONGPOLL_MS: z.coerce.number().int().min(0).max(60_000).default(20_000),
+    // Poll-interval (ms) waarmee de backend de wachtrij op een worker-resultaat controleert, en waarmee
+    // de long-poll-claim itereert. Klein genoeg voor snelle respons, groot genoeg om niet te bonzen.
+    AI_WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().max(10_000).default(250),
+    // Rate limiting op de worker-endpoints (per IP), tegen misbruik van een gelekt/geraden pad. Ruim,
+    // want een worker die long-pollt doet weinig requests per minuut.
+    AI_WORKER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(100_000).default(600),
+    AI_WORKER_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
   })
   .superRefine((value, ctx) => {
-    // Een echte (niet-mock) AI-provider heeft een verbindings-URL en model nodig; anders zou de
-    // orchestrator bij de eerste aanroep stilletjes falen. Deze eis geldt in elke omgeving.
-    if (value.AI_PROVIDER !== 'mock') {
+    // Een directe (in-process) LLM-provider heeft een verbindings-URL en model nodig; anders zou de
+    // orchestrator bij de eerste aanroep stilletjes falen. `queue` heeft dat NIET nodig: de externe
+    // workers houden hun eigen modelconfiguratie (T5.6), de backend kent alleen de wachtrij.
+    if (value.AI_PROVIDER === 'ollama') {
       if (!value.AI_API_URL) {
         ctx.addIssue({
           code: 'custom',

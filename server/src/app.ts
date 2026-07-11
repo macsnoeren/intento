@@ -16,6 +16,7 @@ import { registerCaregiverRoutes } from './routes/caregivers.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
 import { registerConversationRoutes } from './routes/conversation.js';
+import { registerAiWorkerRoutes } from './routes/ai-worker.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createAiOrchestrator, type AiOrchestrator } from './ai/index.js';
@@ -45,7 +46,7 @@ export async function buildApp({
   logger = false,
   openSymbols = createOpenSymbolsClient(env),
   mail = createMailTransport(env),
-  orchestrator = createAiOrchestrator(env),
+  orchestrator = createAiOrchestrator(env, prisma),
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger,
@@ -89,6 +90,9 @@ export async function buildApp({
   registerDeviceRoutes(app, { env, prisma });
   registerAacRoutes(app, { prisma, env, openSymbols });
   registerConversationRoutes(app, { prisma, orchestrator });
+  // Worker-endpoints voor de gedistribueerde AI-wachtrij (T5.5). Altijd geregistreerd: ze werken op de
+  // AiJob-tabel en zijn onschadelijk zonder queue-provider (er komen dan simpelweg geen jobs binnen).
+  registerAiWorkerRoutes(app, { env, prisma });
 
   return app;
 }

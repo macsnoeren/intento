@@ -15,7 +15,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "worker-token:create": "tsx --env-file=.env src/scripts/create-worker-token.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

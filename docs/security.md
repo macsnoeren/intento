@@ -97,6 +97,21 @@
       worker wordt nooit vertrouwd; de AAC-existentiecheck volgt in T5.2). `AI_API_KEY` is een
       infrastructuur-credential in de env, nooit richting client. Gekozen richting: een **self-hosted**
       LLM (privacy by design), niet een externe cloud-API (ADR-0008). Getest in `server/src/ai/*.test.ts`.
+- [x] **Gedistribueerde AI-workers / worker-token (T5.5)** — een externe worker is **backend-
+      infrastructuur, geen vertrouwde component** (ADR-0010): de client praat nog steeds nooit met de AI,
+      en **alle** worker-uitvoer wordt op de grens opnieuw zod-gevalideerd (`routes/ai-worker.ts`,
+      verkeerde vorm → `400`) én loopt door de AAC-validatielaag (T5.2) — een onbekend concept van een
+      worker bereikt de gebruiker nooit. Het **worker-token** is een aparte auth-pijler (naast account-/
+      device-/sessietokens), **gehasht at-rest** (SHA-256, `ai/worker-token.ts`), 256-bit random, met een
+      **scope** (`ai:process`), **intrekbaar** (`revokedAt`) en optioneel **verlopend** (`expiresAt`); het
+      gaat als `Authorization: Bearer …` mee (geen cookie). `workerAuthorize` (`auth/worker.ts`) geeft
+      `401` bij geen/onbekend token en `403` bij ingetrokken/verlopen/verkeerde-scope. De worker-endpoints
+      zijn **per-IP rate-limited** (`AI_WORKER_RATE_LIMIT_*`). Een worker die zijn lease verliest (crash/
+      time-out) kan zijn oude job niet meer voltooien (guarded update). De payload/het resultaat bevat
+      **geen** communicatie-inhoud buiten AAC-concepten (privacy by design). **Backpressure** (503
+      `AI_WORKER_BUSY`) voorkomt dat een piek de site laat blokkeren (DESIGN §9.4). Worker-tokens worden
+      buiten de UI gemunt via een CLI. Getest in `ai/job-queue.test.ts`, `ai/queue-provider.test.ts`,
+      `routes/ai-worker.test.ts` en `routes/conversation-queue.test.ts`.
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

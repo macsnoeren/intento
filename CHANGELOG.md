@@ -6,6 +6,35 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.5 Externe AI-workers: wachtrij en worker-protocol (backend).** Een gedistribueerd worker-model
+  naast de lokale mock (DESIGN §7.2, §7.7, §9.2, §9.3, §9.4; **ADR-0010**). Nieuwe env-waarde
+  **`AI_PROVIDER=queue`** met een **`QueueAiProvider`** (`server/src/ai/queue-provider.ts`) die aanvragen
+  op een **DB-wachtrij** zet i.p.v. synchroon uit te voeren, achter dezelfde `AiProvider`-interface — de
+  orchestrator en validatielaag (T5.1/T5.2) blijven ongewijzigd, dus **worker-uitvoer doorloopt exact
+  dezelfde zod-parse én AAC-validatie** (een onbekend concept van een worker bereikt de gebruiker nooit).
+  Twee nieuwe modellen + migratie (`ai_worker_queue`): **`AiJob`** (wachtrij: `payloadJson`, `status`
+  WAITING_FOR_WORKER/QUEUED/CLAIMED/SUCCEEDED/FAILED/EXPIRED, `attempts`, lease- en TTL-velden) en
+  **`WorkerToken`** (infrastructuur-credential, **gehasht at-rest** met SHA-256, scope `ai:process`,
+  intrekbaar/verlopend). **Worker-initiated protocol** (`server/src/routes/ai-worker.ts`, alle onder
+  `workerAuthorize`, bearer-token, per-IP rate-limited, robuust achter NAT): `POST /ai/worker/claim`
+  (long-poll), `…/jobs/:id/heartbeat`, `…/jobs/:id/result` (op de grens tegen de zod-schema's gevalideerd)
+  en `…/jobs/:id/fail`. **Backpressure** via `AI_WORKER_MAX_CONCURRENT_JOBS`: boven het maximum krijgt de
+  aanvrager **`WAITING_FOR_WORKER`** met positie → 503 `AI_WORKER_BUSY` + `Retry-After` i.p.v. te
+  blokkeren. **Crash-herstel zonder achtergrond-timer:** een opportunistische sweep (bij elke
+  enqueue/claim/poll) legt een verlopen lease terug (na `AI_WORKER_MAX_ATTEMPTS` → FAILED) en laat
+  nooit-opgepakte jobs verlopen (EXPIRED). Worker-tokens worden gemunt via een CLI
+  (`npm run worker-token:create --workspace=server -- --name <label>`); het rauwe token wordt één keer
+  getoond. Nieuwe env: `AI_WORKER_MAX_CONCURRENT_JOBS`, `AI_WORKER_LEASE_MS`, `AI_WORKER_MAX_ATTEMPTS`,
+  `AI_WORKER_QUEUE_TTL_MS`, `AI_WORKER_CLAIM_LONGPOLL_MS`, `AI_WORKER_POLL_INTERVAL_MS`,
+  `AI_WORKER_RATE_LIMIT_MAX/_WINDOW_MINUTES`. Tests: wachtrij-service (queue→claim→resultaat, backpressure
+  met positie, promotie, crash-requeue, maxAttempts→FAILED, heartbeat, EXPIRED, `waitForJobResult`),
+  `QueueAiProvider` (resolve via gesimuleerde worker, busy, time-out), worker-endpoints (auth 401/403,
+  claim/resultaat/heartbeat, verkeerd gevormd resultaat → 400), en **end-to-end** op de gespreksflow
+  (onbekend worker-concept afgevangen als `ConceptProposal`; volle wachtrij → 503 met positie).
+  Gedocumenteerd in `docs/adr/0010`, `docs/architecture.md`, `docs/api.md`, `docs/data-model.md`,
+  `docs/security.md`, `README.md` en `.env.example`. **Buiten scope (nieuwe vervolgtaken in TASKS.md):**
+  de tablet-UX voor WAITING (spinner + polling) en een beheer-UI voor worker-tokens; de standalone
+  Python/Ollama-worker is T5.6.
 - **T5.4 Correctieflow.** Nieuw endpoint **`POST /conversation/{id}/correction`** (`type: "wrong_guess"`,
   standaard) voor het afwijzen van een voorstel (❌), DESIGN §3.4, §6.2 (CorrectionEvent), §7.6, FR-009.
   De flow gaat **niet** terug naar het begin: de **heranalyse** (`server/src/conversation/correction.ts`,

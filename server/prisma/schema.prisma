@@ -433,3 +433,70 @@ model Session {
 
   @@index([accountId])
 }
+
+/// Een infrastructuur-credential voor een externe AI-worker (T5.5, DESIGN §7.2, §9.2, §9.4, ADR-0010).
+/// Losstaand van gebruiker-/device-/sessietokens: een worker is infrastructuur, geen gebruiker en geen
+/// tenant. Het rauwe token staat NOOIT plaintext in de db — alleen de SHA-256-hash (`tokenHash`), net als
+/// bij sessie- en apparaat-tokens. De worker stuurt het rauwe token als `Authorization: Bearer …` mee
+/// (geen cookie: workers zijn geen browsers). Intrekbaar via `revokedAt`; optioneel verlopend via
+/// `expiresAt`. `scopes` begrenst wat het token mag (nu alleen "ai:process"); komma-gescheiden, op de
+/// grens gevalideerd (geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
+model WorkerToken {
+  id         String    @id @default(cuid())
+  /// Menselijke labelnaam (bv. "gpu-node-1"), puur voor beheer/diagnose.
+  name       String
+  /// SHA-256-hash (hex) van het worker-token. Uniek zodat lookup op hash direct raakt.
+  tokenHash  String    @unique
+  /// Toegestane scopes, komma-gescheiden (bv. "ai:process"). Op de grens gevalideerd.
+  scopes     String    @default("ai:process")
+  /// Ingetrokken op dit moment; daarna weigert `workerAuthorize` het token. `null` = actief.
+  revokedAt  DateTime?
+  /// Optionele vervaltijd; na dit moment is het token ongeldig. `null` = verloopt niet.
+  expiresAt  DateTime?
+  /// Laatst geziene activiteit (best-effort bijgewerkt bij claim/heartbeat), voor beheer/diagnose.
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  jobs AiJob[]
+
+  @@index([revokedAt])
+}
+
+/// Eén AI-aanvraag in de gedistribueerde wachtrij (T5.5, DESIGN §7.2, §7.7, §9.2, ADR-0010). De DB is de
+/// bron van waarheid zodat een herstart of worker-crash geen aanvraag verliest. `payloadJson` bevat de
+/// door `buildAiPrompt`/`buildMessagePrompt` samengestelde **beperkte** context (systeemregels + doel +
+/// AAC-regels + gebruikers-/gesprekscontext); `resultJson` de door de worker ingeleverde, opnieuw met de
+/// zod-schema's (T5.1) gevalideerde uitvoer. De uitvoer doorloopt daarna nog de AAC-validatielaag (T5.2)
+/// — een worker wordt nooit vertrouwd. Bewust géén communicatie-inhoud buiten de AAC-concepten (privacy
+/// by design, DESIGN §3.6, §9.4).
+model AiJob {
+  id             String    @id @default(cuid())
+  /// De AI-taak: "select_next_question" | "generate_message" (op de grens gevalideerd; geen native enum
+  /// i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
+  task           String
+  /// Status: "WAITING_FOR_WORKER" (over capaciteit, nog niet claimbaar) | "QUEUED" (claimbaar) |
+  /// "CLAIMED" (in behandeling) | "SUCCEEDED" | "FAILED" | "EXPIRED". Op de grens gevalideerd.
+  status         String    @default("QUEUED")
+  /// De beperkte prompt-context als JSON-string (zie modeltoelichting).
+  payloadJson    String
+  /// Het door de worker ingeleverde resultaat als JSON-string; `null` tot succes.
+  resultJson     String?
+  /// Korte foutmelding bij een mislukte/teruggelegde job (geen interne stacktraces).
+  errorMessage   String?
+  /// Aantal keren dat de job geclaimd is; na `AI_WORKER_MAX_ATTEMPTS` teruglegging → FAILED.
+  attempts       Int       @default(0)
+  /// Het worker-token dat de job momenteel/als laatste claimde; `null` zolang niet geclaimd.
+  claimedById    String?
+  claimedAt      DateTime?
+  /// Deadline van de huidige claim-lease; verstrijkt die zonder heartbeat/resultaat → teruggelegd.
+  leaseExpiresAt DateTime?
+  /// Uiterste moment waarop de job nog opgepakt mag worden; daarna → EXPIRED (nette wachtrij-timeout).
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  claimedBy WorkerToken? @relation(fields: [claimedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([claimedById])
+}

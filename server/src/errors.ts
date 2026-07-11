@@ -1,6 +1,7 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
 import type { ApiError } from '@intento/shared';
+import { AiWorkerBusyError, AiWorkerUnavailableError } from './ai/errors.js';
 
 /**
  * Applicatiefout met een expliciete HTTP-status en een stabiele foutcode.
@@ -38,6 +39,28 @@ export function errorHandler(
       .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('; ');
     reply.status(400).send(toApiError('VALIDATION_ERROR', message));
+    return;
+  }
+
+  // Backpressure van de gedistribueerde AI-wachtrij (T5.5, ADR-0010): geen harde fout maar een net
+  // "even wachten"-signaal. 503 + Retry-After, zodat de client niet blokkeert en later opnieuw kan.
+  if (error instanceof AiWorkerBusyError) {
+    reply
+      .status(503)
+      .header('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)))
+      .send({
+        ...toApiError('AI_WORKER_BUSY', error.message),
+        waiting: true,
+        position: error.position,
+        retryAfterMs: error.retryAfterMs,
+      });
+    return;
+  }
+  if (error instanceof AiWorkerUnavailableError) {
+    reply
+      .status(503)
+      .header('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)))
+      .send({ ...toApiError('AI_WORKER_UNAVAILABLE', error.message), retryAfterMs: error.retryAfterMs });
     return;
   }
 

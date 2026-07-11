@@ -19,8 +19,11 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-/gebruikersdata (gesprekken → koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (AI-jobs/worker-tokens → gesprekken → koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
+  // AI-wachtrij eerst: AiJob verwijst (SetNull) naar WorkerToken; beide staan los van de tenant-boom.
+  await prisma.aiJob.deleteMany();
+  await prisma.workerToken.deleteMany();
   await prisma.correctionEvent.deleteMany();
   await prisma.conversationStep.deleteMany();
   await prisma.conversationSession.deleteMany();

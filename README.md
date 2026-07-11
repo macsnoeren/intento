@@ -247,9 +247,30 @@ concepten uitgesloten, terug blijft exact), de **validatielaag** (`ai/validation
 concepten tegen (→ `ConceptProposal` voor de beheerder, T7.3) en de **interpretatie-zekerheid**
 (`ai/thresholds.ts`, §7.4) bepaalt de fase `select`/`refine`/`propose`. Een verzonnen concept bereikt de
 gebruiker **nooit**. De client praat nooit rechtstreeks met de AI (DESIGN §8.1); de AI-schema's staan
-server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `ollama` volgt in T5.5/T5.6). Zie
-[docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
+server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `queue` voor gedistribueerde workers — zie
+hieronder). Zie [docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
 [docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md) en [docs/api.md](docs/api.md).
+
+## Gedistribueerde AI-workers (T5.5)
+
+Met **`AI_PROVIDER=queue`** zet de backend AI-aanvragen op een **DB-wachtrij** (`AiJob`) i.p.v. ze
+in-process uit te voeren; externe workers (T5.6, bv. Ollama op een andere machine) halen jobs op via een
+**worker-initiated** long-poll (robuust achter NAT) en leveren gestructureerde output terug. Diezelfde
+orchestrator-validatie én AAC-validatielaag blijven gelden — een onbekend concept van een worker bereikt
+de gebruiker nooit. Boven `AI_WORKER_MAX_CONCURRENT_JOBS` gelijktijdige jobs krijgt de client een
+**`503 AI_WORKER_BUSY`** (met positie + `Retry-After`) i.p.v. te blokkeren; een gecrashte worker laat zijn
+job na een lease-time-out automatisch teruglegggen.
+
+De worker-endpoints (`/ai/worker/claim|heartbeat|result|fail`) vereisen een **worker-token** (apart
+infrastructuur-credential, gehasht at-rest, scope `ai:process`, intrekbaar). Munt er een via de CLI:
+
+```bash
+npm run worker-token:create --workspace=server -- --name gpu-node-1 [--ttl-days 90]
+```
+
+Het rauwe token wordt **één keer** getoond; zet het in de worker-config (T5.6). Zie
+[docs/adr/0010](docs/adr/0010-distributed-ai-worker-queue.md) en [docs/api.md](docs/api.md). De tablet-UX
+voor de WAITING-status en een beheer-UI voor worker-tokens volgen als aparte taken (`TASKS.md`).
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

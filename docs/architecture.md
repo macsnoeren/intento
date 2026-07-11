@@ -46,8 +46,14 @@ server niet uit elkaar lopen.
   `MockAiProvider` (`mock-provider.ts`) uit T5.1, plus vanaf T5.2 de **validatielaag** (`validation.ts`,
   die AI-opties tegen de AAC-bibliotheek toetst en onbekende concepten als `ConceptProposal` afvangt) en
   de **confidence-drempels** (`thresholds.ts`, §7.4). Server-intern — de client praat nooit met de AI.
-  Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
-  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
+  Vanaf T5.5 óók de **gedistribueerde wachtrij**: `job-queue.ts` (enqueue met backpressure, atomair
+  claimen, resultaat/heartbeat, opportunistische sweep voor crash-herstel en wachtrij-timeout),
+  `queue-provider.ts` (de `QueueAiProvider` achter dezelfde interface), `worker-token.ts`
+  (infrastructuur-credential, gehasht + scoped) en `errors.ts` (`AiWorkerBusyError`/
+  `AiWorkerUnavailableError` → 503). De worker-endpoints staan in `routes/ai-worker.ts` (worker-initiated
+  long-poll, `auth/worker.ts`). Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md),
+  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md) en
+  [adr/0010](adr/0010-distributed-ai-worker-queue.md).
 - `server/src/conversation/decision.ts` — de **AI-beslissingslaag** (T5.2) die achter `/next` de
   gescripte vraagselectie vervangt: AAC-begrensde kandidaten uit de relatieboom → herhaling vermijden →
   orchestrator → validatielaag → confidence-gestuurde ordening/fase. Puur uit de opgeslagen stappen,
@@ -122,6 +128,15 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   onbetrouwbare provider of latere externe worker. De **interpretatie-zekerheid** (§7.4) bepaalt de fase
   (`select` <60% / `refine` 60–85% / `propose` >85% of eindconcept). Zie
   [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
+- **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,
+  T5.5) — bij `AI_PROVIDER=queue` zet de `QueueAiProvider` aanvragen op een DB-wachtrij (`AiJob`) i.p.v.
+  ze in-process uit te voeren; externe workers (T5.6) claimen jobs via **worker-initiated** long-poll
+  (robuust achter NAT) met een gehasht, scoped **worker-token**. **Backpressure**: boven
+  `AI_WORKER_MAX_CONCURRENT_JOBS` → `WAITING_FOR_WORKER` + positie → 503 `AI_WORKER_BUSY` i.p.v.
+  blokkeren. **Crash-herstel zonder timer**: een opportunistische sweep (bij enqueue/claim/poll) legt een
+  verlopen lease terug (na `AI_WORKER_MAX_ATTEMPTS` → FAILED) en laat nooit-opgepakte jobs verlopen. De
+  worker-uitvoer loopt door **dezelfde** orchestrator-zod-parse én validatielaag — een worker wordt nooit
+  vertrouwd. Zie [adr/0010](adr/0010-distributed-ai-worker-queue.md).
 
 ## Gerelateerde documentatie
 
