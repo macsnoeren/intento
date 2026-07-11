@@ -215,6 +215,12 @@ onbekend concept van een worker bereikt de gebruiker nooit. Zie [adr/0010](adr/0
 `503 AI_WORKER_BUSY` + `Retry-After` (body: `{ error, waiting: true, position, retryAfterMs }`) i.p.v. te
 blokkeren. Time-out/mislukking → `503 AI_WORKER_UNAVAILABLE`.
 
+**Client-afhandeling (T5.7).** De tablet-app toont deze 503's niet als fout: ze verschijnen als een
+rustige wachtstand ("Even geduld…", optioneel de plek in de rij) en de app **polt** de laatste
+gespreks-actie na `Retry-After` automatisch opnieuw tot er een vraag/voorstel terugkomt. De web-client
+valideert de responsvorm met het gedeelde `aiWaitingErrorSchema` en herkent de wacht-codes via
+`isAiWaitingError` ([`web/src/api.ts`](../web/src/api.ts), [`web/src/TabletApp.tsx`](../web/src/TabletApp.tsx)).
+
 **Worker-endpoints** (`server/src/routes/ai-worker.ts`) — **worker-initiated** (long-poll, robuust achter
 NAT), authenticatie met een **worker-token** in de `Authorization: Bearer …`-header (apart van gebruiker-/
 device-/sessietokens; **gehasht** at-rest, scope `ai:process`, intrekbaar/verlopend), per-IP rate-limited:

@@ -535,6 +535,38 @@ body {
   margin: 0;
 }
 
+/* Wachtstand terwijl een AI-worker de aanvraag oppakt (T5.7): rustig en centraal, geen foutkleur. */
+.tablet__waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  margin: auto;
+}
+
+.tablet__waiting-icon {
+  font-size: clamp(3rem, 10vw, 5rem);
+  margin: 0;
+  animation: tablet-waiting-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tablet-waiting-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tablet__waiting-icon {
+    animation: none;
+  }
+}
+
 /* Voorstelscherm (T4.3): de gekozen pictogramreeks + zin + ✅/❌. */
 .proposal__symbols {
   display: flex;

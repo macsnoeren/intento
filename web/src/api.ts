@@ -1,6 +1,7 @@
 import {
   aacSymbolAdminSchema,
   aacSymbolListResponseSchema,
+  aiWaitingErrorSchema,
   apiErrorSchema,
   authResponseSchema,
   caregiverListResponseSchema,
@@ -52,10 +53,29 @@ export class ApiRequestError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /**
+     * Voorgestelde wachttijd (ms) bij een "even wachten"-503 van de AI-wachtrij
+     * (`AI_WORKER_BUSY`/`AI_WORKER_UNAVAILABLE`, T5.7). Spiegelt de `Retry-After`-header.
+     */
+    readonly retryAfterMs?: number,
+    /** Positie in de AI-wachtrij (1-based) bij `AI_WORKER_BUSY`. */
+    readonly position?: number,
   ) {
     super(message);
     this.name = 'ApiRequestError';
   }
+}
+
+/**
+ * Herkent de "even wachten"-503's van de gedistribueerde AI-wachtrij (T5.7, ADR-0010): alle
+ * workers bezet (`AI_WORKER_BUSY`) of tijdelijk geen worker beschikbaar (`AI_WORKER_UNAVAILABLE`).
+ * De tablet-UI toont dan geen fout maar een rustige wachtstand en polt automatisch opnieuw.
+ */
+export function isAiWaitingError(err: unknown): err is ApiRequestError {
+  return (
+    err instanceof ApiRequestError &&
+    (err.code === 'AI_WORKER_BUSY' || err.code === 'AI_WORKER_UNAVAILABLE')
+  );
 }
 
 export interface Api {
@@ -146,7 +166,16 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
     const parsed = apiErrorSchema.safeParse(json);
     const code = parsed.success ? parsed.data.error.code : 'REQUEST_ERROR';
     const message = parsed.success ? parsed.data.error.message : 'Er ging iets mis.';
-    throw new ApiRequestError(response.status, code, message);
+    // Bij de AI-wachtrij-503's (T5.7) draagt het body extra velden (retryAfterMs/position) die de
+    // UI gebruikt om te wachten en te pollen; anders blijven ze simpelweg undefined.
+    const waiting = aiWaitingErrorSchema.safeParse(json);
+    throw new ApiRequestError(
+      response.status,
+      code,
+      message,
+      waiting.success ? waiting.data.retryAfterMs : undefined,
+      waiting.success ? waiting.data.position : undefined,
+    );
   }
 
   return json;

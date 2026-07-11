@@ -6,6 +6,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.7 Tablet-UX voor WAITING (wachten op een AI-worker).** De backend antwoordt bij een volle
+  wachtrij met `503 AI_WORKER_BUSY` (`waiting: true`, `position`, `Retry-After`) of tijdelijk
+  `AI_WORKER_UNAVAILABLE` (T5.5, ADR-0010); de gebruikersapp toonde dit nog niet. De web-client
+  ([`api.ts`](web/src/api.ts)) leest nu de extra velden (`retryAfterMs`, `position`) op
+  `ApiRequestError` en biedt `isAiWaitingError`; het gedeelde `aiWaitingErrorSchema`
+  ([`shared`](shared/src/index.ts)) valideert de responsvorm. De tablet-UI
+  ([`TabletApp.tsx`](web/src/TabletApp.tsx)) vangt deze 503's op met een rustige, foutvrije
+  wachtstand (`role="status"`, "Even geduld…", optioneel de plek in de rij) en **polt** de laatste
+  gespreks-actie (`/next`, `/correction`, `/generate`) automatisch opnieuw na de voorgestelde
+  wachttijd, tot er een vraag/voorstel terugkomt — zowel in het keuze- als het voorstelscherm, met
+  een unmount-guard tegen state-updates na weg-navigeren. Dezelfde afhandeling voor
+  `AI_WORKER_UNAVAILABLE`. Web-tests dekken de wacht- en herstel-flow bij zowel `/next` als
+  `/generate` (rustige wachtstand → automatisch herstel, geen harde fout).
 - **T5.6 Standalone Ollama-worker (Python).** Nieuwe, losstaande deploybare applicatie
   [`ai-worker/`](ai-worker/) (Python ≥ 3.11, **stdlib-only** — geen third-party-dependencies) die met een
   worker-token (T5.5, ADR-0010) verbinding maakt met de backend, AI-jobs van de wachtrij claimt

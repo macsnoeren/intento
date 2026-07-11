@@ -17,6 +17,20 @@ export const apiErrorSchema = z.object({
 });
 export type ApiError = z.infer<typeof apiErrorSchema>;
 
+/**
+ * Uitbreiding van de foutstructuur bij backpressure van de gedistribueerde AI-wachtrij
+ * (T5.5/T5.7, ADR-0010). De 503 `AI_WORKER_BUSY`/`AI_WORKER_UNAVAILABLE`-respons draagt naast
+ * `error` een voorgestelde wachttijd (`retryAfterMs`, spiegelt de `Retry-After`-header) en — bij
+ * een volle wachtrij — de positie in de rij mee. De tablet-UI gebruikt dit om rustig te wachten
+ * en de laatste gespreks-actie automatisch opnieuw te pollen tot een worker antwoordt (T5.7).
+ */
+export const aiWaitingErrorSchema = apiErrorSchema.extend({
+  waiting: z.boolean().optional(),
+  position: z.number().int().positive().optional(),
+  retryAfterMs: z.number().int().nonnegative().optional(),
+});
+export type AiWaitingError = z.infer<typeof aiWaitingErrorSchema>;
+
 /** Antwoord van het health-endpoint. */
 export const healthResponseSchema = z.object({
   status: z.literal('ok'),

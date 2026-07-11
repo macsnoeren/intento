@@ -76,8 +76,30 @@ function makeUser(comm: CommunicationProfile): UserPublic {
   };
 }
 
-/** Bouwt een stateful nep-tablet-backend; `linked` bepaalt of het apparaat al gekoppeld is. */
-function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile } = {}): DeviceApi {
+/** AI-wachtrij-503 (T5.7): de client hoort te wachten en de actie later opnieuw te pollen. */
+function busyError(): ApiRequestError {
+  return new ApiRequestError(
+    503,
+    'AI_WORKER_BUSY',
+    'Alle AI-workers zijn bezet; de aanvraag staat in de wachtrij.',
+    10, // korte retryAfterMs zodat de poll-lus binnen de testtimeout herstelt
+    2,
+  );
+}
+
+/**
+ * Bouwt een stateful nep-tablet-backend; `linked` bepaalt of het apparaat al gekoppeld is.
+ * `busyNext`/`busyGenerate` laten `/next` resp. `/generate` de eerste N keer een AI-wachtrij-503
+ * gooien (T5.7), zodat de wacht- en herstel-flow getest kan worden.
+ */
+function fakeDeviceApi(
+  options: {
+    linked?: boolean;
+    comm?: CommunicationProfile;
+    busyNext?: number;
+    busyGenerate?: number;
+  } = {},
+): DeviceApi {
   const comm = options.comm ?? profile();
   const user = makeUser(comm);
   const deviceSession: DeviceSessionResponse = {
@@ -87,6 +109,8 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
   let linked = options.linked ?? false;
   let history: ConversationStep[] = [];
   let status: ConversationStateResponse['status'] = 'ACTIVE';
+  let busyNext = options.busyNext ?? 0;
+  let busyGenerate = options.busyGenerate ?? 0;
   // Door een correctie afgewezen concepten (T5.4): worden niet opnieuw als optie aangeboden (§7.5).
   const excluded = new Set<string>();
 
@@ -140,6 +164,10 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
       return Promise.resolve(buildState());
     },
     conversationNext(_sessionId: string, symbolId: string): Promise<ConversationStateResponse> {
+      if (busyNext > 0) {
+        busyNext -= 1;
+        return Promise.reject(busyError());
+      }
       const node = TREE[currentKey()]!;
       const chosen = node.options.find((o) => o.id === symbolId);
       if (!chosen) {
@@ -163,6 +191,10 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
       return Promise.resolve(buildState());
     },
     conversationGenerate(): Promise<ConversationGenerateResponse> {
+      if (busyGenerate > 0) {
+        busyGenerate -= 1;
+        return Promise.reject(busyError());
+      }
       return Promise.resolve({
         sessionId: 's-1',
         status,
@@ -296,6 +328,32 @@ describe('gebruikersapp op de tablet', () => {
     // De knop houdt zijn toegankelijke naam (aria-label), maar toont de zichtbare tekst niet.
     const button = screen.getByRole('button', { name: 'Iets willen' });
     expect(button.textContent).toBe('');
+  });
+
+  it('toont een rustige wachtstand bij AI_WORKER_BUSY en herstelt automatisch (T5.7)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true, busyNext: 1 })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    // Keuze insturen: de eerste /next geeft AI_WORKER_BUSY → rustige wachtstand, geen fout.
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    expect((await screen.findByRole('status')).textContent).toContain('Even geduld');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Zonder verdere interactie polt de app opnieuw en herstelt naar de volgende vraag.
+    await screen.findByRole('heading', { name: 'Wat wil je?' });
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('wacht op de AI-worker bij het genereren van het voorstel en herstelt (T5.7)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true, busyGenerate: 1 })} />);
+    await walkToProposal();
+
+    // /generate geeft eerst AI_WORKER_BUSY → wachtstand op het voorstelscherm, geen fout.
+    expect((await screen.findByRole('status')).textContent).toContain('Even geduld');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Daarna komt het voorstel vanzelf.
+    expect(await screen.findByRole('heading', { name: 'Ik wil buiten.' })).toBeTruthy();
   });
 
   it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   AacSymbol,
   ConversationConfirmResponse,
@@ -7,7 +7,38 @@ import type {
   DeviceSessionResponse,
   UserPublic,
 } from '@intento/shared';
-import { ApiRequestError, apiUrl, httpApi, type DeviceApi } from './api.ts';
+import { ApiRequestError, apiUrl, httpApi, isAiWaitingError, type DeviceApi } from './api.ts';
+
+/** Wachttijd (ms) waarop we terugvallen als de backend er geen meestuurt. */
+const DEFAULT_WAIT_MS = 3000;
+
+/** Belofte die na `ms` milliseconden oplost; gebruikt om tussen polls rustig te wachten (T5.7). */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+}
+
+/**
+ * Rustige wachtstand terwijl een AI-worker de aanvraag oppakt (T5.7, DESIGN §9.4: "even wachten"
+ * i.p.v. een harde fout). De backend antwoordt bij een volle wachtrij met `503 AI_WORKER_BUSY`
+ * (of `AI_WORKER_UNAVAILABLE`); de app toont dan dit scherm en polt de laatste actie automatisch
+ * opnieuw tot er een vraag/voorstel terugkomt. `position` (indien bekend) geeft de plek in de rij.
+ */
+function WaitingScreen({ position }: { position?: number }): React.JSX.Element {
+  return (
+    <main className="tablet">
+      <section className="tablet__waiting" role="status" aria-live="polite">
+        <p className="tablet__waiting-icon" aria-hidden="true">
+          ⏳
+        </p>
+        <h1 className="tablet__prompt">Even geduld…</h1>
+        <p className="muted">Ik denk rustig na. Zodra ik zover ben, gaat het vanzelf verder.</p>
+        {typeof position === 'number' && position > 1 ? (
+          <p className="muted">Nog even wachten — je bent bijna aan de beurt (plek {position}).</p>
+        ) : null}
+      </section>
+    </main>
+  );
+}
 
 /**
  * Gebruikersapp op de tablet (T4.2, DESIGN §5.1–5.3, FR-001/003).
@@ -152,20 +183,51 @@ function ConversationScreen({
   const [state, setState] = useState<ConversationStateResponse | null>(null);
   const [confirmed, setConfirmed] = useState<ConversationConfirmResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState<{ position?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Voorkomt state-updates na unmount tijdens een lopende poll-lus (T5.7): de wachtlus kan seconden
+  // duren, en de tablet kan intussen weg-navigeren.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Verpakt een gesprekscall die een nieuwe toestand teruggeeft: fouten netjes tonen, dubbele taps
   // blokkeren en een eventueel bevestigd-scherm opheffen (we keren terug naar de keuzeflow).
+  //
+  // Reageert de backend met een AI-wachtrij-503 (`AI_WORKER_BUSY`/`AI_WORKER_UNAVAILABLE`, T5.7),
+  // dan tonen we geen fout maar een rustige wachtstand en proberen we dezelfde actie na de
+  // voorgestelde wachttijd automatisch opnieuw, tot er een echt antwoord (vraag/voorstel) komt.
   async function run(action: () => Promise<ConversationStateResponse>): Promise<void> {
     setError(null);
     setBusy(true);
+    setConfirmed(null);
     try {
-      setConfirmed(null);
-      setState(await action());
+      for (;;) {
+        try {
+          const next = await action();
+          if (!mountedRef.current) return;
+          setWaiting(null);
+          setState(next);
+          return;
+        } catch (err) {
+          if (!isAiWaitingError(err)) throw err;
+          if (!mountedRef.current) return;
+          setWaiting({ position: err.position });
+          await delay(err.retryAfterMs ?? DEFAULT_WAIT_MS);
+          if (!mountedRef.current) return;
+          // Volgende ronde: dezelfde actie opnieuw pollen.
+        }
+      }
     } catch (err) {
+      if (!mountedRef.current) return;
+      setWaiting(null);
       setError(err instanceof ApiRequestError ? err.message : 'Er ging iets mis. Probeer opnieuw.');
     } finally {
-      setBusy(false);
+      if (mountedRef.current) setBusy(false);
     }
   }
 
@@ -192,6 +254,12 @@ function ConversationScreen({
         </section>
       </main>
     );
+  }
+
+  // Wachten op een AI-worker (T5.7): rustige wachtstand i.p.v. een fout; de poll-lus in `run`
+  // herstelt automatisch zodra er een antwoord is.
+  if (waiting) {
+    return <WaitingScreen position={waiting.position} />;
   }
 
   if (!state) {
@@ -296,20 +364,34 @@ function ProposalScreen({
 }): React.JSX.Element {
   const [proposal, setProposal] = useState<ConversationGenerateResponse | null>(null);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState<{ position?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Bij binnenkomst het voorstel ophalen. `active` voorkomt een state-update na unmount.
+  // Ook `/generate` loopt via de AI-orchestrator en kan een wachtrij-503 geven (T5.7): dan tonen we
+  // de rustige wachtstand en pollen we automatisch opnieuw tot de zin er is.
   useEffect(() => {
     let active = true;
     void (async () => {
-      try {
-        const result = await api.conversationGenerate(sessionId);
-        if (active) setProposal(result);
-      } catch (err) {
-        if (active) {
+      for (;;) {
+        try {
+          const result = await api.conversationGenerate(sessionId);
+          if (!active) return;
+          setWaiting(null);
+          setProposal(result);
+          return;
+        } catch (err) {
+          if (!active) return;
+          if (isAiWaitingError(err)) {
+            setWaiting({ position: err.position });
+            await delay(err.retryAfterMs ?? DEFAULT_WAIT_MS);
+            if (!active) return;
+            continue;
+          }
           setError(
             err instanceof ApiRequestError ? err.message : 'Er ging iets mis. Probeer opnieuw.',
           );
+          return;
         }
       }
     })();
@@ -327,6 +409,10 @@ function ProposalScreen({
       setError(err instanceof ApiRequestError ? err.message : 'Er ging iets mis. Probeer opnieuw.');
       setBusy(false);
     }
+  }
+
+  if (waiting) {
+    return <WaitingScreen position={waiting.position} />;
   }
 
   if (!proposal) {
