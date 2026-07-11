@@ -48,10 +48,12 @@ class BackendStub(BaseHTTPRequestHandler):
     def log_message(self, *_args) -> None:  # stil in de testoutput
         pass
 
-    def _read_json(self) -> dict:
+    def _read_body(self) -> bytes:
         length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length) if length else b""
-        return json.loads(raw) if raw else {}
+        return self.rfile.read(length) if length else b""
+
+    def _read_json(self) -> dict:
+        return json.loads(self._body) if self._body else {}
 
     def _send(self, status: int, body: dict | None = None) -> None:
         payload = json.dumps(body).encode("utf-8") if body is not None else b""
@@ -63,6 +65,10 @@ class BackendStub(BaseHTTPRequestHandler):
             self.wfile.write(payload)
 
     def do_POST(self) -> None:  # noqa: N802 — vaste naam van BaseHTTPRequestHandler
+        # Lees altijd eerst het request-body (zoals de echte backend). Antwoorden vóór het body-einde laat
+        # Windows de verbinding aborten (WinError 10053) — een stub-artefact, geen worker-gedrag.
+        self._body = self._read_body()
+
         # Auth afdwingen zoals de echte backend (workerAuthorize): bearer-token verplicht.
         auth = self.headers.get("Authorization", "")
         if auth != f"Bearer {self.expected_token}":

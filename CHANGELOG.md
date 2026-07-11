@@ -23,9 +23,14 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   `unittest`, volledig offline): job-lus (claim→Ollama→resultaat/fout, onbekend concept gefilterd,
   onbekende taak/Ollama-fout → fail zonder crash), **concurrency-limiet** (meer jobs dan `MAX_THREADS`
   overschrijden de limiet niet), **echte HTTP-round-trip** tegen lokale stub-servers (bearer-auth, fout
-  token → 401, 204 bij lege claim), config- en promptbouw. De live rooktest tegen een echte Ollama op een
-  tweede machine is **niet** in deze omgeving uitgevoerd (geen Ollama/GPU beschikbaar); de volledige flow
-  is wel geverifieerd tegen een gestubde Ollama én backend over echt HTTP.
+  token → 401, 204 bij lege claim), config- en promptbouw. **Robuuste gestructureerde uitvoer:** de worker
+  dwingt JSON af via zowel Ollama's `format`-schema (lokale modellen) als een **expliciete beschrijving van
+  de JSON-velden in de prompt** (cloud-/reasoning-modellen honoreren het schema niet hard) en zet
+  `think:false` (anders lekt de uitvoer naar het `thinking`-veld en blijft `response` leeg). **Live rooktest
+  uitgevoerd** (2026-07-11): de volledige worker-lus (claim → Ollama → resultaat, met heartbeats) draaide
+  end-to-end tegen **`gpt-oss:120b-cloud`** via Ollama; beide taken leverden geldige, AAC-begrensde uitvoer
+  (`select_next_question` → "Wat wil je eten?" met opties appel/brood/melk; `generate_message` → "Ik wil
+  een appel."). De geautomatiseerde tests draaien los hiervan volledig offline.
 - **T5.5 Externe AI-workers: wachtrij en worker-protocol (backend).** Een gedistribueerd worker-model
   naast de lokale mock (DESIGN §7.2, §7.7, §9.2, §9.3, §9.4; **ADR-0010**). Nieuwe env-waarde
   **`AI_PROVIDER=queue`** met een **`QueueAiProvider`** (`server/src/ai/queue-provider.ts`) die aanvragen

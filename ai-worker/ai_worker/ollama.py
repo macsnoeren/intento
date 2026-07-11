@@ -44,9 +44,16 @@ class OllamaClient:
             "model": self._model,
             "system": system,
             "prompt": prompt,
-            # Ollama structured outputs: het JSON-schema dwingt de vorm van het antwoord af.
+            # Ollama structured outputs: het JSON-schema stuurt de vorm van het antwoord. Let op: bij
+            # *cloud*- en reasoning-modellen dwingt Ollama dit schema niet hard af (de constrained decoding
+            # zit in de lokale sampler). Daarom beschrijft de prompt de exacte JSON-velden óók expliciet
+            # (zie prompts.py) — dat maakt de worker robuust over lokale én cloud-modellen.
             "format": schema,
             "stream": False,
+            # Reasoning-modellen (qwen3, gpt-oss, …) stoppen hun uitvoer anders in een apart `thinking`-veld
+            # en laten `response` leeg. We hebben alleen de gestructureerde JSON nodig, dus zetten we het
+            # "denken" uit zodat de JSON gegarandeerd in `response` staat.
+            "think": False,
             # Lage temperatuur: we willen een stabiele, letterlijke keuze binnen de aangeboden concepten,
             # geen creatieve variatie (DESIGN §7.8).
             "options": {"temperature": 0.2},

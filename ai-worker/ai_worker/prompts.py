@@ -47,17 +47,36 @@ def _clamp_confidence(value: Any) -> float | None:
     return max(0.0, min(1.0, float(value)))
 
 
-def _render_rules(system_rules: list[str], goal: str, aac_rules: list[str]) -> str:
+def _render_rules(system_rules: list[str], goal: str, aac_rules: list[str], output_spec: str) -> str:
+    """Bouwt de systeemprompt: regels + doel + AAC-regels + een **expliciete** beschrijving van de vereiste
+    JSON-uitvoer. Die expliciete beschrijving is cruciaal: cloud-/reasoning-modellen honoreren Ollama's
+    `format`-schema niet hard, dus de veldnamen moeten ook in natuurlijke taal in de prompt staan.
+    """
     lines = ["SYSTEEMREGELS:"]
     lines += [f"- {rule}" for rule in system_rules]
     lines += ["", f"DOEL: {goal}", "", "AAC-REGELS:"]
     lines += [f"- {rule}" for rule in aac_rules]
-    lines += [
-        "",
-        "Antwoord uitsluitend met JSON dat exact voldoet aan het opgevraagde schema. "
-        "Verzin geen concepten buiten de aangeboden lijst.",
-    ]
+    lines += ["", "ANTWOORDFORMAAT:", output_spec]
     return "\n".join(lines)
+
+
+# Expliciete uitvoerbeschrijving per taak. Bewust met exacte veldnamen zodat een model dat het JSON-schema
+# niet hard afdwingt (cloud/reasoning) tóch de juiste vorm produceert.
+_QUESTION_OUTPUT_SPEC = (
+    'Antwoord met UITSLUITEND één JSON-object, geen extra tekst, exact in deze vorm:\n'
+    '{"question": "<de volgende vraag aan de gebruiker>", '
+    '"options": [{"symbol": "<een conceptsleutel uit de TOEGESTANE OPTIES>", "confidence": <getal 0..1>}], '
+    '"reason": "<korte onderbouwing>"}\n'
+    '- Gebruik voor "symbol" uitsluitend een van de aangeboden conceptsleutels (niet het label, niet een '
+    "nieuw woord).\n"
+    "- Vul alle velden; laat geen veld weg en verzin geen andere veldnamen."
+)
+
+_MESSAGE_OUTPUT_SPEC = (
+    'Antwoord met UITSLUITEND één JSON-object, geen extra tekst, exact in deze vorm:\n'
+    '{"message": "<één korte, natuurlijke Nederlandse zin in de ik-vorm>", "confidence": <getal 0..1>}\n'
+    "- Blijf strikt binnen de bevestigde concepten; voeg niets toe."
+)
 
 
 def build_select_next_question(payload: dict[str, Any]) -> tuple[str, str, dict[str, Any], list[str]]:
@@ -112,7 +131,7 @@ def build_select_next_question(payload: dict[str, Any]) -> tuple[str, str, dict[
         "required": ["question", "options", "reason"],
     }
 
-    system = _render_rules(system_rules, goal, aac_rules)
+    system = _render_rules(system_rules, goal, aac_rules, _QUESTION_OUTPUT_SPEC)
     return system, "\n".join(prompt_lines), schema, allowed_concepts
 
 
@@ -141,7 +160,7 @@ def build_generate_message(payload: dict[str, Any]) -> tuple[str, str, dict[str,
         "required": ["message"],
     }
 
-    system = _render_rules(system_rules, goal, aac_rules)
+    system = _render_rules(system_rules, goal, aac_rules, _MESSAGE_OUTPUT_SPEC)
     return system, "\n".join(prompt_lines), schema
 
 

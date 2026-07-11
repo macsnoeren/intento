@@ -92,16 +92,35 @@ De tests dekken onder meer:
   stub-servers, inclusief bearer-auth (fout token → 401) en het 204-geval bij een lege claim.
 - **Configuratie** (`tests/test_config.py`) en **prompt-/schemabouw** (`tests/test_prompts.py`).
 
-## Live rooktest (handmatig, tegen een echte Ollama)
+## Modelkeuze en gestructureerde uitvoer
 
-De geautomatiseerde tests mocken Ollama. Voor een echte end-to-end-controle op een tweede machine:
+De worker dwingt gestructureerde JSON af op **twee** manieren tegelijk, want dat is nodig gebleken bij de
+live rooktest:
 
-1. Start Ollama en haal het model op: `ollama pull llama3.1`.
+1. **Ollama's `format`-JSON-schema.** Lokale modellen (bv. `gemma3`, `qwen3`) honoreren dit via constrained
+   decoding en leveren dan direct de juiste vorm.
+2. **Een expliciete beschrijving van de JSON-velden in de prompt.** **Cloud- en reasoning-modellen**
+   (bv. `gpt-oss:120b-cloud`) honoreren het `format`-schema *niet* hard — zonder de expliciete veldnamen in
+   de prompt verzinnen ze eigen velden (bv. `{"nextSymbol": ...}`). De prompt beschrijft daarom de exacte
+   uitvoervorm; daarmee werkt zowel een lokaal als een cloud-model.
+
+Daarnaast zet de worker `"think": false` in de Ollama-aanroep: reasoning-modellen stoppen hun uitvoer
+anders in een apart `thinking`-veld en laten `response` leeg. Uitkomst: de gestructureerde JSON staat
+gegarandeerd in `response`.
+
+## Live rooktest (tegen een echte Ollama)
+
+Voor een echte end-to-end-controle op een tweede machine:
+
+1. Start Ollama en haal een model op — lokaal (`ollama pull gemma3:4b`) of een cloud-model
+   (`ollama pull gpt-oss:120b-cloud`).
 2. Start de backend met `AI_PROVIDER=queue` en munt een worker-token.
-3. Vul `.env` (incl. `OLLAMA_URL` van de GPU-machine) en start de worker: `python -m ai_worker`.
+3. Vul `.env` (incl. `OLLAMA_URL` en `OLLAMA_MODEL`) en start de worker: `python -m ai_worker`.
 4. Doorloop een gesprek in de tablet-UI; de worker logt claim → resultaat en de vraag/het voorstel
    verschijnt in de app.
 
-> Status in deze omgeving: de live rooktest tegen een echte Ollama is **niet** uitgevoerd (geen
-> Ollama/GPU-machine beschikbaar in de ontwikkelomgeving). De volledige flow is wel geverifieerd tegen een
-> gestubde Ollama én een gestubde backend over echt HTTP (`tests/test_integration_http.py`).
+> Uitgevoerd (2026-07-11): de volledige worker-lus (claim → Ollama → resultaat, met heartbeats) is live
+> geverifieerd tegen **`gpt-oss:120b-cloud`** via Ollama. Beide taken leverden geldige, AAC-begrensde
+> uitvoer: `select_next_question` → `"Wat wil je eten?"` met opties `appel/brood/melk`;
+> `generate_message` → `"Ik wil een appel."`. De geautomatiseerde tests draaien los hiervan volledig
+> offline (gemockte/gestubde Ollama en backend).
