@@ -30,8 +30,12 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   ordening op zekerheid, vroegtijdig voorstel bij >85%), de confidence-banden, en end-to-end via HTTP een
   provider die een verzonnen concept teruggeeft (tegengehouden + als voorstel vastgelegd). Beslissing en
   begrenzing vastgelegd in **ADR-0009**; gedocumenteerd in `docs/architecture.md`, `docs/api.md` en
-  `docs/data-model.md`. *(Live rooktest met een echte provider volgt in T5.5/T5.6: `AI_PROVIDER=ollama`
-  is nog niet aangesloten; de flow is nu volledig gedekt met de deterministische mock.)*
+  `docs/data-model.md`. *(Live rooktest uitgevoerd tegen een lokale Ollama — `qwen3:30b` en `gemma3:4b`
+  — via een tijdelijke, directe provider: de beslissings-/validatielaag en confidence werken end-to-end
+  met een echt model (natuurlijke Nederlandse vragen, AAC-begrensde opties, 0 onbekende concepten, de
+  fasen select/refine/propose live waargenomen). De **productie**-provider — wachtrij + externe worker —
+  volgt in T5.5/T5.6; in de gecommite code is `AI_PROVIDER=ollama` nog niet aangesloten en draaien tests
+  op de deterministische mock.)*
 - **T5.1 Provider-interface en promptfundament.** Het **fundament onder de AI-fase** (DESIGN §7.2, §7.7,
   §9.2) — nog zonder de gescripte engine te vervangen (dat is T5.2). Nieuwe module `server/src/ai/`:
   een provider-agnostische **`AiProvider`**-interface (`selectNextQuestion(prompt) → {question,
