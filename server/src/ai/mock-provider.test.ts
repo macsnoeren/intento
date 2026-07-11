@@ -113,3 +113,33 @@ describe('AiOrchestrator — vorm afdwingen met de mock-provider', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('AiOrchestrator.generateMessage — optionele boodschaptaak (T5.3)', () => {
+  it('geeft null wanneer de provider geen boodschap kan formuleren (mock)', async () => {
+    const orchestrator = new AiOrchestrator(new MockAiProvider());
+    expect(orchestrator.canGenerateMessage).toBe(false);
+    await expect(orchestrator.generateMessage({ chosenConcepts: [want] })).resolves.toBeNull();
+  });
+
+  it('valideert de vorm van de boodschap-uitvoer opnieuw (gooit bij ongeldige confidence)', async () => {
+    const brokenProvider = {
+      name: 'broken',
+      selectNextQuestion: async () => ({ question: 'x', options: [], reason: '' }),
+      // Ongeldig: confidence buiten [0,1].
+      generateMessage: async () => ({ message: 'Ik wil buiten.', confidence: 2 }),
+    };
+    const orchestrator = new AiOrchestrator(brokenProvider);
+    expect(orchestrator.canGenerateMessage).toBe(true);
+    await expect(orchestrator.generateMessage({ chosenConcepts: [want] })).rejects.toThrow();
+  });
+
+  it('weigert een lege boodschap (message.min(1))', async () => {
+    const brokenProvider = {
+      name: 'broken',
+      selectNextQuestion: async () => ({ question: 'x', options: [], reason: '' }),
+      generateMessage: async () => ({ message: '' }),
+    };
+    const orchestrator = new AiOrchestrator(brokenProvider);
+    await expect(orchestrator.generateMessage({ chosenConcepts: [want] })).rejects.toThrow();
+  });
+});

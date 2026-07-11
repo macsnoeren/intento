@@ -6,6 +6,29 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.3 AI-boodschapgeneratie.** De boodschap achter `POST /conversation/{id}/generate` en `/confirm`
+  wordt nu door de **AI-orchestrator** geformuleerd i.p.v. puur sjabloon-gebaseerd (DESIGN §3.1, §7.1
+  taak 4, §7.4, §7.8, FR-007/008). Nieuwe AI-taak **`generate_message`**: de `AiProvider`-interface krijgt
+  een **optionele** `generateMessage(prompt)`-methode (`{message, confidence?}`, zod-gevalideerd); een
+  provider die het niet kan (zoals de deterministische mock) laat de methode weg. `buildMessagePrompt`
+  (`server/src/ai/prompt.ts`) stelt dezelfde **beperkte, verse context** samen (`systeemregels + doel +
+  AAC-regels + gebruikerscontext + bevestigde concepten`; **geen** chatgeschiedenis, gesloten sleutelset),
+  en `AiOrchestrator.generateMessage` valideert de vorm opnieuw. **Safety-laag (§7.8,
+  `server/src/conversation/generate.ts`):** `composeMessage` laat de orchestrator de zin formuleren en
+  toetst die tegen de **hele AAC-bibliotheek** — bevat de zin het label of een synoniem van een **niet in
+  de sessie gekozen** concept, dan is hij onveilig en valt de flow terug op de deterministische
+  **sjabloon-zin** (`message.ts`), die per constructie binnen de gekozen concepten blijft. Óók een lege
+  AI-zin of een provider zonder capability → sjabloon-terugval. Een concept buiten de sessie bereikt de
+  gebruiker (en de db) dus **nooit**. `/confirm` hervormt de zin **server-side** langs dezelfde laag
+  (nooit vrije clienttekst). De confidence komt van het model (`>85%`-band; neutrale terugval als de
+  provider er geen levert). Tests: `composeMessage` (sjabloon-terugval zonder capability, AI-zin gebruikt
+  wanneer veilig, buiten-de-sessie concept tegengehouden, lege zin, doorgegeven concepten, terugval-
+  zekerheid), de boodschap-prompt (gesloten sleutelset, geen chatgeschiedenis), `orchestrator.generateMessage`
+  (null zonder capability, vormvalidatie), en **end-to-end via HTTP** (voorstelscherm toont de AI-zin en
+  slaat die bij bevestigen op; een rogue AI-zin met "mama" — synoniem van het niet-gekozen `mom` — wordt
+  tegengehouden en valt terug op de sjabloon, ook in de opgeslagen boodschap). De web-`ProposalScreen`
+  (T4.2/T4.3) toont de zin ongewijzigd — de vorm van `conversationGenerateResponseSchema` blijft gelijk.
+  Gedocumenteerd in `docs/architecture.md` en `docs/api.md`.
 - **T5.2 Validatielaag en confidence-gestuurde vraagselectie.** De **AI-orchestrator vervangt de gescripte
   engine** achter `POST /conversation/{id}/next` (DESIGN §7.3–7.6, §7.8, FR-002/004/009). Nieuwe
   AI-beslissingslaag (`server/src/conversation/decision.ts`) die per beurt: (1) de **AAC-begrensde

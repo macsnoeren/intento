@@ -100,7 +100,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §7.3–7.6, §7.8, §8.2 (interne interface), FR-002/004/009 (herhaling).* Validatielaag: elk door AI voorgesteld symbool moet bestaan in de AAC-bibliotheek (anders: synoniem zoeken → ConceptProposal aanmaken → optie weglaten). Confidence-drempels (<60% nieuwe vraag, 60–85% verfijnen, >85% voorstel). Herhaling vermijden: eerdere vragen, getoonde opties en afgewezen keuzes bijhouden en uitsluiten. Vervang de gescripte engine achter `/next` door de orchestrator (mock in tests, echte provider via env).
   *Acceptatie:* AI-output met onbekend concept bereikt de gebruiker nooit (test); herhaalde vraag/optie uitgesloten (test); flow werkt live met echte provider (handmatige rooktest gerapporteerd).
 
-- [ ] **T5.3 AI-boodschapgeneratie**
+- [x] **T5.3 AI-boodschapgeneratie**
   *DESIGN: §3.1, §7.1 (taak 4), §7.4, FR-007/008.* `/generate` via de orchestrator: natuurlijke zin uit bevestigde concepten, met confidence. Voorstel alleen bij >85%; JA/NEE uitsluitend als laatste controle. Zin blijft binnen de gekozen concepten (veiligheidsregels §7.8).
   *Acceptatie:* gegenereerde zin bevat geen concepten buiten de sessie (validatietest); voorstelscherm toont AI-zin end-to-end.
 

@@ -21,12 +21,9 @@ import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
 import { decideNextQuestion } from '../conversation/decision.js';
+import { composeMessage } from '../conversation/generate.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
-import {
-  generateMessage,
-  SCRIPTED_CONFIDENCE,
-  type ChosenConcept,
-} from '../conversation/message.js';
+import type { ChosenConcept } from '../conversation/message.js';
 import { symbolToPublic } from '../aac/library.js';
 
 export interface ConversationRoutesDeps {
@@ -275,9 +272,11 @@ export function registerConversationRoutes(
     },
   );
 
-  // Boodschap voorstellen (T4.3) — sjabloon-gebaseerde zin uit de gekozen concepten, met confidence en
-  // de pictogramreeks voor het voorstelscherm. Bewust **vluchtig**: er wordt niets opgeslagen (DESIGN
-  // §3.6, geen afgewezen voorstellen in de db). De zin is een pure functie van de opgeslagen keuzes.
+  // Boodschap voorstellen (T5.3) — de AI-orchestrator formuleert een natuurlijke zin uit de gekozen
+  // concepten (met confidence), begrensd door de safety-laag die geen concept buiten de sessie doorlaat
+  // (§7.8); zonder AI-capability of bij een onveilige zin valt hij terug op de deterministische sjabloon.
+  // Plus de pictogramreeks voor het voorstelscherm. Bewust **vluchtig**: er wordt niets opgeslagen (DESIGN
+  // §3.6, geen afgewezen voorstellen in de db).
   app.post(
     '/conversation/:id/generate',
     { preHandler: deviceAuthorize(prisma) },
@@ -296,21 +295,23 @@ export function registerConversationRoutes(
       }
 
       const { symbols, chosen } = await buildMessageInput(prisma, steps);
+      const composed = await composeMessage(prisma, orchestrator, chosen);
       return conversationGenerateResponseSchema.parse({
         sessionId: session.id,
         status: session.status,
-        message: generateMessage(chosen),
-        confidence: SCRIPTED_CONFIDENCE,
+        message: composed.message,
+        confidence: composed.confidence,
         symbols,
         history: await buildHistory(prisma, steps),
       });
     },
   );
 
-  // Boodschap bevestigen (T4.3) — rondt de sessie af en slaat de boodschap op. De server hergenereert
-  // de zin deterministisch uit de opgeslagen keuzes (nooit vrije clienttekst), zodat de bewaarde
-  // boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Alleen **bevestigde** communicatie
-  // wordt bewaard (DESIGN §3.6). Een afwijzing verloopt via `/back`, niet hier.
+  // Boodschap bevestigen (T5.3) — rondt de sessie af en slaat de boodschap op. De server hervormt de
+  // zin **server-side** uit de opgeslagen keuzes via de orchestrator (nooit vrije clienttekst), begrensd
+  // door dezelfde safety-laag: de bewaarde boodschap blijft binnen de gekozen concepten (DESIGN §7.8) en
+  // valt bij twijfel terug op de deterministische sjabloon. Alleen **bevestigde** communicatie wordt
+  // bewaard (DESIGN §3.6). Een afwijzing verloopt via `/back`, niet hier.
   app.post(
     '/conversation/:id/confirm',
     { preHandler: deviceAuthorize(prisma) },
@@ -329,7 +330,7 @@ export function registerConversationRoutes(
       }
 
       const { chosen } = await buildMessageInput(prisma, steps);
-      const message = generateMessage(chosen);
+      const { message } = await composeMessage(prisma, orchestrator, chosen);
 
       // Bevestigde boodschap opslaan én de sessie afronden in één transactie.
       await prisma.$transaction([

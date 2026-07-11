@@ -1,6 +1,14 @@
-import { buildAiPrompt, type AiPromptInput } from './prompt.js';
 import {
+  buildAiPrompt,
+  buildMessagePrompt,
+  type AiMessagePromptInput,
+  type AiPromptInput,
+} from './prompt.js';
+import {
+  aiMessageResultSchema,
   aiQuestionDecisionSchema,
+  type AiMessagePrompt,
+  type AiMessageResult,
   type AiPrompt,
   type AiProvider,
   type AiQuestionDecision,
@@ -35,5 +43,24 @@ export class AiOrchestrator {
     const prompt: AiPrompt = buildAiPrompt(input);
     const raw = await this.provider.selectNextQuestion(prompt);
     return aiQuestionDecisionSchema.parse(raw);
+  }
+
+  /** Of de actieve provider een boodschap kan formuleren (T5.3). Zo niet: sjabloon-terugval. */
+  get canGenerateMessage(): boolean {
+    return typeof this.provider.generateMessage === 'function';
+  }
+
+  /**
+   * Vormt met de provider een natuurlijke zin uit de bevestigde concepten (T5.3, §7.1 taak 4). Stelt de
+   * beperkte prompt samen, roept de provider aan en valideert de **vorm** opnieuw met zod. Geeft `null`
+   * terug als de provider deze taak niet ondersteunt — de conversatie-laag valt dan terug op de
+   * deterministische sjabloon-zin. De **inhoudelijke** AAC-begrenzing (§7.8: geen concept buiten de
+   * sessie) wordt door de conversatie-laag afgedwongen; de orchestrator blijft DB-vrij.
+   */
+  async generateMessage(input: AiMessagePromptInput): Promise<AiMessageResult | null> {
+    if (!this.provider.generateMessage) return null;
+    const prompt: AiMessagePrompt = buildMessagePrompt(input);
+    const raw = await this.provider.generateMessage(prompt);
+    return aiMessageResultSchema.parse(raw);
   }
 }

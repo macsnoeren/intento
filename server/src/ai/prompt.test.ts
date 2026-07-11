@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { AAC_RULES, GOAL, SYSTEM_RULES, buildAiPrompt, renderPromptText } from './prompt.js';
-import { AI_TASK_SELECT_NEXT_QUESTION } from './provider.js';
+import {
+  AAC_RULES,
+  GOAL,
+  MESSAGE_AAC_RULES,
+  MESSAGE_GOAL,
+  SYSTEM_RULES,
+  buildAiPrompt,
+  buildMessagePrompt,
+  renderMessagePromptText,
+  renderPromptText,
+} from './prompt.js';
+import { AI_TASK_GENERATE_MESSAGE, AI_TASK_SELECT_NEXT_QUESTION } from './provider.js';
 
 /**
  * T5.1-kernacceptatie: de prompt bevat **aantoonbaar alléén toegestane context**. We toetsen de
@@ -77,6 +87,46 @@ describe('buildAiPrompt — beperkte context (DESIGN §7.7)', () => {
     for (const ref of [...prompt.conversationContext, ...prompt.availableSymbols]) {
       expect(Object.keys(ref).sort()).toEqual(['concept', 'label']);
     }
+  });
+});
+
+describe('buildMessagePrompt — beperkte context voor boodschapgeneratie (T5.3, §7.7/§7.8)', () => {
+  const want = { concept: 'want', label: 'Iets willen' };
+  const outside = { concept: 'outside', label: 'Buiten' };
+
+  it('heeft precies de toegestane sleutelset (geen chatgeschiedenis, geen opties/vraag)', () => {
+    const prompt = buildMessagePrompt({ chosenConcepts: [want, outside] });
+    expect(Object.keys(prompt).sort()).toEqual(
+      ['aacRules', 'chosenConcepts', 'goal', 'systemRules', 'task', 'userContext'].sort(),
+    );
+    expect(prompt).not.toHaveProperty('history');
+    expect(prompt).not.toHaveProperty('messages');
+    expect(prompt).not.toHaveProperty('availableSymbols');
+  });
+
+  it('draagt de vaste systeem-, doel- en AAC-regels mee en de gekozen concepten', () => {
+    const prompt = buildMessagePrompt({ chosenConcepts: [want, outside] });
+    expect(prompt.task).toBe(AI_TASK_GENERATE_MESSAGE);
+    expect(prompt.systemRules).toEqual([...SYSTEM_RULES]);
+    expect(prompt.goal).toBe(MESSAGE_GOAL);
+    expect(prompt.aacRules).toEqual([...MESSAGE_AAC_RULES]);
+    expect(prompt.chosenConcepts).toEqual([want, outside]);
+    expect(prompt.userContext).toEqual([]);
+  });
+
+  it('de gekozen concepten bevatten uitsluitend concept + label (geen vrije velden)', () => {
+    const prompt = buildMessagePrompt({ chosenConcepts: [want, outside] });
+    for (const ref of prompt.chosenConcepts) {
+      expect(Object.keys(ref).sort()).toEqual(['concept', 'label']);
+    }
+  });
+
+  it('renderMessagePromptText blijft binnen de gesloten set', () => {
+    const text = renderMessagePromptText(buildMessagePrompt({ chosenConcepts: [want, outside] }));
+    expect(text).toContain('SYSTEEMREGELS:');
+    expect(text).toContain('BEVESTIGDE CONCEPTEN');
+    expect(text).toContain('outside (Buiten)');
+    expect(text.toLowerCase()).not.toContain('chatgeschiedenis:');
   });
 });
 

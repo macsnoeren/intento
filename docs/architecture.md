@@ -52,6 +52,12 @@ server niet uit elkaar lopen.
   gescripte vraagselectie vervangt: AAC-begrensde kandidaten uit de relatieboom → herhaling vermijden →
   orchestrator → validatielaag → confidence-gestuurde ordening/fase. Puur uit de opgeslagen stappen,
   zodat de terug-functie exact blijft en alles deterministisch met de mock te testen is.
+- `server/src/conversation/generate.ts` — de **AI-boodschapgeneratie** (T5.3) achter `/generate` en
+  `/confirm`: `composeMessage` laat de orchestrator een zin formuleren uit de bevestigde concepten en
+  toetst die met een **safety-laag** tegen de AAC-bibliotheek — een zin met een concept **buiten de
+  sessie** (§7.8) wordt verworpen ten gunste van de deterministische sjabloon-zin (`message.ts`), die per
+  constructie binnen de gekozen concepten blijft. Zo bereikt een verzonnen/buiten-de-sessie begrip de
+  gebruiker (en de db) nooit — ook niet bij een onbetrouwbare provider.
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`

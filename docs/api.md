@@ -128,7 +128,7 @@ als een upload), met bron/licentie op het symbool (`attribution`). Zie ADR-0006.
 | GET | `/admin/aac/opensymbols/search?q=&locale=` | ADMIN | Zoekt bij OpenSymbols (`openSymbolsSearchQuerySchema`). `200` + `openSymbolsSearchResponseSchema` (`{ results: [{ id, name, imageUrl, extension, license, licenseUrl, author, authorUrl, sourceUrl }] }`). Alleen resultaten met een `https`-`imageUrl` worden teruggegeven. Niet geconfigureerd → `503 OPENSYMBOLS_UNAVAILABLE`; externe fout → `502 OPENSYMBOLS_ERROR`. |
 | POST | `/admin/aac/symbols/{id}/opensymbols` | ADMIN | Gekozen afbeelding koppelen (`attachOpenSymbolsRequestSchema`: `imageUrl` (https), `license`, optioneel `licenseUrl`/`author`/`authorUrl`/`sourceUrl`). De backend haalt de bytes op (https-only + SSRF-guard), controleert content-type (PNG/JPEG/WebP → anders `415`) en grootte (`AAC_IMAGE_MAX_BYTES` → `413`), en slaat de afbeelding + bron/licentie op. `200` + `aacSymbolAdminSchema` (`hasImage: true`, `attribution` gevuld). Onbekend id → `404`; niet-`https`/interne host → `400 INVALID_IMAGE_URL`; externe/lege fout → `502`; niet geconfigureerd → `503`. |
 
-### Gespreksflow — sessies, stappen en boodschap (T4.1, T4.3)
+### Gespreksflow — sessies, stappen en boodschap (T4.1, T4.3, T5.3)
 Een gespreksessie (`ConversationSession`) is het tijdelijke communicatieproces waarin een gebruiker
 via pictogramkeuzes zijn intentie opbouwt (DESIGN §3.1). Alle routes lopen op **apparaat-auth**
 (`deviceAuthorize`, de `intento_device`-cookie): de tablet is aan precies één gebruiker gebonden,
@@ -146,14 +146,14 @@ herstelt.
 | POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de door de **AI-orchestrator** gekozen **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`), AAC-begrensd, gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence` (interpretatie-zekerheid, §7.4) en `phase` (`select`/`refine`/`propose`) reizen mee. Bij een eindconcept of >85% zekerheid: `question: null`, `done: true`, `phase: 'propose'` (klaar voor een voorstel — T4.3/T5.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
 | POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. |
-| POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T4.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). Sjabloon-gebaseerde zin (de AI-orchestrator neemt dit later over — T5.3); `confidence` deterministisch (>85%). **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
-| POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T4.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hergenereert de zin deterministisch uit de opgeslagen keuzes (nooit vrije clienttekst; DESIGN §7.8). Een **afwijzing** verloopt via `/back`, niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). |
+| POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T5.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). De **AI-orchestrator** formuleert de zin (met `confidence`, §7.4), begrensd door de **safety-laag** die geen concept buiten de sessie doorlaat (§7.8); zonder AI-capability of bij een onveilige zin valt hij terug op de deterministische **sjabloon-zin**. **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
+| POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T5.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hervormt de zin **server-side** uit de opgeslagen keuzes via de orchestrator (nooit vrije clienttekst), met dezelfde safety-terugval, zodat de bewaarde boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Een **afwijzing** verloopt via `/back`, niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). |
 
 Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_LINKED`. Alleen **bevestigde**
 communicatie wordt bewaard (DESIGN §3.6): `/generate` is vluchtig en afgewezen voorstellen belanden nooit
 in de db — een `GeneratedMessage` bestaat pas na `/confirm`.
 
-## AI-orchestrator en validatielaag (intern, T5.1/T5.2)
+## AI-orchestrator en validatielaag (intern, T5.1/T5.2/T5.3)
 
 De AI is een **interne** laag; er is bewust **geen client-endpoint** dat rechtstreeks met de AI praat
 (DESIGN §8.1). De interne interface backend ↔ orchestrator (DESIGN §8.2, `POST /ai/next-decision`) leeft
@@ -172,6 +172,15 @@ want de client kent ze niet):
   **conceptsleutel**; per-optie-`confidence ∈ [0,1]`; de optionele top-level `confidence` is de
   **interpretatie-zekerheid** (§7.4). De orchestrator valideert de provider-uitvoer opnieuw (een
   provider/worker wordt nooit vertrouwd).
+- **Boodschap-prompt (in, T5.3):** `{ task: 'generate_message', systemRules[], goal, aacRules[],
+  userContext[], chosenConcepts[{concept, label}] }` — dezelfde beperkte, verse context (§7.7), **zonder**
+  chatgeschiedenis en **zonder** opties/vraag; `buildMessagePrompt` is de enige bouwer.
+- **Boodschap-resultaat (uit, T5.3):** `{ message, confidence? }`. De methode `generateMessage` is
+  **optioneel** op een provider; ontbreekt ze (of levert ze een lege/onveilige zin), dan valt de
+  conversatie-laag terug op de deterministische **sjabloon-zin** (`conversation/message.ts`). De
+  **safety-laag** (`conversation/generate.ts`) toetst elke AI-zin tegen de AAC-bibliotheek: bevat de zin
+  het label of een synoniem van een **niet-gekozen** concept, dan is hij onveilig (§7.8) en geldt de
+  terugval. Zo bereikt een concept buiten de sessie de gebruiker (en de db) **nooit**.
 
 **Validatielaag en confidence (T5.2, `ai/validation.ts` + `ai/thresholds.ts` + `conversation/decision.ts`):**
 

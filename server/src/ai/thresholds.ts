@@ -28,6 +28,13 @@ export const CONFIDENCE_PROPOSE = 0.85;
 export const DEFAULT_INTERPRETATION_CONFIDENCE = 0.7;
 
 /**
+ * Terugval-zekerheid voor een **AI-gegenereerde boodschap** (T5.3) als de provider geen `confidence`
+ * meelevert. Een voorstel wordt pas gedaan in de `propose`-fase (>85%, of een eindconcept), dus de zin
+ * hoort bij een reeds zekere route: we melden een hoge waarde boven de voorsteldrempel.
+ */
+export const DEFAULT_MESSAGE_CONFIDENCE = 0.9;
+
+/**
  * Bepaalt de fase uit de interpretatie-zekerheid en of de AAC-route een **eindconcept** heeft bereikt
  * (`isLeaf`: geen verdere opties meer). Een eindconcept is altijd `propose`: er valt niets meer te
  * verfijnen, dus we stellen de boodschap voor — ongeacht de zekerheid. Zo blijft de gescripte
