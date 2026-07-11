@@ -87,7 +87,27 @@ plekken, favorieten en routines pictogram-ondersteund vast en beheert ze daarna 
 
 **AI-toestemmingsfilter (DESIGN §6.3).** Bij elke AI-aanroep in de gespreksflow (`/conversation/*`) laadt
 de backend **alléén** de contextrijen met `aiUsageAllowed=true`, ontsleutelt ze en geeft ze als `userContext`
-(`{ kind, value }`) mee in de beperkte prompt. Context zonder toestemming bereikt de AI dus nooit.
+(`{ kind, value }`) mee in de beperkte prompt. Naast de persoonlijke context reizen ook de geleerde
+**voorkeuren** (T6.3, `kind: 'preference'`) mee — mits leren aanstaat. Context/voorkeuren zonder toestemming
+bereiken de AI dus nooit.
+
+### Voorkeuren en leermechanisme (T6.3)
+
+Geleerde voorkeuren van een gebruiker (DESIGN §3.8, §6.2 Preference, §7.1 taak 5, FR-014). Het leren zelf
+gebeurt server-side bij `POST /conversation/{id}/confirm`: elk **bevestigd** concept versterkt de voorkeur —
+maar **alléén** als `aiLearningEnabled=true` (uitschakelbaar) en **nooit** uit afwijzingen/correcties. De
+onderstaande endpoints zijn de **beheerkant**; toegang volgt dezelfde regels als de persoonlijke context
+(ADMIN of gekoppelde CAREGIVER, tenant-gebonden).
+
+| Methode | Pad | Rol | Gedrag |
+|---|---|---|---|
+| GET | `/users/{id}/preferences` | ADMIN, CAREGIVER | Alle voorkeuren van de gebruiker, sterkste eerst (`preferenceListResponseSchema`: `{ id, userId, concept, label, confidence, count, suggestionStatus, suggested, createdAt }`). `label` = het opgezochte AAC-label; `suggested` = er staat een suggestie open. Andere organisatie of niet-gekoppelde CAREGIVER → `403 FORBIDDEN`. |
+| POST | `/users/{id}/preferences/{prefId}/suggestion` | ADMIN, CAREGIVER | Handelt een **openstaande** suggestie af (`preferenceSuggestionActionSchema`: `{ action: 'accept' \| 'adjust' \| 'reject', category?, name? }`). `accept` neemt de voorkeur over als **persoonlijke context** (categorie afgeleid uit het AAC-concept, naam = label, `aiUsageAllowed=true`); `adjust` idem met opgegeven `category`+`name` (beide verplicht, anders `400`); `reject` weigert de suggestie. `200` + de bijgewerkte `preferencePublicSchema`. Onbekende/vreemde voorkeur → `404 PREFERENCE_NOT_FOUND`; geen openstaande suggestie → `409 NO_PENDING_SUGGESTION`. |
+
+De begeleider-suggestie ontstaat automatisch: zodra een concept ≥ 3× bevestigd is, gaat `suggestionStatus`
+van `none` → `pending` en verschijnt in de beheer-UI een voorstel ("Wil je '…' toevoegen als vaste context?")
+met **accepteren / aanpassen / weigeren**. Een geweigerde (`dismissed`) of overgenomen (`accepted`) suggestie
+komt niet terug.
 
 ### Begeleiders koppelen (T2.2)
 Een beheerder bepaalt welke begeleiders (CAREGIVER-accounts) aan een gebruiker gekoppeld zijn.

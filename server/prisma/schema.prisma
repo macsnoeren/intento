@@ -71,6 +71,8 @@ model User {
   conversationSessions ConversationSession[]
   /// Persoonlijke context van deze gebruiker (T6.1); gevoelige velden versleuteld at-rest.
   personalContexts     PersonalContext[]
+  /// Geleerde voorkeuren (T6.3); alléén uit bevestigde communicatie, uitschakelbaar per gebruiker.
+  preferences          Preference[]
 
   @@index([organizationId])
 }
@@ -458,6 +460,47 @@ model ConceptProposal {
   updatedAt      DateTime @updatedAt
 
   @@index([status])
+}
+
+/// Een geleerde **voorkeur** van een gebruiker (T6.3, DESIGN §3.8, §6.2 Preference, §7.1 taak 5, FR-014).
+/// Het leermechanisme werkt strikt volgens de domeinregels (DESIGN §3.6, CLAUDE.md):
+///
+/// - **Alleen uit bevestigde communicatie.** Een voorkeur wordt uitsluitend bijgewerkt wanneer een
+///   gebruiker een boodschap **bevestigt** (`POST /conversation/{id}/confirm`). Nooit uit afgewezen
+///   voorstellen, correcties (§3.4 punt 4) of onzekere AI-aannames — die raken deze laag nooit.
+/// - **Uitschakelbaar.** Bijwerken gebeurt alléén als `UserCommunicationProfile.aiLearningEnabled=true`;
+///   staat de schakelaar uit, dan muteert er niets (en komen bestaande voorkeuren ook niet in de prompt).
+/// - **Geen communicatie-inhoud.** Alleen de canonieke AAC-conceptsleutel + een afgeleide zekerheid en
+///   teller worden bewaard — geen zinnen, geen vrije tekst (privacy by design, §9.4).
+///
+/// `confidence` (0–1) groeit met elke bevestigde keuze (afgeleid van `count`); `count` telt hoe vaak het
+/// concept bevestigd is en voedt de **begeleider-suggestie** (§3.8): bij een vaak gekozen concept krijgt de
+/// begeleider een voorstel om het als persoonlijke context toe te voegen. `suggestionStatus` onthoudt de
+/// afhandeling van die suggestie ("none" → nog geen suggestie · "pending" → suggestie staat open ·
+/// "accepted" → begeleider nam het over als context · "dismissed" → begeleider weigerde), zodat een
+/// geweigerde suggestie niet blijft terugkomen. `source` legt de herkomst vast ("confirmed_usage", de enige
+/// in de MVP). De unieke `(userId, concept)`-sleutel houdt één rij per concept per gebruiker.
+model Preference {
+  id              String   @id @default(cuid())
+  userId          String
+  /// De canonieke AAC-conceptsleutel (bv. "walking"); verwijst naar de bibliotheek, geen weergavetekst.
+  concept         String
+  /// Afgeleide zekerheid (0–1), groeit met het aantal bevestigingen (§7.4-schaal).
+  confidence      Float    @default(0)
+  /// Aantal keer dat dit concept in een bevestigde boodschap zat (voedt de suggestie-drempel, §3.8).
+  count           Int      @default(0)
+  /// Herkomst van de voorkeur: "confirmed_usage" (de enige in de MVP; DESIGN §6.2). Op de grens gevalideerd.
+  source          String   @default("confirmed_usage")
+  /// Status van de begeleider-suggestie: "none" | "pending" | "accepted" | "dismissed" (§3.8). Op de grens
+  /// gevalideerd; geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header.
+  suggestionStatus String  @default("none")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, concept])
+  @@index([userId])
 }
 
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren

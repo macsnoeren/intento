@@ -29,6 +29,8 @@ import type { ChosenConcept } from '../conversation/message.js';
 import { symbolToPublic } from '../aac/library.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { loadAllowedUserContext } from '../users/personal-context.js';
+import { learnFromConfirmedConcepts, loadPreferenceContext } from '../users/preferences.js';
+import type { AiUserContextItem } from '../ai/provider.js';
 
 export interface ConversationRoutesDeps {
   prisma: PrismaClient;
@@ -61,6 +63,24 @@ async function loadOwnedSession(
 /** Alle stappen van een sessie, oplopend op `order` (de volgorde waarin ze gekozen zijn). */
 function loadSteps(prisma: PrismaClient, sessionId: string): Promise<ConversationStepModel[]> {
   return prisma.conversationStep.findMany({ where: { sessionId }, orderBy: { order: 'asc' } });
+}
+
+/**
+ * De volledige **toegestane** AI-gebruikerscontext (DESIGN §7.3, §7.7): de persoonlijke context met
+ * toestemming (T6.1, `aiUsageAllowed=true`) plus de geleerde voorkeuren (T6.3, alléén als de gebruiker
+ * leren heeft aanstaan). Beide filters zitten in hun eigen loader, zodat context zonder toestemming en
+ * voorkeuren bij uitgeschakeld leren de prompt nooit bereiken.
+ */
+async function loadUserContext(
+  prisma: PrismaClient,
+  encryptor: Encryptor,
+  userId: string,
+): Promise<AiUserContextItem[]> {
+  const [personal, preferences] = await Promise.all([
+    loadAllowedUserContext(prisma, encryptor, userId),
+    loadPreferenceContext(prisma, userId),
+  ]);
+  return [...personal, ...preferences];
 }
 
 /**
@@ -127,7 +147,7 @@ async function buildState(
   // De toegestane persoonlijke context (T6.1) reist mee naar de AI — alleen `aiUsageAllowed=true` (§6.3).
   const [excluded, userContext] = await Promise.all([
     loadRejectedConcepts(prisma, session.id),
-    loadAllowedUserContext(prisma, encryptor, session.userId),
+    loadUserContext(prisma, encryptor, session.userId),
   ]);
   const [decision, history] = await Promise.all([
     decideNextQuestion(prisma, orchestrator, steps, excluded, userContext),
@@ -379,7 +399,7 @@ export function registerConversationRoutes(
       }
 
       const { symbols, chosen } = await buildMessageInput(prisma, steps);
-      const userContext = await loadAllowedUserContext(prisma, encryptor, session.userId);
+      const userContext = await loadUserContext(prisma, encryptor, session.userId);
       const composed = await composeMessage(prisma, orchestrator, chosen, userContext);
       return conversationGenerateResponseSchema.parse({
         sessionId: session.id,
@@ -415,7 +435,7 @@ export function registerConversationRoutes(
       }
 
       const { chosen } = await buildMessageInput(prisma, steps);
-      const userContext = await loadAllowedUserContext(prisma, encryptor, session.userId);
+      const userContext = await loadUserContext(prisma, encryptor, session.userId);
       const { message } = await composeMessage(prisma, orchestrator, chosen, userContext);
 
       // Bevestigde boodschap opslaan én de sessie afronden in één transactie.
@@ -428,6 +448,15 @@ export function registerConversationRoutes(
           data: { status: 'COMPLETED' },
         }),
       ]);
+
+      // Leren van deze **bevestigde** communicatie (T6.3, DESIGN §3.8, FR-014): de gekozen concepten
+      // versterken de voorkeuren — maar alléén als de gebruiker leren heeft aanstaan (`aiLearningEnabled`).
+      // Nooit van afwijzingen/correcties (die lopen via `/back`/`/correction` en raken deze laag niet).
+      await learnFromConfirmedConcepts(
+        prisma,
+        session.userId,
+        chosen.map((c) => c.concept),
+      );
 
       return conversationConfirmResponseSchema.parse({
         sessionId: session.id,

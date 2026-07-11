@@ -287,6 +287,30 @@ ze tegen een **Ollama**-endpoint (mogelijk op een andere machine) en levert gest
 Een configureerbaar maximum (`MAX_THREADS`) begrenst de gelijktijdige Ollama-aanroepen zodat de site niet
 wordt overvraagd. Opzet, draaien en testen: zie [ai-worker/README.md](ai-worker/README.md).
 
+## Persoonlijke context en leren (T6.1–T6.3)
+
+In de beheeromgeving (gebruikersdetail) legt een begeleider/beheerder **persoonlijke context** vast —
+belangrijke personen, huisdieren, plekken, favorieten en routines (T6.1/T6.2, DESIGN §3.7 stap 3, §6.3).
+Gevoelige velden staan **versleuteld at-rest** (AES-256-GCM, `ENCRYPTION_KEY`); per rij bepaalt een
+opt-in-schakelaar of de AI die context mag zien (`aiUsageAllowed`). Alléén toegestane context bereikt de
+beperkte AI-prompt.
+
+Daarbovenop leert Intento **voorkeuren** (T6.3, DESIGN §3.8, FR-014): elke **bevestigde** boodschap
+versterkt de gekozen concepten — maar alleen als *AI-leren* aanstaat voor die gebruiker, en nooit uit
+afwijzingen/correcties. De voorkeuren reizen als extra context mee naar de AI. Wordt een concept vaak
+gekozen (≥ 3×), dan verschijnt in het **Voorkeuren**-paneel een suggestie om het als vaste context toe te
+voegen; de begeleider kan **accepteren, aanpassen of weigeren**.
+
+```bash
+# Voorkeuren van een gebruiker bekijken (ADMIN/gekoppelde CAREGIVER):
+curl -sb cookies.txt http://127.0.0.1:3000/users/<id>/preferences
+# Een openstaande suggestie overnemen als persoonlijke context:
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/users/<id>/preferences/<prefId>/suggestion \
+  -H 'content-type: application/json' -d '{"action":"accept"}'
+```
+
+Zie [docs/api.md](docs/api.md) en [docs/data-model.md](docs/data-model.md).
+
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 
 ```bash

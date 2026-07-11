@@ -5,6 +5,7 @@ import { SettingsForm } from './SettingsForm.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { PersonalContextPanel } from './PersonalContextPanel.tsx';
+import { PreferencesPanel } from './PreferencesPanel.tsx';
 import { AdminNav, type AdminView } from './AdminNav.tsx';
 
 /**
@@ -173,6 +174,15 @@ export function AdminUsersPage({
           {selected ? (
             <PersonalContextPanel
               key={`context-${selected.id}`}
+              api={api}
+              userId={selected.id}
+              userName={selected.name}
+            />
+          ) : null}
+
+          {selected ? (
+            <PreferencesPanel
+              key={`preferences-${selected.id}`}
               api={api}
               userId={selected.id}
               userName={selected.name}

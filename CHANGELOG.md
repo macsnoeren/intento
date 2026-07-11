@@ -6,6 +6,29 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T6.3 Leermechanisme (voorkeuren).** Nieuw model **`Preference`** (`userId`, `concept`, `confidence`,
+  `count`, `source`, `suggestionStatus`, `createdAt`, `updatedAt`; unieke `(userId, concept)`, index op
+  `userId`, cascade delete met `User`; migratie `preferences`, draait schoon op een lege db) plus de
+  **Learning Engine** (`server/src/users/preferences.ts`, DESIGN §3.8, §6.2, §7.1 taak 5, FR-014). Leren
+  gebeurt uitsluitend bij een **bevestigde** boodschap (`POST /conversation/{id}/confirm`): elk bevestigd
+  concept verhoogt `count` en de afgeleide `confidence` (count × 0,2, geklemd op 1) — maar **alléén** als
+  `UserCommunicationProfile.aiLearningEnabled=true`, en **nooit** uit afwijzingen/correcties (§3.4 punt 4)
+  of onzekere aannames. De voorkeuren reizen als extra **AI-context** (`kind: 'preference'`) mee in de
+  beperkte prompt (samen met de toegestane persoonlijke context), eveneens gated op de leer-schakelaar.
+  **Begeleider-suggestie (§3.8):** zodra een concept ≥ 3× bevestigd is gaat `suggestionStatus` `none` →
+  `pending`; in de beheer-UI verschijnt dan een voorstel om het als persoonlijke context toe te voegen, met
+  **accepteren / aanpassen / weigeren**. Nieuwe endpoints (`server/src/routes/preferences.ts`):
+  `GET /users/{id}/preferences` (`preferenceListResponseSchema`, met opgezocht `label` en `suggested`-vlag) en
+  `POST /users/{id}/preferences/{prefId}/suggestion` (`{ action: 'accept'|'adjust'|'reject', category?, name? }`
+  — accept/adjust maken een **versleutelde** `PersonalContext`-rij met `aiUsageAllowed=true`, reject weigert;
+  onbekende voorkeur → `404`, geen openstaande suggestie → `409`). Zelfde rol/tenant/koppel-guards als de
+  persoonlijke context (ADMIN of gekoppelde CAREGIVER). Web: nieuwe **`PreferencesPanel`**
+  (`web/src/PreferencesPanel.tsx`, in de gebruikersdetailkolom) toont geleerde voorkeuren met zekerheid en
+  handelt suggesties af; API-client uitgebreid met `listPreferences`/`resolveSuggestion`. Tests: server
+  (`preferences.test.ts`) — bevestiging verhoogt de voorkeur en een correctie **niet**, de leer-schakelaar uit
+  = geen mutaties, voorkeuren bereiken aantoonbaar de AI-prompt, tenant-/CAREGIVER-isolatie, en de volledige
+  suggestieflow (drempel → pending → accept/adjust/reject, versleutelde context, `409` bij dubbel afhandelen);
+  web (`PreferencesPanel.test.tsx`) — voorkeuren tonen en accepteren/aanpassen/weigeren van een suggestie.
 - **T6.2 Persoonlijke-contextwizard.** Stapsgewijze, pictogram-ondersteunde wizard in de beheeromgeving
   (`web/src/PersonalContextPanel.tsx`, in de gebruikersdetailkolom) waarmee een begeleider/beheerder de
   context van een **gekoppelde** gebruiker vastlegt (DESIGN §3.7 stap 3, §5.2, FR-013): vijf stappen

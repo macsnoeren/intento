@@ -251,6 +251,12 @@ function fakeApi(
       );
       return Promise.resolve();
     },
+    listPreferences() {
+      return Promise.resolve({ preferences: [] });
+    },
+    resolveSuggestion() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
   };
 }
 

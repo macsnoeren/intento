@@ -14,6 +14,8 @@ import {
   openSymbolsSearchResponseSchema,
   personalContextListResponseSchema,
   personalContextPublicSchema,
+  preferenceListResponseSchema,
+  preferencePublicSchema,
   resendVerificationResponseSchema,
   userListResponseSchema,
   userPublicSchema,
@@ -38,6 +40,9 @@ import {
   type PersonalContextInput,
   type PersonalContextListResponse,
   type PersonalContextPublic,
+  type PreferenceListResponse,
+  type PreferencePublic,
+  type PreferenceSuggestionAction,
   type RegisterRequest,
   type ResendVerificationResponse,
   type UpdateSettingsRequest,
@@ -124,6 +129,12 @@ export interface Api {
     body: PersonalContextInput,
   ): Promise<PersonalContextPublic>;
   deletePersonalContext(userId: string, contextId: string): Promise<void>;
+  listPreferences(userId: string): Promise<PreferenceListResponse>;
+  resolveSuggestion(
+    userId: string,
+    prefId: string,
+    body: PreferenceSuggestionAction,
+  ): Promise<PreferencePublic>;
 }
 
 /**
@@ -352,6 +363,17 @@ export const httpApi: Api & DeviceApi = {
   },
   async deletePersonalContext(userId, contextId) {
     await request(`/users/${userId}/context/${contextId}`, { method: 'DELETE' });
+  },
+  async listPreferences(userId) {
+    return preferenceListResponseSchema.parse(await request(`/users/${userId}/preferences`));
+  },
+  async resolveSuggestion(userId, prefId, body) {
+    return preferencePublicSchema.parse(
+      await request(`/users/${userId}/preferences/${prefId}/suggestion`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    );
   },
   async deviceMe() {
     return deviceSessionResponseSchema.parse(await request('/device/me'));

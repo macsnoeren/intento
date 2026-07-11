@@ -17,6 +17,7 @@ import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
 import { registerConversationRoutes } from './routes/conversation.js';
 import { registerPersonalContextRoutes } from './routes/personal-context.js';
+import { registerPreferenceRoutes } from './routes/preferences.js';
 import { registerAiWorkerRoutes } from './routes/ai-worker.js';
 import { registerWorkerTokenRoutes } from './routes/worker-tokens.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
@@ -98,6 +99,8 @@ export async function buildApp({
   registerConversationRoutes(app, { prisma, orchestrator, encryptor });
   // Persoonlijke context (T6.1): begeleider/beheerder legt personen/plekken/routines vast (versleuteld).
   registerPersonalContextRoutes(app, { prisma, encryptor });
+  // Voorkeuren + begeleider-suggestie (T6.3): leren gebeurt bij `/confirm`; hier bekijkt/handelt beheer af.
+  registerPreferenceRoutes(app, { prisma, encryptor });
   // Worker-endpoints voor de gedistribueerde AI-wachtrij (T5.5). Altijd geregistreerd: ze werken op de
   // AiJob-tabel en zijn onschadelijk zonder queue-provider (er komen dan simpelweg geen jobs binnen).
   registerAiWorkerRoutes(app, { env, prisma });

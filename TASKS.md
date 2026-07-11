@@ -135,7 +135,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §3.7 (stap 3), §5.2, FR-013.* Wizard in de beheeromgeving voor begeleider/beheerder: belangrijke personen, favorieten, dagelijkse plekken — stap voor stap, pictogram-ondersteund. Context beheren (bewerken/verwijderen) na afloop.
   *Acceptatie:* begeleider vult wizard voor gekoppelde gebruiker; ingevoerde context beïnvloedt AI-opties (mock-test op contextinhoud).
 
-- [ ] **T6.3 Leermechanisme (voorkeuren)**
+- [x] **T6.3 Leermechanisme (voorkeuren)**
   *DESIGN: §3.8, §6.2 (Preference), §7.1 (taak 5), §8.2, FR-014.* Learning engine: bij bevestigde boodschap voorkeuren bijwerken (concept, confidence, source=confirmed_usage) — alléén als `aiLearningEnabled`. Voorkeuren in AI-context; `GET /users/{id}/preferences`; suggestie naar begeleider bij vaak gekozen concept (accepteren/aanpassen/weigeren). Nooit leren van fouten, afwijzingen of aannames.
   *Acceptatie:* bevestiging verhoogt voorkeur, afwijzing niet (test); toggle uit = geen mutaties; suggestieflow werkt in beheer-UI.
 

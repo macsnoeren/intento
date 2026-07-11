@@ -28,6 +28,7 @@ export async function resetAuthData(): Promise<void> {
   await prisma.conversationStep.deleteMany();
   await prisma.conversationSession.deleteMany();
   await prisma.personalContext.deleteMany();
+  await prisma.preference.deleteMany();
   await prisma.deviceLinkCode.deleteMany();
   await prisma.device.deleteMany();
   await prisma.caregiverAssignment.deleteMany();

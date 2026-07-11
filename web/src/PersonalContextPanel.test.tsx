@@ -85,6 +85,8 @@ function fakeApi(): Api {
     listWorkerTokens: notImplemented,
     createWorkerToken: notImplemented,
     revokeWorkerToken: notImplemented,
+    listPreferences: notImplemented,
+    resolveSuggestion: notImplemented,
     ...contextApi,
   };
 }

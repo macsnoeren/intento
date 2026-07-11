@@ -299,6 +299,63 @@ export const personalContextListResponseSchema = z.object({
 });
 export type PersonalContextListResponse = z.infer<typeof personalContextListResponseSchema>;
 
+// --- Voorkeuren / leermechanisme (T6.3, DESIGN §3.8, §6.2 Preference, §7.1 taak 5, FR-014) ---
+
+/**
+ * Status van de begeleider-suggestie bij een vaak gekozen concept (DESIGN §3.8). `none` = nog geen
+ * suggestie; `pending` = suggestie staat open bij de begeleider; `accepted` = overgenomen als persoonlijke
+ * context; `dismissed` = geweigerd (komt niet terug). Gesloten lijst, op de API-grens gevalideerd.
+ */
+export const preferenceSuggestionStatusSchema = z.enum([
+  'none',
+  'pending',
+  'accepted',
+  'dismissed',
+]);
+export type PreferenceSuggestionStatus = z.infer<typeof preferenceSuggestionStatusSchema>;
+
+/**
+ * Publieke weergave van één geleerde voorkeur (`GET /users/{id}/preferences`). Bevat de canonieke
+ * conceptsleutel plus het bijbehorende AAC-`label` (op de server opgezocht, terugval = het concept zelf),
+ * de afgeleide `confidence` (0–1), hoe vaak het concept bevestigd is (`count`) en de suggestie-status.
+ * `suggested` is een afgeleid gemak-veld voor de UI: `true` zodra er een openstaande suggestie is.
+ */
+export const preferencePublicSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  concept: z.string(),
+  label: z.string(),
+  confidence: z.number().min(0).max(1),
+  count: z.number().int().nonnegative(),
+  suggestionStatus: preferenceSuggestionStatusSchema,
+  suggested: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type PreferencePublic = z.infer<typeof preferencePublicSchema>;
+
+/** Antwoord op `GET /users/{id}/preferences`: alle voorkeuren, aflopend op zekerheid/count. */
+export const preferenceListResponseSchema = z.object({
+  preferences: z.array(preferencePublicSchema),
+});
+export type PreferenceListResponse = z.infer<typeof preferenceListResponseSchema>;
+
+/**
+ * Afhandeling van een openstaande begeleider-suggestie (`POST /users/{id}/preferences/{prefId}/suggestion`,
+ * DESIGN §3.8): `accept` neemt de voorkeur over als persoonlijke context (met een sensibele standaard),
+ * `adjust` doet hetzelfde maar met een door de begeleider aangepaste categorie/naam, en `reject` weigert de
+ * suggestie. Bij `adjust` zijn `category` en `name` verplicht; `accept`/`reject` negeren ze.
+ */
+export const preferenceSuggestionActionSchema = z
+  .object({
+    action: z.enum(['accept', 'adjust', 'reject']),
+    category: personalContextCategorySchema.optional(),
+    name: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((v) => v.action !== 'adjust' || (v.category !== undefined && v.name !== undefined), {
+    message: 'Bij aanpassen zijn categorie en naam verplicht.',
+  });
+export type PreferenceSuggestionAction = z.infer<typeof preferenceSuggestionActionSchema>;
+
 // --- Begeleiders koppelen (T2.2, DESIGN §2, FR-017) ---
 
 /**
