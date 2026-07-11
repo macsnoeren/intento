@@ -716,3 +716,112 @@ body {
   color: var(--intento-muted);
   background: var(--intento-bg);
 }
+
+/* Persoonlijke-contextwizard (T6.2) */
+.panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.context-form {
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 1rem;
+  background: var(--intento-bg);
+}
+
+.wizard-step {
+  margin: 0.5rem 0 1rem;
+}
+
+.wizard-step__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.25rem;
+}
+
+.wizard-step__glyph {
+  font-size: 1.8rem;
+}
+
+.wizard-step__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.wizard-nav {
+  justify-content: space-between;
+}
+
+.context-chips {
+  list-style: none;
+  margin: 0.75rem 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--intento-border);
+  border-radius: 999px;
+  background: var(--intento-surface);
+}
+
+.context-chip__remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--intento-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.context-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.context-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+}
+
+.context-list__item--editing {
+  display: block;
+}
+
+.context-list__glyph {
+  font-size: 1.6rem;
+}
+
+.context-list__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.context-list__name {
+  font-weight: 600;
+}
+
+.context-list__meta {
+  font-size: 0.9rem;
+  color: var(--intento-muted);
+}

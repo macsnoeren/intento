@@ -6,6 +6,24 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T6.2 Persoonlijke-contextwizard.** Stapsgewijze, pictogram-ondersteunde wizard in de beheeromgeving
+  (`web/src/PersonalContextPanel.tsx`, in de gebruikersdetailkolom) waarmee een begeleider/beheerder de
+  context van een **gekoppelde** gebruiker vastlegt (DESIGN §3.7 stap 3, §5.2, FR-013): vijf stappen
+  (belangrijke personen → dagelijkse plekken → favoriet eten/drinken → favoriete activiteiten → vaste
+  routines), elk met eigen glyph en begeleidende tekst. Per item een naam (+ optionele relatie bij
+  personen/huisdieren) en een expliciete **"AI mag deze context gebruiken"**-schakelaar (in de wizard
+  standaard aan; de server-default blijft opt-in `false`). Na de wizard een **beheeroverzicht** dat alle
+  context toont (op categorie gesorteerd) en per rij **bewerken** en **verwijderen** biedt; een lege
+  gebruiker start automatisch in de wizard, een gevulde in het overzicht. Nieuwe server-endpoints
+  (`server/src/routes/personal-context.ts`): `PUT /users/{id}/context/{contextId}` en
+  `DELETE /users/{id}/context/{contextId}` — zelfde rol/tenant/koppel-guards als T6.1, plus een
+  eigenaarscontrole (de rij moet bij `{id}` horen, anders `404 CONTEXT_NOT_FOUND` zodat een vreemd id niet
+  lekt). API-client uitgebreid met `listPersonalContext`/`createPersonalContext`/`updatePersonalContext`/
+  `deletePersonalContext`. Tests: server (`personal-context.test.ts`) bewerken/verwijderen door een
+  gekoppelde CAREGIVER, `404` bij een rij van een andere gebruiker, `403` voor een niet-gekoppelde
+  CAREGIVER, en **acceptatie**: context die via het endpoint (zoals de wizard) met `aiUsageAllowed=true`
+  wordt ingevoerd, bereikt aantoonbaar de beperkte AI-prompt; web (`PersonalContextPanel.test.tsx`) de
+  volledige wizard-doorloop, afronden, en bewerken/verwijderen in het beheeroverzicht.
 - **T6.1 Persoonlijke context (versleuteld).** Nieuw model **`PersonalContext`** (`userId`, `category`,
   `nameEncrypted`, `relationshipEncrypted?`, `aiUsageAllowed`, `createdAt`, `updatedAt`; index op `userId`,
   cascade delete met `User`; migratie `personal_context`, draait schoon op een lege db) waarin een begeleider/

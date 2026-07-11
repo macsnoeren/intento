@@ -12,6 +12,8 @@ import {
   deviceCodeResponseSchema,
   deviceSessionResponseSchema,
   openSymbolsSearchResponseSchema,
+  personalContextListResponseSchema,
+  personalContextPublicSchema,
   resendVerificationResponseSchema,
   userListResponseSchema,
   userPublicSchema,
@@ -33,6 +35,9 @@ import {
   type DeviceCodeResponse,
   type DeviceSessionResponse,
   type OpenSymbolsSearchResponse,
+  type PersonalContextInput,
+  type PersonalContextListResponse,
+  type PersonalContextPublic,
   type RegisterRequest,
   type ResendVerificationResponse,
   type UpdateSettingsRequest,
@@ -111,6 +116,14 @@ export interface Api {
   listWorkerTokens(): Promise<WorkerTokenListResponse>;
   createWorkerToken(body: CreateWorkerTokenRequest): Promise<CreateWorkerTokenResponse>;
   revokeWorkerToken(id: string): Promise<WorkerTokenPublic>;
+  listPersonalContext(userId: string): Promise<PersonalContextListResponse>;
+  createPersonalContext(userId: string, body: PersonalContextInput): Promise<PersonalContextPublic>;
+  updatePersonalContext(
+    userId: string,
+    contextId: string,
+    body: PersonalContextInput,
+  ): Promise<PersonalContextPublic>;
+  deletePersonalContext(userId: string, contextId: string): Promise<void>;
 }
 
 /**
@@ -320,6 +333,25 @@ export const httpApi: Api & DeviceApi = {
     return workerTokenPublicSchema.parse(
       await request(`/admin/worker-tokens/${id}/revoke`, { method: 'POST', body: '{}' }),
     );
+  },
+  async listPersonalContext(userId) {
+    return personalContextListResponseSchema.parse(await request(`/users/${userId}/context`));
+  },
+  async createPersonalContext(userId, body) {
+    return personalContextPublicSchema.parse(
+      await request(`/users/${userId}/context`, { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
+  async updatePersonalContext(userId, contextId, body) {
+    return personalContextPublicSchema.parse(
+      await request(`/users/${userId}/context/${contextId}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    );
+  },
+  async deletePersonalContext(userId, contextId) {
+    await request(`/users/${userId}/context/${contextId}`, { method: 'DELETE' });
   },
   async deviceMe() {
     return deviceSessionResponseSchema.parse(await request('/device/me'));

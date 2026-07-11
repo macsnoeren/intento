@@ -11,6 +11,7 @@ import { authorize, requireAccount } from '../auth/authorize.js';
 import { assertSameTenant } from '../auth/tenant.js';
 import { assertCaregiverAccess } from '../auth/caregivers.js';
 import type { Encryptor } from '../crypto/encryption.js';
+import { HttpError } from '../errors.js';
 import { personalContextToPublic } from '../users/personal-context.js';
 
 export interface PersonalContextRoutesDeps {
@@ -21,6 +22,9 @@ export interface PersonalContextRoutesDeps {
 
 /** Route-parameter: het gebruikers-id uit het pad. */
 const userParamsSchema = z.object({ id: z.string().min(1) });
+
+/** Route-parameters voor het bewerken/verwijderen van één context-rij (gebruiker + context-id). */
+const contextParamsSchema = z.object({ id: z.string().min(1), contextId: z.string().min(1) });
 
 /**
  * Persoonlijke context van een gebruiker (T6.1, DESIGN §3.7 stap 3, §6.2 PersonalContext, §6.3, §9.4,
@@ -35,7 +39,9 @@ const userParamsSchema = z.object({ id: z.string().min(1) });
  *     gebruikers (`assertCaregiverAccess`, T2.2) — net als bij `PUT /users/{id}/settings`.
  *
  * Rolverdeling volgt DESIGN §2: een begeleider **mag** persoonlijke context beheren, dus ADMIN + CAREGIVER.
- * Bewerken/verwijderen en de stapsgewijze wizard volgen in T6.2; hier alléén aanmaken en lezen (taakscope).
+ * T6.2 vult dit aan met **bewerken** (`PUT`) en **verwijderen** (`DELETE`) van losse rijen, zodat de
+ * begeleider de context na de wizard kan onderhouden. Elke mutatie bewaakt eerst dezelfde grenzen
+ * (tenant + begeleider-koppeling) en controleert daarna dat de rij écht bij deze gebruiker hoort.
  */
 export function registerPersonalContextRoutes(
   app: FastifyInstance,
@@ -90,6 +96,61 @@ export function registerPersonalContextRoutes(
       return personalContextListResponseSchema.parse({
         contexts: rows.map((row) => personalContextToPublic(row, encryptor)),
       });
+    },
+  );
+
+  // Bewerken — ADMIN + CAREGIVER (gekoppeld). Vervangt de velden van één rij; gevoelige velden versleuteld.
+  app.put(
+    '/users/:id/context/:contextId',
+    { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) },
+    async (request): Promise<PersonalContextPublic> => {
+      const account = requireAccount(request);
+      const { id, contextId } = contextParamsSchema.parse(request.params);
+      const input = personalContextInputSchema.parse(request.body);
+
+      const user = await prisma.user.findUnique({ where: { id } });
+      assertSameTenant(account, user);
+      await assertCaregiverAccess(prisma, account, id);
+
+      // De rij moet bestaan én bij déze gebruiker horen — anders lekt een id uit een andere gebruiker.
+      const existing = await prisma.personalContext.findUnique({ where: { id: contextId } });
+      if (!existing || existing.userId !== id) {
+        throw new HttpError(404, 'CONTEXT_NOT_FOUND', 'Persoonlijke context bestaat niet.');
+      }
+
+      const updated = await prisma.personalContext.update({
+        where: { id: contextId },
+        data: {
+          category: input.category,
+          nameEncrypted: encryptor.encrypt(input.name),
+          relationshipEncrypted:
+            input.relationship !== undefined ? encryptor.encrypt(input.relationship) : null,
+          aiUsageAllowed: input.aiUsageAllowed ?? false,
+        },
+      });
+      return personalContextToPublic(updated, encryptor);
+    },
+  );
+
+  // Verwijderen — ADMIN + CAREGIVER (gekoppeld). Idempotent alleen na eigenaars-/tenantcontrole.
+  app.delete(
+    '/users/:id/context/:contextId',
+    { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) },
+    async (request, reply): Promise<void> => {
+      const account = requireAccount(request);
+      const { id, contextId } = contextParamsSchema.parse(request.params);
+
+      const user = await prisma.user.findUnique({ where: { id } });
+      assertSameTenant(account, user);
+      await assertCaregiverAccess(prisma, account, id);
+
+      const existing = await prisma.personalContext.findUnique({ where: { id: contextId } });
+      if (!existing || existing.userId !== id) {
+        throw new HttpError(404, 'CONTEXT_NOT_FOUND', 'Persoonlijke context bestaat niet.');
+      }
+
+      await prisma.personalContext.delete({ where: { id: contextId } });
+      reply.status(204);
     },
   );
 }

@@ -158,6 +158,99 @@ describe('persoonlijke context — /users/:id/context (T6.1)', () => {
     expect(allowed.statusCode).toBe(201);
   });
 
+  it('laat een CAREGIVER context bewerken en verwijderen (T6.2)', async () => {
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('c@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+    await linkCaregiver(caregiver.accountId, user.id);
+    const cookie = await loginCookie(app, caregiver.email, caregiver.password);
+
+    const create = await app.inject({
+      method: 'POST',
+      url: `/users/${user.id}/context`,
+      headers: { cookie },
+      payload: { category: 'PLACE', name: 'Het park', aiUsageAllowed: false },
+    });
+    const created = personalContextPublicSchema.parse(create.json());
+
+    // Bewerken: naam + AI-toestemming aanpassen.
+    const update = await app.inject({
+      method: 'PUT',
+      url: `/users/${user.id}/context/${created.id}`,
+      headers: { cookie },
+      payload: { category: 'PLACE', name: 'Het grote park', aiUsageAllowed: true },
+    });
+    expect(update.statusCode).toBe(200);
+    expect(personalContextPublicSchema.parse(update.json())).toMatchObject({
+      id: created.id,
+      name: 'Het grote park',
+      aiUsageAllowed: true,
+    });
+
+    // Verwijderen: daarna is de lijst leeg.
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/users/${user.id}/context/${created.id}`,
+      headers: { cookie },
+    });
+    expect(del.statusCode).toBe(204);
+    const list = await app.inject({
+      method: 'GET',
+      url: `/users/${user.id}/context`,
+      headers: { cookie },
+    });
+    expect(personalContextListResponseSchema.parse(list.json()).contexts).toHaveLength(0);
+  });
+
+  it('weigert bewerken van een context-rij van een andere gebruiker met 404 (id lekt niet)', async () => {
+    const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    const userA = await seedUser('Sanne', admin.organizationId);
+    const userB = await seedUser('Bram', admin.organizationId);
+
+    const create = await app.inject({
+      method: 'POST',
+      url: `/users/${userA.id}/context`,
+      headers: { cookie },
+      payload: { category: 'FOOD', name: 'Appel' },
+    });
+    const created = personalContextPublicSchema.parse(create.json());
+
+    // Zelfde rij, maar via userB's pad → hoort niet bij die gebruiker → 404.
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/users/${userB.id}/context/${created.id}`,
+      headers: { cookie },
+      payload: { category: 'FOOD', name: 'Peer' },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({ error: { code: 'CONTEXT_NOT_FOUND' } });
+  });
+
+  it('weigert een niet-gekoppelde CAREGIVER bij verwijderen met 403', async () => {
+    const org = await seedOrganization('Org');
+    const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
+    const caregiver = await seedAccount('c@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+
+    const adminCookie = await loginCookie(app, admin.email, admin.password);
+    const create = await app.inject({
+      method: 'POST',
+      url: `/users/${user.id}/context`,
+      headers: { cookie: adminCookie },
+      payload: { category: 'PERSON', name: 'Anna' },
+    });
+    const created = personalContextPublicSchema.parse(create.json());
+
+    const caregiverCookie = await loginCookie(app, caregiver.email, caregiver.password);
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/users/${user.id}/context/${created.id}`,
+      headers: { cookie: caregiverCookie },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   /**
    * Spy-provider die de laatst ontvangen prompt vasthoudt, zodat we kunnen inspecteren wélke
    * gebruikerscontext de AI daadwerkelijk bereikt (DESIGN §6.3-filter).
@@ -226,6 +319,48 @@ describe('persoonlijke context — /users/:id/context (T6.1)', () => {
     expect(prompt!.userContext).toEqual([{ kind: 'pet', value: 'Rex (hond)' }]);
     const serialized = JSON.stringify(prompt!.userContext);
     expect(serialized).not.toContain('Geheime Naam');
+
+    await prisma.aacConceptRelation.deleteMany();
+    await prisma.aacSymbol.deleteMany();
+  });
+
+  it('context die een begeleider via de wizard-endpoint invoert, bereikt de AI-prompt (T6.2)', async () => {
+    await prisma.aacConceptRelation.deleteMany();
+    await prisma.aacSymbol.deleteMany();
+    await seedAacLibrary(prisma);
+
+    const { orchestrator, last } = spyOrchestrator();
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('c@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+    await linkCaregiver(caregiver.accountId, user.id);
+
+    app = await buildApp({
+      env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100', DEVICE_LINK_RATE_LIMIT_MAX: '100' }),
+      orchestrator,
+    });
+    const cookie = await loginCookie(app, caregiver.email, caregiver.password);
+
+    // Zoals de wizard doet: een begeleider voegt context toe met AI-toestemming.
+    const create = await app.inject({
+      method: 'POST',
+      url: `/users/${user.id}/context`,
+      headers: { cookie },
+      payload: { category: 'PERSON', name: 'Opa Jan', relationship: 'opa', aiUsageAllowed: true },
+    });
+    expect(create.statusCode).toBe(201);
+
+    // De gebruiker start op de tablet een gesprek → de context zit in de beperkte prompt.
+    const deviceC = await deviceCookie(app, user.id);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/conversation/start',
+      headers: { cookie: deviceC },
+    });
+    expect(res.statusCode).toBe(201);
+
+    const prompt = last();
+    expect(prompt!.userContext).toEqual([{ kind: 'person', value: 'Opa Jan (opa)' }]);
 
     await prisma.aacConceptRelation.deleteMany();
     await prisma.aacSymbol.deleteMany();

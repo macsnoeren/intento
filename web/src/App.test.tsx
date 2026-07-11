@@ -8,6 +8,7 @@ import type {
   CreateWorkerTokenRequest,
   CreateWorkerTokenResponse,
   DeviceCodeResponse,
+  PersonalContextPublic,
   ResendVerificationResponse,
   UpdateSettingsRequest,
   UserListResponse,
@@ -67,6 +68,8 @@ function fakeApi(
   let counter = 0;
   // In-memory worker-tokenstore (T5.8).
   const workerTokens: WorkerTokenPublic[] = [];
+  // In-memory persoonlijke-contextstore per gebruiker (T6.2).
+  const contextsByUser = new Map<string, PersonalContextPublic[]>();
   // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
   const caregiverSeed = options.caregivers ?? [];
   const linksByUser = new Map<string, Set<string>>();
@@ -208,6 +211,45 @@ function fakeApi(
       };
       workerTokens[index] = updated;
       return Promise.resolve(updated);
+    },
+    listPersonalContext(userId) {
+      return Promise.resolve({ contexts: contextsByUser.get(userId) ?? [] });
+    },
+    createPersonalContext(userId, body) {
+      const created: PersonalContextPublic = {
+        id: `ctx-${++counter}`,
+        userId,
+        category: body.category,
+        name: body.name,
+        relationship: body.relationship ?? null,
+        aiUsageAllowed: body.aiUsageAllowed ?? false,
+        createdAt: '2026-07-11T10:00:00.000Z',
+      };
+      const list = contextsByUser.get(userId) ?? [];
+      list.push(created);
+      contextsByUser.set(userId, list);
+      return Promise.resolve(created);
+    },
+    updatePersonalContext(userId, contextId, body) {
+      const list = contextsByUser.get(userId) ?? [];
+      const index = list.findIndex((c) => c.id === contextId);
+      const updated: PersonalContextPublic = {
+        ...list[index]!,
+        category: body.category,
+        name: body.name,
+        relationship: body.relationship ?? null,
+        aiUsageAllowed: body.aiUsageAllowed ?? false,
+      };
+      list[index] = updated;
+      return Promise.resolve(updated);
+    },
+    deletePersonalContext(userId, contextId) {
+      const list = contextsByUser.get(userId) ?? [];
+      contextsByUser.set(
+        userId,
+        list.filter((c) => c.id !== contextId),
+      );
+      return Promise.resolve();
     },
   };
 }

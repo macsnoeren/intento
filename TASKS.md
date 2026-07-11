@@ -131,7 +131,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §3.8 n.v.t., §6.2 (PersonalContext), §6.3, §8.2, §9.4, FR-013/020.* `POST/GET /users/{id}/context` met categorieën (PERSON/PET/PLACE/ACTIVITY/FOOD/OBJECT/ROUTINE/OTHER) en `aiUsageAllowed`-vlag. Gevoelige velden versleuteld at-rest (`ENCRYPTION_KEY`). AI-inputfilter: alleen context met `aiUsageAllowed=true` komt in het AI-contextobject.
   *Acceptatie:* contextvelden versleuteld in de db (rauwe-db-test); context zonder toestemming komt aantoonbaar niet in de prompt (test).
 
-- [ ] **T6.2 Persoonlijke-contextwizard**
+- [x] **T6.2 Persoonlijke-contextwizard**
   *DESIGN: §3.7 (stap 3), §5.2, FR-013.* Wizard in de beheeromgeving voor begeleider/beheerder: belangrijke personen, favorieten, dagelijkse plekken — stap voor stap, pictogram-ondersteund. Context beheren (bewerken/verwijderen) na afloop.
   *Acceptatie:* begeleider vult wizard voor gekoppelde gebruiker; ingevoerde context beïnvloedt AI-opties (mock-test op contextinhoud).
 

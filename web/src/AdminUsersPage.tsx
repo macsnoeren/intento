@@ -4,6 +4,7 @@ import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
+import { PersonalContextPanel } from './PersonalContextPanel.tsx';
 import { AdminNav, type AdminView } from './AdminNav.tsx';
 
 /**
@@ -163,6 +164,15 @@ export function AdminUsersPage({
           {selected ? (
             <CaregiversPanel
               key={`caregivers-${selected.id}`}
+              api={api}
+              userId={selected.id}
+              userName={selected.name}
+            />
+          ) : null}
+
+          {selected ? (
+            <PersonalContextPanel
+              key={`context-${selected.id}`}
               api={api}
               userId={selected.id}
               userName={selected.name}

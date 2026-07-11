@@ -191,6 +191,10 @@ function fakeApi(): Api {
     revokeWorkerToken() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
     },
+    listPersonalContext: notImplemented,
+    createPersonalContext: notImplemented,
+    updatePersonalContext: notImplemented,
+    deletePersonalContext: () => Promise.resolve(),
   };
 }
 

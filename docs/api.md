@@ -79,8 +79,11 @@ CAREGIVER, beperkt tot **gekoppelde** gebruikers (zoals bij `/users/{id}/setting
 |---|---|---|---|
 | POST | `/users/{id}/context` | ADMIN, CAREGIVER | Voegt een stuk context toe (`personalContextInputSchema`: `{ category, name, relationship?, aiUsageAllowed? }`). `category` is een gesloten taxonomie (`PERSON`/`PET`/`PLACE`/`ACTIVITY`/`FOOD`/`OBJECT`/`ROUTINE`/`OTHER`) — een onbekende waarde → `400 VALIDATION_ERROR`. `aiUsageAllowed` is **opt-in** (standaard `false`). `201` + `personalContextPublicSchema` (ontsleuteld). Andere organisatie of niet-gekoppelde CAREGIVER → `403 FORBIDDEN`. |
 | GET | `/users/{id}/context` | ADMIN, CAREGIVER | Alle context van de gebruiker (`personalContextListResponseSchema`, ontsleuteld), gebruiker-/tenant-gefilterd. Zelfde `403`-regels. |
+| PUT | `/users/{id}/context/{contextId}` | ADMIN, CAREGIVER | Vervangt één contextrij (`personalContextInputSchema`, zelfde velden/validatie als POST). De rij moet bij `{id}` horen — anders `404 CONTEXT_NOT_FOUND` (een id van een andere gebruiker lekt niet). `200` + `personalContextPublicSchema`. Zelfde `403`-regels. |
+| DELETE | `/users/{id}/context/{contextId}` | ADMIN, CAREGIVER | Verwijdert één contextrij (na eigenaars-/tenantcontrole). Onbekende/vreemde rij → `404 CONTEXT_NOT_FOUND`. `204` bij succes. Zelfde `403`-regels. |
 
-Bewerken/verwijderen en de stapsgewijze invulwizard volgen in **T6.2**.
+De web-beheeromgeving vult deze endpoints met een **stapsgewijze wizard** (T6.2): de begeleider legt personen,
+plekken, favorieten en routines pictogram-ondersteund vast en beheert ze daarna (bewerken/verwijderen).
 
 **AI-toestemmingsfilter (DESIGN §6.3).** Bij elke AI-aanroep in de gespreksflow (`/conversation/*`) laadt
 de backend **alléén** de contextrijen met `aiUsageAllowed=true`, ontsleutelt ze en geeft ze als `userContext`
