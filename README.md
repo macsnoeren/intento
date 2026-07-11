@@ -18,6 +18,10 @@ de gefaseerde takenlijst.
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
+Buiten de npm-workspaces staat [`ai-worker/`](ai-worker/): een **losstaande Python-applicatie** (T5.6) die
+als externe Ollama-worker AI-jobs van de backend-wachtrij verwerkt. Het is bewust geen npm-workspace — het
+is aparte deploybare infrastructuur met een eigen [README](ai-worker/README.md) en `.env`.
+
 ## Vereisten
 
 - Node.js ≥ 22 (ontwikkeld op Node 24)
@@ -268,9 +272,17 @@ infrastructuur-credential, gehasht at-rest, scope `ai:process`, intrekbaar). Mun
 npm run worker-token:create --workspace=server -- --name gpu-node-1 [--ttl-days 90]
 ```
 
-Het rauwe token wordt **één keer** getoond; zet het in de worker-config (T5.6). Zie
+Het rauwe token wordt **één keer** getoond; zet het als `WORKER_TOKEN` in de
+[standalone Ollama-worker](ai-worker/) (T5.6). Zie
 [docs/adr/0010](docs/adr/0010-distributed-ai-worker-queue.md) en [docs/api.md](docs/api.md). De tablet-UX
 voor de WAITING-status en een beheer-UI voor worker-tokens volgen als aparte taken (`TASKS.md`).
+
+### Externe Ollama-worker (T5.6)
+
+De [`ai-worker/`](ai-worker/)-applicatie (Python, stdlib-only) claimt jobs via het worker-protocol, draait
+ze tegen een **Ollama**-endpoint (mogelijk op een andere machine) en levert gestructureerde output terug.
+Een configureerbaar maximum (`MAX_THREADS`) begrenst de gelijktijdige Ollama-aanroepen zodat de site niet
+wordt overvraagd. Opzet, draaien en testen: zie [ai-worker/README.md](ai-worker/README.md).
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

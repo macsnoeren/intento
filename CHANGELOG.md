@@ -6,6 +6,26 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.6 Standalone Ollama-worker (Python).** Nieuwe, losstaande deploybare applicatie
+  [`ai-worker/`](ai-worker/) (Python ≥ 3.11, **stdlib-only** — geen third-party-dependencies) die met een
+  worker-token (T5.5, ADR-0010) verbinding maakt met de backend, AI-jobs van de wachtrij claimt
+  (**worker-initiated** long-poll, robuust achter NAT) en ze verwerkt tegen een **Ollama**-endpoint op
+  (mogelijk) een andere machine. Gestructureerde uitvoer wordt afgedwongen via Ollama's `format`-JSON-schema
+  (`/api/generate`) en teruggeleverd via `…/jobs/:id/result`; de backend **hervalideert** die vorm met zod
+  én tegen de AAC-bibliotheek (T5.1/T5.2), dus een onbekend concept van een worker bereikt de gebruiker
+  nooit. **Concurrency-limiet:** een semaphore van `MAX_THREADS` gates zowel het claimen als het verwerken
+  (`ThreadPoolExecutor`), zodat er nooit meer dan `MAX_THREADS` gelijktijdige Ollama-aanroepen zijn — de
+  worker (en daarmee de site) overvraagt Ollama niet. **Heartbeats** verlengen de lease tijdens lange
+  inferentie; een Ollama-fout/time-out of onbruikbaar antwoord leidt tot een nette `…/jobs/:id/fail`
+  (job terug in de wachtrij of afgeschreven) zonder crash. Config via env met fail-loud-validatie
+  (`BACKEND_URL`, `WORKER_TOKEN`, `OLLAMA_URL`, `OLLAMA_MODEL`, `MAX_THREADS`, time-outs/intervallen);
+  eigen [README](ai-worker/README.md) en [`.env.example`](ai-worker/.env.example). Tests (stdlib
+  `unittest`, volledig offline): job-lus (claim→Ollama→resultaat/fout, onbekend concept gefilterd,
+  onbekende taak/Ollama-fout → fail zonder crash), **concurrency-limiet** (meer jobs dan `MAX_THREADS`
+  overschrijden de limiet niet), **echte HTTP-round-trip** tegen lokale stub-servers (bearer-auth, fout
+  token → 401, 204 bij lege claim), config- en promptbouw. De live rooktest tegen een echte Ollama op een
+  tweede machine is **niet** in deze omgeving uitgevoerd (geen Ollama/GPU beschikbaar); de volledige flow
+  is wel geverifieerd tegen een gestubde Ollama én backend over echt HTTP.
 - **T5.5 Externe AI-workers: wachtrij en worker-protocol (backend).** Een gedistribueerd worker-model
   naast de lokale mock (DESIGN §7.2, §7.7, §9.2, §9.3, §9.4; **ADR-0010**). Nieuwe env-waarde
   **`AI_PROVIDER=queue`** met een **`QueueAiProvider`** (`server/src/ai/queue-provider.ts`) die aanvragen

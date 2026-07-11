@@ -1,0 +1,22 @@
+[project]
+name = "intento-ai-worker"
+version = "0.1.0"
+description = "Standalone Ollama AI-worker voor Intento (T5.6): claimt AI-jobs van de backend-wachtrij en verwerkt ze tegen een Ollama-endpoint."
+requires-python = ">=3.11"
+# Bewust géén runtime-dependencies: de worker draait op alleen de Python-stdlib (urllib, threading,
+# concurrent.futures). Dat houdt de deploy op een losse GPU-machine simpel en de tests offline.
+dependencies = []
+
+[project.scripts]
+intento-ai-worker = "ai_worker.__main__:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["ai_worker"]
