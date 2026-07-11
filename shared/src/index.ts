@@ -719,3 +719,70 @@ export const conversationConfirmResponseSchema = z.object({
   message: z.string(),
 });
 export type ConversationConfirmResponse = z.infer<typeof conversationConfirmResponseSchema>;
+
+// --- Worker-token-beheer (T5.8, DESIGN §5.2, §9.4, ADR-0010) ---
+
+/**
+ * Toegestane scopes voor een worker-token. In de MVP alleen `ai:process` (een worker mag AI-jobs
+ * verwerken). Bewust een gesloten lijst, gevalideerd op de API-grens — een onbekende scope wordt
+ * geweigerd (400) i.p.v. stil een te ruim recht te verlenen.
+ */
+export const workerScopeSchema = z.enum(['ai:process']);
+export type WorkerScope = z.infer<typeof workerScopeSchema>;
+
+/**
+ * Status van een worker-token in de beheerweergave, afgeleid van `revokedAt`/`expiresAt`:
+ * `active` (bruikbaar), `revoked` (ingetrokken) of `expired` (vervaltijd verstreken). Zo kan de
+ * beheer-UI in één oogopslag tonen of een token nog werkt zonder zelf datums te vergelijken.
+ */
+export const workerTokenStatusSchema = z.enum(['active', 'revoked', 'expired']);
+export type WorkerTokenStatus = z.infer<typeof workerTokenStatusSchema>;
+
+/**
+ * Publieke weergave van een worker-token (`GET /admin/worker-tokens`). Bevat **nooit** het rauwe
+ * token of de hash — alleen beheer-/diagnosevelden. Het rauwe token verlaat de server uitsluitend
+ * één keer bij aanmaken (zie `createWorkerTokenResponseSchema`).
+ */
+export const workerTokenPublicSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  scopes: z.array(z.string()),
+  status: workerTokenStatusSchema,
+  /** Laatst geziene activiteit (best-effort bij claim/heartbeat bijgewerkt), of `null`. */
+  lastSeenAt: z.iso.datetime().nullable(),
+  /** Vervaltijd of `null` (verloopt niet). */
+  expiresAt: z.iso.datetime().nullable(),
+  /** Moment van intrekken of `null` (niet ingetrokken). */
+  revokedAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type WorkerTokenPublic = z.infer<typeof workerTokenPublicSchema>;
+
+/** Antwoord op `GET /admin/worker-tokens`: alle worker-tokens (platform-infrastructuur, niet tenant-gebonden). */
+export const workerTokenListResponseSchema = z.object({
+  tokens: z.array(workerTokenPublicSchema),
+});
+export type WorkerTokenListResponse = z.infer<typeof workerTokenListResponseSchema>;
+
+/**
+ * Aanmaakverzoek (`POST /admin/worker-tokens`). `name` is een menselijke labelnaam (bv. "gpu-node-1").
+ * `scopes` optioneel (standaard alléén `ai:process`); `ttlDays` optioneel — weggelaten = het token
+ * verloopt niet. Alles wordt op de server opnieuw gevalideerd — dit schema is de gedeelde bron.
+ */
+export const createWorkerTokenRequestSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  scopes: z.array(workerScopeSchema).min(1).max(8).optional(),
+  ttlDays: z.number().int().positive().max(3650).optional(),
+});
+export type CreateWorkerTokenRequest = z.infer<typeof createWorkerTokenRequestSchema>;
+
+/**
+ * Antwoord op `POST /admin/worker-tokens`: het aangemaakte token plus het **rauwe** token. Dit is de
+ * enige plek waar het rauwe token de server verlaat — de beheer-UI toont het één keer en daarna kent
+ * de server alleen nog de SHA-256-hash. Zet het als `WORKER_TOKEN` in de `.env` van de worker (T5.6).
+ */
+export const createWorkerTokenResponseSchema = z.object({
+  workerToken: workerTokenPublicSchema,
+  token: z.string(),
+});
+export type CreateWorkerTokenResponse = z.infer<typeof createWorkerTokenResponseSchema>;

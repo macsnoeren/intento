@@ -181,6 +181,16 @@ function fakeApi(): Api {
     deleteAacRelation(): Promise<void> {
       return Promise.resolve();
     },
+    // Worker-tokenbeheer (T5.8) heeft een eigen test; hier alleen stubs zodat de volledige `Api` compileert.
+    listWorkerTokens() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    createWorkerToken() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    revokeWorkerToken() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
   };
 }
 

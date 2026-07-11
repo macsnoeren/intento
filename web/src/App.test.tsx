@@ -5,12 +5,16 @@ import type {
   CaregiverLink,
   CaregiverListResponse,
   CreateUserRequest,
+  CreateWorkerTokenRequest,
+  CreateWorkerTokenResponse,
   DeviceCodeResponse,
   ResendVerificationResponse,
   UpdateSettingsRequest,
   UserListResponse,
   UserPublic,
   VerifyEmailResponse,
+  WorkerTokenListResponse,
+  WorkerTokenPublic,
 } from '@intento/shared';
 import { App } from './App.tsx';
 import { ApiRequestError, type Api } from './api.ts';
@@ -48,13 +52,21 @@ function makeUser(id: string, name: string): UserPublic {
 
 /** Bouwt een stateful nep-backend; `loggedIn` bepaalt of er al een sessie is. */
 function fakeApi(
-  options: { loggedIn?: boolean; caregivers?: CaregiverLink[]; emailVerified?: boolean } = {},
+  options: {
+    loggedIn?: boolean;
+    caregivers?: CaregiverLink[];
+    emailVerified?: boolean;
+    /** Simuleer een niet-platform-ADMIN: worker-token-endpoints geven 403 NOT_PLATFORM_ADMIN. */
+    workerTokensForbidden?: boolean;
+  } = {},
 ): Api {
   let session = options.loggedIn ?? false;
   let emailVerified = options.emailVerified ?? true;
   const account = (): typeof adminAccount => ({ ...adminAccount, emailVerified });
   const users: UserPublic[] = [];
   let counter = 0;
+  // In-memory worker-tokenstore (T5.8).
+  const workerTokens: WorkerTokenPublic[] = [];
   // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
   const caregiverSeed = options.caregivers ?? [];
   const linksByUser = new Map<string, Set<string>>();
@@ -159,6 +171,43 @@ function fakeApi(
     },
     attachOpenSymbols() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
+    },
+    listWorkerTokens(): Promise<WorkerTokenListResponse> {
+      if (options.workerTokensForbidden) {
+        return Promise.reject(
+          new ApiRequestError(403, 'NOT_PLATFORM_ADMIN', 'Alleen een platformbeheerder.'),
+        );
+      }
+      return Promise.resolve({ tokens: [...workerTokens] });
+    },
+    createWorkerToken(body: CreateWorkerTokenRequest): Promise<CreateWorkerTokenResponse> {
+      if (options.workerTokensForbidden) {
+        return Promise.reject(
+          new ApiRequestError(403, 'NOT_PLATFORM_ADMIN', 'Alleen een platformbeheerder.'),
+        );
+      }
+      const token: WorkerTokenPublic = {
+        id: `wt-${++counter}`,
+        name: body.name,
+        scopes: body.scopes ?? ['ai:process'],
+        status: 'active',
+        lastSeenAt: null,
+        expiresAt: null,
+        revokedAt: null,
+        createdAt: '2026-07-11T10:00:00.000Z',
+      };
+      workerTokens.unshift(token);
+      return Promise.resolve({ workerToken: token, token: `wrk_raw-${token.id}` });
+    },
+    revokeWorkerToken(id: string): Promise<WorkerTokenPublic> {
+      const index = workerTokens.findIndex((t) => t.id === id);
+      const updated: WorkerTokenPublic = {
+        ...workerTokens[index]!,
+        status: 'revoked',
+        revokedAt: '2026-07-11T11:00:00.000Z',
+      };
+      workerTokens[index] = updated;
+      return Promise.resolve(updated);
     },
   };
 }
@@ -299,6 +348,50 @@ describe('beheeromgeving-app', () => {
     render(<App api={fakeApi({ loggedIn: true, emailVerified: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
     expect(screen.queryByRole('button', { name: 'Verificatiemail opnieuw versturen' })).toBeNull();
+  });
+
+  it('laat een platformbeheerder een worker-token aanmaken en intrekken (T5.8)', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    // Naar het worker-tokentabblad.
+    fireEvent.click(screen.getByRole('button', { name: 'Worker-tokens' }));
+    await screen.findByRole('heading', { name: 'Worker-tokens' });
+    expect(await screen.findByText(/Nog geen worker-tokens/i)).toBeTruthy();
+
+    // Token aanmaken → rauw token wordt één keer getoond.
+    const form = screen.getByRole('form', { name: 'Worker-token aanmaken' });
+    fireEvent.change(within(form).getByLabelText('Naam van het worker-token'), {
+      target: { value: 'gpu-node-1' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Token aanmaken' }));
+
+    const reveal = await screen.findByRole('status');
+    expect(reveal.textContent).toContain('wrk_raw-');
+
+    // Het token verschijnt in de lijst als actief.
+    const list = screen.getByRole('region', { name: 'Worker-tokens' });
+    expect(await within(list).findByText('gpu-node-1')).toBeTruthy();
+    expect(within(list).getByText('Actief')).toBeTruthy();
+
+    // Intrekken → status wordt Ingetrokken en de intrek-knop verdwijnt.
+    fireEvent.click(within(list).getByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }));
+    await waitFor(() => expect(within(list).getByText('Ingetrokken')).toBeTruthy());
+    expect(
+      within(list).queryByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }),
+    ).toBeNull();
+  });
+
+  it('toont een uitleg i.p.v. de lijst voor een niet-platform-beheerder (T5.8)', async () => {
+    render(<App api={fakeApi({ loggedIn: true, workerTokensForbidden: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Worker-tokens' }));
+    await screen.findByRole('heading', { name: 'Worker-tokens' });
+
+    expect(await screen.findByText(/alleen door een platformbeheerder/i)).toBeTruthy();
+    // Geen aanmaakformulier zichtbaar.
+    expect(screen.queryByRole('form', { name: 'Worker-token aanmaken' })).toBeNull();
   });
 
   it('wisselt een token uit de e-maillink in via de verificatiepagina (T1.4)', async () => {

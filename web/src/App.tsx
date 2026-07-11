@@ -5,6 +5,7 @@ import { LoginForm } from './LoginForm.tsx';
 import { RegisterForm } from './RegisterForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
+import { WorkerTokensPage } from './WorkerTokensPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
 import type { AdminView } from './AdminNav.tsx';
@@ -148,6 +149,20 @@ export function App({
       <>
         {banner}
         <AacLibraryPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  if (view === 'worker-tokens') {
+    return (
+      <>
+        {banner}
+        <WorkerTokensPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

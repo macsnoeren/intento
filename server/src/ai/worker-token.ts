@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { workerTokenPublicSchema, type WorkerTokenPublic } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { WorkerTokenModel } from '../generated/prisma/models.js';
 
@@ -63,6 +64,30 @@ export async function createWorkerToken(
     data: { name: options.name, tokenHash: sha256(token), scopes, expiresAt },
   });
   return { record, token };
+}
+
+/**
+ * Serializeert een worker-token naar de **publieke** beheerweergave (T5.8): nooit de hash of het
+ * rauwe token, alleen beheer-/diagnosevelden. De status wordt afgeleid uit `revokedAt`/`expiresAt`
+ * zodat de beheer-UI in één oogopslag ziet of het token nog werkt.
+ */
+export function workerTokenToPublic(token: WorkerTokenModel): WorkerTokenPublic {
+  const status =
+    token.revokedAt !== null
+      ? 'revoked'
+      : token.expiresAt !== null && token.expiresAt.getTime() <= Date.now()
+        ? 'expired'
+        : 'active';
+  return workerTokenPublicSchema.parse({
+    id: token.id,
+    name: token.name,
+    scopes: [...parseScopes(token.scopes)],
+    status,
+    lastSeenAt: token.lastSeenAt?.toISOString() ?? null,
+    expiresAt: token.expiresAt?.toISOString() ?? null,
+    revokedAt: token.revokedAt?.toISOString() ?? null,
+    createdAt: token.createdAt.toISOString(),
+  });
 }
 
 /** Trekt een worker-token in (idempotent). Daarna weigert `verifyWorkerToken` het. */

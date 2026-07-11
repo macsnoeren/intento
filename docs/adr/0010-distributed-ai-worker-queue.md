@@ -78,4 +78,29 @@ apart worker-token als infrastructuur-credential, en een `QueueAiProvider` die d
   vervolgtaak genoteerd (TASKS.md). Tot die tijd is de mock de standaardprovider en verandert de
   bestaande flow niet.
 - Worker-tokens worden buiten de app-UI aangemaakt via een CLI-script (`scripts/create-worker-token.ts`);
-  een beheer-UI ervoor is een latere taak.
+  een beheer-UI ervoor volgt in T5.8 (zie hieronder).
+
+## Addendum (T5.8) — beheer-UI voor worker-tokens en het platform-privilege
+
+De CLI blijft bestaan, maar worker-tokens zijn nu ook via de beheer-UI te **maken**, te **lijsten** en in
+te **trekken** (`routes/worker-tokens.ts`, `web/src/WorkerTokensPage.tsx`). De open vraag was **wie** dat
+mag: elke organisatie-ADMIN, of alleen platformbeheer?
+
+Een worker-token is **platform-infrastructuur**, niet tenant-gebonden — een worker verwerkt jobs uit de
+gedeelde wachtrij, ongeacht van welke organisatie ze komen. Als elke zelf-aangemelde familie/zorg-ADMIN
+(T1.3) een worker-token zou kunnen munten, kon die een eigen worker koppelen die jobs (met de beperkte,
+AAC-begrensde promptcontext) van **álle** tenants verwerkt — een privilege-escalatie- en misbruik-vector.
+
+**Beslissing:** beheer van worker-tokens is voorbehouden aan een **ADMIN van de platform-/operator­
+organisatie**, gemarkeerd met een nieuw veld `Organization.isPlatform` (standaard `false`; de bootstrap-
+seed zet het op `true`, publieke zelfaanmelding nooit). Naast `authorize({ roles: ['ADMIN'] })` hangt een
+`requirePlatformOrg`-guard (`403 NOT_PLATFORM_ADMIN`). In een self-hosted single-org-deployment ís de
+bootstrap-org de platform-org, dus daar werkt het zonder extra inrichting; in een multi-tenant-deployment
+blijft infra bij de operator.
+
+**Alternatief (afgewezen):** een env-var `PLATFORM_ORG_ID`. Werkt ook, maar is fragieler (moet met de
+seed-id synchroon blijven) en minder expliciet/testbaar dan een data-veld dat de seed zelf zet.
+
+Het **rauwe** token verlaat de server nog steeds uitsluitend één keer bij aanmaken; de lijstweergave toont
+alleen beheer-/diagnosevelden (naam, scopes, status, `lastSeenAt`) en nooit de hash of het rauwe token. Een
+ingetrokken token wordt onmiddellijk door `workerAuthorize` geweigerd.

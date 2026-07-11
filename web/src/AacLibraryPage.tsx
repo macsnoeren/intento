@@ -8,7 +8,7 @@ import {
   type OpenSymbolsResult,
 } from '@intento/shared';
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
-import { AdminNav } from './AdminNav.tsx';
+import { AdminNav, type AdminView } from './AdminNav.tsx';
 
 /**
  * Beheeromgeving — AAC-bibliotheek (T3.2, DESIGN §5.2, FR-015). Een beheerder kan hier de
@@ -51,7 +51,7 @@ export function AacLibraryPage({
   api: Api;
   account: AccountPublic;
   onLogout: () => void;
-  onNavigate: (view: 'users' | 'aac') => void;
+  onNavigate: (view: AdminView) => void;
 }): React.JSX.Element {
   const [symbols, setSymbols] = useState<AacSymbolAdmin[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);

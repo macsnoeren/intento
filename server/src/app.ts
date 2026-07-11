@@ -17,6 +17,7 @@ import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
 import { registerConversationRoutes } from './routes/conversation.js';
 import { registerAiWorkerRoutes } from './routes/ai-worker.js';
+import { registerWorkerTokenRoutes } from './routes/worker-tokens.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createAiOrchestrator, type AiOrchestrator } from './ai/index.js';
@@ -93,6 +94,8 @@ export async function buildApp({
   // Worker-endpoints voor de gedistribueerde AI-wachtrij (T5.5). Altijd geregistreerd: ze werken op de
   // AiJob-tabel en zijn onschadelijk zonder queue-provider (er komen dan simpelweg geen jobs binnen).
   registerAiWorkerRoutes(app, { env, prisma });
+  // Beheer-UI voor worker-tokens (T5.8): platform-ADMIN mint/lijst/trekt infra-credentials in.
+  registerWorkerTokenRoutes(app, { prisma });
 
   return app;
 }

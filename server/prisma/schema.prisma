@@ -33,7 +33,12 @@ model Organization {
   name      String
   /// Soort omgeving: "family" | "care" | "personal" (gevalideerd op de API-grens).
   type      String
-  createdAt DateTime @default(now())
+  /// Platform-/operatororganisatie (T5.8): alléén ADMINs van zo'n org mogen platform-brede
+  /// infrastructuur beheren (worker-tokens). Standaard `false`; de bootstrap-seed zet dit op
+  /// `true` en publieke zelfaanmelding (T1.3) nooit. Zo kan een zelf-aangemelde familie/zorg-
+  /// admin geen infra-credentials munten die jobs van álle tenants zouden verwerken (DESIGN §9.4).
+  isPlatform Boolean @default(false)
+  createdAt  DateTime @default(now())
 
   accounts Account[]
   users    User[]

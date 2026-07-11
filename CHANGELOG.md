@@ -6,6 +6,31 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.8 Beheer-UI voor worker-tokens.** Worker-tokens (T5.5, ADR-0010) waren tot nu toe alleen via de
+  CLI (`worker-token:create`) te munten; ze zijn nu ook via de beheeromgeving te **maken**, te **lijsten**
+  en in te **trekken**. **Wie mag dat?** Een worker-token is **platform-infrastructuur** (niet
+  tenant-gebonden): het beheer is voorbehouden aan een **ADMIN van de platformorganisatie**. Nieuw veld
+  **`Organization.isPlatform`** (`Boolean`, default `false`, migratie `organization_is_platform`, draait
+  schoon op een lege db) markeert die org; de bootstrap-seed zet het op `true`, publieke zelfaanmelding
+  (T1.3) **nooit**. Zo kan een zelf-aangemelde familie/zorg-ADMIN geen infra-credential munten dat jobs van
+  álle tenants zou verwerken (privilege-escalatie dichtgezet, DESIGN §9.4). Nieuwe guard
+  **`requirePlatformOrg`** (`server/src/auth/authorize.ts`, `403 NOT_PLATFORM_ADMIN`) naast
+  `authorize({ roles: ['ADMIN'] })`. Endpoints (`server/src/routes/worker-tokens.ts`): `GET
+  /admin/worker-tokens` (lijst met naam, scopes, status `active`/`revoked`/`expired`, `lastSeenAt`,
+  `expiresAt` — nooit de hash of het rauwe token), `POST /admin/worker-tokens` (`{ name, scopes?, ttlDays? }`
+  → `201` + het **rauwe** token, hier één keer zichtbaar) en `POST /admin/worker-tokens/:id/revoke`
+  (idempotent; onbekend id → `404`; daarna weigert `workerAuthorize` het token → `403`). Gedeelde schema's:
+  `workerScopeSchema`, `workerTokenStatusSchema`, `workerTokenPublicSchema`, `workerTokenListResponseSchema`,
+  `createWorkerTokenRequestSchema`, `createWorkerTokenResponseSchema`; server-serializer `workerTokenToPublic`
+  (status afgeleid uit `revokedAt`/`expiresAt`, nooit hash/rauw token). Web: nieuw tabblad **Worker-tokens**
+  (`web/src/WorkerTokensPage.tsx`, `AdminNav`) met aanmaakformulier (naam + optionele TTL), eenmalige
+  token-onthulling, en een lijst met status-badges en intrek-knop; een niet-platform-ADMIN ziet een uitleg
+  i.p.v. de lijst (403 opgevangen). Server-tests (`routes/worker-tokens.test.ts`): platform-ADMIN
+  maakt/lijst/trekt in, rauw token één keer + nergens plaintext opgeslagen, niet-platform-ADMIN → `403
+  NOT_PLATFORM_ADMIN`, CAREGIVER in platform-org → `403 FORBIDDEN`, ingetrokken token door `workerAuthorize`
+  geweigerd, lege naam → `400`, onbekend id → `404`. Web-tests (`App.test.tsx`): aanmaken → rauw token →
+  lijst → intrekken, en de uitleg voor een niet-platformbeheerder. Gedocumenteerd in ADR-0010 (addendum),
+  `docs/api.md`, `docs/data-model.md`, `docs/security.md` en `README.md`.
 - **T5.7 Tablet-UX voor WAITING (wachten op een AI-worker).** De backend antwoordt bij een volle
   wachtrij met `503 AI_WORKER_BUSY` (`waiting: true`, `position`, `Retry-After`) of tijdelijk
   `AI_WORKER_UNAVAILABLE` (T5.5, ADR-0010); de gebruikersapp toonde dit nog niet. De web-client

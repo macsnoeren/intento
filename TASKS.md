@@ -121,7 +121,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §5.1–5.3, §9.4.* De backend levert bij een volle wachtrij `503 AI_WORKER_BUSY` met `waiting: true`, `position` en `Retry-After` (T5.5, ADR-0010), maar de gebruikersapp toont dit nog niet. Vang deze respons in de tablet-UI op: toon een rustige "even wachten"-indicator (evt. positie), en **poll** de laatste gespreks-actie automatisch opnieuw na `Retry-After` tot er een vraag/voorstel terugkomt, zonder de gebruiker een fout te tonen. Dezelfde afhandeling voor `AI_WORKER_UNAVAILABLE` (nette terugval/melding). Web-tests op de wacht- en herstel-flow.
   *Acceptatie:* bij `503 AI_WORKER_BUSY` blijft de app in een wachtstand en herstelt automatisch zodra een worker antwoordt; geen harde fout of vastloper in de UI.
 
-- [ ] **T5.8 Beheer-UI voor worker-tokens** *(meerwerk uit T5.5)*
+- [x] **T5.8 Beheer-UI voor worker-tokens** *(meerwerk uit T5.5)*
   *DESIGN: §5.2, §9.4.* Worker-tokens worden nu alleen via de CLI (`worker-token:create`) gemunt. Voeg een beheerscherm (ADMIN) toe om worker-tokens te **maken** (naam, scope, optionele TTL — rauw token éénmalig tonen), te **lijsten** (naam, scopes, `lastSeenAt`, status) en in te **trekken** (`revokedAt`). Server-endpoints achter account-auth (ADMIN), input zod-gevalideerd; het rauwe token verlaat de server verder nooit. Let op: een worker-token is een **platform/infrastructuur**-credential, niet tenant-gebonden — bepaal en documenteer wie het mag beheren (platformbeheer vs. organisatie-ADMIN).
   *Acceptatie:* ADMIN maakt/lijst/trekt een worker-token in via de UI; ingetrokken token wordt door `workerAuthorize` geweigerd (403); rauw token alleen bij aanmaken zichtbaar.
 

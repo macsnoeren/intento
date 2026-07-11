@@ -20,8 +20,10 @@ const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? DEV_DEFAULT_PASSWORD;
 async function main(): Promise<void> {
   const org = await prisma.organization.upsert({
     where: { id: 'seed-demo-org' },
-    update: {},
-    create: { id: 'seed-demo-org', name: 'Demo-omgeving', type: 'family' },
+    // De bootstrap-org is de **platform-/operatororganisatie** (T5.8): alleen ADMINs hiervan
+    // mogen worker-tokens (infrastructuur-credentials) beheren. Ook bij herseeden gezet.
+    update: { isPlatform: true },
+    create: { id: 'seed-demo-org', name: 'Demo-omgeving', type: 'family', isPlatform: true },
   });
 
   const passwordHash = await hashPassword(adminPassword);

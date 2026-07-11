@@ -234,5 +234,21 @@ device-/sessietokens; **gehasht** at-rest, scope `ai:process`, intrekbaar/verlop
 
 Auth-fouten: geen/onbekend token → `401 WORKER_UNAUTHENTICATED`; ingetrokken/verlopen → `403
 WORKER_TOKEN_INACTIVE`; ontbrekende scope → `403 WORKER_SCOPE_DENIED`. Een worker-token wordt gemunt via
+de beheer-UI (zie hieronder) of via de CLI
 `npm run worker-token:create --workspace=server -- --name <label> [--ttl-days N] [--scopes ai:process]`
 (het rauwe token wordt één keer getoond).
+
+**Worker-tokenbeheer** (`server/src/routes/worker-tokens.ts`, T5.8) — beheer van dezelfde infrastructuur-
+credentials via de beheer-UI. Worker-tokens zijn **platform-infrastructuur** (niet tenant-gebonden), dus
+beheer is voorbehouden aan een **ADMIN van de platformorganisatie** (`Organization.isPlatform`): naast
+`authorize({ roles: ['ADMIN'] })` hangt `requirePlatformOrg`. Het rauwe token verlaat de server alléén bij
+aanmaken.
+
+| Methode | Pad | Doel |
+|---|---|---|
+| GET | `/admin/worker-tokens` | Lijst van worker-tokens (naam, scopes, status `active`/`revoked`/`expired`, `lastSeenAt`, `expiresAt`). Nooit de hash of het rauwe token. |
+| POST | `/admin/worker-tokens` | Nieuw token (`{ name, scopes?, ttlDays? }`). `201` + `{ workerToken, token }` — `token` is het **rauwe** token, hier één keer zichtbaar. |
+| POST | `/admin/worker-tokens/{id}/revoke` | Token intrekken (idempotent). `200` + de bijgewerkte weergave; daarna weigert `workerAuthorize` het (`403`). Onbekend id → `404 WORKER_TOKEN_NOT_FOUND`. |
+
+Auth-fouten: geen sessie → `401 NOT_AUTHENTICATED`; wel ADMIN maar geen platformorganisatie → `403
+NOT_PLATFORM_ADMIN`; verkeerde rol → `403 FORBIDDEN`.

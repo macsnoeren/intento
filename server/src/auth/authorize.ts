@@ -81,6 +81,30 @@ export function requireVerifiedEmail(): preHandlerHookHandler {
 }
 
 /**
+ * Extra preHandler dat een **platform-/operatoradmin** eist (T5.8, DESIGN §9.4). Hangt ná
+ * `authorize(prisma, { roles: ['ADMIN'] })` en geeft 403 `NOT_PLATFORM_ADMIN` als de organisatie
+ * van het account geen platform-org is (`Organization.isPlatform`). Worker-tokens zijn
+ * platform-infrastructuur (los van tenants): alleen de operator die de bootstrap-org beheert mag ze
+ * munten/intrekken, zodat een zelf-aangemelde familie/zorg-admin geen infra-credentials kan maken.
+ */
+export function requirePlatformOrg(prisma: PrismaClient): preHandlerAsyncHookHandler {
+  return async (request) => {
+    const account = requireAccount(request);
+    const org = await prisma.organization.findUnique({
+      where: { id: account.organizationId },
+      select: { isPlatform: true },
+    });
+    if (!org?.isPlatform) {
+      throw new HttpError(
+        403,
+        'NOT_PLATFORM_ADMIN',
+        'Alleen een platformbeheerder mag worker-tokens beheren.',
+      );
+    }
+  };
+}
+
+/**
  * Haalt het geverifieerde account op dat `authorize(...)` op de request zette. Faalt hard
  * (500) als het ontbreekt: dat betekent een programmeerfout — de route mist zijn preHandler.
  */

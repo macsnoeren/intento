@@ -109,9 +109,20 @@
       zijn **per-IP rate-limited** (`AI_WORKER_RATE_LIMIT_*`). Een worker die zijn lease verliest (crash/
       time-out) kan zijn oude job niet meer voltooien (guarded update). De payload/het resultaat bevat
       **geen** communicatie-inhoud buiten AAC-concepten (privacy by design). **Backpressure** (503
-      `AI_WORKER_BUSY`) voorkomt dat een piek de site laat blokkeren (DESIGN §9.4). Worker-tokens worden
-      buiten de UI gemunt via een CLI. Getest in `ai/job-queue.test.ts`, `ai/queue-provider.test.ts`,
-      `routes/ai-worker.test.ts` en `routes/conversation-queue.test.ts`.
+      `AI_WORKER_BUSY`) voorkomt dat een piek de site laat blokkeren (DESIGN §9.4). Getest in
+      `ai/job-queue.test.ts`, `ai/queue-provider.test.ts`, `routes/ai-worker.test.ts` en
+      `routes/conversation-queue.test.ts`.
+- [x] **Worker-tokenbeheer als platform-privilege (T5.8)** — worker-tokens zijn platform-
+      **infrastructuur**, niet tenant-gebonden. Beheer (aanmaken/lijsten/intrekken) via de beheer-UI
+      (`routes/worker-tokens.ts`) is daarom voorbehouden aan een **ADMIN van de platformorganisatie**
+      (`Organization.isPlatform`, gezet door de bootstrap-seed): naast `authorize({ roles: ['ADMIN'] })`
+      hangt `requirePlatformOrg` (`auth/authorize.ts`, `403 NOT_PLATFORM_ADMIN`). Zo kan een zelf-
+      aangemelde familie/zorg-ADMIN (T1.3) **geen** infra-credential munten dat jobs van álle tenants zou
+      verwerken — een privilege-escalatie/misbruik-vector wordt zo dichtgezet. Het **rauwe** token verlaat
+      de server uitsluitend één keer bij aanmaken (daarna alleen de SHA-256-hash); de lijst-/detailweergave
+      lekt nooit de hash of het rauwe token. Een ingetrokken token wordt onmiddellijk door
+      `workerAuthorize` geweigerd (`403`). Getest in `routes/worker-tokens.test.ts` (platform-ADMIN
+      maakt/lijst/trekt in, rauw token één keer, niet-platform-ADMIN → 403, ingetrokken token → 403).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

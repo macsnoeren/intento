@@ -8,6 +8,7 @@ import {
   conversationConfirmResponseSchema,
   conversationGenerateResponseSchema,
   conversationStateResponseSchema,
+  createWorkerTokenResponseSchema,
   deviceCodeResponseSchema,
   deviceSessionResponseSchema,
   openSymbolsSearchResponseSchema,
@@ -15,6 +16,8 @@ import {
   userListResponseSchema,
   userPublicSchema,
   verifyEmailResponseSchema,
+  workerTokenListResponseSchema,
+  workerTokenPublicSchema,
   type AacSymbolAdmin,
   type AacSymbolInput,
   type AacSymbolListResponse,
@@ -25,6 +28,8 @@ import {
   type ConversationGenerateResponse,
   type ConversationStateResponse,
   type CreateUserRequest,
+  type CreateWorkerTokenRequest,
+  type CreateWorkerTokenResponse,
   type DeviceCodeResponse,
   type DeviceSessionResponse,
   type OpenSymbolsSearchResponse,
@@ -34,6 +39,8 @@ import {
   type UserListResponse,
   type UserPublic,
   type VerifyEmailResponse,
+  type WorkerTokenListResponse,
+  type WorkerTokenPublic,
 } from '@intento/shared';
 
 /**
@@ -101,6 +108,9 @@ export interface Api {
   deleteAacRelation(id: string): Promise<void>;
   searchOpenSymbols(q: string): Promise<OpenSymbolsSearchResponse>;
   attachOpenSymbols(id: string, body: AttachOpenSymbolsRequest): Promise<AacSymbolAdmin>;
+  listWorkerTokens(): Promise<WorkerTokenListResponse>;
+  createWorkerToken(body: CreateWorkerTokenRequest): Promise<CreateWorkerTokenResponse>;
+  revokeWorkerToken(id: string): Promise<WorkerTokenPublic>;
 }
 
 /**
@@ -296,6 +306,19 @@ export const httpApi: Api & DeviceApi = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    );
+  },
+  async listWorkerTokens() {
+    return workerTokenListResponseSchema.parse(await request('/admin/worker-tokens'));
+  },
+  async createWorkerToken(body) {
+    return createWorkerTokenResponseSchema.parse(
+      await request('/admin/worker-tokens', { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
+  async revokeWorkerToken(id) {
+    return workerTokenPublicSchema.parse(
+      await request(`/admin/worker-tokens/${id}/revoke`, { method: 'POST', body: '{}' }),
     );
   },
   async deviceMe() {
