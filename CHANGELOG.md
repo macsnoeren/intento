@@ -6,6 +6,31 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T6.1 Persoonlijke context (versleuteld).** Nieuw model **`PersonalContext`** (`userId`, `category`,
+  `nameEncrypted`, `relationshipEncrypted?`, `aiUsageAllowed`, `createdAt`, `updatedAt`; index op `userId`,
+  cascade delete met `User`; migratie `personal_context`, draait schoon op een lege db) waarin een begeleider/
+  beheerder belangrijke personen, huisdieren, plekken, favorieten en routines vastlegt (DESIGN §3.7 stap 3,
+  §6.2, §6.3, FR-013/020). **Privacy by design:** de gevoelige vrij-tekst-PII (`name`, `relationship`) staat
+  **versleuteld at-rest** — nieuwe module `server/src/crypto/encryption.ts` (`createEncryptor`) met
+  **AES-256-GCM** (sleutel uit `ENCRYPTION_KEY` via SHA-256, random IV per veld, versieprefix `v1:`,
+  auth-tag tegen geknoei); plaintext verlaat de db nooit en wordt pas op de API-grens ontsleuteld. Endpoints
+  (`server/src/routes/personal-context.ts`): `POST /users/{id}/context` (`personalContextInputSchema`:
+  `{ category, name, relationship?, aiUsageAllowed? }` — categorie is een gesloten enum, ongeldig → `400`;
+  `aiUsageAllowed` **opt-in**, standaard `false`) en `GET /users/{id}/context`
+  (`personalContextListResponseSchema`, ontsleuteld). Toegang: **ADMIN + CAREGIVER** (begeleider mag context
+  beheren, DESIGN §2), tenant-gebonden (`assertSameTenant`) en voor een CAREGIVER beperkt tot **gekoppelde**
+  gebruikers (`assertCaregiverAccess`) — anders `403`. **AI-toestemmingsfilter (DESIGN §6.3):** de gespreks-
+  flow laadt via `loadAllowedUserContext` (`server/src/users/personal-context.ts`) **alléén** context met
+  `aiUsageAllowed=true`, ontsleutelt die en geeft haar als `userContext` (`{ kind, value }`) mee in de
+  beperkte AI-prompt; `decideNextQuestion`/`composeMessage`/`buildState` en de orchestrator-aanroepen zijn
+  hierop doorgetrokken. Context zonder expliciete toestemming bereikt de AI dus nooit. Gedeelde schema's:
+  `personalContextCategorySchema`, `personalContextInputSchema`, `personalContextPublicSchema`,
+  `personalContextListResponseSchema`; server-serializer `personalContextToPublic` (ontsleutelt). Tests:
+  `crypto/encryption.test.ts` (roundtrip, unicode, unieke IV, tamper/verkeerde sleutel geweigerd) en
+  `routes/personal-context.test.ts` (aanmaken/lezen, **rauwe-db-test**: geen plaintext in de db, standaard geen
+  AI-toestemming, ongeldige categorie → `400`, tenant-/niet-gekoppelde-CAREGIVER-`403`, en het **§6.3-filter**:
+  alleen `aiUsageAllowed=true` in de prompt, niet-toegestane context nergens zichtbaar). Bewerken/verwijderen en
+  de invulwizard volgen in T6.2. Docs: `docs/api.md`, `docs/data-model.md`, `docs/security.md`.
 - **T5.8 Beheer-UI voor worker-tokens.** Worker-tokens (T5.5, ADR-0010) waren tot nu toe alleen via de
   CLI (`worker-token:create`) te munten; ze zijn nu ook via de beheeromgeving te **maken**, te **lijsten**
   en in te **trekken**. **Wie mag dat?** Een worker-token is **platform-infrastructuur** (niet

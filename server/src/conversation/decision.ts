@@ -2,7 +2,7 @@ import type { ConversationQuestion, ConversationPhase } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AacSymbolModel, ConversationStepModel } from '../generated/prisma/models.js';
 import { symbolToPublic } from '../aac/library.js';
-import type { AiConceptRef } from '../ai/provider.js';
+import type { AiConceptRef, AiUserContextItem } from '../ai/provider.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
 import { validateAiOptions } from '../ai/validation.js';
 import {
@@ -72,6 +72,7 @@ export async function decideNextQuestion(
   orchestrator: AiOrchestrator,
   steps: Pick<ConversationStepModel, 'selectedConcept'>[],
   excludeConcepts: Iterable<string> = [],
+  userContext: AiUserContextItem[] = [],
 ): Promise<ConversationDecision> {
   const chosen = steps.map((step) => step.selectedConcept);
   const excluded = new Set<string>([...chosen, ...excludeConcepts]);
@@ -103,6 +104,7 @@ export async function decideNextQuestion(
   const aiDecision = await orchestrator.selectNextQuestion({
     conversationContext: toConceptRefs(steps, labelByConcept),
     availableSymbols: available.map((s) => ({ concept: s.concept, label: s.label })),
+    userContext,
   });
 
   // 4. Validatielaag: onbekende concepten afvangen (ConceptProposal) en weglaten.

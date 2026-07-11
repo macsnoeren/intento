@@ -127,7 +127,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 6 — Persoonlijke context en leren
 
-- [ ] **T6.1 Persoonlijke context (versleuteld)**
+- [x] **T6.1 Persoonlijke context (versleuteld)**
   *DESIGN: §3.8 n.v.t., §6.2 (PersonalContext), §6.3, §8.2, §9.4, FR-013/020.* `POST/GET /users/{id}/context` met categorieën (PERSON/PET/PLACE/ACTIVITY/FOOD/OBJECT/ROUTINE/OTHER) en `aiUsageAllowed`-vlag. Gevoelige velden versleuteld at-rest (`ENCRYPTION_KEY`). AI-inputfilter: alleen context met `aiUsageAllowed=true` komt in het AI-contextobject.
   *Acceptatie:* contextvelden versleuteld in de db (rauwe-db-test); context zonder toestemming komt aantoonbaar niet in de prompt (test).
 

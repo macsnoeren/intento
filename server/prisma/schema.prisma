@@ -69,8 +69,47 @@ model User {
   deviceLinkCodes      DeviceLinkCode[]
   /// Gespreksessies van deze gebruiker (T4.1); verdwijnen mee als de gebruiker wordt verwijderd.
   conversationSessions ConversationSession[]
+  /// Persoonlijke context van deze gebruiker (T6.1); gevoelige velden versleuteld at-rest.
+  personalContexts     PersonalContext[]
 
   @@index([organizationId])
+}
+
+/// Persoonlijke context van een gebruiker: belangrijke personen, huisdieren, plekken, favorieten,
+/// routines (T6.1, DESIGN §3.7 stap 3, §6.2 PersonalContext, §6.3, §9.4, FR-013/020). Dient om de AI
+/// te personaliseren — maar **alléén met expliciete toestemming**: alleen rijen met `aiUsageAllowed=true`
+/// belanden ooit in het AI-contextobject (DESIGN §6.3). Privacy by design:
+///
+/// - **Versleuteld at-rest.** De gevoelige, vrij-tekst PII-velden (`name`, `relationship`) staan NOOIT
+///   plaintext in de db: ze worden met AES-256-GCM versleuteld (`ENCRYPTION_KEY`) opgeslagen als
+///   ondoorzichtige strings (`nameEncrypted`, `relationshipEncrypted`) en pas op de API-grens ontsleuteld.
+///   Zo levert db-lekkage geen leesbare persoonsgegevens op (DESIGN §9.4, CLAUDE.md security-checklist).
+/// - **Toestemming per rij.** `aiUsageAllowed` (standaard `false` — opt-in) bepaalt of de AI deze context
+///   mag zien. Zonder toestemming blijft de context zichtbaar voor beheer/begeleiding maar bereikt hij de
+///   prompt nooit.
+/// - **Tenant-/gebruiker-gebonden.** Aan precies één `User` gebonden; elke query wordt op de gebruiker
+///   (en via de gebruiker op de organisatie) gefilterd (multi-tenant-isolatie, DESIGN §9.4).
+///
+/// `category` is een gesloten taxonomie (PERSON/PET/PLACE/ACTIVITY/FOOD/OBJECT/ROUTINE/OTHER), op de grens
+/// met zod gevalideerd — geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit (zie schema-header).
+model PersonalContext {
+  id                    String   @id @default(cuid())
+  userId                String
+  /// Categorie: "PERSON" | "PET" | "PLACE" | "ACTIVITY" | "FOOD" | "OBJECT" | "ROUTINE" | "OTHER"
+  /// (gevalideerd op de API-grens). Bepaalt hoe de context de AI ondersteunt.
+  category              String
+  /// AES-256-GCM-cijfertekst van de naam/omschrijving (bv. een persoons- of huisdiernaam). Nooit plaintext.
+  nameEncrypted         String
+  /// AES-256-GCM-cijfertekst van de relatie/toelichting (bv. "dochter"); `null` als niet opgegeven.
+  relationshipEncrypted String?
+  /// Of de AI deze context mag gebruiken (DESIGN §6.3). Standaard `false` (opt-in, expliciete toestemming).
+  aiUsageAllowed        Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Communicatie-instellingen per gebruiker (DESIGN §5.3, §6.2). 1-op-1 aan `User`

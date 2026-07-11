@@ -1,5 +1,6 @@
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
+import type { AiUserContextItem } from '../ai/provider.js';
 import { DEFAULT_MESSAGE_CONFIDENCE } from '../ai/thresholds.js';
 import { normalizeSearch } from '../aac/library.js';
 import { generateMessage, SCRIPTED_CONFIDENCE, type ChosenConcept } from './message.js';
@@ -89,6 +90,7 @@ export async function composeMessage(
   prisma: PrismaClient,
   orchestrator: AiOrchestrator,
   chosen: ChosenConcept[],
+  userContext: AiUserContextItem[] = [],
 ): Promise<ComposedMessage> {
   // Veilige bodem: altijd beschikbaar, altijd binnen de gekozen concepten.
   const scripted = generateMessage(chosen);
@@ -102,6 +104,7 @@ export async function composeMessage(
 
   const aiResult = await orchestrator.generateMessage({
     chosenConcepts: chosen.map((c) => ({ concept: c.concept, label: c.label })),
+    userContext,
   });
   if (!aiResult) return scriptedResult;
 

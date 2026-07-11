@@ -66,6 +66,26 @@ gefilterd; toegang op id via een andere organisatie geeft `403 FORBIDDEN` (besta
 Rolkeuze (DESIGN §2): aanmaken/verwijderen is een beheerderstaak (ADMIN); een begeleider
 mag instellingen beheren, maar sinds **T2.2** alléén voor gebruikers waaraan hij gekoppeld is.
 
+### Persoonlijke context (T6.1)
+
+Persoonlijke context van een gebruiker (belangrijke personen, huisdieren, plekken, favorieten,
+routines — DESIGN §6.2 `PersonalContext`, §6.3, FR-013/020) waarmee de AI kan personaliseren, **maar
+alléén met expliciete toestemming per rij** (`aiUsageAllowed`). De gevoelige velden (`name`,
+`relationship`) worden **versleuteld** opgeslagen (AES-256-GCM, `ENCRYPTION_KEY`) en pas op de API-grens
+ontsleuteld — plaintext PII staat nooit in de db (DESIGN §9.4). Toegang is tenant-gebonden en, voor een
+CAREGIVER, beperkt tot **gekoppelde** gebruikers (zoals bij `/users/{id}/settings`).
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| POST | `/users/{id}/context` | ADMIN, CAREGIVER | Voegt een stuk context toe (`personalContextInputSchema`: `{ category, name, relationship?, aiUsageAllowed? }`). `category` is een gesloten taxonomie (`PERSON`/`PET`/`PLACE`/`ACTIVITY`/`FOOD`/`OBJECT`/`ROUTINE`/`OTHER`) — een onbekende waarde → `400 VALIDATION_ERROR`. `aiUsageAllowed` is **opt-in** (standaard `false`). `201` + `personalContextPublicSchema` (ontsleuteld). Andere organisatie of niet-gekoppelde CAREGIVER → `403 FORBIDDEN`. |
+| GET | `/users/{id}/context` | ADMIN, CAREGIVER | Alle context van de gebruiker (`personalContextListResponseSchema`, ontsleuteld), gebruiker-/tenant-gefilterd. Zelfde `403`-regels. |
+
+Bewerken/verwijderen en de stapsgewijze invulwizard volgen in **T6.2**.
+
+**AI-toestemmingsfilter (DESIGN §6.3).** Bij elke AI-aanroep in de gespreksflow (`/conversation/*`) laadt
+de backend **alléén** de contextrijen met `aiUsageAllowed=true`, ontsleutelt ze en geeft ze als `userContext`
+(`{ kind, value }`) mee in de beperkte prompt. Context zonder toestemming bereikt de AI dus nooit.
+
 ### Begeleiders koppelen (T2.2)
 Een beheerder bepaalt welke begeleiders (CAREGIVER-accounts) aan een gebruiker gekoppeld zijn.
 De koppeling stuurt de toegang: een niet-gekoppelde begeleider krijgt op de gebruiker-routes

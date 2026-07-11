@@ -27,11 +27,15 @@ import { composeMessage } from '../conversation/generate.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
 import type { ChosenConcept } from '../conversation/message.js';
 import { symbolToPublic } from '../aac/library.js';
+import type { Encryptor } from '../crypto/encryption.js';
+import { loadAllowedUserContext } from '../users/personal-context.js';
 
 export interface ConversationRoutesDeps {
   prisma: PrismaClient;
   /** AI-orchestrator die de volgende vraag kiest (mock in tests, echte provider via env — T5.2). */
   orchestrator: AiOrchestrator;
+  /** Veldversleuteling (T6.1): ontsleutelt de toegestane persoonlijke context voor het AI-contextobject. */
+  encryptor: Encryptor;
 }
 
 /** Route-parameter: het sessie-id uit het pad. */
@@ -115,13 +119,18 @@ async function buildMessageInput(
 async function buildState(
   prisma: PrismaClient,
   orchestrator: AiOrchestrator,
+  encryptor: Encryptor,
   session: ConversationSessionModel,
   steps: ConversationStepModel[],
 ): Promise<ConversationStateResponse> {
   // In deze sessie afgewezen concepten (T5.4) blijven uitgesloten — nooit dezelfde foutieve route (§7.5).
-  const excluded = await loadRejectedConcepts(prisma, session.id);
+  // De toegestane persoonlijke context (T6.1) reist mee naar de AI — alleen `aiUsageAllowed=true` (§6.3).
+  const [excluded, userContext] = await Promise.all([
+    loadRejectedConcepts(prisma, session.id),
+    loadAllowedUserContext(prisma, encryptor, session.userId),
+  ]);
   const [decision, history] = await Promise.all([
-    decideNextQuestion(prisma, orchestrator, steps, excluded),
+    decideNextQuestion(prisma, orchestrator, steps, excluded, userContext),
     buildHistory(prisma, steps),
   ]);
   return conversationStateResponseSchema.parse({
@@ -155,7 +164,7 @@ async function buildState(
  */
 export function registerConversationRoutes(
   app: FastifyInstance,
-  { prisma, orchestrator }: ConversationRoutesDeps,
+  { prisma, orchestrator, encryptor }: ConversationRoutesDeps,
 ): void {
   // Sessie starten — apparaat-auth. Maakt een ACTIVE sessie voor de eigen gebruiker en geeft de
   // startvraag terug (nog geen stappen).
@@ -168,7 +177,7 @@ export function registerConversationRoutes(
         data: { userId: device.userId, status: 'ACTIVE' },
       });
       reply.status(201);
-      return buildState(prisma, orchestrator, session, []);
+      return buildState(prisma, orchestrator, encryptor, session, []);
     },
   );
 
@@ -206,6 +215,7 @@ export function registerConversationRoutes(
       const state = await buildState(
         prisma,
         orchestrator,
+        encryptor,
         session,
         await loadSteps(prisma, session.id),
       );
@@ -287,7 +297,13 @@ export function registerConversationRoutes(
       const last = steps[steps.length - 1]!;
       await prisma.conversationStep.delete({ where: { id: last.id } });
 
-      return buildState(prisma, orchestrator, session, await loadSteps(prisma, session.id));
+      return buildState(
+        prisma,
+        orchestrator,
+        encryptor,
+        session,
+        await loadSteps(prisma, session.id),
+      );
     },
   );
 
@@ -330,7 +346,13 @@ export function registerConversationRoutes(
       ]);
 
       // Gerichtere hervraag op het teruggerolde punt; het afgewezen concept valt weg via `buildState`.
-      return buildState(prisma, orchestrator, session, await loadSteps(prisma, session.id));
+      return buildState(
+        prisma,
+        orchestrator,
+        encryptor,
+        session,
+        await loadSteps(prisma, session.id),
+      );
     },
   );
 
@@ -357,7 +379,8 @@ export function registerConversationRoutes(
       }
 
       const { symbols, chosen } = await buildMessageInput(prisma, steps);
-      const composed = await composeMessage(prisma, orchestrator, chosen);
+      const userContext = await loadAllowedUserContext(prisma, encryptor, session.userId);
+      const composed = await composeMessage(prisma, orchestrator, chosen, userContext);
       return conversationGenerateResponseSchema.parse({
         sessionId: session.id,
         status: session.status,
@@ -392,7 +415,8 @@ export function registerConversationRoutes(
       }
 
       const { chosen } = await buildMessageInput(prisma, steps);
-      const { message } = await composeMessage(prisma, orchestrator, chosen);
+      const userContext = await loadAllowedUserContext(prisma, encryptor, session.userId);
+      const { message } = await composeMessage(prisma, orchestrator, chosen, userContext);
 
       // Bevestigde boodschap opslaan én de sessie afronden in één transactie.
       await prisma.$transaction([

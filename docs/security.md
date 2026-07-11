@@ -123,6 +123,19 @@
       lekt nooit de hash of het rauwe token. Een ingetrokken token wordt onmiddellijk door
       `workerAuthorize` geweigerd (`403`). Getest in `routes/worker-tokens.test.ts` (platform-ADMIN
       maakt/lijst/trekt in, rauw token één keer, niet-platform-ADMIN → 403, ingetrokken token → 403).
+- [x] **Persoonlijke context — versleuteling at-rest + toestemmingsfilter (T6.1)** — de gevoelige,
+      vrij-tekst-PII van `PersonalContext` (`name`, `relationship`) wordt **versleuteld** opgeslagen met
+      **AES-256-GCM** (`crypto/encryption.ts`, sleutel afgeleid uit `ENCRYPTION_KEY` via SHA-256): db-lekkage
+      levert geen leesbare persoonsgegevens op, en geknoei aan de cijfertekst wordt bij het ontsleutelen
+      gedetecteerd (auth-tag). Anders dan tokens (die we alleen *hashen*) is hier terugleesbaarheid nodig, dus
+      versleuteling. Elke veldversleuteling krijgt een **nieuwe random IV** (nooit hergebruikt) en een
+      versieprefix (`v1:`) voor latere rotatie. Toegang is tenant-/gebruiker-gebonden en, voor een CAREGIVER,
+      beperkt tot **gekoppelde** gebruikers (`assertSameTenant` + `assertCaregiverAccess`). **AI-toestemmings-
+      filter (DESIGN §6.3):** de gespreksflow laadt **alléén** context met `aiUsageAllowed=true` in de prompt
+      (`users/personal-context.ts` → `loadAllowedUserContext`); context zonder expliciete toestemming bereikt
+      de AI nooit. Getest in `crypto/encryption.test.ts` (roundtrip, unieke IV, tamper/verkeerde sleutel) en
+      `routes/personal-context.test.ts` (rauwe-db-test: geen plaintext; toestemmingsfilter: niet-toegestane
+      context nergens in de prompt; tenant-/caregiver-403; ongeldige categorie → 400).
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

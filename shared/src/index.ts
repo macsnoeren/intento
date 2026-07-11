@@ -244,6 +244,61 @@ export const userListResponseSchema = z.object({
 });
 export type UserListResponse = z.infer<typeof userListResponseSchema>;
 
+// --- Persoonlijke context (T6.1, DESIGN §6.2 PersonalContext, §6.3, §9.4, FR-013/020) ---
+
+/**
+ * Categorie van een stuk persoonlijke context (DESIGN §6.2). Gesloten taxonomie, op de API-grens
+ * gevalideerd — een onbekende categorie levert een 400 (geen native db-enum i.v.m.
+ * SQLite/PostgreSQL-portabiliteit). Bepaalt hoe de context de AI ondersteunt (personen, huisdieren,
+ * plekken, favorieten, routines …).
+ */
+export const personalContextCategorySchema = z.enum([
+  'PERSON',
+  'PET',
+  'PLACE',
+  'ACTIVITY',
+  'FOOD',
+  'OBJECT',
+  'ROUTINE',
+  'OTHER',
+]);
+export type PersonalContextCategory = z.infer<typeof personalContextCategorySchema>;
+
+/**
+ * Aanmaakverzoek (`POST /users/{id}/context`). `name` is de gevoelige, vrij-tekst PII (persoons-/
+ * huisdiernaam, favoriet …) en wordt **versleuteld** opgeslagen; `relationship` is een optionele
+ * toelichting (bv. "dochter"), eveneens versleuteld. `aiUsageAllowed` is de expliciete toestemming of de
+ * AI deze context mag zien (DESIGN §6.3); standaard `false` (opt-in) als het veld ontbreekt.
+ */
+export const personalContextInputSchema = z.object({
+  category: personalContextCategorySchema,
+  name: z.string().trim().min(1).max(200),
+  relationship: z.string().trim().max(200).optional(),
+  aiUsageAllowed: z.boolean().optional(),
+});
+export type PersonalContextInput = z.infer<typeof personalContextInputSchema>;
+
+/**
+ * Publieke weergave van een stuk persoonlijke context (`GET /users/{id}/context`). De gevoelige velden
+ * zijn op de server ontsleuteld voordat ze hier terechtkomen; ze verlaten de db nooit plaintext.
+ */
+export const personalContextPublicSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  category: personalContextCategorySchema,
+  name: z.string(),
+  relationship: z.string().nullable(),
+  aiUsageAllowed: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type PersonalContextPublic = z.infer<typeof personalContextPublicSchema>;
+
+/** Antwoord op `GET /users/{id}/context`: alle context van de gebruiker (gebruiker-/tenant-gefilterd). */
+export const personalContextListResponseSchema = z.object({
+  contexts: z.array(personalContextPublicSchema),
+});
+export type PersonalContextListResponse = z.infer<typeof personalContextListResponseSchema>;
+
 // --- Begeleiders koppelen (T2.2, DESIGN §2, FR-017) ---
 
 /**
