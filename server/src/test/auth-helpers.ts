@@ -21,6 +21,7 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
 
 /** Verwijdert alle auth-/gebruikersdata (gesprekken → koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
+  await prisma.correctionEvent.deleteMany();
   await prisma.conversationStep.deleteMany();
   await prisma.conversationSession.deleteMany();
   await prisma.deviceLinkCode.deleteMany();

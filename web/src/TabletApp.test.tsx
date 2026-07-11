@@ -41,6 +41,7 @@ const PROBLEM = sym('problem', 'Er is iets aan de hand', '🤕');
 const DO_ACTIVITY = sym('do-activity', 'Iets doen', '🚶');
 const DRINK = sym('drink', 'Iets drinken', '🥤');
 const OUTSIDE = sym('outside', 'Buiten', '🌳');
+const INSIDE = sym('inside', 'Binnen', '🏠');
 
 const TREE: Record<string, { prompt: string; options: AacSymbol[] }> = {
   __root__: {
@@ -48,8 +49,9 @@ const TREE: Record<string, { prompt: string; options: AacSymbol[] }> = {
     options: [WANT, FEEL, SAY, ASK, PROBLEM],
   },
   want: { prompt: 'Wat wil je?', options: [DO_ACTIVITY, DRINK] },
-  'do-activity': { prompt: 'Wat wil je doen?', options: [OUTSIDE] },
+  'do-activity': { prompt: 'Wat wil je doen?', options: [OUTSIDE, INSIDE] },
   outside: { prompt: '', options: [] }, // eindconcept → done
+  inside: { prompt: '', options: [] }, // eindconcept → done
 };
 
 function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationProfile {
@@ -85,6 +87,8 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
   let linked = options.linked ?? false;
   let history: ConversationStep[] = [];
   let status: ConversationStateResponse['status'] = 'ACTIVE';
+  // Door een correctie afgewezen concepten (T5.4): worden niet opnieuw als optie aangeboden (§7.5).
+  const excluded = new Set<string>();
 
   function currentKey(): string {
     const last = history[history.length - 1];
@@ -99,8 +103,8 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
 
   function buildState(): ConversationStateResponse {
     const node = TREE[currentKey()]!;
-    const question =
-      node.options.length > 0 ? { prompt: node.prompt, options: node.options } : null;
+    const available = node.options.filter((o) => !excluded.has(o.concept));
+    const question = available.length > 0 ? { prompt: node.prompt, options: available } : null;
     return {
       sessionId: 's-1',
       status: 'ACTIVE',
@@ -132,6 +136,7 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
     startConversation(): Promise<ConversationStateResponse> {
       history = [];
       status = 'ACTIVE';
+      excluded.clear();
       return Promise.resolve(buildState());
     },
     conversationNext(_sessionId: string, symbolId: string): Promise<ConversationStateResponse> {
@@ -146,6 +151,14 @@ function fakeDeviceApi(options: { linked?: boolean; comm?: CommunicationProfile 
       return Promise.resolve(buildState());
     },
     conversationBack(): Promise<ConversationStateResponse> {
+      history = history.slice(0, -1);
+      return Promise.resolve(buildState());
+    },
+    conversationCorrection(): Promise<ConversationStateResponse> {
+      // Vereenvoudigde heranalyse: rol de laatste keuze terug en sluit dat concept uit (§7.5). De echte
+      // min-confidence-heranalyse is server-side gedekt; hier gaat het om de UI-flow (❌ → hervraag).
+      const last = history[history.length - 1];
+      if (last) excluded.add(last.symbol.concept);
       history = history.slice(0, -1);
       return Promise.resolve(buildState());
     },
@@ -240,7 +253,7 @@ describe('gebruikersapp op de tablet', () => {
     // Voorstelscherm: de gegenereerde zin + ✅/❌.
     expect(await screen.findByRole('heading', { name: 'Ik wil buiten.' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Bevestigen' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Nee, terug' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Nee, klopt niet' })).toBeTruthy();
 
     // Bevestigen → bevestigingsscherm met de boodschap; daarna opnieuw beginnen.
     fireEvent.click(screen.getByRole('button', { name: 'Bevestigen' }));
@@ -251,16 +264,18 @@ describe('gebruikersapp op de tablet', () => {
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
   });
 
-  it('gaat bij ❌ Nee terug naar de laatste vraag zonder te bevestigen', async () => {
+  it('start bij ❌ Nee de correctieflow: gerichte hervraag zonder de afgewezen route', async () => {
     render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
     await walkToProposal();
 
     await screen.findByRole('heading', { name: 'Ik wil buiten.' });
-    fireEvent.click(screen.getByRole('button', { name: 'Nee, terug' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nee, klopt niet' }));
 
-    // Terug naar de laatste vraag ("Wat wil je doen?"), waar "Buiten" opnieuw gekozen kan worden.
+    // Gerichte hervraag op de vermoedelijke foutstap ("Wat wil je doen?") — niet terug naar het begin.
     await screen.findByRole('heading', { name: 'Wat wil je doen?' });
-    expect(screen.getByRole('button', { name: 'Buiten' })).toBeTruthy();
+    // De afgewezen route ("Buiten") wordt niet opnieuw aangeboden; het alternatief ("Binnen") wel (§7.5).
+    expect(screen.queryByRole('button', { name: 'Buiten' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Binnen' })).toBeTruthy();
   });
 
   it('begrenst het aantal opties tot iconsPerScreen', async () => {

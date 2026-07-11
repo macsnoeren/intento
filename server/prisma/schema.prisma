@@ -309,6 +309,8 @@ model ConversationSession {
   /// De bij bevestiging opgeslagen boodschap(pen) van deze sessie (T4.3). In de MVP hoogstens één:
   /// een sessie wordt bij `confirm` afgerond (COMPLETED). Afgewezen voorstellen worden NOOIT opgeslagen.
   messages GeneratedMessage[]
+  /// Correcties van de gebruiker (❌ op een voorstel, T5.4): correctie-signaal, geen leerdata.
+  corrections CorrectionEvent[]
 
   @@index([userId])
 }
@@ -360,6 +362,32 @@ model ConversationStep {
   session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, order])
+  @@index([sessionId])
+}
+
+/// Een correctie van de gebruiker: bij ❌ ("Nee, dit klopt niet") op een voorstel heranalyseert de
+/// orchestrator de route en bepaalt waar de vermoedelijk verkeerde afslag zat (T5.4, DESIGN §3.4,
+/// §6.2 CorrectionEvent, §7.6, FR-009). De flow gaat NIET terug naar het begin: de vermoedelijke
+/// foutstap (en alles erna) wordt teruggerold en er volgt een gerichtere hervraag, waarbij het
+/// afgewezen concept in de rest van de sessie niet meer wordt aangeboden (nooit dezelfde foutieve
+/// route, §7.5). Deze events worden bewaard als correctie-signaal, maar er wordt **niet** van geleerd
+/// (§3.4 punt 4): ze raken nooit de `Preference`-laag (T6.3). Bewust géén communicatie-inhoud hier —
+/// alleen welk concept op welke stap werd afgewezen (DESIGN §3.6, privacy by design).
+model CorrectionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  /// Soort correctie: "wrong_guess" (de enige in de MVP; DESIGN §6.2). Gevalideerd op de grens; geen
+  /// native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header.
+  type      String   @default("wrong_guess")
+  /// De `order`-index van de teruggerolde stap die als vermoedelijke foutstap is aangemerkt.
+  stepOrder Int
+  /// Het AAC-concept dat op die stap gekozen was en nu is afgewezen; blijft de rest van de sessie
+  /// uitgesloten van de aangeboden opties (§7.5).
+  rejectedConcept String
+  createdAt DateTime @default(now())
+
+  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
   @@index([sessionId])
 }
 

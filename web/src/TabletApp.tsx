@@ -137,7 +137,9 @@ function DeviceLinkScreen({
  *
  * Wanneer de route een eindconcept bereikt (`done`), toont de app het **voorstelscherm** (T4.3):
  * de gekozen pictogramreeks + de gegenereerde zin met ✅ Bevestigen / ❌ Nee. Bevestigen rondt de
- * sessie af en slaat de boodschap op; ❌ gaat terug naar de laatste vraag (er wordt niets opgeslagen).
+ * sessie af en slaat de boodschap op; ❌ start de **correctieflow** (T5.4): de server heranalyseert de
+ * route, rolt de vermoedelijke foutstap terug en toont een gerichtere hervraag — niet terug naar het
+ * begin, en het afgewezen concept wordt niet opnieuw aangeboden (er wordt niets opgeslagen).
  */
 function ConversationScreen({
   api,
@@ -214,7 +216,7 @@ function ConversationScreen({
         sessionId={state.sessionId}
         showText={profile.showText}
         onConfirmed={setConfirmed}
-        onReject={() => void run(() => api.conversationBack(state.sessionId))}
+        onReject={() => void run(() => api.conversationCorrection(state.sessionId))}
       />
     );
   }
@@ -274,10 +276,10 @@ function ConversationScreen({
 }
 
 /**
- * Voorstelscherm (T4.3, DESIGN §5.2): toont de gekozen pictogramreeks + de door de (gescripte) engine
- * geformuleerde zin, met ✅ Bevestigen en ❌ Nee. Genereert de boodschap zelf bij binnenkomst
- * (`/generate`, vluchtig — er wordt niets opgeslagen tot bevestiging). Bevestigen rondt de sessie af
- * (`onConfirmed`); ❌ gaat terug naar de laatste vraag (`onReject`), waarna er niets bewaard is.
+ * Voorstelscherm (T4.3, DESIGN §5.2): toont de gekozen pictogramreeks + de geformuleerde zin, met
+ * ✅ Bevestigen en ❌ Nee. Genereert de boodschap zelf bij binnenkomst (`/generate`, vluchtig — er wordt
+ * niets opgeslagen tot bevestiging). Bevestigen rondt de sessie af (`onConfirmed`); ❌ start de
+ * correctieflow (`onReject` → `/correction`, T5.4): een gerichtere hervraag, waarna er niets bewaard is.
  */
 function ProposalScreen({
   api,
@@ -379,7 +381,7 @@ function ProposalScreen({
           className="button"
           type="button"
           disabled={busy}
-          aria-label="Nee, terug"
+          aria-label="Nee, klopt niet"
           onClick={onReject}
         >
           ❌ Nee

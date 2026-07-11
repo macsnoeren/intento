@@ -47,9 +47,8 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
 
 ## Entiteiten
 
-Het volledige model uit DESIGN §6.2 (PersonalContext, Preference,
-CorrectionEvent) wordt in latere taken toegevoegd.
-Nu bestaat:
+Het volledige model uit DESIGN §6.2 (PersonalContext, Preference) wordt in latere
+taken toegevoegd. Nu bestaat:
 
 | Entiteit | Velden | Toelichting |
 |---|---|---|
@@ -67,6 +66,7 @@ Nu bestaat:
 | **ConversationSession** | `id`, `userId`, `status`, `startedAt` | Tijdelijk communicatieproces waarin een gebruiker via pictogramkeuzes zijn intentie opbouwt (T4.1, DESIGN §3.1). Aan **precies één** `User` gebonden → gebruiker-isolatie: een tablet ziet alléén de eigen sessies. `status` = `ACTIVE`/`COMPLETED`/`ABANDONED` (zod op de grens); in T4.1 alleen `ACTIVE` (T4.3 rondt af). |
 | **ConversationStep** | `id`, `sessionId`, `order`, `question`, `selectedConcept`, `selectedSymbolId?`, `confidence?`, `createdAt` | Eén keuze in een gesprek (T4.1). `order` (0-based) bepaalt de volgorde en maakt de terug-functie exact (hoogste stap verwijderen herstelt de vorige context). `question` = de getoonde prompttekst; `selectedConcept`/`selectedSymbolId` = het gekozen concept/symbool (geen harde FK naar `AacSymbol` i.v.m. de muteerbare gedeelde bibliotheek — historie blijft leesbaar via `selectedConcept`). `confidence` = de interpretatie-zekerheid van de nieuwe toestand na deze keuze (T5.2, DESIGN §7.4); `null` in de gescripte engine (T4.1). Samengestelde unieke `(sessionId, order)`. |
 | **GeneratedMessage** | `id`, `sessionId`, `message`, `confirmed`, `createdAt` | Door de (gescripte) engine voorgestelde en door de gebruiker **bevestigde** boodschap (T4.3, DESIGN §3.1, §3.6, §6.2, FR-007). Kernprincipe: alleen **bevestigde** communicatie wordt bewaard — een rij bestaat pas na `POST /conversation/{id}/confirm`; het voorstellen (`/generate`) is vluchtig en raakt de db niet. `message` = de sjabloon-gebaseerde zin uit de gekozen concepten (de AI-orchestrator neemt dit later over — T5.3). `confirmed` in de MVP altijd `true` (afgewezen voorstellen worden nooit opgeslagen); expliciet gemodelleerd conform DESIGN §6.2. In de MVP hoogstens één per sessie (bevestigen rondt de sessie af → `COMPLETED`). |
+| **CorrectionEvent** | `id`, `sessionId`, `type`, `stepOrder`, `rejectedConcept`, `createdAt` | Een correctie van de gebruiker (❌ op een voorstel, T5.4, DESIGN §3.4, §6.2, §7.6, FR-009). De heranalyse rolt de vermoedelijke foutstap (laagste `ConversationStep.confidence`, §7.4) en alles erna terug en legt hier vast wélk concept op welke stap (`stepOrder`) is afgewezen. `type` = `wrong_guess` (zod op de grens; enige waarde in de MVP). Het `rejectedConcept` blijft de rest van de sessie uitgesloten van de aangeboden opties (§7.5). **Correctie-signaal, géén leerdata**: raakt nooit de `Preference`-laag (T6.3) en bevat **geen** communicatie-inhoud (privacy by design, §3.6). Index op `sessionId`, cascade delete met de sessie. |
 | **ConceptProposal** | `id`, `concept` (uniek), `reason`, `status`, `linkedSymbolId?`, `createdAt`, `updatedAt` | Een door de AI voorgesteld **nieuw begrip** dat (nog) niet in de AAC-bibliotheek bestaat (T5.2, DESIGN §6.2, §7.6, FR-016). De **validatielaag** maakt zo'n voorstel aan wanneer de AI tijdens communicatie een concept aandraagt dat noch als concept, noch als synoniem bestaat: de optie wordt weggelaten (bereikt de gebruiker **nooit**) en het begrip belandt hier ter beoordeling door een beheerder (T7.3). `concept` is **uniek** → herhaalde voorstellen vormen één openstaand item (idempotente upsert). `status` = `PENDING`/`APPROVED`/`REJECTED` (zod op de grens); `linkedSymbolId` = na goedkeuring het gekoppelde `AacSymbol` (geen harde FK, net als bij `ConversationStep`). Niet tenant-gebonden (de bibliotheek is platformbreed gedeeld). Index op `status` voor de reviewlijst. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
@@ -81,9 +81,10 @@ netjes alle onderliggende data. De AAC-bibliotheek staat hier **los** van: `AacS
 `AacConceptRelation` zijn gedeeld en niet aan een organisatie of gebruiker gekoppeld;
 `AacConceptRelation.parentId`/`childId → AacSymbol` (beide cascade delete).
 `ConversationSession.userId → User` (cascade delete — sessies verdwijnen met de gebruiker);
-`ConversationStep.sessionId → ConversationSession` (cascade delete) en
+`ConversationStep.sessionId → ConversationSession` (cascade delete),
 `GeneratedMessage.sessionId → ConversationSession` (cascade delete — bevestigde boodschappen
-verdwijnen met de sessie). `ConversationStep`
+verdwijnen met de sessie) en `CorrectionEvent.sessionId → ConversationSession` (cascade delete —
+correcties verdwijnen met de sessie). `ConversationStep`
 heeft bewust géén FK naar `AacSymbol`: de gedeelde bibliotheek is muteerbaar, dus een verwijderd
 symbool mag de historie niet cascaderen — het `selectedConcept` blijft de leesbare sleutel.
 
@@ -124,3 +125,4 @@ relaties op hun unieke combinatie — idempotent, dus herseeden levert geen dupl
 - **`contextindicator_setting`** (T2.4) — `UserCommunicationProfile` uitgebreid met `contextIndicator` (`Boolean`, default `true`) voor de per-user aan/uit-schakelaar van de contextindicator in de tablet-UI.
 - **`generated_messages`** (T4.3) — nieuwe tabel `GeneratedMessage` (`sessionId`, `message`, `confirmed` (`Boolean`, default `true`), index op `sessionId`, cascade delete) voor de bij bevestiging opgeslagen boodschap.
 - **`concept_proposals`** (T5.2) — nieuwe tabel `ConceptProposal` (`concept` uniek, `reason`, `status` (default `PENDING`), `linkedSymbolId` nullable, `updatedAt`, index op `status`) voor door de AI voorgestelde, nog niet bestaande begrippen die de validatielaag afvangt (ter beoordeling in T7.3). Niet tenant-gebonden.
+- **`correction_events`** (T5.4) — nieuwe tabel `CorrectionEvent` (`sessionId`, `type` (default `wrong_guess`), `stepOrder`, `rejectedConcept`, index op `sessionId`, cascade delete) voor de correctieflow (❌ op een voorstel): legt de teruggerolde foutstap en het afgewezen concept vast (correctie-signaal, geen leerdata).

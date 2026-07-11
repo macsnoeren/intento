@@ -651,6 +651,26 @@ export const conversationChoiceResponseSchema = z.object({
 });
 export type ConversationChoiceResponse = z.infer<typeof conversationChoiceResponseSchema>;
 
+/**
+ * Soort correctie op een voorstel (`CorrectionEvent.type`, DESIGN §3.4, §6.2). In de MVP alleen
+ * `wrong_guess`: de gebruiker koos ❌ ("Nee, dit klopt niet"). Bewust een gesloten lijst zodat latere
+ * correctietypes expliciet worden toegevoegd.
+ */
+export const conversationCorrectionTypeSchema = z.enum(['wrong_guess']);
+export type ConversationCorrectionType = z.infer<typeof conversationCorrectionTypeSchema>;
+
+/**
+ * Verzoek voor `POST /conversation/{id}/correction` (T5.4, DESIGN §3.4, §8.2, FR-009): de gebruiker
+ * wijst het voorstel af. `type` staat standaard op `wrong_guess` (de enige waarde in de MVP), zodat een
+ * lege body `{}` volstaat. De server heranalyseert dan de route, rolt de vermoedelijke foutstap terug
+ * en geeft een gerichtere hervraag terug — **niet** terug naar het begin. Het antwoord is een gewone
+ * `ConversationStateResponse` (het correctiescherm rendert dezelfde vorm als het keuzescherm).
+ */
+export const conversationCorrectionRequestSchema = z.object({
+  type: conversationCorrectionTypeSchema.default('wrong_guess'),
+});
+export type ConversationCorrectionRequest = z.infer<typeof conversationCorrectionRequestSchema>;
+
 // --- Boodschap voorstellen en bevestigen (T4.3, DESIGN §3.1, §3.6, §6.2, §8.2, FR-007) ---
 
 /**

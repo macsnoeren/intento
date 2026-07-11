@@ -222,7 +222,15 @@ curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/next 
   -H 'content-type: application/json' -d '{"symbolId":"<optie-id>"}'
 # 3) Laatste keuze ongedaan maken → vorige vraag/opties exact hersteld:
 curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/back
+# 4) Voorstel afwijzen (❌) → gerichte hervraag op de vermoedelijke foutstap (T5.4):
+curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/correction \
+  -H 'content-type: application/json' -d '{"type":"wrong_guess"}'
 ```
+
+Bij een correctie gaat de flow **niet** terug naar het begin: de server heranalyseert de route (laagste
+per-stap-zekerheid), rolt de vermoedelijke foutstap terug, legt het afgewezen concept vast als
+`CorrectionEvent` en biedt die route de rest van de sessie niet opnieuw aan (DESIGN §3.4, §7.5, FR-009).
+Er wordt niets geleerd of opgeslagen.
 
 ## AI-orchestrator, validatielaag en confidence (T5.1/T5.2)
 

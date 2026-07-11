@@ -58,6 +58,12 @@ server niet uit elkaar lopen.
   sessie** (§7.8) wordt verworpen ten gunste van de deterministische sjabloon-zin (`message.ts`), die per
   constructie binnen de gekozen concepten blijft. Zo bereikt een verzonnen/buiten-de-sessie begrip de
   gebruiker (en de db) nooit — ook niet bij een onbetrouwbare provider.
+- `server/src/conversation/correction.ts` — de **correctie-heranalyse** (T5.4) achter `/correction`:
+  `analyzeCorrection` kiest puur uit de opgeslagen stappen de vermoedelijke foutstap (laagste
+  `ConversationStep.confidence`, §7.4) die wordt teruggerold. Het afgewezen concept wordt als
+  `CorrectionEvent` vastgelegd en blijft de rest van de sessie uitgesloten (via `decideNextQuestion`'s
+  `excludeConcepts`), zodat dezelfde foutieve route nooit terugkomt (§7.5). De flow gaat **niet** terug
+  naar het begin en er wordt **niet** van geleerd (correctie-signaal, geen `Preference`-mutatie).
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`

@@ -100,6 +100,8 @@ export interface DeviceApi {
   conversationNext(sessionId: string, symbolId: string): Promise<ConversationStateResponse>;
   /** Laatste keuze ongedaan maken; herstelt de vorige vraag/opties exact. */
   conversationBack(sessionId: string): Promise<ConversationStateResponse>;
+  /** Voorstel afwijzen (❌): heranalyse → gerichtere hervraag op de vermoedelijke foutstap (T5.4). */
+  conversationCorrection(sessionId: string): Promise<ConversationStateResponse>;
   /** Boodschap laten voorstellen uit de gekozen concepten (sjabloon-zin + confidence; slaat niets op). */
   conversationGenerate(sessionId: string): Promise<ConversationGenerateResponse>;
   /** Boodschap bevestigen → sessie afronden en de boodschap opslaan. */
@@ -291,6 +293,11 @@ export const httpApi: Api & DeviceApi = {
   async conversationBack(sessionId) {
     return conversationStateResponseSchema.parse(
       await request(`/conversation/${sessionId}/back`, { method: 'POST', body: '{}' }),
+    );
+  },
+  async conversationCorrection(sessionId) {
+    return conversationStateResponseSchema.parse(
+      await request(`/conversation/${sessionId}/correction`, { method: 'POST', body: '{}' }),
     );
   },
   async conversationGenerate(sessionId) {

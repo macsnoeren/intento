@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T5.4 Correctieflow.** Nieuw endpoint **`POST /conversation/{id}/correction`** (`type: "wrong_guess"`,
+  standaard) voor het afwijzen van een voorstel (❌), DESIGN §3.4, §6.2 (CorrectionEvent), §7.6, FR-009.
+  De flow gaat **niet** terug naar het begin: de **heranalyse** (`server/src/conversation/correction.ts`,
+  `analyzeCorrection`) bepaalt puur uit de opgeslagen stappen de vermoedelijke foutstap — de stap met de
+  **laagste interpretatie-zekerheid** (`ConversationStep.confidence`, §7.4; tie-break: vroegste stap,
+  terugval op de laatste stap als geen zekerheid bekend is). Die stap en alles erna worden **teruggerold**
+  en het afgewezen concept wordt vastgelegd als **`CorrectionEvent`** (nieuw model + migratie). Daarna
+  volgt een **gerichtere hervraag** op het teruggerolde punt. De afgewezen concepten van een sessie worden
+  bij élke volgende beslissing uitgesloten (`buildState` → `decideNextQuestion(excludeConcepts)`), zodat
+  dezelfde foutieve route **nooit opnieuw** wordt aangeboden (§7.5) — ook na `/back` of `/next`.
+  **Geen leerdata:** correcties raken nooit voorkeuren (de `Preference`-laag komt in T6.3); bij een
+  correctie wordt niets opgeslagen als boodschap en blijft de sessie `ACTIVE`. De tablet-UI koppelt ❌ nu
+  aan `/correction` i.p.v. `/back`: het voorstelscherm start de correctieflow en toont de gerichte
+  hervraag als gewoon keuzescherm (geen apart component; `conversationStateResponseSchema` blijft de vorm).
+  Tests: unit voor `analyzeCorrection` (laagste zekerheid, tie-break, null-terugval), **end-to-end via
+  HTTP** (gerichte hervraag op de foutstap, afgewezen route niet opnieuw aangeboden — ook bij vervolgkeuze
+  en `/back`, `CorrectionEvent` vastgelegd, niets geleerd/opgeslagen, 400 zonder keuzes, 400 bij onbekend
+  type) en web (❌ → correctieflow toont hervraag zonder de afgewezen route). Gedocumenteerd in
+  `docs/api.md`, `docs/data-model.md` en `docs/architecture.md`.
 - **T5.3 AI-boodschapgeneratie.** De boodschap achter `POST /conversation/{id}/generate` en `/confirm`
   wordt nu door de **AI-orchestrator** geformuleerd i.p.v. puur sjabloon-gebaseerd (DESIGN §3.1, §7.1
   taak 4, §7.4, §7.8, FR-007/008). Nieuwe AI-taak **`generate_message`**: de `AiProvider`-interface krijgt

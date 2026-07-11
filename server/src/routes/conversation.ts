@@ -4,6 +4,7 @@ import {
   conversationChoiceRequestSchema,
   conversationChoiceResponseSchema,
   conversationConfirmResponseSchema,
+  conversationCorrectionRequestSchema,
   conversationGenerateResponseSchema,
   conversationStateResponseSchema,
   type ConversationChoiceResponse,
@@ -21,6 +22,7 @@ import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
 import { decideNextQuestion } from '../conversation/decision.js';
+import { analyzeCorrection } from '../conversation/correction.js';
 import { composeMessage } from '../conversation/generate.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
 import type { ChosenConcept } from '../conversation/message.js';
@@ -55,6 +57,20 @@ async function loadOwnedSession(
 /** Alle stappen van een sessie, oplopend op `order` (de volgorde waarin ze gekozen zijn). */
 function loadSteps(prisma: PrismaClient, sessionId: string): Promise<ConversationStepModel[]> {
   return prisma.conversationStep.findMany({ where: { sessionId }, orderBy: { order: 'asc' } });
+}
+
+/**
+ * De in deze sessie **afgewezen** concepten (uit eerdere correcties, T5.4). Deze worden bij elke
+ * volgende beslissing uitgesloten van de aangeboden opties, zodat een afgewezen route nooit opnieuw
+ * wordt aangeboden (DESIGN §3.4, §7.5). Puur afgeleid uit de opgeslagen `CorrectionEvent`s, zodat de
+ * uitsluiting blijft gelden voor de rest van de sessie (ook na `/back` of `/next`).
+ */
+async function loadRejectedConcepts(prisma: PrismaClient, sessionId: string): Promise<string[]> {
+  const events = await prisma.correctionEvent.findMany({
+    where: { sessionId },
+    select: { rejectedConcept: true },
+  });
+  return events.map((event) => event.rejectedConcept);
 }
 
 /** Bouwt de geserialiseerde historie: laadt de bij de stappen horende symbolen en koppelt ze. */
@@ -102,8 +118,10 @@ async function buildState(
   session: ConversationSessionModel,
   steps: ConversationStepModel[],
 ): Promise<ConversationStateResponse> {
+  // In deze sessie afgewezen concepten (T5.4) blijven uitgesloten — nooit dezelfde foutieve route (§7.5).
+  const excluded = await loadRejectedConcepts(prisma, session.id);
   const [decision, history] = await Promise.all([
-    decideNextQuestion(prisma, orchestrator, steps),
+    decideNextQuestion(prisma, orchestrator, steps, excluded),
     buildHistory(prisma, steps),
   ]);
   return conversationStateResponseSchema.parse({
@@ -131,6 +149,7 @@ async function buildState(
  * - `POST /conversation/{id}/next` — **kern-call:** keuze insturen → volgende vraag + opties terug.
  * - `POST /conversation/{id}/choice` — keuze alléén opslaan (save-only primitive; geen volgende vraag).
  * - `POST /conversation/{id}/back` — laatste keuze ongedaan maken; vorige vraag/opties exact hersteld.
+ * - `POST /conversation/{id}/correction` — ❌ op een voorstel: heranalyse → gerichtere hervraag (T5.4).
  * - `POST /conversation/{id}/generate` — boodschap voorstellen (sjabloon-zin + confidence; T4.3, vluchtig).
  * - `POST /conversation/{id}/confirm` — bevestigen → sessie afronden en de boodschap opslaan (T4.3).
  */
@@ -268,6 +287,49 @@ export function registerConversationRoutes(
       const last = steps[steps.length - 1]!;
       await prisma.conversationStep.delete({ where: { id: last.id } });
 
+      return buildState(prisma, orchestrator, session, await loadSteps(prisma, session.id));
+    },
+  );
+
+  // Correctie (❌ op een voorstel, T5.4, DESIGN §3.4, FR-009). Gaat **niet** terug naar het begin: de
+  // heranalyse (`analyzeCorrection`) bepaalt uit de per-stap-zekerheid (§7.4) de vermoedelijke foutstap,
+  // die stap en alles erna worden teruggerold, en het afgewezen concept wordt als `CorrectionEvent`
+  // vastgelegd zodat het de rest van de sessie niet meer wordt aangeboden (§7.5, via `buildState`). Er
+  // volgt een gerichtere hervraag op het teruggerolde punt. De correctie is een **signaal**, geen
+  // leerdata: er worden geen voorkeuren gemuteerd (§3.4 punt 4; de `Preference`-laag komt pas in T6.3).
+  app.post(
+    '/conversation/:id/correction',
+    { preHandler: deviceAuthorize(prisma) },
+    async (request): Promise<ConversationStateResponse> => {
+      const device = requireDevice(request);
+      const { id } = sessionParamsSchema.parse(request.params);
+      // De body wordt gevalideerd (alleen `type: 'wrong_guess'` toegestaan); een lege body volstaat.
+      const { type } = conversationCorrectionRequestSchema.parse(request.body ?? {});
+
+      const session = await loadOwnedSession(prisma, device.userId, id);
+      if (session.status !== 'ACTIVE') {
+        throw new HttpError(409, 'SESSION_NOT_ACTIVE', 'Dit gesprek is al afgerond.');
+      }
+
+      const steps = await loadSteps(prisma, session.id);
+      if (steps.length === 0) {
+        throw new HttpError(400, 'NO_STEPS_TO_CORRECT', 'Er is nog geen keuze om te corrigeren.');
+      }
+
+      const { stepOrder, rejectedConcept } = analyzeCorrection(steps);
+
+      // Foutstap + alles erna terugrollen en de correctie vastleggen — in één transactie zodat de
+      // uitsluiting en de teruggerolde stappen altijd consistent zijn.
+      await prisma.$transaction([
+        prisma.correctionEvent.create({
+          data: { sessionId: session.id, type, stepOrder, rejectedConcept },
+        }),
+        prisma.conversationStep.deleteMany({
+          where: { sessionId: session.id, order: { gte: stepOrder } },
+        }),
+      ]);
+
+      // Gerichtere hervraag op het teruggerolde punt; het afgewezen concept valt weg via `buildState`.
       return buildState(prisma, orchestrator, session, await loadSteps(prisma, session.id));
     },
   );

@@ -104,7 +104,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §3.1, §7.1 (taak 4), §7.4, FR-007/008.* `/generate` via de orchestrator: natuurlijke zin uit bevestigde concepten, met confidence. Voorstel alleen bij >85%; JA/NEE uitsluitend als laatste controle. Zin blijft binnen de gekozen concepten (veiligheidsregels §7.8).
   *Acceptatie:* gegenereerde zin bevat geen concepten buiten de sessie (validatietest); voorstelscherm toont AI-zin end-to-end.
 
-- [ ] **T5.4 Correctieflow**
+- [x] **T5.4 Correctieflow**
   *DESIGN: §3.4, §6.2 (CorrectionEvent), §7.6, FR-009.* `POST /conversation/{id}/correction` (`wrong_guess`): orchestrator heranalyseert de route, bepaalt de waarschijnlijk foute stap en stelt een gerichtere vraag; dezelfde route wordt niet herhaald. Correctiescherm in de UI (niet terug naar start). CorrectionEvents opgeslagen; er wordt **niet** van geleerd.
   *Acceptatie:* na ❌ volgt een gerichte hervraag over de vermoedelijke foutstap (test met mock); afgewezen route niet opnieuw aangeboden; geen Preference-mutaties door correcties.
 
