@@ -8,6 +8,7 @@ import { QuestionModePage } from './QuestionModePage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
 import { WorkerTokensPage } from './WorkerTokensPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
+import { AuditLogPage } from './AuditLogPage.tsx';
 import { ConceptProposalsPage } from './ConceptProposalsPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
@@ -204,6 +205,20 @@ export function App({
       <>
         {banner}
         <WorkerTokensPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  if (view === 'audit-logs') {
+    return (
+      <>
+        {banner}
+        <AuditLogPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

@@ -6,6 +6,24 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T8.2 Audit-logging, security review en MVP-check.** Sluitstuk van de MVP (DESIGN §9.4, §10.3). Een
+  herbruikbare `recordAudit(...)` (`server/src/audit/audit.ts` + centrale actiesleutels in
+  `audit/actions.ts`) schrijft een **append-only** spoor van **gevoelige acties**: login (geslaagd én
+  mislukt), logout, registratie, e-mailverificatie, gebruikersbeheer + instellingen, begeleider-koppelingen,
+  koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-tokens en
+  conceptvoorstellen. Nieuw model `AuditLog` (migratie `20260712122032_audit_logging`) met indexen op
+  `(organizationId, createdAt)`, `accountId` en `action`; **bewust zonder FK's** zodat het spoor een
+  verwijderde actor/tenant overleeft. Ontwerp: **best-effort en nooit blokkerend** (een hapering in de
+  audit-tabel laat de hoofdactie niet mislukken), **nooit communicatie-inhoud of vrije-tekst-PII** (alleen
+  `action`, `outcome`, objectverwijzing en kleine niet-gevoelige `metadata`) en een mislukte login logt
+  **geen e-mailadres** (voorkomt enumeratie in het log). Inzage via `GET /admin/audit-logs`
+  (`server/src/routes/audit.ts`, `auditLogListResponseSchema`) is **ADMIN-only** en **tenant-gefilterd** op
+  `organizationId`; het `ip`-veld blijft server-side. Web: `AuditLogPage` in de beheeromgeving (menselijke
+  actie-labels, uitkomstbadge, doelverwijzing, tijdstip) + `api.listAuditLogs()` en een nav-item. Tests:
+  server (`routes/audit.test.ts` — login-succes/-failure, instellingen, context zonder PII, export, ADMIN-
+  only + tenant-isolatie, CAREGIVER → 403) en web (`AuditLogPage.test.tsx`). Gedocumenteerd in `docs/api.md`,
+  `docs/data-model.md` en `docs/security.md`. `/security-review` gedraaid over de fase; MVP-Definition-of-Done
+  (DESIGN §10.3) nagelopen — zie README.
 - **T8.1 Profielexport en -import.** Gegevenseigenaarschap (DESIGN §6.4, §8.2, FR-019): een beheerder kan
   het volledige communicatieprofiel van een gebruiker exporteren en elders weer importeren. Twee nieuwe
   **ADMIN-only** endpoints (`server/src/routes/profile-transfer.ts`). `GET /users/{id}/export` bundelt het

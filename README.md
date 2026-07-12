@@ -355,6 +355,28 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/users/import \
 
 Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 
+## Audit-logging (T8.2)
+
+Gevoelige acties laten een **onveranderlijk spoor** na (DESIGN §9.4): login (geslaagd én mislukt), logout,
+registratie, e-mailverificatie, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
+persoonlijke context, profielexport/-import, worker-tokens en conceptvoorstellen. Het spoor bevat **geen
+communicatie-inhoud of vrije-tekst-PII** — alleen wie-wat-wanneer. Inzage via `GET /admin/audit-logs`
+(ADMIN, tenant-gefilterd op de eigen organisatie) en de beheerpagina **Audit-log**. Zie
+[docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
+
+## MVP — Definition of Done (DESIGN §10.3)
+
+Alle zes MVP-criteria zijn afgevinkt met bewijs in code + tests:
+
+| Criterium | Bewijs |
+|---|---|
+| ✅ Gebruiker maakt zelfstandig een boodschap | Gescripte + AI-gestuurde gespreksflow (T4.1–T4.3, T5.1–T5.3); `conversation*.test.ts`, tablet-UI `TabletApp.tsx`. |
+| ✅ AI stelt passende pictogramkeuzes voor | AI-orchestrator + validatielaag + confidence-drempels (T5.1/T5.2); `ai/*.test.ts` — onbekend concept bereikt de gebruiker nooit. |
+| ✅ Gebruiker corrigeert fouten | Correctieflow (T5.4); `conversation-correction.test.ts` — gerichte hervraag, afgewezen route niet herhaald. |
+| ✅ Begeleider ondersteunt | Vraagmodus + ondersteuningsmodus (T7.1/T7.2); server dwingt af dat bevestigen nooit vanuit een begeleiderssessie kan (`question.test.ts`, `/confirm` → 403). |
+| ✅ Persoonlijke context wordt gebruikt | Versleutelde context + AI-inputfilter (T6.1/T6.2); alleen `aiUsageAllowed=true` in de prompt (`personal-context.test.ts`). |
+| ✅ Gegevens veilig opgeslagen | argon2id + gehashte tokens, AES-256-GCM voor gevoelige velden, multi-tenant-isolatie, audit-logging (T8.2), `/security-review` zonder open bevindingen. |
+
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 
 ```bash

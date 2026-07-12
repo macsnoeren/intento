@@ -12,6 +12,8 @@ import { assertSameTenant } from '../auth/tenant.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { userToPublic } from '../users/serialize.js';
 import { buildProfileExport, encryptProfileExport, importProfile } from '../users/profile-transfer.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface ProfileTransferRoutesDeps {
   prisma: PrismaClient;
@@ -49,6 +51,13 @@ export function registerProfileTransferRoutes(
 
       const payload = await buildProfileExport(prisma, encryptor, id);
       const data = encryptProfileExport(encryptor, payload);
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.PROFILE_EXPORT,
+        targetType: 'user',
+        targetId: id,
+      });
+
       return profileExportResponseSchema.parse({
         data,
         filename: `intento-profiel-${id}.intento`,
@@ -66,6 +75,13 @@ export function registerProfileTransferRoutes(
       const { data, name } = profileImportRequestSchema.parse(request.body);
 
       const user = await importProfile(prisma, encryptor, account, data, name);
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.PROFILE_IMPORT,
+        targetType: 'user',
+        targetId: user.id,
+      });
+
       reply.status(201);
       return userToPublic(user);
     },

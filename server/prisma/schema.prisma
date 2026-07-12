@@ -515,6 +515,45 @@ model Preference {
   @@index([userId])
 }
 
+/// Een audit-logregel over een **gevoelige actie** (T8.2, DESIGN §9.4). Append-only spoor van
+/// wie-wat-wanneer op beveiligings-/beheerrelevante handelingen: login (geslaagd én mislukt),
+/// instellingen, persoonlijke context, profielexport/-import en beheeracties (gebruikers,
+/// begeleider-koppelingen, worker-tokens, conceptvoorstellen). Privacy by design (DESIGN §3.6, §9.4):
+///
+/// - **Nooit communicatie-inhoud.** Er worden géén zinnen, pictogramkeuzes, persoonlijke-context-PII of
+///   andere vrije tekst gelogd — alleen een stabiele `action`-sleutel, de uitkomst en objectverwijzingen
+///   (`targetType`/`targetId`). `metadataJson` bevat hoogstens kleine, niet-gevoelige context (bv. een
+///   mislukkingsreden of het aantal gekoppelde begeleiders), nooit PII.
+/// - **Bewust géén harde FK's** naar `Account`/`Organization`: het log is een onafhankelijk,
+///   onveranderlijk spoor dat een verwijderde actor/tenant moet overleven (anders zou `onDelete: Cascade`
+///   juist het bewijs van een verwijdering wissen). Verwijzingen zijn losse id's; de lijst-API filtert
+///   op `organizationId` zodat een ADMIN alleen het spoor van de **eigen** organisatie ziet (tenant-isolatie).
+model AuditLog {
+  id             String   @id @default(cuid())
+  /// Stabiele, machine-leesbare actiesleutel, bv. "auth.login", "user.settings.update",
+  /// "profile.export" (zie audit/actions.ts). Bewust een string, geen native enum (SQLite/PostgreSQL).
+  action         String
+  /// Uitkomst: "success" | "failure". Mislukte logins zijn óók auditwaardig (brute-force-detectie).
+  outcome        String   @default("success")
+  /// Het handelende account (nullable: bij een mislukte login is er nog geen geverifieerd account).
+  accountId      String?
+  /// De tenant waarin de actie plaatsvond (nullable bij pre-auth acties zoals een mislukte login).
+  organizationId String?
+  /// Type van het doelobject, bv. "user" | "account" | "personalContext" | "workerToken" (nullable).
+  targetType     String?
+  /// Id van het doelobject (nullable).
+  targetId       String?
+  /// Client-IP (best-effort, achter de geconfigureerde proxy-hops), voor herkomst/diagnose.
+  ip             String?
+  /// Kleine, niet-gevoelige extra context als JSON-string. NOOIT communicatie-inhoud of vrije-tekst-PII.
+  metadataJson   String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([accountId])
+  @@index([action])
+}
+
 /// Een actieve login-sessie. Het sessietoken staat NOOIT plaintext in de db: we bewaren
 /// alleen een SHA-256-hash (`tokenHash`). De client krijgt het rauwe token als
 /// httpOnly+Secure cookie; bij elke request hashen we de cookie en zoeken hierop

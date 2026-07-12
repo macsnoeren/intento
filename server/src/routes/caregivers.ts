@@ -9,6 +9,8 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
 import { assertSameTenant } from '../auth/tenant.js';
 import { HttpError } from '../errors.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface CaregiverRoutesDeps {
   prisma: PrismaClient;
@@ -115,6 +117,13 @@ export function registerCaregiverRoutes(
       } else {
         await prisma.caregiverAssignment.deleteMany({ where: { userId: id, accountId } });
       }
+
+      await recordAudit(prisma, request, {
+        action: linked ? AUDIT_ACTIONS.CAREGIVER_LINK : AUDIT_ACTIONS.CAREGIVER_UNLINK,
+        targetType: 'user',
+        targetId: id,
+        metadata: { caregiverAccountId: accountId },
+      });
 
       return buildCaregiverList(prisma, account.organizationId, id);
     },

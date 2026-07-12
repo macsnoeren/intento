@@ -11,6 +11,8 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../errors.js';
 import { authorize, requirePlatformOrg } from '../auth/authorize.js';
 import { createWorkerToken, revokeWorkerToken, workerTokenToPublic } from '../ai/worker-token.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface WorkerTokenRoutesDeps {
   prisma: PrismaClient;
@@ -52,6 +54,17 @@ export function registerWorkerTokenRoutes(
     async (request, reply): Promise<CreateWorkerTokenResponse> => {
       const { name, scopes, ttlDays } = createWorkerTokenRequestSchema.parse(request.body ?? {});
       const { record, token } = await createWorkerToken(prisma, { name, scopes, ttlDays });
+
+      // Platform-infra-credential: auditen zonder tenant (worker-tokens zijn niet tenant-gebonden). Nooit
+      // het rauwe token/hash — alleen dat er een token is gemunt, met naam/scopes voor herkomst.
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.WORKER_TOKEN_CREATE,
+        organizationId: null,
+        targetType: 'workerToken',
+        targetId: record.id,
+        metadata: { name: record.name, scopes: record.scopes },
+      });
+
       reply.status(201);
       return createWorkerTokenResponseSchema.parse({
         workerToken: workerTokenToPublic(record),
@@ -70,6 +83,15 @@ export function registerWorkerTokenRoutes(
         throw new HttpError(404, 'WORKER_TOKEN_NOT_FOUND', 'Worker-token niet gevonden.');
       }
       await revokeWorkerToken(prisma, id);
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.WORKER_TOKEN_REVOKE,
+        organizationId: null,
+        targetType: 'workerToken',
+        targetId: id,
+        metadata: { name: existing.name },
+      });
+
       const updated = await prisma.workerToken.findUnique({ where: { id } });
       return workerTokenToPublic(updated ?? existing);
     },

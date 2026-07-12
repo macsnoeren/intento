@@ -1131,3 +1131,32 @@ export const approveConceptProposalRequestSchema = z.object({
   symbolId: z.string().min(1),
 });
 export type ApproveConceptProposalRequest = z.infer<typeof approveConceptProposalRequestSchema>;
+
+// --- Audit-log (T8.2, DESIGN §9.4) ---
+
+/** Uitkomst van een geauditeerde actie: geslaagd of mislukt (bv. een mislukte login). */
+export const auditOutcomeSchema = z.enum(['success', 'failure']);
+export type AuditOutcome = z.infer<typeof auditOutcomeSchema>;
+
+/**
+ * Publieke weergave van één audit-regel (`GET /admin/audit-logs`, T8.2, DESIGN §9.4). Een append-only
+ * spoor van gevoelige acties zonder communicatie-inhoud: alleen een stabiele `action`-sleutel, de
+ * uitkomst, de actor en objectverwijzingen. `metadata` bevat hoogstens kleine, niet-gevoelige context.
+ */
+export const auditLogEntrySchema = z.object({
+  id: z.string(),
+  action: z.string(),
+  outcome: auditOutcomeSchema,
+  accountId: z.string().nullable(),
+  targetType: z.string().nullable(),
+  targetId: z.string().nullable(),
+  metadata: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.iso.datetime(),
+});
+export type AuditLogEntry = z.infer<typeof auditLogEntrySchema>;
+
+/** Antwoord op `GET /admin/audit-logs`: recente audit-regels van de **eigen** organisatie (nieuwste eerst). */
+export const auditLogListResponseSchema = z.object({
+  entries: z.array(auditLogEntrySchema),
+});
+export type AuditLogListResponse = z.infer<typeof auditLogListResponseSchema>;

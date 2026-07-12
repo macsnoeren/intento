@@ -4,7 +4,13 @@
  * (T7.3) en het worker-tokenbeheer (T5.8) — met dezelfde koptekst en uitlogknop. Deze tabs
  * schakelen ertussen; de actieve tab is niet klikbaar (`aria-current`).
  */
-export type AdminView = 'dashboard' | 'users' | 'aac' | 'proposals' | 'worker-tokens';
+export type AdminView =
+  | 'dashboard'
+  | 'users'
+  | 'aac'
+  | 'proposals'
+  | 'worker-tokens'
+  | 'audit-logs';
 
 const TABS: { view: AdminView; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },
@@ -12,6 +18,7 @@ const TABS: { view: AdminView; label: string }[] = [
   { view: 'aac', label: 'AAC-bibliotheek' },
   { view: 'proposals', label: 'Conceptvoorstellen' },
   { view: 'worker-tokens', label: 'Worker-tokens' },
+  { view: 'audit-logs', label: 'Audit-log' },
 ];
 
 export function AdminNav({

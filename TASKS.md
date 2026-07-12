@@ -159,7 +159,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §6.4, §8.2, FR-019.* `GET /users/{id}/export`: versleuteld bestand met communicatieprofiel, persoonlijke context, voorkeuren en instellingen (géén account-/organisatiegegevens). `POST /users/import` zet het profiel in een (andere) omgeving. UI-knoppen in beheer.
   *Acceptatie:* export → import in tweede seed-organisatie geeft identiek profiel (roundtrip-test); exportbestand onleesbaar zonder sleutel.
 
-- [ ] **T8.2 Audit-logging, security review en MVP-check**
+- [x] **T8.2 Audit-logging, security review en MVP-check**
   *DESIGN: §9.4, §10.3.* Audit-logging op gevoelige acties (login, instellingen, context, export/import, beheer) zonder communicatie-inhoud. Draai `/security-review` over de codebase en fix alle bevindingen. Loop de MVP-Definition-of-Done uit DESIGN §10.3 na en documenteer het resultaat in README/CHANGELOG.
   *Acceptatie:* audit-events aantoonbaar gelogd; security review zonder open bevindingen; alle zes MVP-criteria afgevinkt met bewijs.
 

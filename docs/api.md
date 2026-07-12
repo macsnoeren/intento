@@ -366,3 +366,17 @@ gekozen pictogram toegevoegd, zodat de validatielaag het voortaan herkent en de 
 | GET | `/admin/concept-proposals` | Reviewlijst (openstaande `PENDING` eerst). `200` + `conceptProposalListResponseSchema` (elk voorstel met `concept`, `reason`, `status`, `linkedSymbol`). |
 | POST | `/admin/concept-proposals/{id}/approve` | Koppel het begrip aan een bestaand pictogram (`{ symbolId }`). `200` + `conceptProposalSchema` (`status: "APPROVED"`, `linkedSymbol` gevuld). Onbekend voorstel → `404 PROPOSAL_NOT_FOUND`; onbekend pictogram → `404 SYMBOL_NOT_FOUND`; al goedgekeurd → `409 PROPOSAL_ALREADY_HANDLED`. |
 | POST | `/admin/concept-proposals/{id}/reject` | Voorstel afwijzen; het begrip blijft buiten de AAC-begrenzing. `200` + `conceptProposalSchema` (`status: "REJECTED"`). Onbekend → `404`; al goedgekeurd → `409`. |
+
+### Audit-log (T8.2, DESIGN §9.4)
+
+`authorize({ roles: ['ADMIN'] })` (geen sessie → `401`; andere rol → `403 FORBIDDEN`). Het spoor van
+**gevoelige acties** (login, instellingen, persoonlijke context, profielexport/-import, beheer) wordt
+server-side geschreven door `recordAudit(...)` (`server/src/audit/`) als **neveneffect** van de bijbehorende
+handeling — best-effort, nooit blokkerend, en **zonder communicatie-inhoud** (alleen wie-wat-wanneer). De
+inzage-lijst is tenant-gefilterd op `organizationId`: een ADMIN ziet alleen het spoor van de **eigen
+organisatie**. Mislukte pre-auth acties (mislukte login) hebben geen tenant en verschijnen daarom bewust niet
+in een organisatie-lijst. Het `ip`-veld blijft server-side (niet in de respons).
+
+| Methode | Pad | Doel |
+|---|---|---|
+| GET | `/admin/audit-logs?limit=` | `200` + `auditLogListResponseSchema`: `{ entries[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Elke regel: `action`, `outcome`, `accountId`, `targetType`, `targetId`, `metadata`, `createdAt` — **geen** `ip`, **geen** communicatie-inhoud. |

@@ -12,6 +12,8 @@ import type { ConceptProposalModel, AacSymbolModel } from '../generated/prisma/m
 import { HttpError } from '../errors.js';
 import { authorize } from '../auth/authorize.js';
 import { buildSearchText, normalizeSearch, symbolToPublic } from '../aac/library.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface ConceptProposalRoutesDeps {
   prisma: PrismaClient;
@@ -140,6 +142,16 @@ export function registerConceptProposalRoutes(
         where: { id },
         data: { status: 'APPROVED', linkedSymbolId: symbolId },
       });
+
+      // Platformbrede AAC-beheeractie (voorstellen zijn niet tenant-gefilterd): auditen zonder tenant.
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONCEPT_PROPOSAL_APPROVE,
+        organizationId: null,
+        targetType: 'conceptProposal',
+        targetId: id,
+        metadata: { concept: proposal.concept, symbolId },
+      });
+
       return proposalToPublic(updated, updatedSymbol);
     },
   );
@@ -165,6 +177,15 @@ export function registerConceptProposalRoutes(
         where: { id },
         data: { status: 'REJECTED', linkedSymbolId: null },
       });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONCEPT_PROPOSAL_REJECT,
+        organizationId: null,
+        targetType: 'conceptProposal',
+        targetId: id,
+        metadata: { concept: proposal.concept },
+      });
+
       return proposalToPublic(updated, null);
     },
   );

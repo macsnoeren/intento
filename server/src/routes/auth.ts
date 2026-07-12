@@ -13,13 +13,15 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../errors.js';
 import { verifyLogin } from '../auth/service.js';
 import { registerOrganization } from '../auth/register.js';
-import { createSession, deleteSessionByToken } from '../auth/session.js';
+import { createSession, deleteSessionByToken, findAccountBySessionToken } from '../auth/session.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from '../auth/cookie.js';
 import { readSessionToken } from '../auth/request.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
 import { accountToPublic as toPublic } from '../auth/serialize.js';
 import { sendVerificationEmail, verifyEmailToken } from '../auth/email-verification.js';
 import type { MailTransport } from '../mail/transport.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface AuthRoutesDeps {
   env: Env;
@@ -65,6 +67,15 @@ export function registerAuthRoutes(
       });
 
       if (!result.ok) {
+        // Mislukte login auditen (brute-force-detectie): alleen uitkomst + reden, geen e-mailadres
+        // (dat zou enumeratie in het audit-log opleveren). Actor onbekend → geen account/tenant.
+        await recordAudit(prisma, request, {
+          action: AUDIT_ACTIONS.AUTH_LOGIN,
+          outcome: 'failure',
+          accountId: null,
+          organizationId: null,
+          metadata: { reason: result.reason },
+        });
         if (result.reason === 'account_locked') {
           throw new HttpError(
             423,
@@ -78,6 +89,13 @@ export function registerAuthRoutes(
 
       const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);
       reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(env, sessionMaxAgeSeconds));
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.AUTH_LOGIN,
+        outcome: 'success',
+        accountId: result.account.id,
+        organizationId: result.account.organizationId,
+      });
 
       return { account: toPublic(result.account) };
     },
@@ -113,6 +131,14 @@ export function registerAuthRoutes(
       const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);
       reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(env, sessionMaxAgeSeconds));
 
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.AUTH_REGISTER,
+        accountId: result.account.id,
+        organizationId: result.account.organizationId,
+        targetType: 'organization',
+        targetId: result.account.organizationId,
+      });
+
       // Verificatiemail versturen (T1.4). Bewust best-effort: een falende mailserver mag de
       // registratie niet laten mislukken — de gebruiker is al ingelogd en kan later "opnieuw
       // versturen". Fouten loggen we, maar gooien we niet door.
@@ -144,6 +170,13 @@ export function registerAuthRoutes(
         'Deze verificatielink is ongeldig of verlopen. Vraag een nieuwe aan.',
       );
     }
+    await recordAudit(prisma, reply.request, {
+      action: AUDIT_ACTIONS.AUTH_EMAIL_VERIFIED,
+      accountId: result.account.id,
+      organizationId: result.account.organizationId,
+      targetType: 'account',
+      targetId: result.account.id,
+    });
     reply.status(200);
     return { verified: true, account: toPublic(result.account) };
   };
@@ -183,7 +216,18 @@ export function registerAuthRoutes(
 
   app.post('/auth/logout', async (request, reply): Promise<void> => {
     const token = readSessionToken(request);
-    if (token) await deleteSessionByToken(prisma, token);
+    if (token) {
+      // Actor bepalen vóór het verwijderen van de sessie, zodat het audit-spoor de uitlogger kent.
+      const account = await findAccountBySessionToken(prisma, token);
+      await deleteSessionByToken(prisma, token);
+      if (account) {
+        await recordAudit(prisma, request, {
+          action: AUDIT_ACTIONS.AUTH_LOGOUT,
+          accountId: account.id,
+          organizationId: account.organizationId,
+        });
+      }
+    }
     reply.clearCookie(SESSION_COOKIE_NAME, { path: '/' });
     reply.status(204).send();
   });

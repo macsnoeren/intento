@@ -752,6 +752,13 @@ body {
   background: var(--intento-bg);
 }
 
+/* Audit-log (T8.2): mislukte actie (bv. mislukte login) — waarschuwend gekleurd. */
+.badge--warn {
+  color: var(--intento-danger);
+  border-color: var(--intento-danger);
+  background: #fdecef;
+}
+
 /* Persoonlijke-contextwizard (T6.2) */
 .panel__head {
   display: flex;

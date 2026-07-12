@@ -22,6 +22,8 @@ import {
   requireDevice,
 } from '../auth/device.js';
 import { userToPublic } from '../users/serialize.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface DeviceRoutesDeps {
   env: Env;
@@ -91,6 +93,14 @@ export function registerDeviceRoutes(
       assertSameTenant(account, user);
 
       const { code, expiresAt } = await createLinkCode(prisma, id, env.DEVICE_CODE_TTL_MINUTES);
+
+      // Alleen dat er een koppelcode is aangemaakt voor deze gebruiker — nooit de code/hash zelf.
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.DEVICE_CODE_CREATE,
+        targetType: 'user',
+        targetId: id,
+      });
+
       reply.status(201);
       return deviceCodeResponseSchema.parse({ code, expiresAt: expiresAt.toISOString() });
     },

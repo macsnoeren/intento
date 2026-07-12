@@ -12,6 +12,8 @@ import { authorize, requireAccount, requireVerifiedEmail } from '../auth/authori
 import { assertSameTenant, tenantScope } from '../auth/tenant.js';
 import { assertCaregiverAccess } from '../auth/caregivers.js';
 import { userToPublic as toPublic } from '../users/serialize.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface UserRoutesDeps {
   prisma: PrismaClient;
@@ -49,6 +51,12 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
           communicationProfile: { create: {} },
         },
         include: { communicationProfile: true },
+      });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.USER_CREATE,
+        targetType: 'user',
+        targetId: user.id,
       });
 
       reply.status(201);
@@ -109,6 +117,12 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
         update: settings,
       });
 
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.USER_SETTINGS_UPDATE,
+        targetType: 'user',
+        targetId: id,
+      });
+
       const user = await prisma.user.findUnique({
         where: { id },
         include: { communicationProfile: true },
@@ -128,6 +142,13 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
       assertSameTenant(account, existing);
 
       await prisma.user.delete({ where: { id } });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.USER_DELETE,
+        targetType: 'user',
+        targetId: id,
+      });
+
       reply.status(204).send();
     },
   );

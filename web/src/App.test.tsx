@@ -281,6 +281,9 @@ function fakeApi(
         recentActivity: [],
       });
     },
+    listAuditLogs() {
+      return Promise.resolve({ entries: [] });
+    },
     listConceptProposals() {
       return Promise.resolve({ proposals: [] });
     },

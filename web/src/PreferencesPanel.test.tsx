@@ -89,6 +89,7 @@ function fakeApi(initial: PreferencePublic[]): {
     startQuestion: notImplemented,
     viewUserConversation: notImplemented,
     getDashboard: notImplemented,
+    listAuditLogs: notImplemented,
     listConceptProposals: () => Promise.resolve({ proposals: [] }),
     approveConceptProposal: notImplemented,
     rejectConceptProposal: notImplemented,

@@ -158,7 +158,19 @@
       overdracht vereist dat beide omgevingen dezelfde sleutel delen; een wachtwoordgebaseerde exportsleutel
       is toekomstig werk. Getest in `routes/profile-transfer.test.ts`.
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
-- [ ] **Audit-logging** — security-relevante acties (T8.2).
+- [x] **Audit-logging (T8.2, DESIGN §9.4)** — een herbruikbare `recordAudit(...)` (`server/src/audit/`)
+      schrijft een **append-only** spoor over gevoelige acties: login (geslaagd én mislukt, brute-force-
+      detectie), logout, registratie, e-mailverificatie, gebruikersbeheer + instellingen, begeleider-
+      koppelingen, koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-
+      tokens en conceptvoorstellen. **Best-effort en nooit blokkerend**: een hapering in de audit-tabel laat
+      de hoofdactie niet mislukken (fout gelogd, niet doorgegooid). **Geen communicatie-inhoud of vrije-tekst-
+      PII**: alleen een stabiele `action`-sleutel, uitkomst, objectverwijzing en kleine niet-gevoelige
+      `metadata`. Een mislukte login logt géén e-mailadres (voorkomt enumeratie in het log) en heeft geen
+      account/tenant. Inzage via `GET /admin/audit-logs` is **ADMIN-only** en **tenant-gefilterd** op
+      `organizationId` (een beheerder ziet nooit een ander tenant-spoor); het `ip`-veld blijft server-side.
+      Het `AuditLog`-model heeft **bewust geen FK's** zodat het spoor een verwijderde actor/tenant overleeft.
+      Getest in `routes/audit.test.ts` (login-succes/-failure, instellingen, context zonder PII, export,
+      ADMIN-only + tenant-isolatie, CAREGIVER → 403).
 
 ## Bekende afwegingen / restrisico's
 
@@ -167,4 +179,9 @@
 
 ## Reviewgeschiedenis
 
-- _(nog geen `/security-review` gedraaid; gepland voor T8.2)_
+- **T8.2 (2026-07-12)** — `/security-review` over de audit-logging-fase en de meeliftende wijzigingen.
+  **Geen HIGH/MEDIUM-bevindingen.** Gecontroleerd en akkoord: geen injectie (Prisma-parameters,
+  `metadataJson` opaque opgeslagen), tenant-isolatie op `GET /admin/audit-logs`
+  (`where organizationId`, ADMIN-only), geen PII/`ip` in de respons, een mislukte login logt geen
+  e-mailadres (geen enumeratie), React-escaping in `AuditLogPage`, en `recordAudit` is best-effort zodat
+  een audit-hapering de hoofdactie nooit breekt. Geen open bevindingen.

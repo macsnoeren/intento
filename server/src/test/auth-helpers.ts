@@ -21,6 +21,8 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
 
 /** Verwijdert alle auth-/gebruikersdata (AI-jobs/worker-tokens → gesprekken → koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
+  // Audit-log (T8.2) staat los van de tenant-boom (geen FK's); apart legen zodat tests schoon starten.
+  await prisma.auditLog.deleteMany();
   // AI-wachtrij eerst: AiJob verwijst (SetNull) naar WorkerToken; beide staan los van de tenant-boom.
   await prisma.aiJob.deleteMany();
   await prisma.workerToken.deleteMany();

@@ -4,6 +4,7 @@ import {
   aacSymbolListResponseSchema,
   aiWaitingErrorSchema,
   apiErrorSchema,
+  auditLogListResponseSchema,
   authResponseSchema,
   caregiverConversationViewSchema,
   caregiverListResponseSchema,
@@ -35,6 +36,7 @@ import {
   type AacSymbolInput,
   type AacSymbolListResponse,
   type AttachOpenSymbolsRequest,
+  type AuditLogListResponse,
   type AuthResponse,
   type CaregiverConversationView,
   type CaregiverListResponse,
@@ -163,6 +165,8 @@ export interface Api {
   viewUserConversation(userId: string): Promise<CaregiverConversationView>;
   /** Beheerdashboard: tenant-overzicht (gebruikers/begeleiders/activiteit) + openstaande voorstellen (T7.3). */
   getDashboard(): Promise<DashboardResponse>;
+  /** Audit-log van gevoelige acties van de eigen organisatie (nieuwste eerst) (T8.2, DESIGN §9.4). */
+  listAuditLogs(): Promise<AuditLogListResponse>;
   /** AI-conceptvoorstellen ter beoordeling (openstaande eerst) (T7.3, FR-016). */
   listConceptProposals(): Promise<ConceptProposalListResponse>;
   /** Voorstel goedkeuren: koppel het begrip aan een bestaand pictogram (daarna bruikbaar voor de AI). */
@@ -437,6 +441,9 @@ export const httpApi: Api & DeviceApi = {
   },
   async getDashboard() {
     return dashboardResponseSchema.parse(await request('/admin/dashboard'));
+  },
+  async listAuditLogs() {
+    return auditLogListResponseSchema.parse(await request('/admin/audit-logs'));
   },
   async listConceptProposals() {
     return conceptProposalListResponseSchema.parse(await request('/admin/concept-proposals'));

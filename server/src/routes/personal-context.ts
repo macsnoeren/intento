@@ -13,6 +13,8 @@ import { assertCaregiverAccess } from '../auth/caregivers.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { HttpError } from '../errors.js';
 import { personalContextToPublic } from '../users/personal-context.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface PersonalContextRoutesDeps {
   prisma: PrismaClient;
@@ -72,6 +74,15 @@ export function registerPersonalContextRoutes(
         },
       });
 
+      // Auditen zonder de gevoelige velden (naam/relatie): alleen dat er context is toegevoegd, voor welke
+      // gebruiker, welke categorie en of AI-gebruik is toegestaan — nooit de PII zelf (DESIGN §9.4).
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONTEXT_CREATE,
+        targetType: 'personalContext',
+        targetId: created.id,
+        metadata: { userId: id, category: created.category, aiUsageAllowed: created.aiUsageAllowed },
+      });
+
       reply.status(201);
       return personalContextToPublic(created, encryptor);
     },
@@ -128,6 +139,14 @@ export function registerPersonalContextRoutes(
           aiUsageAllowed: input.aiUsageAllowed ?? false,
         },
       });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONTEXT_UPDATE,
+        targetType: 'personalContext',
+        targetId: updated.id,
+        metadata: { userId: id, category: updated.category, aiUsageAllowed: updated.aiUsageAllowed },
+      });
+
       return personalContextToPublic(updated, encryptor);
     },
   );
@@ -150,6 +169,14 @@ export function registerPersonalContextRoutes(
       }
 
       await prisma.personalContext.delete({ where: { id: contextId } });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONTEXT_DELETE,
+        targetType: 'personalContext',
+        targetId: contextId,
+        metadata: { userId: id },
+      });
+
       reply.status(204);
     },
   );
