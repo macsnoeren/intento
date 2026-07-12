@@ -201,6 +201,10 @@ function fakeApi(): Api {
     listQuestionUsers: () => Promise.resolve({ users: [] }),
     startQuestion: notImplemented,
     viewUserConversation: notImplemented,
+    getDashboard: notImplemented,
+    listConceptProposals: () => Promise.resolve({ proposals: [] }),
+    approveConceptProposal: notImplemented,
+    rejectConceptProposal: notImplemented,
   };
 }
 

@@ -7,6 +7,9 @@ import {
   authResponseSchema,
   caregiverConversationViewSchema,
   caregiverListResponseSchema,
+  conceptProposalSchema,
+  conceptProposalListResponseSchema,
+  dashboardResponseSchema,
   conversationConfirmResponseSchema,
   conversationGenerateResponseSchema,
   conversationStateResponseSchema,
@@ -34,7 +37,10 @@ import {
   type AuthResponse,
   type CaregiverConversationView,
   type CaregiverListResponse,
+  type ConceptProposal,
+  type ConceptProposalListResponse,
   type ConversationConfirmResponse,
+  type DashboardResponse,
   type ConversationGenerateResponse,
   type ConversationStateResponse,
   type CreateUserRequest,
@@ -152,6 +158,14 @@ export interface Api {
   startQuestion(body: QuestionStartRequest): Promise<QuestionStartResponse>;
   /** Read-only meekijken met het lopende gesprek van een gekoppelde gebruiker (T7.2, DESIGN §3.3). */
   viewUserConversation(userId: string): Promise<CaregiverConversationView>;
+  /** Beheerdashboard: tenant-overzicht (gebruikers/begeleiders/activiteit) + openstaande voorstellen (T7.3). */
+  getDashboard(): Promise<DashboardResponse>;
+  /** AI-conceptvoorstellen ter beoordeling (openstaande eerst) (T7.3, FR-016). */
+  listConceptProposals(): Promise<ConceptProposalListResponse>;
+  /** Voorstel goedkeuren: koppel het begrip aan een bestaand pictogram (daarna bruikbaar voor de AI). */
+  approveConceptProposal(id: string, symbolId: string): Promise<ConceptProposal>;
+  /** Voorstel afwijzen: het begrip blijft buiten de AAC-begrenzing. */
+  rejectConceptProposal(id: string): Promise<ConceptProposal>;
 }
 
 /**
@@ -412,6 +426,25 @@ export const httpApi: Api & DeviceApi = {
   async viewUserConversation(userId) {
     return caregiverConversationViewSchema.parse(
       await request(`/question/users/${userId}/conversation`),
+    );
+  },
+  async getDashboard() {
+    return dashboardResponseSchema.parse(await request('/admin/dashboard'));
+  },
+  async listConceptProposals() {
+    return conceptProposalListResponseSchema.parse(await request('/admin/concept-proposals'));
+  },
+  async approveConceptProposal(id, symbolId) {
+    return conceptProposalSchema.parse(
+      await request(`/admin/concept-proposals/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ symbolId }),
+      }),
+    );
+  },
+  async rejectConceptProposal(id) {
+    return conceptProposalSchema.parse(
+      await request(`/admin/concept-proposals/${id}/reject`, { method: 'POST', body: '{}' }),
     );
   },
   async deviceMe() {

@@ -973,3 +973,86 @@ export const createWorkerTokenResponseSchema = z.object({
   token: z.string(),
 });
 export type CreateWorkerTokenResponse = z.infer<typeof createWorkerTokenResponseSchema>;
+
+// --- Beheerdashboard (T7.3, DESIGN §5.2, FR-016) ---
+
+/**
+ * Eén regel "recente activiteit" op het beheerdashboard: een gespreksessie van een gebruiker in de
+ * eigen organisatie. Bewust **zonder communicatie-inhoud** (privacy by design, DESIGN §6.4, §9.4) —
+ * alleen wie/wanneer/status en het aantal bevestigde boodschappen, nooit de zinnen zelf.
+ */
+export const dashboardRecentSessionSchema = z.object({
+  sessionId: z.string(),
+  userId: z.string(),
+  userName: z.string(),
+  status: conversationStatusSchema,
+  /** "free" (gebruiker startte zelf) of "question" (begeleidersvraag). */
+  mode: z.string(),
+  /** Aantal bevestigde boodschappen in deze sessie (geen inhoud, alleen de telling). */
+  messageCount: z.number().int().nonnegative(),
+  startedAt: z.iso.datetime(),
+});
+export type DashboardRecentSession = z.infer<typeof dashboardRecentSessionSchema>;
+
+/**
+ * Antwoord op `GET /admin/dashboard` (T7.3): een beknopt overzicht van de **eigen organisatie**
+ * (gebruikers, begeleiders, recente activiteit) plus het aantal openstaande AI-conceptvoorstellen.
+ * De tellingen zijn tenant-gefilterd (`organizationId`); alleen `pendingProposals` is platformbreed
+ * — de AAC-bibliotheek en haar voorstellen zijn gedeeld (net als het AAC-beheer, DESIGN §5.2).
+ */
+export const dashboardResponseSchema = z.object({
+  users: z.object({
+    total: z.number().int().nonnegative(),
+    active: z.number().int().nonnegative(),
+  }),
+  caregivers: z.object({
+    total: z.number().int().nonnegative(),
+  }),
+  /** Openstaande (PENDING) AI-conceptvoorstellen; platformbreed, ter beoordeling door een beheerder. */
+  pendingProposals: z.number().int().nonnegative(),
+  recentActivity: z.array(dashboardRecentSessionSchema),
+});
+export type DashboardResponse = z.infer<typeof dashboardResponseSchema>;
+
+// --- AI-conceptvoorstellen (T5.2/T7.3, DESIGN §6.2, §7.6, FR-016) ---
+
+/**
+ * Status van een AI-conceptvoorstel: `PENDING` (nieuw, wacht op beoordeling), `APPROVED`
+ * (goedgekeurd en aan een pictogram gekoppeld — pas dan mag de AI het gebruiken) of `REJECTED`
+ * (afgewezen; het begrip blijft buiten de AAC-begrenzing). Op de API-grens gevalideerd.
+ */
+export const conceptProposalStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED']);
+export type ConceptProposalStatus = z.infer<typeof conceptProposalStatusSchema>;
+
+/**
+ * Publieke weergave van een AI-conceptvoorstel (`GET /admin/concept-proposals`). Door de
+ * validatielaag (T5.2) aangemaakt wanneer de AI een begrip aandroeg dat niet in de bibliotheek
+ * bestaat: de optie bereikte de gebruiker **nooit** en het begrip belandt hier ter beoordeling
+ * (FR-016). `linkedSymbol` is het pictogram waaraan het na goedkeuring is gekoppeld, of `null`.
+ */
+export const conceptProposalSchema = z.object({
+  id: z.string(),
+  concept: z.string(),
+  reason: z.string(),
+  status: conceptProposalStatusSchema,
+  linkedSymbol: aacSymbolSchema.nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type ConceptProposal = z.infer<typeof conceptProposalSchema>;
+
+/** Antwoord op `GET /admin/concept-proposals`: alle voorstellen (openstaande eerst). */
+export const conceptProposalListResponseSchema = z.object({
+  proposals: z.array(conceptProposalSchema),
+});
+export type ConceptProposalListResponse = z.infer<typeof conceptProposalListResponseSchema>;
+
+/**
+ * Goedkeuringsverzoek (`POST /admin/concept-proposals/:id/approve`): het bestaande AAC-pictogram
+ * waaraan het voorgestelde begrip gekoppeld wordt. Na goedkeuring wordt het concept als synoniem
+ * aan dat pictogram toegevoegd, zodat de AI het voortaan (via de validatielaag) mag aanbieden.
+ */
+export const approveConceptProposalRequestSchema = z.object({
+  symbolId: z.string().min(1),
+});
+export type ApproveConceptProposalRequest = z.infer<typeof approveConceptProposalRequestSchema>;

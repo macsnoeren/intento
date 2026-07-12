@@ -88,6 +88,10 @@ function fakeApi(initial: PreferencePublic[]): {
     listQuestionUsers: notImplemented,
     startQuestion: notImplemented,
     viewUserConversation: notImplemented,
+    getDashboard: notImplemented,
+    listConceptProposals: () => Promise.resolve({ proposals: [] }),
+    approveConceptProposal: notImplemented,
+    rejectConceptProposal: notImplemented,
     ...prefApi,
   };
   return { api, calls };

@@ -271,6 +271,25 @@ function fakeApi(
     viewUserConversation() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    // Dashboard + conceptvoorstellen (T7.3) — apart gedekt in eigen tests; hier stubs zodat de app
+    // tegen de volledige `Api` compileert.
+    getDashboard() {
+      return Promise.resolve({
+        users: { total: 0, active: 0 },
+        caregivers: { total: 0 },
+        pendingProposals: 0,
+        recentActivity: [],
+      });
+    },
+    listConceptProposals() {
+      return Promise.resolve({ proposals: [] });
+    },
+    approveConceptProposal() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
+    rejectConceptProposal() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
   };
 }
 

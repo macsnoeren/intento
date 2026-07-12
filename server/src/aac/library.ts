@@ -39,7 +39,9 @@ export function normalizeSearch(value: string): string {
 }
 
 /** Bouwt de genormaliseerde zoekindex uit concept, label en synoniemen. */
-export function buildSearchText(symbol: AacSeedSymbol): string {
+export function buildSearchText(
+  symbol: Pick<AacSeedSymbol, 'concept' | 'label' | 'synonyms'>,
+): string {
   return normalizeSearch([symbol.concept, symbol.label, ...symbol.synonyms].join(' '));
 }
 

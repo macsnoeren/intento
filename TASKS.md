@@ -149,7 +149,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *DESIGN: §3.3, §5.2, FR-011.* Ondersteuningsmodus-indicator in de gebruikersapp (volgens profielinstelling); begeleider kan gesprekcontext meekijken. Afdwingen (server-side): bevestigen van een boodschap kan nooit vanuit een begeleiderssessie.
   *Acceptatie:* indicator zichtbaar bij supportMode; API-test: caregiver-token op `/confirm` → 403.
 
-- [ ] **T7.3 Beheerdashboard en conceptvoorstellen**
+- [x] **T7.3 Beheerdashboard en conceptvoorstellen**
   *DESIGN: §5.2, §6.2 (ConceptProposal), §7.6, FR-016.* Dashboard (gebruikers, begeleiders, recente activiteit). Reviewlijst van AI-conceptvoorstellen: beoordelen, koppelen aan (nieuw) pictogram, goedkeuren/afwijzen; pas na goedkeuring beschikbaar voor de AI.
   *Acceptatie:* voorstel uit T5.2 verschijnt in de lijst; na goedkeuring bruikbaar in een gesprek, na afwijzing niet (test).
 

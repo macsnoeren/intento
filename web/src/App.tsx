@@ -7,6 +7,8 @@ import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { QuestionModePage } from './QuestionModePage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
 import { WorkerTokensPage } from './WorkerTokensPage.tsx';
+import { DashboardPage } from './DashboardPage.tsx';
+import { ConceptProposalsPage } from './ConceptProposalsPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
 import type { AdminView } from './AdminNav.tsx';
@@ -152,6 +154,34 @@ export function App({
           Uitloggen
         </button>
       </main>
+    );
+  }
+
+  if (view === 'dashboard') {
+    return (
+      <>
+        {banner}
+        <DashboardPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  if (view === 'proposals') {
+    return (
+      <>
+        {banner}
+        <ConceptProposalsPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
     );
   }
 

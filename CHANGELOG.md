@@ -6,6 +6,28 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T7.3 Beheerdashboard en conceptvoorstellen.** Twee nieuwe ADMIN-endpoints en beheerpagina's
+  (DESIGN §5.2, §6.2, §7.6, FR-016). **Dashboard** (`server/src/routes/dashboard.ts`,
+  `GET /admin/dashboard`): een tenant-gefilterd overzicht van de eigen organisatie — aantal gebruikers
+  (totaal/actief), begeleiders en recente gespreksactiviteit — plus het platformbrede aantal openstaande
+  AI-conceptvoorstellen. De recente activiteit bevat **geen communicatie-inhoud** (privacy by design,
+  DESIGN §6.4): alleen wie/wanneer/status en het aantal bevestigde boodschappen. **Conceptvoorstellen**
+  (`server/src/routes/concept-proposals.ts`): reviewlijst (`GET /admin/concept-proposals`, openstaande
+  eerst) van begrippen die de validatielaag (T5.2) vastlegde toen de AI een concept aandroeg dat niet in de
+  bibliotheek bestaat (de optie bereikte de gebruiker nooit). `POST …/{id}/approve` (`{ symbolId }`)
+  koppelt het begrip aan een bestaand pictogram **én voegt het als synoniem toe**, zodat de validatielaag
+  het voortaan naar dat pictogram resolvet en de AI het mag aanbieden (FR-016: "pas na goedkeuring
+  beschikbaar voor de AI"); `POST …/{id}/reject` laat het buiten de AAC-begrenzing. Net als het AAC-beheer
+  zijn voorstellen **platformbreed gedeeld** (niet tenant-gefilterd); rolcontrole (ADMIN) volstaat. Web:
+  `DashboardPage` (stat-tegels + activiteitenlijst, tegel navigeert naar de reviewlijst) en
+  `ConceptProposalsPage` (per voorstel een pictogram zoeken → koppelen/goedkeuren of afwijzen), met nieuwe
+  tabs "Dashboard" en "Conceptvoorstellen" in `AdminNav`. Gedeelde schema's (`dashboardResponseSchema`,
+  `conceptProposalSchema` + lijst/approve); API-methoden `getDashboard`, `listConceptProposals`,
+  `approveConceptProposal`, `rejectConceptProposal`. `buildSearchText` neemt nu een `Pick`-subset zodat de
+  approve-flow de zoekindex kan herbouwen. Tests: server (`dashboard.test.ts` — tenant-filtering, pending-
+  telling, geen inhoud, 401/403; `concept-proposals.test.ts` — reviewlijst, goedkeuren → begrip bereikt de
+  gebruiker via de validatielaag, afwijzen → blijft buiten, 401/403/404) en web (`DashboardPage.test.tsx`,
+  `ConceptProposalsPage.test.tsx`). Gedocumenteerd in `docs/api.md`.
 - **T7.2 Ondersteuningsmodus en begeleiderweergave.** De tablet toont nu een
   **ondersteuningsmodus-indicator** ("🤝 Ondersteuningsmodus actief") op het keuze- en voorstelscherm
   wanneer `supportMode` in het communicatieprofiel aanstaat (DESIGN §3.3, FR-011): de begeleider tikt aan

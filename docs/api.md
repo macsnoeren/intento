@@ -323,3 +323,30 @@ aanmaken.
 
 Auth-fouten: geen sessie → `401 NOT_AUTHENTICATED`; wel ADMIN maar geen platformorganisatie → `403
 NOT_PLATFORM_ADMIN`; verkeerde rol → `403 FORBIDDEN`.
+
+### Beheerdashboard en conceptvoorstellen (T7.3, DESIGN §5.2, FR-016)
+
+Alle endpoints eisen `authorize({ roles: ['ADMIN'] })` (geen sessie → `401`; andere rol → `403 FORBIDDEN`).
+
+**Dashboard** (`server/src/routes/dashboard.ts`) — beknopt overzicht van de **eigen organisatie**.
+De tellingen zijn tenant-gefilterd op `organizationId` (T1.2); alleen `pendingProposals` is platformbreed
+(de AAC-bibliotheek en haar voorstellen zijn gedeeld). De recente activiteit bevat **geen
+communicatie-inhoud** (privacy by design, DESIGN §6.4): alleen gebruikersnaam, status/modus, het aantal
+bevestigde boodschappen en het starttijdstip.
+
+| Methode | Pad | Doel |
+|---|---|---|
+| GET | `/admin/dashboard` | `200` + `dashboardResponseSchema`: `{ users: { total, active }, caregivers: { total }, pendingProposals, recentActivity[] }`. |
+
+**AI-conceptvoorstellen** (`server/src/routes/concept-proposals.ts`) — reviewlijst en beoordeling van
+begrippen die de validatielaag (T5.2) vastlegde toen de AI een concept aandroeg dat niet in de bibliotheek
+bestaat (de optie bereikte de gebruiker nooit). Net als het AAC-beheer **platformbreed gedeeld** (niet
+tenant-gefilterd); rolcontrole (ADMIN) volstaat. Bij **goedkeuren** wordt het begrip als synoniem aan het
+gekozen pictogram toegevoegd, zodat de validatielaag het voortaan herkent en de AI het mag aanbieden
+(FR-016: "pas na goedkeuring beschikbaar voor de AI").
+
+| Methode | Pad | Doel |
+|---|---|---|
+| GET | `/admin/concept-proposals` | Reviewlijst (openstaande `PENDING` eerst). `200` + `conceptProposalListResponseSchema` (elk voorstel met `concept`, `reason`, `status`, `linkedSymbol`). |
+| POST | `/admin/concept-proposals/{id}/approve` | Koppel het begrip aan een bestaand pictogram (`{ symbolId }`). `200` + `conceptProposalSchema` (`status: "APPROVED"`, `linkedSymbol` gevuld). Onbekend voorstel → `404 PROPOSAL_NOT_FOUND`; onbekend pictogram → `404 SYMBOL_NOT_FOUND`; al goedgekeurd → `409 PROPOSAL_ALREADY_HANDLED`. |
+| POST | `/admin/concept-proposals/{id}/reject` | Voorstel afwijzen; het begrip blijft buiten de AAC-begrenzing. `200` + `conceptProposalSchema` (`status: "REJECTED"`). Onbekend → `404`; al goedgekeurd → `409`. |
