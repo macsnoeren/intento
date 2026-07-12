@@ -1,4 +1,5 @@
 import {
+  aacSearchResponseSchema,
   aacSymbolAdminSchema,
   aacSymbolListResponseSchema,
   aiWaitingErrorSchema,
@@ -12,16 +13,19 @@ import {
   deviceCodeResponseSchema,
   deviceSessionResponseSchema,
   openSymbolsSearchResponseSchema,
+  pendingQuestionResponseSchema,
   personalContextListResponseSchema,
   personalContextPublicSchema,
   preferenceListResponseSchema,
   preferencePublicSchema,
+  questionStartResponseSchema,
   resendVerificationResponseSchema,
   userListResponseSchema,
   userPublicSchema,
   verifyEmailResponseSchema,
   workerTokenListResponseSchema,
   workerTokenPublicSchema,
+  type AacSearchResponse,
   type AacSymbolAdmin,
   type AacSymbolInput,
   type AacSymbolListResponse,
@@ -37,12 +41,15 @@ import {
   type DeviceCodeResponse,
   type DeviceSessionResponse,
   type OpenSymbolsSearchResponse,
+  type PendingQuestionResponse,
   type PersonalContextInput,
   type PersonalContextListResponse,
   type PersonalContextPublic,
   type PreferenceListResponse,
   type PreferencePublic,
   type PreferenceSuggestionAction,
+  type QuestionStartRequest,
+  type QuestionStartResponse,
   type RegisterRequest,
   type ResendVerificationResponse,
   type UpdateSettingsRequest,
@@ -135,6 +142,12 @@ export interface Api {
     prefId: string,
     body: PreferenceSuggestionAction,
   ): Promise<PreferencePublic>;
+  /** Zoekt AAC-symbolen (concept/label/synoniem) — o.a. voor de topic-keuze in de vraagmodus (T7.1). */
+  searchAac(q: string): Promise<AacSearchResponse>;
+  /** Gebruikers aan wie dit account (begeleider/beheerder) een vraag mag stellen (vraagmodus, T7.1). */
+  listQuestionUsers(): Promise<UserListResponse>;
+  /** Start een vraagmodus-sessie: de vraag verschijnt in de gebruikersapp op de tablet (T7.1). */
+  startQuestion(body: QuestionStartRequest): Promise<QuestionStartResponse>;
 }
 
 /**
@@ -160,6 +173,11 @@ export interface DeviceApi {
   conversationGenerate(sessionId: string): Promise<ConversationGenerateResponse>;
   /** Boodschap bevestigen → sessie afronden en de boodschap opslaan. */
   conversationConfirm(sessionId: string): Promise<ConversationConfirmResponse>;
+  /**
+   * Openstaande begeleidersvraag ophalen (vraagmodus, T7.1). Geeft de gesprekstoestand van een
+   * klaarstaande vraag terug, of `null` als er geen is — dan start de tablet een vrij gesprek.
+   */
+  getPendingQuestion(): Promise<PendingQuestionResponse>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -375,6 +393,18 @@ export const httpApi: Api & DeviceApi = {
       }),
     );
   },
+  async searchAac(q) {
+    const params = new URLSearchParams({ q });
+    return aacSearchResponseSchema.parse(await request(`/aac/search?${params.toString()}`));
+  },
+  async listQuestionUsers() {
+    return userListResponseSchema.parse(await request('/question/users'));
+  },
+  async startQuestion(body) {
+    return questionStartResponseSchema.parse(
+      await request('/question/start', { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
   async deviceMe() {
     return deviceSessionResponseSchema.parse(await request('/device/me'));
   },
@@ -415,5 +445,8 @@ export const httpApi: Api & DeviceApi = {
     return conversationConfirmResponseSchema.parse(
       await request(`/conversation/${sessionId}/confirm`, { method: 'POST', body: '{}' }),
     );
+  },
+  async getPendingQuestion() {
+    return pendingQuestionResponseSchema.parse(await request('/conversation/pending'));
   },
 };

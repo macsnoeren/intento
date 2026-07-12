@@ -84,6 +84,9 @@ function fakeApi(initial: PreferencePublic[]): {
     createPersonalContext: notImplemented,
     updatePersonalContext: notImplemented,
     deletePersonalContext: notImplemented,
+    searchAac: notImplemented,
+    listQuestionUsers: notImplemented,
+    startQuestion: notImplemented,
     ...prefApi,
   };
   return { api, calls };

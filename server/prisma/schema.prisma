@@ -348,6 +348,18 @@ model ConversationSession {
   /// Status: "ACTIVE" | "COMPLETED" | "ABANDONED" (gevalideerd op de API-grens; geen native enum
   /// i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header). In T4.1 alleen ACTIVE; T4.3 rondt af.
   status    String   @default("ACTIVE")
+  /// Gespreksmodus: "free" (gebruiker start zelf een vrij gesprek, T4.1) of "question" (een begeleider
+  /// stelde een vraag via de vraagmodus, T7.1, DESIGN §3.2). Op de API-grens gevalideerd; geen native
+  /// enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header.
+  mode      String   @default("free")
+  /// De letterlijke begeleidersvraag bij een vraagmodus-sessie ("Wat wil je drinken?", DESIGN §3.2).
+  /// `null` bij een vrij gesprek. Reist mee naar de AI als **context** (beperkt de antwoorden) en wordt
+  /// in de gebruikersapp getoond zodat de gebruiker het antwoord samenstelt. Bewust géén vrije
+  /// gebruikersinvoer: alleen de begeleider (account-auth) kan dit zetten.
+  caregiverQuestion   String?
+  /// Het CAREGIVER-/ADMIN-account dat de vraag stelde (T7.1); `null` bij een vrij gesprek. Voor
+  /// herkomst/diagnose — de eigenaar van de communicatie blijft de gebruiker (DESIGN §2, §3.3).
+  startedByAccountId  String?
   startedAt DateTime @default(now())
 
   user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)

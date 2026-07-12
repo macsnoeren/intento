@@ -197,6 +197,9 @@ function fakeApi(): Api {
     deletePersonalContext: () => Promise.resolve(),
     listPreferences: () => Promise.resolve({ preferences: [] }),
     resolveSuggestion: notImplemented,
+    searchAac: () => Promise.resolve({ symbols: [] }),
+    listQuestionUsers: () => Promise.resolve({ users: [] }),
+    startQuestion: notImplemented,
   };
 }
 

@@ -758,6 +758,12 @@ export const conversationStateResponseSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
   phase: conversationPhaseSchema.optional(),
   history: z.array(conversationStepSchema),
+  /**
+   * De letterlijke begeleidersvraag bij een **vraagmodus**-sessie (T7.1, DESIGN §3.2): de gebruikersapp
+   * toont die als context boven het keuzescherm ("Je begeleider vraagt: …") terwijl de gebruiker het
+   * antwoord samenstelt. `null`/afwezig bij een vrij gesprek — dan verschijnt geen vraagbanner.
+   */
+  caregiverQuestion: z.string().nullable().optional(),
 });
 export type ConversationStateResponse = z.infer<typeof conversationStateResponseSchema>;
 
@@ -831,6 +837,46 @@ export const conversationConfirmResponseSchema = z.object({
   message: z.string(),
 });
 export type ConversationConfirmResponse = z.infer<typeof conversationConfirmResponseSchema>;
+
+// --- Vraagmodus: begeleider stelt een vraag (T7.1, DESIGN §3.2, §8.2, FR-012) ---
+
+/**
+ * Verzoek van een begeleider om via de **vraagmodus** een gesprek te starten (`POST /question/start`,
+ * DESIGN §3.2). De begeleider typt de vraag (`question`) en kiest een **AAC-topic** (`anchorConcept`,
+ * de canonieke conceptsleutel, bv. "drink") waarvan de kinderen de mogelijke antwoorden vormen
+ * (🥤 water · 🧃 sap · ☕ koffie · 🥛 melk). Zo begrenst de bibliotheek de antwoorden (DESIGN §7.6) en
+ * blijft alles deterministisch en testbaar. `userId` is de gebruiker aan wie de vraag gesteld wordt;
+ * de server bewaakt tenant-isolatie én de begeleider-koppeling (alleen gekoppelde gebruikers).
+ */
+export const questionStartRequestSchema = z.object({
+  userId: z.string().min(1),
+  question: z.string().trim().min(1).max(300),
+  anchorConcept: aacConceptKeySchema,
+});
+export type QuestionStartRequest = z.infer<typeof questionStartRequestSchema>;
+
+/**
+ * Antwoord op `POST /question/start`: bevestiging dat de vraag klaarstaat in de gebruikersapp. Bewust
+ * smal — de vraag "verschijnt in de gebruikersapp" (tablet, device-auth), niet op het scherm van de
+ * begeleider. De begeleider ziet alleen dat de vraag is verstuurd.
+ */
+export const questionStartResponseSchema = z.object({
+  sessionId: z.string(),
+  userId: z.string(),
+  question: z.string(),
+});
+export type QuestionStartResponse = z.infer<typeof questionStartResponseSchema>;
+
+/**
+ * Antwoord op `GET /conversation/pending` (tablet, device-auth): de openstaande vraagmodus-sessie voor
+ * de eigen gebruiker als volledige gesprekstoestand, of `null` als er geen begeleidersvraag klaarstaat.
+ * De tablet gebruikt dit om bij het openen (of na "opnieuw beginnen") eerst een begeleidersvraag op te
+ * pakken; is er geen, dan start hij een vrij gesprek.
+ */
+export const pendingQuestionResponseSchema = z.object({
+  state: conversationStateResponseSchema.nullable(),
+});
+export type PendingQuestionResponse = z.infer<typeof pendingQuestionResponseSchema>;
 
 // --- Worker-token-beheer (T5.8, DESIGN §5.2, §9.4, ADR-0010) ---
 

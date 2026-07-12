@@ -59,6 +59,12 @@ export const aiPromptSchema = z.object({
   aacRules: z.array(z.string()),
   /** Toegestane gebruikerscontext (leeg in deze fase; T6.1 vult dit met toestemming). */
   userContext: z.array(aiUserContextItemSchema),
+  /**
+   * De letterlijke begeleidersvraag bij de **vraagmodus** (T7.1, DESIGN §3.2): de AI gebruikt die als
+   * context om de antwoorden te beperken/ordenen ("Wat wil je drinken?" → dranken). `null` bij een vrij
+   * gesprek. Bewust een enkel, kort tekstveld — het is geen chatgeschiedenis en geen vrije opdracht.
+   */
+  questionContext: z.string().nullable(),
   /** De tot nu toe gekozen concepten — géén chatgeschiedenis, alleen de AAC-route. */
   conversationContext: z.array(aiConceptRefSchema),
   /** De laatste keuze (of `null` aan het begin). */

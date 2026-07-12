@@ -35,6 +35,7 @@ describe('buildAiPrompt — beperkte context (DESIGN §7.7)', () => {
         'conversationContext',
         'goal',
         'lastChoice',
+        'questionContext',
         'systemRules',
         'task',
         'userContext',
@@ -87,6 +88,18 @@ describe('buildAiPrompt — beperkte context (DESIGN §7.7)', () => {
     for (const ref of [...prompt.conversationContext, ...prompt.availableSymbols]) {
       expect(Object.keys(ref).sort()).toEqual(['concept', 'label']);
     }
+  });
+
+  it('begeleidersvraag (vraagmodus) is standaard null en wordt anders letterlijk meegedragen (T7.1)', () => {
+    const free = buildAiPrompt({ conversationContext: [want], availableSymbols: [outside] });
+    expect(free.questionContext).toBeNull();
+
+    const asked = buildAiPrompt({
+      conversationContext: [want],
+      availableSymbols: [outside],
+      questionContext: 'Wat wil je drinken?',
+    });
+    expect(asked.questionContext).toBe('Wat wil je drinken?');
   });
 });
 

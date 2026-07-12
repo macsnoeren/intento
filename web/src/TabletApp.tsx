@@ -231,9 +231,16 @@ function ConversationScreen({
     }
   }
 
-  // Eenmalig bij binnenkomst (of bij een nieuwe `api`) een gesprek starten.
+  // Een gesprek beginnen: eerst kijken of een begeleider een vraag heeft klaargezet (vraagmodus, T7.1);
+  // zo ja, dan pakt de app die vraag op ("verschijnt in de gebruikersapp"), anders start een vrij gesprek.
+  async function beginConversation(): Promise<ConversationStateResponse> {
+    const pending = await api.getPendingQuestion();
+    return pending.state ?? api.startConversation();
+  }
+
+  // Eenmalig bij binnenkomst (of bij een nieuwe `api`) een gesprek beginnen.
   useEffect(() => {
-    void run(() => api.startConversation());
+    void run(() => beginConversation());
   }, [api]);
 
   // Na bevestiging: de opgeslagen boodschap tonen met de mogelijkheid opnieuw te beginnen.
@@ -247,7 +254,7 @@ function ConversationScreen({
             className="button button--primary"
             type="button"
             disabled={busy}
-            onClick={() => void run(() => api.startConversation())}
+            onClick={() => void run(() => beginConversation())}
           >
             Opnieuw beginnen
           </button>
@@ -296,6 +303,13 @@ function ConversationScreen({
 
   return (
     <main className="tablet">
+      {state.caregiverQuestion ? (
+        <p className="tablet__question" role="note">
+          <span aria-hidden="true">🗨️ </span>
+          Je begeleider vraagt: <strong>{state.caregiverQuestion}</strong>
+        </p>
+      ) : null}
+
       {hasHistory && profile.contextIndicator ? (
         <nav className="breadcrumb" aria-label="Gekozen pad">
           {state.history.map((step) => (

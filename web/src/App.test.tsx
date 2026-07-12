@@ -257,6 +257,17 @@ function fakeApi(
     resolveSuggestion() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    // Vraagmodus (T7.1) — apart gedekt in QuestionModePage-tests; hier stubs zodat de app tegen de
+    // volledige `Api` compileert (de beheeromgeving-tests raken de vraagmodus niet).
+    searchAac() {
+      return Promise.resolve({ symbols: [] });
+    },
+    listQuestionUsers() {
+      return Promise.resolve({ users: [] });
+    },
+    startQuestion() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
   };
 }
 

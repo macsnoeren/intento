@@ -98,6 +98,8 @@ function fakeDeviceApi(
     comm?: CommunicationProfile;
     busyNext?: number;
     busyGenerate?: number;
+    /** Een klaarstaande begeleidersvraag (vraagmodus, T7.1); `null`/weggelaten = geen → vrij gesprek. */
+    pendingQuestion?: ConversationStateResponse | null;
   } = {},
 ): DeviceApi {
   const comm = options.comm ?? profile();
@@ -156,6 +158,9 @@ function fakeDeviceApi(
       }
       linked = true;
       return Promise.resolve(deviceSession);
+    },
+    getPendingQuestion() {
+      return Promise.resolve({ state: options.pendingQuestion ?? null });
     },
     startConversation(): Promise<ConversationStateResponse> {
       history = [];
@@ -354,6 +359,28 @@ describe('gebruikersapp op de tablet', () => {
 
     // Daarna komt het voorstel vanzelf.
     expect(await screen.findByRole('heading', { name: 'Ik wil buiten.' })).toBeTruthy();
+  });
+
+  it('pakt een klaarstaande begeleidersvraag op en toont die als context (vraagmodus, T7.1)', async () => {
+    const DRINK_Q: ConversationStateResponse = {
+      sessionId: 'q-1',
+      status: 'ACTIVE',
+      question: {
+        prompt: 'Wat past het best?',
+        options: [sym('water', 'Water', '💧'), sym('juice', 'Sap', '🧃')],
+      },
+      done: false,
+      history: [{ order: 0, question: 'Wat wil je drinken?', symbol: DRINK }],
+      caregiverQuestion: 'Wat wil je drinken?',
+    };
+    render(<TabletApp api={fakeDeviceApi({ linked: true, pendingQuestion: DRINK_Q })} />);
+
+    // De begeleidersvraag verschijnt in de gebruikersapp, met de antwoordopties eronder — niet het
+    // vrije startscherm met intentie-categorieën.
+    expect(await screen.findByText(/Je begeleider vraagt:/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Water' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sap' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Wat wil je duidelijk maken?' })).toBeNull();
   });
 
   it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {

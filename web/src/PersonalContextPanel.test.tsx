@@ -87,6 +87,9 @@ function fakeApi(): Api {
     revokeWorkerToken: notImplemented,
     listPreferences: notImplemented,
     resolveSuggestion: notImplemented,
+    searchAac: notImplemented,
+    listQuestionUsers: notImplemented,
+    startQuestion: notImplemented,
     ...contextApi,
   };
 }

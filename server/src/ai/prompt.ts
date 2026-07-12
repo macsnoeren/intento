@@ -70,6 +70,12 @@ export interface AiPromptInput {
    * dit met **alleen** de context waarvoor toestemming (`aiUsageAllowed=true`) is gegeven.
    */
   userContext?: AiUserContextItem[];
+  /**
+   * De begeleidersvraag bij de **vraagmodus** (T7.1, DESIGN §3.2). Optioneel; `null`/weggelaten bij een
+   * vrij gesprek. Reist als context mee zodat de AI de antwoorden op de vraag afstemt (de opties blijven
+   * hoe dan ook AAC-begrensd tot `availableSymbols`).
+   */
+  questionContext?: string | null;
 }
 
 /**
@@ -88,6 +94,7 @@ export function buildAiPrompt(input: AiPromptInput): AiPrompt {
     goal: GOAL,
     aacRules: [...AAC_RULES],
     userContext: input.userContext ?? [],
+    questionContext: input.questionContext ?? null,
     conversationContext,
     lastChoice,
     availableSymbols: input.availableSymbols,
@@ -110,6 +117,7 @@ export function renderPromptText(prompt: AiPrompt): string {
   for (const rule of prompt.aacRules) lines.push(`- ${rule}`);
   lines.push('', 'GEBRUIKERSCONTEXT:');
   for (const item of prompt.userContext) lines.push(`- ${item.kind}: ${item.value}`);
+  lines.push('', `BEGELEIDERSVRAAG: ${prompt.questionContext ?? '(geen)'}`);
   lines.push('', 'GESPREKSCONTEXT (gekozen concepten):');
   for (const ref of prompt.conversationContext) lines.push(`- ${ref.concept} (${ref.label})`);
   lines.push('', `LAATSTE KEUZE: ${prompt.lastChoice ? prompt.lastChoice.concept : '(geen)'}`);

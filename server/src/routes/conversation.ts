@@ -7,10 +7,12 @@ import {
   conversationCorrectionRequestSchema,
   conversationGenerateResponseSchema,
   conversationStateResponseSchema,
+  pendingQuestionResponseSchema,
   type ConversationChoiceResponse,
   type ConversationConfirmResponse,
   type ConversationGenerateResponse,
   type ConversationStateResponse,
+  type PendingQuestionResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type {
@@ -150,7 +152,9 @@ async function buildState(
     loadUserContext(prisma, encryptor, session.userId),
   ]);
   const [decision, history] = await Promise.all([
-    decideNextQuestion(prisma, orchestrator, steps, excluded, userContext),
+    // Bij een vraagmodus-sessie (T7.1) reist de begeleidersvraag als context mee naar de AI, zodat de
+    // antwoorden op die vraag worden afgestemd (de opties blijven AAC-begrensd, §7.6).
+    decideNextQuestion(prisma, orchestrator, steps, excluded, userContext, session.caregiverQuestion),
     buildHistory(prisma, steps),
   ]);
   return conversationStateResponseSchema.parse({
@@ -161,6 +165,8 @@ async function buildState(
     confidence: decision.confidence,
     phase: decision.phase,
     history,
+    // Bij vraagmodus toont de gebruikersapp de begeleidersvraag als context; `null` bij een vrij gesprek.
+    caregiverQuestion: session.caregiverQuestion,
   });
 }
 
@@ -198,6 +204,34 @@ export function registerConversationRoutes(
       });
       reply.status(201);
       return buildState(prisma, orchestrator, encryptor, session, []);
+    },
+  );
+
+  // Openstaande begeleidersvraag ophalen (vraagmodus, T7.1, DESIGN §3.2). De tablet checkt dit bij het
+  // openen (en na "opnieuw beginnen"): staat er een ACTIVE vraagmodus-sessie voor de eigen gebruiker
+  // klaar, dan pakt de app die op (de vraag "verschijnt in de gebruikersapp"); anders `null` → vrij
+  // gesprek. De nieuwste openstaande vraag wint. Gebruiker-geïsoleerd via device-auth (alleen de eigen
+  // gebruiker); de begeleider zette de sessie klaar via `POST /question/start`.
+  app.get(
+    '/conversation/pending',
+    { preHandler: deviceAuthorize(prisma) },
+    async (request): Promise<PendingQuestionResponse> => {
+      const device = requireDevice(request);
+      const session = await prisma.conversationSession.findFirst({
+        where: { userId: device.userId, mode: 'question', status: 'ACTIVE' },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (!session) {
+        return pendingQuestionResponseSchema.parse({ state: null });
+      }
+      const state = await buildState(
+        prisma,
+        orchestrator,
+        encryptor,
+        session,
+        await loadSteps(prisma, session.id),
+      );
+      return pendingQuestionResponseSchema.parse({ state });
     },
   );
 
@@ -311,6 +345,12 @@ export function registerConversationRoutes(
       const session = await loadOwnedSession(prisma, device.userId, id);
       const steps = await loadSteps(prisma, session.id);
       if (steps.length === 0) {
+        throw new HttpError(400, 'NO_STEPS_TO_UNDO', 'Er is geen keuze om ongedaan te maken.');
+      }
+      // Vraagmodus (T7.1): de eerste stap is het door de begeleider gekozen topic-anker; dat mag de
+      // gebruiker niet ongedaan maken (anders ontsnapt het gesprek uit de vraag naar het vrije
+      // startscherm). Terug blijft wél mogelijk zolang er nog een eigen keuze bovenop het anker staat.
+      if (session.mode === 'question' && steps.length === 1) {
         throw new HttpError(400, 'NO_STEPS_TO_UNDO', 'Er is geen keuze om ongedaan te maken.');
       }
 

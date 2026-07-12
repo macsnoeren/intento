@@ -188,7 +188,8 @@ herstelt.
 | POST | `/conversation/start` | apparaat | Start een `ACTIVE` sessie voor de eigen gebruiker. `201` + `conversationStateResponseSchema` (`{ sessionId, status, question: { prompt, options[] } \| null, done, confidence?, phase?, history[] }`): de eerste vraag toont de intentie-categorieën. |
 | POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de door de **AI-orchestrator** gekozen **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`), AAC-begrensd, gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence` (interpretatie-zekerheid, §7.4) en `phase` (`select`/`refine`/`propose`) reizen mee. Bij een eindconcept of >85% zekerheid: `question: null`, `done: true`, `phase: 'propose'` (klaar voor een voorstel — T4.3/T5.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
-| POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. |
+| POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. Bij een **vraagmodus**-sessie (T7.1) kan het door de begeleider gekozen topic-anker (de eerste stap) niet ongedaan worden gemaakt (`400` als alléén het anker rest), zodat het gesprek binnen de vraag blijft. |
+| GET | `/conversation/pending` | apparaat | Openstaande **begeleidersvraag** ophalen (vraagmodus, T7.1). `200` + `pendingQuestionResponseSchema` (`{ state: conversationStateResponseSchema \| null }`): de nieuwste `ACTIVE` vraagmodus-sessie van de eigen gebruiker als volledige gesprekstoestand (met `caregiverQuestion` gevuld), of `null` → geen vraag klaar (de tablet start dan een vrij gesprek). |
 | POST | `/conversation/{id}/correction` | apparaat | **Correctie** (❌ op een voorstel, T5.4, DESIGN §3.4, FR-009): `conversationCorrectionRequestSchema` (`{ type: "wrong_guess" }`, standaard — een lege body `{}` volstaat). De server **heranalyseert** de route en bepaalt uit de per-stap-zekerheid (`ConversationStep.confidence`, §7.4) de vermoedelijke **foutstap** (laagste zekerheid; tie → vroegste; terugval op de laatste stap), rolt die stap en alles erna terug, legt het afgewezen concept vast als **`CorrectionEvent`** en geeft een **gerichtere hervraag** terug (`conversationStateResponseSchema`) — **niet** terug naar het begin. Het afgewezen concept wordt de rest van de sessie **niet meer aangeboden** (§7.5). Er wordt niets geleerd/opgeslagen (sessie blijft `ACTIVE`). Zonder keuzes → `400 NO_STEPS_TO_CORRECT`; onbekend `type` → `400`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T5.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). De **AI-orchestrator** formuleert de zin (met `confidence`, §7.4), begrensd door de **safety-laag** die geen concept buiten de sessie doorlaat (§7.8); zonder AI-capability of bij een onveilige zin valt hij terug op de deterministische **sjabloon-zin**. **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T5.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hervormt de zin **server-side** uit de opgeslagen keuzes via de orchestrator (nooit vrije clienttekst), met dezelfde safety-terugval, zodat de bewaarde boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Een **afwijzing** verloopt via `/correction` (gerichte hervraag, T5.4), niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). |
@@ -198,6 +199,25 @@ communicatie wordt bewaard (DESIGN §3.6): `/generate` is vluchtig en afgewezen 
 in de db — een `GeneratedMessage` bestaat pas na `/confirm`. Een **correctie** (❌) legt wél een
 `CorrectionEvent` vast (correctie-signaal, géén communicatie-inhoud en géén leerdata: de `Preference`-laag
 uit T6.3 wordt nooit door correcties geraakt); de afgewezen route blijft de rest van de sessie uitgesloten.
+`conversationStateResponseSchema` draagt bij een vraagmodus-sessie ook `caregiverQuestion` (de letterlijke
+begeleidersvraag) mee; bij een vrij gesprek is dat `null`/afwezig.
+
+### Vraagmodus — begeleider stelt een vraag (T7.1, DESIGN §3.2, FR-012)
+Een begeleider stelt een gekoppelde gebruiker een vraag ("Wat wil je drinken?"); de AI beperkt de
+antwoorden en de gebruiker stelt zijn antwoord **zelf** samen en bevestigt (de begeleider bevestigt nooit
+namens de gebruiker, DESIGN §2, §3.3). De vraag begrenst de antwoorden via een **AAC-topic-anker**: de
+begeleider kiest naast de vraag een concept (bv. `drink`) waarvan de kinderen (water/sap/koffie/melk) de
+antwoordopties vormen. Deze routes lopen op **account-auth** (sessiecookie), niet device-auth.
+
+| Methode | Pad | Auth | Doel |
+|---|---|---|---|
+| GET | `/question/users` | ADMIN/CAREGIVER | Gebruikers waaraan dit account een vraag mag stellen: voor een CAREGIVER alléén de **gekoppelde** gebruikers, voor een ADMIN alle van de eigen organisatie (tenant-gefilterd). `200` + `userListResponseSchema`. |
+| POST | `/question/start` | ADMIN/CAREGIVER | Start een vraagmodus-sessie: `questionStartRequestSchema` (`{ userId, question, anchorConcept }`). Maakt in één transactie een `ACTIVE` sessie (`mode: 'question'`, `caregiverQuestion`, `startedByAccountId`) met het topic-anker als vaste eerste stap. `201` + `questionStartResponseSchema` (`{ sessionId, userId, question }`). Tenant-grens (`assertSameTenant`) én begeleider-koppeling (`assertCaregiverAccess`) bewaakt: niet-gekoppelde CAREGIVER → `403`. Onbekend anker → `400 UNKNOWN_ANCHOR`; anker zonder kinderen (geen antwoordopties) → `400 ANCHOR_WITHOUT_OPTIONS`. |
+
+De vraag "verschijnt in de gebruikersapp": de tablet haalt de klaarstaande vraag op via
+`GET /conversation/pending` en doorloopt daarna de gewone gespreksflow (`/next` → `/generate` →
+`/confirm`) op die sessie. De begeleidersvraag reist als **context** (`questionContext`) mee in de
+beperkte AI-prompt, zodat de AI de antwoorden op de vraag afstemt terwijl de opties AAC-begrensd blijven.
 
 ## AI-orchestrator en validatielaag (intern, T5.1/T5.2/T5.3)
 

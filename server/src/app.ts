@@ -16,6 +16,7 @@ import { registerCaregiverRoutes } from './routes/caregivers.js';
 import { registerDeviceRoutes } from './routes/devices.js';
 import { registerAacRoutes } from './routes/aac.js';
 import { registerConversationRoutes } from './routes/conversation.js';
+import { registerQuestionRoutes } from './routes/question.js';
 import { registerPersonalContextRoutes } from './routes/personal-context.js';
 import { registerPreferenceRoutes } from './routes/preferences.js';
 import { registerAiWorkerRoutes } from './routes/ai-worker.js';
@@ -97,6 +98,8 @@ export async function buildApp({
   registerDeviceRoutes(app, { env, prisma });
   registerAacRoutes(app, { prisma, env, openSymbols });
   registerConversationRoutes(app, { prisma, orchestrator, encryptor });
+  // Vraagmodus (T7.1): begeleider stelt een gebruiker een vraag; de AI beperkt de antwoorden.
+  registerQuestionRoutes(app, { prisma });
   // Persoonlijke context (T6.1): begeleider/beheerder legt personen/plekken/routines vast (versleuteld).
   registerPersonalContextRoutes(app, { prisma, encryptor });
   // Voorkeuren + begeleider-suggestie (T6.3): leren gebeurt bij `/confirm`; hier bekijkt/handelt beheer af.

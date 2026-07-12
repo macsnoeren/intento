@@ -141,7 +141,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 7 — Begeleider en beheer
 
-- [ ] **T7.1 Vraagmodus**
+- [x] **T7.1 Vraagmodus**
   *DESIGN: §3.2, §8.2, FR-012.* `POST /question/start`: begeleidersvraag start een sessie met vraagcontext; AI beperkt de antwoordopties; gebruiker stelt het antwoord samen en bevestigt. Begeleiderinterface: vraag invoeren en versturen; vraag verschijnt in de gebruikersapp.
   *Acceptatie:* "Wat wil je drinken?"-flow uit DESIGN §3.2 end-to-end; alleen gekoppelde begeleiders kunnen vragen stellen (isolatietest).
 

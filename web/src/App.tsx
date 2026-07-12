@@ -4,6 +4,7 @@ import { ApiRequestError, httpApi, type Api } from './api.ts';
 import { LoginForm } from './LoginForm.tsx';
 import { RegisterForm } from './RegisterForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
+import { QuestionModePage } from './QuestionModePage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
 import { WorkerTokensPage } from './WorkerTokensPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
@@ -131,12 +132,22 @@ export function App({
     <VerificationBanner api={api} email={account.email} />
   );
 
+  // Begeleider (CAREGIVER): de begeleiderinterface — nu de vraagmodus (T7.1, DESIGN §3.2, §5.2).
+  if (account.role === 'CAREGIVER') {
+    return (
+      <>
+        {banner}
+        <QuestionModePage api={api} account={account} onLogout={() => void handleLogout()} />
+      </>
+    );
+  }
+
   if (account.role !== 'ADMIN') {
     return (
       <main className="panel panel--narrow">
         {banner}
         <h1 className="panel__title">Intento</h1>
-        <p>Alleen beheerders hebben toegang tot het gebruikersbeheer.</p>
+        <p>Deze rol heeft nog geen eigen weergave.</p>
         <button className="button" type="button" onClick={() => void handleLogout()}>
           Uitloggen
         </button>

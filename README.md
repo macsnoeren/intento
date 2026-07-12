@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -235,6 +235,31 @@ Bij een correctie gaat de flow **niet** terug naar het begin: de server heranaly
 per-stap-zekerheid), rolt de vermoedelijke foutstap terug, legt het afgewezen concept vast als
 `CorrectionEvent` en biedt die route de rest van de sessie niet opnieuw aan (DESIGN §3.4, §7.5, FR-009).
 Er wordt niets geleerd of opgeslagen.
+
+## Vraagmodus — begeleider stelt een vraag (T7.1)
+
+De **begeleiderinterface** (rol CAREGIVER; ook een ADMIN kan het) laat een begeleider een gekoppelde
+gebruiker een vraag stellen ("Wat wil je drinken?"). De AI beperkt de antwoorden en de gebruiker stelt
+zijn antwoord zelf samen en bevestigt — de begeleider bevestigt nooit namens de gebruiker (DESIGN §2,
+§3.2, §3.3, FR-012). De begeleider kiest naast de vraag een **onderwerp** (AAC-topic, bv. "Drinken");
+de kinderen daarvan (water/sap/koffie/melk) vormen de antwoordopties. De vraag verschijnt daarna in de
+gebruikersapp op de tablet, die haar oppakt via `GET /conversation/pending` en de gewone gespreksflow
+doorloopt.
+
+```bash
+# Begeleider (account-auth): gekoppelde gebruikers ophalen en een vraag stellen:
+curl -sb cookies.txt "http://127.0.0.1:3000/question/users"
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/question/start \
+  -H 'content-type: application/json' \
+  -d '{"userId":"<gebruiker-id>","question":"Wat wil je drinken?","anchorConcept":"drink"}'
+# Tablet (device-auth): de klaarstaande vraag oppakken:
+curl -sb device.txt http://127.0.0.1:3000/conversation/pending
+```
+
+Alleen een aan de gebruiker **gekoppelde** begeleider (of een ADMIN in de eigen organisatie) mag een
+vraag stellen; een niet-gekoppelde begeleider krijgt `403`. Het door de begeleider gekozen topic-anker
+is de vaste eerste stap en kan door de gebruiker niet ongedaan worden gemaakt, zodat het gesprek binnen
+de vraag blijft.
 
 ## AI-orchestrator, validatielaag en confidence (T5.1/T5.2)
 

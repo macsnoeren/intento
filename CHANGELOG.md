@@ -6,6 +6,33 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T7.1 Vraagmodus.** Een begeleider stelt een gekoppelde gebruiker een vraag ("Wat wil je drinken?");
+  de AI beperkt de antwoorden en de gebruiker stelt zijn antwoord zelf samen en bevestigt (DESIGN §3.2,
+  §8.2, FR-012). `ConversationSession` uitgebreid met **`mode`** (`free`/`question`),
+  **`caregiverQuestion`** en **`startedByAccountId`** (migratie `question_mode`, draait schoon op een lege
+  db). Nieuwe route (`server/src/routes/question.ts`): `POST /question/start`
+  (`{ userId, question, anchorConcept }` → maakt in één transactie een vraagmodus-sessie met een vast
+  **topic-anker** als eerste stap, waarvan de kinderen de antwoordopties vormen — de AAC-bibliotheek
+  begrenst de antwoorden, §7.6) en `GET /question/users` (de gebruikers waaraan het account een vraag mag
+  stellen). Toegang: **ADMIN of gekoppelde CAREGIVER**, met tenant-isolatie (`assertSameTenant`) én
+  begeleider-koppeling (`assertCaregiverAccess`) — een niet-gekoppelde begeleider krijgt `403`; onbekend of
+  optie-loos anker → `400`. De tablet pakt de vraag op via het nieuwe `GET /conversation/pending`
+  (device-auth): de nieuwste openstaande vraagmodus-sessie van de eigen gebruiker als volledige
+  gesprekstoestand, of `null` → vrij gesprek. De begeleidersvraag reist als **context**
+  (`questionContext`) mee in de beperkte AI-prompt (`aiPromptSchema`/`buildAiPrompt`/`decideNextQuestion`)
+  en komt als `caregiverQuestion` terug in de gesprekstoestand; de gebruiker kan het topic-anker niet
+  ongedaan maken (`/back` op alléén het anker → `400`, zodat het gesprek binnen de vraag blijft). Web:
+  nieuwe **begeleiderinterface** (`web/src/QuestionModePage.tsx`, getoond voor de rol CAREGIVER) om een
+  gebruiker te kiezen, de vraag te typen en een onderwerp te zoeken/kiezen; de tablet
+  (`web/src/TabletApp.tsx`) toont de begeleidersvraag als context boven het keuzescherm en pakt bij het
+  openen/"opnieuw beginnen" eerst een klaarstaande vraag op. Gedeelde schema's:
+  `questionStartRequest/Response`, `pendingQuestionResponse`, `caregiverQuestion` op
+  `conversationStateResponse`. Tests: server (`question.test.ts`) — de "Wat wil je drinken?"-flow
+  end-to-end (vraag → dranken als opties → keuze → eigen bevestiging → alleen bevestigde boodschap
+  opgeslagen), niet-gekoppelde begeleider `403`, tenant-isolatie, anker-validatie, back-guard en
+  `GET /question/users`-koppelfilter; web (`QuestionModePage.test.tsx` + `TabletApp.test.tsx`) — vraag
+  versturen, geen-koppeling-melding, foutafhandeling, en de tablet die een klaarstaande vraag oppakt en als
+  context toont. Gedocumenteerd in `docs/api.md` en `docs/data-model.md`.
 - **T6.3 Leermechanisme (voorkeuren).** Nieuw model **`Preference`** (`userId`, `concept`, `confidence`,
   `count`, `source`, `suggestionStatus`, `createdAt`, `updatedAt`; unieke `(userId, concept)`, index op
   `userId`, cascade delete met `User`; migratie `preferences`, draait schoon op een lege db) plus de

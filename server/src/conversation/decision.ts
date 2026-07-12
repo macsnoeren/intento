@@ -73,6 +73,7 @@ export async function decideNextQuestion(
   steps: Pick<ConversationStepModel, 'selectedConcept'>[],
   excludeConcepts: Iterable<string> = [],
   userContext: AiUserContextItem[] = [],
+  questionContext: string | null = null,
 ): Promise<ConversationDecision> {
   const chosen = steps.map((step) => step.selectedConcept);
   const excluded = new Set<string>([...chosen, ...excludeConcepts]);
@@ -105,6 +106,7 @@ export async function decideNextQuestion(
     conversationContext: toConceptRefs(steps, labelByConcept),
     availableSymbols: available.map((s) => ({ concept: s.concept, label: s.label })),
     userContext,
+    questionContext,
   });
 
   // 4. Validatielaag: onbekende concepten afvangen (ConceptProposal) en weglaten.
