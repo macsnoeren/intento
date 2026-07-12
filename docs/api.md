@@ -109,6 +109,22 @@ van `none` → `pending` en verschijnt in de beheer-UI een voorstel ("Wil je '�
 met **accepteren / aanpassen / weigeren**. Een geweigerde (`dismissed`) of overgenomen (`accepted`) suggestie
 komt niet terug.
 
+### Profielexport en -import (T8.1, DESIGN §6.4, FR-019)
+
+Gegevenseigenaarschap (DESIGN §4): het communicatieprofiel is eigendom van de gebruiker en is **draagbaar**
+naar een andere omgeving. De export bevat het communicatieprofiel/de instellingen, de persoonlijke context en
+de geleerde voorkeuren — **niet** account- of organisatiegegevens, id's of tokens. De payload wordt in zijn
+geheel versleuteld met de omgevingssleutel (`ENCRYPTION_KEY`), dus het bestand is **onleesbaar zonder die
+sleutel**. Beide acties zijn **ADMIN-only** en tenant-gebonden.
+
+| Methode | Pad | Rol | Gedrag |
+|---|---|---|---|
+| GET | `/users/{id}/export` | ADMIN | Exporteert het profiel als versleuteld bestand (`profileExportResponseSchema`: `{ data, filename }`). `data` = de ondoorzichtige, versleutelde payload; de beheer-UI biedt die als download aan. Andere organisatie → `403 FORBIDDEN` (bestaan lekt niet). |
+| POST | `/users/import` | ADMIN + geverifieerd e-mailadres | Importeert een eerder geëxporteerd profiel (`profileImportRequestSchema`: `{ data, name? }`) als **nieuwe** gebruiker in de eigen organisatie. `name` overschrijft optioneel de geëxporteerde weergavenaam. `201` + `userPublicSchema`. Ongeldig/beschadigd bestand of gemaakt met een andere sleutel → `400 IMPORT_INVALID`; onbevestigd e-mailadres → `403 EMAIL_NOT_VERIFIED`. |
+
+> **Sleutel-let op:** import in een andere deployment werkt alleen als die deployment dezelfde `ENCRYPTION_KEY`
+> deelt (MVP-keuze). Een wachtwoordgebaseerde exportsleutel voor cross-omgeving-overdracht is toekomstig werk.
+
 ### Begeleiders koppelen (T2.2)
 Een beheerder bepaalt welke begeleiders (CAREGIVER-accounts) aan een gebruiker gekoppeld zijn.
 De koppeling stuurt de toegang: een niet-gekoppelde begeleider krijgt op de gebruiker-routes

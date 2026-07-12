@@ -155,7 +155,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
 
 ## Fase 8 — Eigenaarschap en MVP-afronding
 
-- [ ] **T8.1 Profielexport en -import**
+- [x] **T8.1 Profielexport en -import**
   *DESIGN: §6.4, §8.2, FR-019.* `GET /users/{id}/export`: versleuteld bestand met communicatieprofiel, persoonlijke context, voorkeuren en instellingen (géén account-/organisatiegegevens). `POST /users/import` zet het profiel in een (andere) omgeving. UI-knoppen in beheer.
   *Acceptatie:* export → import in tweede seed-organisatie geeft identiek profiel (roundtrip-test); exportbestand onleesbaar zonder sleutel.
 

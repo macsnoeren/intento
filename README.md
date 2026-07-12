@@ -336,6 +336,25 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/users/<id>/preferences/<prefI
 
 Zie [docs/api.md](docs/api.md) en [docs/data-model.md](docs/data-model.md).
 
+## Profielexport en -import (T8.1)
+
+Het communicatieprofiel is **eigendom van de gebruiker** en draagbaar (DESIGN §6.4, FR-019). Een beheerder
+exporteert het profiel (instellingen + persoonlijke context + voorkeuren, **zonder** account-/organisatie-
+gegevens) als **versleuteld** bestand en importeert het elders als nieuwe gebruiker. Het bestand is
+onleesbaar zonder de omgevingssleutel (`ENCRYPTION_KEY`); import in een andere deployment vereist daarom
+dezelfde sleutel. Beide acties zijn **ADMIN-only** en tenant-gebonden.
+
+```bash
+# Profiel exporteren (ADMIN) → { data, filename }; `data` is de versleutelde payload:
+curl -sb cookies.txt http://127.0.0.1:3000/users/<id>/export > profiel.json
+# Profiel importeren als nieuwe gebruiker (ADMIN + geverifieerd e-mailadres):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/users/import \
+  -H 'content-type: application/json' \
+  -d "{\"data\":\"$(jq -r .data profiel.json)\"}"
+```
+
+Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
+
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 
 ```bash

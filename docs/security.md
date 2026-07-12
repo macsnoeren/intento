@@ -144,6 +144,19 @@
       de AI nooit. Getest in `crypto/encryption.test.ts` (roundtrip, unieke IV, tamper/verkeerde sleutel) en
       `routes/personal-context.test.ts` (rauwe-db-test: geen plaintext; toestemmingsfilter: niet-toegestane
       context nergens in de prompt; tenant-/caregiver-403; ongeldige categorie → 400).
+- [x] **Profielexport/-import — versleuteld bestand + strikte toegang (T8.1)** — de export
+      (`GET /users/{id}/export`) bundelt alléén het **profiel** (communicatie-instellingen, persoonlijke
+      context, voorkeuren, weergavenaam) en **nooit** account-/organisatiegegevens, id's of tokens (DESIGN
+      §6.4). De volledige payload wordt met dezelfde AES-256-GCM-`Encryptor` (`ENCRYPTION_KEY`) versleuteld,
+      dus het exportbestand is **onleesbaar zonder de omgevingssleutel** (getest: de payload bevat geen
+      plaintext-PII, en importeren met een andere sleutel → `400 IMPORT_INVALID`). Beide acties zijn
+      **ADMIN-only** en tenant-gebonden (`assertSameTenant`); import eist bovendien een **geverifieerd
+      e-mailadres** (`requireVerifiedEmail`, zoals `POST /users`) omdat het een echte persoon aanmaakt.
+      Ongeldige/beschadigde invoer wordt netjes tot `400 IMPORT_INVALID` gemapt (nooit een 500, geen
+      interne details). Geïmporteerde context wordt in de doelomgeving **opnieuw versleuteld** at-rest.
+      **Restrisico/afweging:** de export gebruikt de omgevings-`ENCRYPTION_KEY`, dus cross-deployment-
+      overdracht vereist dat beide omgevingen dezelfde sleutel delen; een wachtwoordgebaseerde exportsleutel
+      is toekomstig werk. Getest in `routes/profile-transfer.test.ts`.
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [ ] **Audit-logging** — security-relevante acties (T8.2).
 

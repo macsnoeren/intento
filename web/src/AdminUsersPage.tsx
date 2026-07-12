@@ -6,6 +6,7 @@ import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { PersonalContextPanel } from './PersonalContextPanel.tsx';
 import { PreferencesPanel } from './PreferencesPanel.tsx';
+import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.tsx';
 import { AdminNav, type AdminView } from './AdminNav.tsx';
 
 /**
@@ -120,6 +121,14 @@ export function AdminUsersPage({
             </button>
           </form>
 
+          <ProfileImportPanel
+            api={api}
+            onImported={(user) => {
+              void refresh();
+              setSelectedId(user.id);
+            }}
+          />
+
           {loading ? (
             <p className="muted">Laden…</p>
           ) : users.length === 0 ? (
@@ -192,6 +201,15 @@ export function AdminUsersPage({
           {selected ? (
             <DevicePanel
               key={`device-${selected.id}`}
+              api={api}
+              userId={selected.id}
+              userName={selected.name}
+            />
+          ) : null}
+
+          {selected ? (
+            <ProfileExportPanel
+              key={`export-${selected.id}`}
               api={api}
               userId={selected.id}
               userName={selected.name}

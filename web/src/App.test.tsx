@@ -290,6 +290,14 @@ function fakeApi(
     rejectConceptProposal() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    // Profielexport/-import (T8.1) — apart gedekt in ProfileTransfer-tests; hier stubs zodat de app
+    // tegen de volledige `Api` compileert.
+    exportProfile() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
+    importProfile() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
   };
 }
 

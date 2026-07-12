@@ -10,6 +10,7 @@ import {
   conceptProposalSchema,
   conceptProposalListResponseSchema,
   dashboardResponseSchema,
+  profileExportResponseSchema,
   conversationConfirmResponseSchema,
   conversationGenerateResponseSchema,
   conversationStateResponseSchema,
@@ -56,6 +57,8 @@ import {
   type PreferenceListResponse,
   type PreferencePublic,
   type PreferenceSuggestionAction,
+  type ProfileExportResponse,
+  type ProfileImportRequest,
   type QuestionStartRequest,
   type QuestionStartResponse,
   type RegisterRequest,
@@ -166,6 +169,10 @@ export interface Api {
   approveConceptProposal(id: string, symbolId: string): Promise<ConceptProposal>;
   /** Voorstel afwijzen: het begrip blijft buiten de AAC-begrenzing. */
   rejectConceptProposal(id: string): Promise<ConceptProposal>;
+  /** Versleuteld profiel van een gebruiker exporteren (T8.1, FR-019). */
+  exportProfile(userId: string): Promise<ProfileExportResponse>;
+  /** Een eerder geëxporteerd profiel importeren als nieuwe gebruiker in de eigen organisatie (T8.1). */
+  importProfile(body: ProfileImportRequest): Promise<UserPublic>;
 }
 
 /**
@@ -445,6 +452,14 @@ export const httpApi: Api & DeviceApi = {
   async rejectConceptProposal(id) {
     return conceptProposalSchema.parse(
       await request(`/admin/concept-proposals/${id}/reject`, { method: 'POST', body: '{}' }),
+    );
+  },
+  async exportProfile(userId) {
+    return profileExportResponseSchema.parse(await request(`/users/${userId}/export`));
+  },
+  async importProfile(body) {
+    return userPublicSchema.parse(
+      await request('/users/import', { method: 'POST', body: JSON.stringify(body) }),
     );
   },
   async deviceMe() {

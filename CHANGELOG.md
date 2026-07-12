@@ -6,6 +6,26 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T8.1 Profielexport en -import.** Gegevenseigenaarschap (DESIGN §6.4, §8.2, FR-019): een beheerder kan
+  het volledige communicatieprofiel van een gebruiker exporteren en elders weer importeren. Twee nieuwe
+  **ADMIN-only** endpoints (`server/src/routes/profile-transfer.ts`). `GET /users/{id}/export` bundelt het
+  communicatieprofiel/de instellingen, de persoonlijke context en de geleerde voorkeuren — **niet** account-
+  of organisatiegegevens, id's of tokens — en levert ze als één **versleutelde** payload
+  (`profileExportResponseSchema`: `{ data, filename }`). De payload wordt in zijn geheel met de
+  omgevingssleutel (`ENCRYPTION_KEY`, dezelfde AES-256-GCM-`Encryptor` als T6.1) versleuteld, dus het
+  exportbestand is **onleesbaar zonder die sleutel**. `POST /users/import` (ADMIN + geverifieerd e-mailadres,
+  zoals `POST /users`) ontsleutelt en valideert de payload en maakt er een **nieuwe** gebruiker mee aan in de
+  eigen organisatie (context opnieuw versleuteld at-rest); `name` overschrijft optioneel de weergavenaam.
+  Ongeldige/beschadigde of met een andere sleutel gemaakte invoer → `400 IMPORT_INVALID` (nooit een 500).
+  De bouw/versleuteling en het inlezen leven HTTP-vrij in `server/src/users/profile-transfer.ts`. Gedeelde
+  schema's (`profileExportSchema`, `profileExportResponseSchema`, `profileImportRequestSchema` +
+  `PROFILE_EXPORT_VERSION`, met een versieveld voor latere migratie). Web: `ProfileExportPanel` (downloadknop
+  per gebruiker) en `ProfileImportPanel` (bestand kiezen → nieuwe gebruiker) in de beheeromgeving; API-
+  methoden `exportProfile`/`importProfile`. Tests: server (`profile-transfer.test.ts` — roundtrip levert een
+  identiek profiel in een andere organisatie, onleesbaar zonder sleutel, ADMIN-only/tenant-isolatie,
+  verificatie-gate, ongeldige invoer) en web (`ProfileTransferPanel.test.tsx`). Gedocumenteerd in
+  `docs/api.md` en `docs/security.md`. **Beperking:** import in een andere deployment vereist dezelfde
+  `ENCRYPTION_KEY`; een wachtwoordgebaseerde exportsleutel is toekomstig werk.
 - **T7.3 Beheerdashboard en conceptvoorstellen.** Twee nieuwe ADMIN-endpoints en beheerpagina's
   (DESIGN §5.2, §6.2, §7.6, FR-016). **Dashboard** (`server/src/routes/dashboard.ts`,
   `GET /admin/dashboard`): een tenant-gefilterd overzicht van de eigen organisatie — aantal gebruikers

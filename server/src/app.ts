@@ -19,6 +19,7 @@ import { registerConversationRoutes } from './routes/conversation.js';
 import { registerQuestionRoutes } from './routes/question.js';
 import { registerPersonalContextRoutes } from './routes/personal-context.js';
 import { registerPreferenceRoutes } from './routes/preferences.js';
+import { registerProfileTransferRoutes } from './routes/profile-transfer.js';
 import { registerAiWorkerRoutes } from './routes/ai-worker.js';
 import { registerWorkerTokenRoutes } from './routes/worker-tokens.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
@@ -106,6 +107,8 @@ export async function buildApp({
   registerPersonalContextRoutes(app, { prisma, encryptor });
   // Voorkeuren + begeleider-suggestie (T6.3): leren gebeurt bij `/confirm`; hier bekijkt/handelt beheer af.
   registerPreferenceRoutes(app, { prisma, encryptor });
+  // Profielexport/-import (T8.1): eigenaarschap — versleuteld profiel exporteren en elders importeren.
+  registerProfileTransferRoutes(app, { prisma, encryptor });
   // Worker-endpoints voor de gedistribueerde AI-wachtrij (T5.5). Altijd geregistreerd: ze werken op de
   // AiJob-tabel en zijn onschadelijk zonder queue-provider (er komen dan simpelweg geen jobs binnen).
   registerAiWorkerRoutes(app, { env, prisma });

@@ -92,6 +92,8 @@ function fakeApi(initial: PreferencePublic[]): {
     listConceptProposals: () => Promise.resolve({ proposals: [] }),
     approveConceptProposal: notImplemented,
     rejectConceptProposal: notImplemented,
+    exportProfile: notImplemented,
+    importProfile: notImplemented,
     ...prefApi,
   };
   return { api, calls };

@@ -205,6 +205,8 @@ function fakeApi(): Api {
     listConceptProposals: () => Promise.resolve({ proposals: [] }),
     approveConceptProposal: notImplemented,
     rejectConceptProposal: notImplemented,
+    exportProfile: notImplemented,
+    importProfile: notImplemented,
   };
 }
 

@@ -356,6 +356,81 @@ export const preferenceSuggestionActionSchema = z
   });
 export type PreferenceSuggestionAction = z.infer<typeof preferenceSuggestionActionSchema>;
 
+// --- Profielexport/-import (T8.1, DESIGN §6.4, §8.2, FR-019) ---
+
+/**
+ * Huidige versie van het profielexportformaat. Reist mee in de payload zodat een importeur een ouder/
+ * nieuwer formaat kan herkennen en weigeren i.p.v. verkeerd te interpreteren (ruimte voor migratie later).
+ */
+export const PROFILE_EXPORT_VERSION = 1;
+
+/**
+ * Eén stuk persoonlijke context binnen een profielexport (DESIGN §6.4). Bewust de **ontsleutelde** vorm:
+ * de export-payload als geheel wordt versleuteld (het bestand is onleesbaar zonder sleutel), dus binnenin
+ * staan `name`/`relationship` leesbaar zodat een import ze opnieuw kan versleutelen in de doelomgeving.
+ * Geen id's of `userId`: die zijn omgeving-specifiek en horen niet in een draagbaar profiel.
+ */
+export const profileExportContextSchema = z.object({
+  category: personalContextCategorySchema,
+  name: z.string(),
+  relationship: z.string().nullable(),
+  aiUsageAllowed: z.boolean(),
+});
+export type ProfileExportContext = z.infer<typeof profileExportContextSchema>;
+
+/**
+ * Eén geleerde voorkeur binnen een profielexport (DESIGN §6.4). Alleen de canonieke conceptsleutel + de
+ * afgeleide zekerheid/teller/herkomst — nooit communicatie-inhoud (privacy by design, §9.4). `suggestionStatus`
+ * reist mee zodat een reeds afgehandelde begeleider-suggestie na import niet opnieuw opduikt.
+ */
+export const profileExportPreferenceSchema = z.object({
+  concept: z.string(),
+  confidence: z.number().min(0).max(1),
+  count: z.number().int().nonnegative(),
+  source: z.string(),
+  suggestionStatus: preferenceSuggestionStatusSchema,
+});
+export type ProfileExportPreference = z.infer<typeof profileExportPreferenceSchema>;
+
+/**
+ * De **ontsleutelde** inhoud van een profielexport (DESIGN §6.4, FR-019). Bevat uitsluitend het
+ * gebruikersprofiel: naam, communicatie-instellingen, persoonlijke context en geleerde voorkeuren.
+ * Bewust **niet**: account- of organisatiegegevens, id's of tokens — het profiel is eigendom van de
+ * gebruiker en draagbaar naar een andere omgeving. Deze payload wordt in zijn geheel versleuteld voordat
+ * hij het bestand in gaat (`profileExportResponseSchema.data`).
+ */
+export const profileExportSchema = z.object({
+  version: z.literal(PROFILE_EXPORT_VERSION),
+  exportedAt: z.iso.datetime(),
+  user: z.object({ name: z.string() }),
+  communicationProfile: communicationProfileSchema,
+  personalContexts: z.array(profileExportContextSchema),
+  preferences: z.array(profileExportPreferenceSchema),
+});
+export type ProfileExport = z.infer<typeof profileExportSchema>;
+
+/**
+ * Antwoord op `GET /users/{id}/export`. `data` is de **versleutelde** (ondoorzichtige) export-payload —
+ * onleesbaar zonder de omgevingssleutel (`ENCRYPTION_KEY`) — die de beheer-UI als bestand laat downloaden.
+ * `filename` is een suggestie voor de downloadnaam.
+ */
+export const profileExportResponseSchema = z.object({
+  data: z.string().min(1),
+  filename: z.string().min(1),
+});
+export type ProfileExportResponse = z.infer<typeof profileExportResponseSchema>;
+
+/**
+ * Verzoek voor `POST /users/import`. `data` is de eerder geëxporteerde, versleutelde payload; de server
+ * ontsleutelt en valideert 'm en maakt er een **nieuwe** gebruiker mee aan in de eigen organisatie. `name`
+ * overschrijft optioneel de weergavenaam uit de export (standaard de geëxporteerde naam).
+ */
+export const profileImportRequestSchema = z.object({
+  data: z.string().min(1),
+  name: z.string().trim().min(1).max(200).optional(),
+});
+export type ProfileImportRequest = z.infer<typeof profileImportRequestSchema>;
+
 // --- Begeleiders koppelen (T2.2, DESIGN §2, FR-017) ---
 
 /**
