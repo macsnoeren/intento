@@ -22,6 +22,7 @@ import type {
 } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
+import { forbidAccountSession } from '../auth/authorize.js';
 import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
 import { decideNextQuestion } from '../conversation/decision.js';
 import { analyzeCorrection } from '../conversation/correction.js';
@@ -457,9 +458,12 @@ export function registerConversationRoutes(
   // door dezelfde safety-laag: de bewaarde boodschap blijft binnen de gekozen concepten (DESIGN §7.8) en
   // valt bij twijfel terug op de deterministische sjabloon. Alleen **bevestigde** communicatie wordt
   // bewaard (DESIGN §3.6). Een afwijzing verloopt via `/back`, niet hier.
+  // Bevestigen is exclusief van de gebruiker (DESIGN §2, §3.3, FR-011): `forbidAccountSession` weigert
+  // elke begeleider-/beheerdersessie met 403 vóór de device-auth, zodat een boodschap nooit vanuit een
+  // begeleiderssessie bevestigd kan worden — alleen de tablet (device-auth) mag hier komen.
   app.post(
     '/conversation/:id/confirm',
-    { preHandler: deviceAuthorize(prisma) },
+    { preHandler: [forbidAccountSession(prisma), deviceAuthorize(prisma)] },
     async (request): Promise<ConversationConfirmResponse> => {
       const device = requireDevice(request);
       const { id } = sessionParamsSchema.parse(request.params);

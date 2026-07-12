@@ -268,6 +268,9 @@ function fakeApi(
     startQuestion() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    viewUserConversation() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
   };
 }
 

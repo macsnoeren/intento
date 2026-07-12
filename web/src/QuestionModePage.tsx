@@ -1,5 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { AacSymbol, AccountPublic, UserPublic } from '@intento/shared';
+import type {
+  AacSymbol,
+  AccountPublic,
+  CaregiverConversationView,
+  UserPublic,
+} from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
@@ -211,6 +216,90 @@ export function QuestionModePage({
           </div>
         </form>
       )}
+
+      {userId ? <ConversationWatch api={api} userId={userId} /> : null}
     </main>
+  );
+}
+
+/**
+ * Meekijken met het lopende gesprek (T7.2, DESIGN §3.3, §5.2, FR-011). De begeleider ziet **read-only**
+ * de gesprekcontext van de gekoppelde gebruiker: of de gebruiker in ondersteuningsmodus staat, een
+ * eventuele eigen vraag en het afgelegde pad (broodkruimel). Bewust géén keuze-/bevestigknoppen: kiezen
+ * en bevestigen kan uitsluitend de gebruiker zelf op de tablet (server-side afgedwongen). Ophalen gebeurt
+ * op verzoek (knop) zodat er geen ongevraagd polling-verkeer loopt; de begeleider ververst zelf.
+ */
+function ConversationWatch({ api, userId }: { api: Api; userId: string }): React.JSX.Element {
+  const [view, setView] = useState<CaregiverConversationView | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Bij het wisselen van gebruiker het oude beeld wissen zodat we nooit context van een andere gebruiker tonen.
+  useEffect(() => {
+    setView(null);
+    setError(null);
+  }, [userId]);
+
+  async function refresh(): Promise<void> {
+    setError(null);
+    setBusy(true);
+    try {
+      setView(await api.viewUserConversation(userId));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Meekijken mislukt.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="panel" aria-label="Meekijken met het gesprek">
+      <div className="form form--inline">
+        <h2 className="panel__title">Meekijken met het gesprek</h2>
+        <button className="button" type="button" onClick={() => void refresh()} disabled={busy}>
+          {view ? 'Verversen' : 'Meekijken'}
+        </button>
+      </div>
+
+      {error ? (
+        <p className="form__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      {view ? (
+        <>
+          {view.supportMode ? (
+            <p className="tablet__support" role="note">
+              <span aria-hidden="true">🤝 </span>Ondersteuningsmodus actief
+            </p>
+          ) : null}
+
+          {view.session ? (
+            <>
+              {view.session.caregiverQuestion ? (
+                <p className="muted">
+                  Jouw vraag: <strong>{view.session.caregiverQuestion}</strong>
+                </p>
+              ) : null}
+
+              {view.session.history.length > 0 ? (
+                <nav className="breadcrumb" aria-label="Gekozen pad">
+                  {view.session.history.map((step) => (
+                    <span key={step.order} className="breadcrumb__item">
+                      <span aria-hidden="true">{step.symbol.glyph}</span> {step.symbol.label}
+                    </span>
+                  ))}
+                </nav>
+              ) : (
+                <p className="muted">Er is nog geen keuze gemaakt.</p>
+              )}
+            </>
+          ) : (
+            <p className="muted">Er loopt op dit moment geen gesprek.</p>
+          )}
+        </>
+      ) : null}
+    </section>
   );
 }

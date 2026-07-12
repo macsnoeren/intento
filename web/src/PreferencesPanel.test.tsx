@@ -87,6 +87,7 @@ function fakeApi(initial: PreferencePublic[]): {
     searchAac: notImplemented,
     listQuestionUsers: notImplemented,
     startQuestion: notImplemented,
+    viewUserConversation: notImplemented,
     ...prefApi,
   };
   return { api, calls };

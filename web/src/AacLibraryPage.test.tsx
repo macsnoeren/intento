@@ -200,6 +200,7 @@ function fakeApi(): Api {
     searchAac: () => Promise.resolve({ symbols: [] }),
     listQuestionUsers: () => Promise.resolve({ users: [] }),
     startQuestion: notImplemented,
+    viewUserConversation: notImplemented,
   };
 }
 

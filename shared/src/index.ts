@@ -878,6 +878,35 @@ export const pendingQuestionResponseSchema = z.object({
 });
 export type PendingQuestionResponse = z.infer<typeof pendingQuestionResponseSchema>;
 
+// --- Ondersteuningsmodus en begeleiderweergave (T7.2, DESIGN §3.3, §5.2, FR-011) ---
+
+/**
+ * Read-only **meekijkweergave** voor een begeleider/beheerder (`GET /question/users/:id/conversation`,
+ * T7.2, DESIGN §3.3, §5.2). De begeleider ziet de gesprekcontext van een gekoppelde gebruiker — het
+ * afgelegde pad (`history`, de broodkruimel), een eventuele eigen vraag (`caregiverQuestion`) en of de
+ * gebruiker in **ondersteuningsmodus** staat (`supportMode`, DESIGN §3.3) — zónder zelf iets te kunnen
+ * kiezen of bevestigen: bevestigen kan uitsluitend de gebruiker op de tablet (server-side afgedwongen).
+ *
+ * Bewust een snapshot uit de **opgeslagen** stappen (geen AI-aanroep bij het meekijken): `session` is
+ * `null` als er geen actief gesprek loopt. `mode` is `"free"` of `"question"` (vraagmodus).
+ */
+export const caregiverConversationViewSchema = z.object({
+  userId: z.string(),
+  userName: z.string(),
+  /** Staat de gebruiker in ondersteuningsmodus? De begeleider tikt dan aan namens de gebruiker (§3.3). */
+  supportMode: z.boolean(),
+  session: z
+    .object({
+      sessionId: z.string(),
+      status: conversationStatusSchema,
+      mode: z.string(),
+      caregiverQuestion: z.string().nullable(),
+      history: z.array(conversationStepSchema),
+    })
+    .nullable(),
+});
+export type CaregiverConversationView = z.infer<typeof caregiverConversationViewSchema>;
+
 // --- Worker-token-beheer (T5.8, DESIGN §5.2, §9.4, ADR-0010) ---
 
 /**

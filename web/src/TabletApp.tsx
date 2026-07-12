@@ -41,6 +41,21 @@ function WaitingScreen({ position }: { position?: number }): React.JSX.Element {
 }
 
 /**
+ * Ondersteuningsmodus-indicator (T7.2, DESIGN §3.3, FR-011). Staat de gebruiker in ondersteuningsmodus
+ * (`supportMode` in het communicatieprofiel), dan tikt de begeleider aan namens de gebruiker — de
+ * betekenis blijft van de gebruiker. De app toont dat expliciet zodat het voor iedereen zichtbaar is.
+ * Rendert niets als de modus uitstaat.
+ */
+function SupportModeBanner({ active }: { active: boolean }): React.JSX.Element | null {
+  if (!active) return null;
+  return (
+    <p className="tablet__support" role="note">
+      <span aria-hidden="true">🤝 </span>Ondersteuningsmodus actief
+    </p>
+  );
+}
+
+/**
  * Gebruikersapp op de tablet (T4.2, DESIGN §5.1–5.3, FR-001/003).
  *
  * Dit is de **derde interface** naast de beheeromgeving (`App.tsx`) en de latere
@@ -290,6 +305,7 @@ function ConversationScreen({
         api={api}
         sessionId={state.sessionId}
         showText={profile.showText}
+        supportMode={profile.supportMode}
         onConfirmed={setConfirmed}
         onReject={() => void run(() => api.conversationCorrection(state.sessionId))}
       />
@@ -303,6 +319,8 @@ function ConversationScreen({
 
   return (
     <main className="tablet">
+      <SupportModeBanner active={profile.supportMode} />
+
       {state.caregiverQuestion ? (
         <p className="tablet__question" role="note">
           <span aria-hidden="true">🗨️ </span>
@@ -367,12 +385,14 @@ function ProposalScreen({
   api,
   sessionId,
   showText,
+  supportMode,
   onConfirmed,
   onReject,
 }: {
   api: DeviceApi;
   sessionId: string;
   showText: boolean;
+  supportMode: boolean;
   onConfirmed: (result: ConversationConfirmResponse) => void;
   onReject: () => void;
 }): React.JSX.Element {
@@ -445,6 +465,8 @@ function ProposalScreen({
 
   return (
     <main className="tablet">
+      <SupportModeBanner active={supportMode} />
+
       <div className="proposal__symbols" aria-hidden="true">
         {proposal.symbols.map((symbol, index) => (
           <img

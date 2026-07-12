@@ -1,17 +1,21 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import {
+  caregiverConversationViewSchema,
   questionStartRequestSchema,
   questionStartResponseSchema,
   userListResponseSchema,
+  type CaregiverConversationView,
   type QuestionStartResponse,
   type UserListResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
+import type { AacSymbolModel } from '../generated/prisma/models.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
 import { assertSameTenant, tenantScope } from '../auth/tenant.js';
 import { assertCaregiverAccess } from '../auth/caregivers.js';
 import { userToPublic as toPublic } from '../users/serialize.js';
-import { loadChildSymbols } from '../conversation/engine.js';
+import { loadChildSymbols, serializeHistory } from '../conversation/engine.js';
 import { HttpError } from '../errors.js';
 
 export interface QuestionRoutesDeps {
@@ -36,6 +40,7 @@ export interface QuestionRoutesDeps {
  *
  * - `GET  /question/users`  — de gebruikers aan wie dit account een vraag mag stellen.
  * - `POST /question/start`  — start een vraagmodus-sessie; de vraag verschijnt in de gebruikersapp.
+ * - `GET  /question/users/:id/conversation` — read-only **meekijken** met het lopende gesprek (T7.2).
  */
 export function registerQuestionRoutes(app: FastifyInstance, { prisma }: QuestionRoutesDeps): void {
   // Gebruikers waaraan de begeleider/beheerder een vraag mag stellen. Voor een CAREGIVER: alleen de
@@ -119,6 +124,67 @@ export function registerQuestionRoutes(app: FastifyInstance, { prisma }: Questio
         sessionId: session.id,
         userId,
         question,
+      });
+    },
+  );
+
+  // Meekijken met het gesprek (T7.2, DESIGN §3.3, §5.2, FR-011). Een begeleider/beheerder ziet de
+  // gesprekcontext van een gekoppelde gebruiker: het afgelegde pad (broodkruimel), een eventuele eigen
+  // vraag en of de gebruiker in ondersteuningsmodus staat. Bewust **read-only** en zonder AI-aanroep —
+  // puur een snapshot uit de opgeslagen stappen; kiezen/bevestigen kan alléén de gebruiker op de tablet.
+  // Dezelfde strenge toegang als de rest van de begeleiderinterface: tenant-grens + begeleider-koppeling.
+  app.get(
+    '/question/users/:id/conversation',
+    { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) },
+    async (request): Promise<CaregiverConversationView> => {
+      const account = requireAccount(request);
+      const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+
+      const user = assertSameTenant(
+        account,
+        await prisma.user.findUnique({
+          where: { id },
+          include: { communicationProfile: true },
+        }),
+      );
+      await assertCaregiverAccess(prisma, account, id);
+
+      // Het lopende (actieve) gesprek, meest recent eerst. Geen AI: alleen de opgeslagen stappen.
+      const session = await prisma.conversationSession.findFirst({
+        where: { userId: id, status: 'ACTIVE' },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      // Losjes getypt: het eindresultaat wordt door `caregiverConversationViewSchema` gevalideerd,
+      // die `status`/`mode` op de grens controleert (§8.1).
+      let sessionView: Record<string, unknown> | null = null;
+      if (session) {
+        const steps = await prisma.conversationStep.findMany({
+          where: { sessionId: session.id },
+          orderBy: { order: 'asc' },
+        });
+        const symbolIds = steps
+          .map((step) => step.selectedSymbolId)
+          .filter((sid): sid is string => sid !== null);
+        const symbols =
+          symbolIds.length > 0
+            ? await prisma.aacSymbol.findMany({ where: { id: { in: symbolIds } } })
+            : [];
+        const byId = new Map<string, AacSymbolModel>(symbols.map((symbol) => [symbol.id, symbol]));
+        sessionView = {
+          sessionId: session.id,
+          status: session.status,
+          mode: session.mode,
+          caregiverQuestion: session.caregiverQuestion,
+          history: serializeHistory(steps, byId),
+        };
+      }
+
+      return caregiverConversationViewSchema.parse({
+        userId: user.id,
+        userName: user.name,
+        supportMode: user.communicationProfile?.supportMode ?? false,
+        session: sessionView,
       });
     },
   );

@@ -57,7 +57,15 @@
       twee organisaties en op 401/403 in `routes/accounts.test.ts` en `auth/tenant.test.ts`.
       Fijnmaziger dan rol + tenant: een CAREGIVER ziet/beheert alléén de gebruikers waaraan hij
       gekoppeld is (`assertCaregiverAccess`, `auth/caregivers.ts`) — niet-gekoppeld → `403`.
-      Getest in `routes/caregivers.test.ts` (T2.2).
+      Getest in `routes/caregivers.test.ts` (T2.2). Read-only **meekijken** met een lopend gesprek
+      (`GET /question/users/{id}/conversation`, T7.2) staat achter dezelfde tenant- + koppeling-check.
+- [x] **Bevestigen is exclusief van de gebruiker (T7.2, DESIGN §2, §3.3, FR-011)** — een boodschap
+      **bevestigen** kan nooit vanuit een begeleider-/beheerdersessie. `POST /conversation/{id}/confirm`
+      draait achter `forbidAccountSession` (`auth/authorize.ts`) vóór `deviceAuthorize`: is er een geldige
+      account-sessie op de request, dan `403 CONFIRM_REQUIRES_USER` — alleen de tablet (device-auth) mag
+      bevestigen. In ondersteuningsmodus tikt de begeleider aan op de tablet, maar de betekenis (en het
+      bevestigen) blijft van de gebruiker. Getest in `routes/conversation.test.ts` (caregiver-cookie → 403,
+      device-cookie → 200).
 - [x] **Apparaatkoppeling (T2.3)** — koppelcode én apparaat-token staan **gehasht at-rest**
       (SHA-256, alleen de hash in de db, `auth/device.ts`), net als sessietokens. Codes hebben
       ~40 bit entropie, zijn **eenmalig** (race-veilig geclaimd via conditionele update) en

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { AacSymbol, AccountPublic, QuestionStartRequest, UserPublic } from '@intento/shared';
 import { QuestionModePage } from './QuestionModePage.tsx';
@@ -49,7 +49,9 @@ function sym(concept: string, label: string, glyph: string): AacSymbol {
 }
 
 function fakeApi(
-  overrides: Partial<Pick<Api, 'listQuestionUsers' | 'searchAac' | 'startQuestion'>> = {},
+  overrides: Partial<
+    Pick<Api, 'listQuestionUsers' | 'searchAac' | 'startQuestion' | 'viewUserConversation'>
+  > = {},
 ): Api {
   const notImplemented = () =>
     Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
@@ -102,6 +104,48 @@ describe('begeleiderinterface — vraagmodus', () => {
 
     expect(await screen.findByText(/nog niet aan een gebruiker gekoppeld/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Vraag versturen' })).toBeNull();
+  });
+
+  it('laat de begeleider read-only meekijken met het gesprek (T7.2, §3.3)', async () => {
+    const api = fakeApi({
+      viewUserConversation: (userId) =>
+        Promise.resolve({
+          userId,
+          userName: 'Sanne',
+          supportMode: true,
+          session: {
+            sessionId: 's-1',
+            status: 'ACTIVE',
+            mode: 'question',
+            caregiverQuestion: 'Wat wil je drinken?',
+            history: [{ order: 0, question: 'Wat wil je drinken?', symbol: sym('drink', 'Drinken', '🥤') }],
+          },
+        }),
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} />);
+    await screen.findByRole('option', { name: 'Sanne' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Meekijken' }));
+
+    // Ondersteuningsmodus-indicator, de eigen vraag en het afgelegde pad verschijnen — read-only.
+    expect(await screen.findByText(/Ondersteuningsmodus actief/)).toBeTruthy();
+    const watch = screen.getByRole('region', { name: 'Meekijken met het gesprek' });
+    expect(within(watch).getByText(/Wat wil je drinken\?/)).toBeTruthy();
+    expect(within(watch).getByRole('navigation', { name: 'Gekozen pad' })).toBeTruthy();
+    // Geen keuze-/bevestigknoppen in de meekijkweergave.
+    expect(within(watch).queryByRole('button', { name: /Bevestigen/ })).toBeNull();
+  });
+
+  it('meldt netjes wanneer er geen gesprek loopt bij het meekijken', async () => {
+    const api = fakeApi({
+      viewUserConversation: (userId) =>
+        Promise.resolve({ userId, userName: 'Sanne', supportMode: false, session: null }),
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} />);
+    await screen.findByRole('option', { name: 'Sanne' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Meekijken' }));
+    expect(await screen.findByText(/geen gesprek/i)).toBeTruthy();
   });
 
   it('toont een fout als versturen mislukt', async () => {

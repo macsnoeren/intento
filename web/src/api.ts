@@ -5,6 +5,7 @@ import {
   aiWaitingErrorSchema,
   apiErrorSchema,
   authResponseSchema,
+  caregiverConversationViewSchema,
   caregiverListResponseSchema,
   conversationConfirmResponseSchema,
   conversationGenerateResponseSchema,
@@ -31,6 +32,7 @@ import {
   type AacSymbolListResponse,
   type AttachOpenSymbolsRequest,
   type AuthResponse,
+  type CaregiverConversationView,
   type CaregiverListResponse,
   type ConversationConfirmResponse,
   type ConversationGenerateResponse,
@@ -148,6 +150,8 @@ export interface Api {
   listQuestionUsers(): Promise<UserListResponse>;
   /** Start een vraagmodus-sessie: de vraag verschijnt in de gebruikersapp op de tablet (T7.1). */
   startQuestion(body: QuestionStartRequest): Promise<QuestionStartResponse>;
+  /** Read-only meekijken met het lopende gesprek van een gekoppelde gebruiker (T7.2, DESIGN §3.3). */
+  viewUserConversation(userId: string): Promise<CaregiverConversationView>;
 }
 
 /**
@@ -403,6 +407,11 @@ export const httpApi: Api & DeviceApi = {
   async startQuestion(body) {
     return questionStartResponseSchema.parse(
       await request('/question/start', { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
+  async viewUserConversation(userId) {
+    return caregiverConversationViewSchema.parse(
+      await request(`/question/users/${userId}/conversation`),
     );
   },
   async deviceMe() {

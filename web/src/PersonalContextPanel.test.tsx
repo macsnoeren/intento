@@ -90,6 +90,7 @@ function fakeApi(): Api {
     searchAac: notImplemented,
     listQuestionUsers: notImplemented,
     startQuestion: notImplemented,
+    viewUserConversation: notImplemented,
     ...contextApi,
   };
 }

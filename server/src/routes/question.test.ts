@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import {
+  caregiverConversationViewSchema,
   conversationConfirmResponseSchema,
   conversationStateResponseSchema,
   pendingQuestionResponseSchema,
@@ -199,6 +200,96 @@ describe('vraagmodus — /question (T7.1)', () => {
       headers: { cookie: deviceCk },
     });
     expect(back.statusCode).toBe(400);
+  });
+
+  it('laat een gekoppelde begeleider read-only meekijken met het lopende gesprek (T7.2, §3.3)', async () => {
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('cg@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+    await linkCaregiver(caregiver.accountId, user.id);
+    // Ondersteuningsmodus aanzetten zodat de begeleider dat in de meekijkweergave ziet (§3.3).
+    await prisma.userCommunicationProfile.update({
+      where: { userId: user.id },
+      data: { supportMode: true },
+    });
+    const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
+
+    // Begeleider stelt een vraag en de gebruiker maakt op de tablet een keuze, zodat er context is.
+    await app.inject({
+      method: 'POST',
+      url: '/question/start',
+      headers: { cookie: cgCookie },
+      payload: { userId: user.id, question: 'Wat wil je drinken?', anchorConcept: 'drink' },
+    });
+    const deviceCk = await deviceCookie(app, user.id);
+    const pending = await app.inject({
+      method: 'GET',
+      url: '/conversation/pending',
+      headers: { cookie: deviceCk },
+    });
+    const { state } = pendingQuestionResponseSchema.parse(pending.json());
+    await app.inject({
+      method: 'POST',
+      url: `/conversation/${state!.sessionId}/next`,
+      headers: { cookie: deviceCk },
+      payload: { symbolId: await symbolId('water') },
+    });
+
+    // Meekijken: read-only snapshot met ondersteuningsmodus, de eigen vraag en het afgelegde pad.
+    const res = await app.inject({
+      method: 'GET',
+      url: `/question/users/${user.id}/conversation`,
+      headers: { cookie: cgCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const view = caregiverConversationViewSchema.parse(res.json());
+    expect(view.supportMode).toBe(true);
+    expect(view.session).not.toBeNull();
+    expect(view.session!.mode).toBe('question');
+    expect(view.session!.caregiverQuestion).toBe('Wat wil je drinken?');
+    // Het anker (drink) + de keuze (water) staan in de broodkruimel.
+    expect(view.session!.history.map((h) => h.symbol.concept)).toEqual(['drink', 'water']);
+  });
+
+  it('geeft session=null als er geen gesprek loopt, en supportMode uit standaard', async () => {
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('cg@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+    await linkCaregiver(caregiver.accountId, user.id);
+    const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/question/users/${user.id}/conversation`,
+      headers: { cookie: cgCookie },
+    });
+    const view = caregiverConversationViewSchema.parse(res.json());
+    expect(view.session).toBeNull();
+    expect(view.supportMode).toBe(false);
+  });
+
+  it('weigert meekijken door een niet-gekoppelde begeleider (403) en over de tenant-grens (403)', async () => {
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('cg@intento.local', 'pw-c', 'CAREGIVER', org);
+    const unlinked = await seedUser('Sanne', org);
+    const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
+
+    // Niet gekoppeld → 403.
+    const notLinked = await app.inject({
+      method: 'GET',
+      url: `/question/users/${unlinked.id}/conversation`,
+      headers: { cookie: cgCookie },
+    });
+    expect(notLinked.statusCode).toBe(403);
+
+    // Andere organisatie → 403 (tenant-isolatie, lekt niet of de gebruiker bestaat).
+    const otherUser = await seedUser('Ander', await seedOrganization('B'));
+    const crossTenant = await app.inject({
+      method: 'GET',
+      url: `/question/users/${otherUser.id}/conversation`,
+      headers: { cookie: cgCookie },
+    });
+    expect(crossTenant.statusCode).toBe(403);
   });
 
   it('GET /question/users toont een begeleider alléén de gekoppelde gebruikers', async () => {

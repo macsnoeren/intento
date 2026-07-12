@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T7.2 Ondersteuningsmodus en begeleiderweergave.** De tablet toont nu een
+  **ondersteuningsmodus-indicator** ("🤝 Ondersteuningsmodus actief") op het keuze- en voorstelscherm
+  wanneer `supportMode` in het communicatieprofiel aanstaat (DESIGN §3.3, FR-011): de begeleider tikt aan
+  namens de gebruiker, maar de betekenis blijft van de gebruiker. Een begeleider/beheerder kan **read-only
+  meekijken** met het lopende gesprek van een gekoppelde gebruiker via het nieuwe
+  `GET /question/users/:id/conversation` (account-auth ADMIN/gekoppelde CAREGIVER, `assertSameTenant` +
+  `assertCaregiverAccess`): een snapshot uit de **opgeslagen** stappen (géén AI-aanroep) met
+  `supportMode`, een eventuele `caregiverQuestion` en het afgelegde pad (broodkruimel), of `session=null`
+  als er geen gesprek loopt — kiezen/bevestigen kan hier niet. **Server-side afdwinging**: bevestigen kan
+  nooit vanuit een begeleiderssessie. Nieuw preHandler `forbidAccountSession` (`auth/authorize.ts`) hangt
+  vóór `deviceAuthorize` op `POST /conversation/:id/confirm` en weigert elke geldige account-sessie met
+  `403 CONFIRM_REQUIRES_USER` — alleen de tablet (device-auth) mag bevestigen (DESIGN §2, §3.3). Web:
+  `SupportModeBanner` in `web/src/TabletApp.tsx` en een **meekijk-paneel** in `web/src/QuestionModePage.tsx`
+  (knop "Meekijken/Verversen", geen ongevraagd polling). Gedeeld schema `caregiverConversationView`; nieuwe
+  API-methode `viewUserConversation`. Tests: server (`conversation.test.ts` — caregiver-cookie op `/confirm`
+  → `403`, gebruiker bevestigt daarna wél; `question.test.ts` — meekijken met context, `session=null`,
+  niet-gekoppeld en cross-tenant `403`) en web (`TabletApp.test.tsx` — indicator aan/uit;
+  `QuestionModePage.test.tsx` — meekijken read-only + "geen gesprek"). Gedocumenteerd in `docs/api.md` en
+  `docs/security.md`.
 - **T7.1 Vraagmodus.** Een begeleider stelt een gekoppelde gebruiker een vraag ("Wat wil je drinken?");
   de AI beperkt de antwoorden en de gebruiker stelt zijn antwoord zelf samen en bevestigt (DESIGN §3.2,
   §8.2, FR-012). `ConversationSession` uitgebreid met **`mode`** (`free`/`question`),

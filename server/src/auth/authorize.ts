@@ -105,6 +105,33 @@ export function requirePlatformOrg(prisma: PrismaClient): preHandlerAsyncHookHan
 }
 
 /**
+ * Extra preHandler dat een **account-sessie verbiedt** op een device-only actie (T7.2, DESIGN §3.3).
+ *
+ * Sommige acties zijn exclusief van de **gebruiker** zelf en mogen nooit vanuit een begeleider-/
+ * beheerdersessie komen — met name het **bevestigen** van een boodschap (`/conversation/:id/confirm`):
+ * een begeleider kan aantikken namens de gebruiker (ondersteuningsmodus), maar de betekenis blijft van
+ * de gebruiker, dus alleen de tablet (device-auth) mag bevestigen (DESIGN §2, §3.3, FR-011).
+ *
+ * Hangt vóór `deviceAuthorize`: is er een geldige account-sessie op de request, dan 403
+ * (`CONFIRM_REQUIRES_USER`) — ongeacht rol. Zonder account-sessie valt de request door naar
+ * `deviceAuthorize`, dat een geldig apparaat-token eist (anders 401). Zo geeft een begeleider-cookie
+ * een duidelijke 403 ("mag dit nooit") i.p.v. een generieke 401.
+ */
+export function forbidAccountSession(prisma: PrismaClient): preHandlerAsyncHookHandler {
+  return async (request) => {
+    const token = readSessionToken(request);
+    const account = token ? await findAccountBySessionToken(prisma, token) : null;
+    if (account) {
+      throw new HttpError(
+        403,
+        'CONFIRM_REQUIRES_USER',
+        'Alleen de gebruiker kan zelf een boodschap bevestigen; een begeleider kan dat nooit namens de gebruiker.',
+      );
+    }
+  };
+}
+
+/**
  * Haalt het geverifieerde account op dat `authorize(...)` op de request zette. Faalt hard
  * (500) als het ontbreekt: dat betekent een programmeerfout — de route mist zijn preHandler.
  */

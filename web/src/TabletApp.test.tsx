@@ -383,6 +383,23 @@ describe('gebruikersapp op de tablet', () => {
     expect(screen.queryByRole('heading', { name: 'Wat wil je duidelijk maken?' })).toBeNull();
   });
 
+  it('toont de ondersteuningsmodus-indicator wanneer supportMode aanstaat (T7.2, §3.3)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ supportMode: true }) })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+    expect(screen.getByText(/Ondersteuningsmodus actief/)).toBeTruthy();
+
+    // Blijft zichtbaar op het voorstelscherm (waar de begeleider het aantikken ondersteunt).
+    await walkToProposal();
+    await screen.findByRole('heading', { name: 'Ik wil buiten.' });
+    expect(screen.getByText(/Ondersteuningsmodus actief/)).toBeTruthy();
+  });
+
+  it('toont de ondersteuningsmodus-indicator niet wanneer supportMode uitstaat', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+    expect(screen.queryByText(/Ondersteuningsmodus actief/)).toBeNull();
+  });
+
   it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {
     render(
       <TabletApp

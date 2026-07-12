@@ -213,11 +213,19 @@ antwoordopties vormen. Deze routes lopen op **account-auth** (sessiecookie), nie
 |---|---|---|---|
 | GET | `/question/users` | ADMIN/CAREGIVER | Gebruikers waaraan dit account een vraag mag stellen: voor een CAREGIVER alléén de **gekoppelde** gebruikers, voor een ADMIN alle van de eigen organisatie (tenant-gefilterd). `200` + `userListResponseSchema`. |
 | POST | `/question/start` | ADMIN/CAREGIVER | Start een vraagmodus-sessie: `questionStartRequestSchema` (`{ userId, question, anchorConcept }`). Maakt in één transactie een `ACTIVE` sessie (`mode: 'question'`, `caregiverQuestion`, `startedByAccountId`) met het topic-anker als vaste eerste stap. `201` + `questionStartResponseSchema` (`{ sessionId, userId, question }`). Tenant-grens (`assertSameTenant`) én begeleider-koppeling (`assertCaregiverAccess`) bewaakt: niet-gekoppelde CAREGIVER → `403`. Onbekend anker → `400 UNKNOWN_ANCHOR`; anker zonder kinderen (geen antwoordopties) → `400 ANCHOR_WITHOUT_OPTIONS`. |
+| GET | `/question/users/{id}/conversation` | ADMIN/CAREGIVER | **Meekijken** met het lopende gesprek van een gekoppelde gebruiker (T7.2, DESIGN §3.3, FR-011). `200` + `caregiverConversationViewSchema` (`{ userId, userName, supportMode, session }`): een **read-only** snapshot uit de opgeslagen stappen (géén AI-aanroep) — of de gebruiker in **ondersteuningsmodus** staat, een eventuele `caregiverQuestion`, `mode`/`status` en het afgelegde pad (`history`/broodkruimel), of `session: null` als er geen `ACTIVE` gesprek loopt. Zelfde toegang als hierboven: niet-gekoppelde CAREGIVER of andere tenant → `403`. Kiezen/bevestigen kan hier niet — dat is exclusief van de gebruiker op de tablet. |
 
 De vraag "verschijnt in de gebruikersapp": de tablet haalt de klaarstaande vraag op via
 `GET /conversation/pending` en doorloopt daarna de gewone gespreksflow (`/next` → `/generate` →
 `/confirm`) op die sessie. De begeleidersvraag reist als **context** (`questionContext`) mee in de
 beperkte AI-prompt, zodat de AI de antwoorden op de vraag afstemt terwijl de opties AAC-begrensd blijven.
+
+**Ondersteuningsmodus (T7.2, DESIGN §3.3, FR-011).** Staat `supportMode` in het communicatieprofiel aan,
+dan tikt de begeleider aan namens de gebruiker; de tablet toont dat expliciet ("Ondersteuningsmodus
+actief"), maar de betekenis blijft van de gebruiker. **Bevestigen kan nooit vanuit een begeleiderssessie**:
+`POST /conversation/{id}/confirm` draait achter `forbidAccountSession` + `deviceAuthorize`. Is er een
+geldige **account**-sessie op de request (begeleider/beheerder), dan `403 CONFIRM_REQUIRES_USER` — nog vóór
+de device-auth; alleen de tablet (device-auth) mag bevestigen (DESIGN §2, §3.3).
 
 ## AI-orchestrator en validatielaag (intern, T5.1/T5.2/T5.3)
 

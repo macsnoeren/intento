@@ -11,7 +11,14 @@ import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import { seedAacLibrary } from '../aac/library.js';
 import { ROOT_PROMPT } from '../conversation/engine.js';
-import { deviceCookie, resetAuthData, seedUser, testEnv } from '../test/auth-helpers.js';
+import {
+  deviceCookie,
+  loginCookie,
+  resetAuthData,
+  seedAccount,
+  seedUser,
+  testEnv,
+} from '../test/auth-helpers.js';
 
 /**
  * Gespreksflow — sessies en stappen (T4.1, DESIGN §3.1, §6.2, §8.2, FR-001/005/006/010).
@@ -386,5 +393,34 @@ describe('gespreksflow — /conversation', () => {
       expect(res.statusCode).toBe(404);
       expect(res.json()).toMatchObject({ error: { code: 'SESSION_NOT_FOUND' } });
     }
+  });
+
+  it('weigert bevestigen vanuit een begeleiderssessie (403) — alleen de gebruiker bevestigt (T7.2, §3.3)', async () => {
+    const { cookie, sessionId } = await walkExampleRoute();
+
+    // Een (gekoppelde) begeleider probeert namens de gebruiker te bevestigen: verboden, 403 — nog vóór
+    // de device-auth, zodat een begeleider-cookie een duidelijke "mag dit nooit" krijgt i.p.v. een 401.
+    const caregiver = await seedAccount('cg@intento.local', 'pw-c', 'CAREGIVER');
+    const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
+    const forbidden = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie: cgCookie },
+      payload: {},
+    });
+    expect(forbidden.statusCode).toBe(403);
+    expect(forbidden.json()).toMatchObject({ error: { code: 'CONFIRM_REQUIRES_USER' } });
+    // Er is niets bevestigd/opgeslagen door de poging.
+    expect(await prisma.generatedMessage.count({ where: { sessionId } })).toBe(0);
+
+    // De gebruiker zelf (device-auth op dezelfde tablet) bevestigt wél gewoon.
+    const ok = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie },
+      payload: {},
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(conversationConfirmResponseSchema.parse(ok.json()).status).toBe('COMPLETED');
   });
 });
