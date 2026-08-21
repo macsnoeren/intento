@@ -28,6 +28,37 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   Definition of Done in `CLAUDE.md`.
 
 ### Gerepareerd
+- **Verificatielink toonde "ongeldig of verlopen" terwijl het adres wél bevestigd werd.** Dezelfde
+  StrictMode-klasse als T8.5: React mount onder `<StrictMode>` (dev) elk component dubbel, dus
+  draaide het effect in `VerifyEmailPage` twee keer en verstuurde het hetzelfde **eenmalige** token
+  twee keer. De eerste POST slaagde (token op `usedAt`, account op `emailVerifiedAt`), de tweede
+  kreeg terecht de neutrale fout — en juist die tweede bepaalde wat het scherm toonde. De
+  `active`-vlag in de cleanup hielp niet, integendeel: die onderdrukte alleen het *resultaat* van de
+  geslaagde eerste POST, niet de tweede POST zelf. Opgelost met een ref die onthoudt welk token al
+  is ingewisseld, zodat de tweede effect-uitvoering niets meer verstuurt; verandert het token echt
+  (andere link in hetzelfde tabblad), dan wisselt de pagina dat nieuwe token wel in. De opruimvlag
+  is weg: een setState na unmount is in React 18+ een no-op. De server blijft ongewijzigd — tokens
+  blijven strikt eenmalig. Voor het geval iemand een al gebruikte link nog eens opent, staat er nu
+  onder de foutmelding een hint dat het adres waarschijnlijk al bevestigd is en inloggen gewoon kan.
+  Getest in `web/src/VerifyEmailPage.test.tsx`, inclusief een StrictMode-test die tegen de oude code
+  aantoonbaar faalt.
+- **Verificatiemails faalden met `wrong version number`; SMTP dwingt nu TLS af.** `SMTP_URL` stond
+  op `smtps://…:587`: het schema `smtps://` zet `secure: true`, dus nodemailer begon meteen een
+  TLS-handshake, terwijl poort 587 een STARTTLS-poort is die eerst in platte tekst antwoordt
+  (`220 …`). OpenSSL las dat antwoord als een TLS-record en meldde `wrong version number` — een
+  fout die naar TLS-versies wijst maar in werkelijkheid een schema/poort-mismatch is. De env staat
+  nu op `smtp://…:587` (STARTTLS), zoals gewenst. Omdat een kale `smtp://`-URL TLS alleen
+  *opportunistisch* gebruikt — een server die geen STARTTLS aanbiedt krijgt de SMTP-inloggegevens
+  dan gewoon in platte tekst — zet `SmtpMailTransport` nu `requireTLS`, waarmee de upgrade
+  verplicht is en een mislukte upgrade de verzending laat falen. Bij `smtps://` (465) is de vlag
+  een no-op. De vlag gaat als **query-parameter** in de URL mee en niet als optie-object: geef je
+  `createTransport()` een object met een `url`-property, dan gebruikt nodemailer alléén die URL en
+  gooit het de rest van het object weg, dus `{ url, requireTLS: true }` compileert en draait maar
+  doet niets — dat is tijdens deze fix eerst mis gegaan en daarna geverifieerd. Tests draaien tegen
+  een neptestserver die STARTTLS weigert en controleren dat er geen `AUTH` en geen wachtwoord over
+  de lijn gaat, met een contra-test die aantoont dat diezelfde server zonder `requireTLS` de
+  inloggegevens wél ontvangt. Documentatie (`.env.example`, README, `docs/security.md`, ADR 0007)
+  waarschuwt nu expliciet voor de schema/poort-combinatie.
 - **T8.7 Pictogrammen laadden niet cross-origin door helmets `Cross-Origin-Resource-Policy`.**
   `@fastify/helmet` zet op élk antwoord `Cross-Origin-Resource-Policy: same-origin`. De web-client
   draait op een andere origin dan de API (Vite op `:5173` vs. API op `:3000`) en laadt pictogrammen

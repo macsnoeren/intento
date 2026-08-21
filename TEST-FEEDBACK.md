@@ -1,0 +1,9 @@
+- [ ] Het design is small gemaakt. Ik zou het graag een wat professionelere webpagina maken dat ook wat breder is met een mooie menu ed.
+- [ ] De administrator van de webpagina mag ook een begeleider zijn.
+- [ ] Bij tablet koppelen mag de link er wel bijstaan voor de zekerheid.
+- [ ] De begeleider kan meekijken, maar moet elke keer op de verversen knop klikken. Dit moet gewoon automatisch gaan.
+- [ ] Het moet ook zichtbaar zijn in de tablet en de applicatie dat er een AI worker actief is. Andere is het gek.
+- [ ] Ik krijg in de tablet als je Ja zeg: "Alleen de gebruiker kan zelf een boodschap bevestigen; een begeleider kan dat nooit namens de gebruiker."
+- [ ] "Wat wil je duidelijk maken?" met de intentiecategorieën ask, problem, feel, want, say. Ik heb geen say maar de rest wel.
+- [ ] bij de begeleider blijft vraag versturen niet klikbaar (grayed-out)
+- [ ] Het lijkt erop dat er helemaal geen AI probeert te achterhalen wat de gebruiker wil.

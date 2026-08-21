@@ -65,7 +65,11 @@
       en antwoordt **altijd** neutraal — of het adres bestaat, al geverifieerd is of onbekend
       (geen account-enumeratie). De mail-service is provider-agnostisch (`mail/transport.ts`):
       SMTP in productie (verplicht via prod-guard), log-transport in dev, geheugen-transport in
-      tests. **Gekozen verificatie-gate:** onbevestigde accounts mogen inloggen en hun eigen
+      tests. **SMTP-verkeer is altijd versleuteld:** het transport zet `requireTLS`, dus bij een
+      STARTTLS-poort (`smtp://`, 587) wordt de upgrade afgedwongen en faalt de verzending als die
+      niet lukt — SMTP-inloggegevens gaan nooit in platte tekst over de lijn. Bij `smtps://` (465)
+      is de verbinding al vanaf de eerste byte versleuteld. Getest in `mail/transport.test.ts`
+      tegen een neptestserver die STARTTLS weigert. **Gekozen verificatie-gate:** onbevestigde accounts mogen inloggen en hun eigen
       gegevens bekijken, maar het aanmaken van gebruikers (`POST /users`, privacygevoelige
       personen) én van begeleider-accounts (`POST /admin/accounts`, T2.4 — toegangsverlening) is
       geblokkeerd → `403 EMAIL_NOT_VERIFIED` (`requireVerifiedEmail`). Getest in

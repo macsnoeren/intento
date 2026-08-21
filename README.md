@@ -91,6 +91,12 @@ maar het aanmaken van gebruikers (`POST /users`) is geblokkeerd tot verificatie
 (`403 EMAIL_NOT_VERIFIED`). Opnieuw versturen kan via `POST /auth/verify-email/resend` (neutraal,
 rate-limited). Zie [docs/api.md](docs/api.md) en [docs/adr/0007](docs/adr/0007-email-verification-and-mail-transport.md).
 
+Met een echte mailserver moeten schema en poort in `SMTP_URL` bij elkaar passen:
+`smtp://…:587` voor STARTTLS, `smtps://…:465` voor TLS vanaf de eerste byte. De combinatie
+`smtps://` met een STARTTLS-poort geeft de misleidende fout `wrong version number`. TLS is in
+beide gevallen verplicht (`requireTLS`): lukt de STARTTLS-upgrade niet, dan faalt de verzending
+in plaats van in platte tekst door te gaan.
+
 Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account (meteen als
 geverifieerd aangemaakt; herseeden verifieert een nog ongeverifieerde bootstrap-admin alsnog en laat het
 wachtwoord ongemoeid). E-mail/wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`

@@ -28,6 +28,19 @@ in dezelfde vorm als de OpenSymbols-client (ADR-0006) en de latere AI-provider:
   `buildApp({ mail })` injecteren tests het geheugen-transport.
 - Een **prod-guard** dwingt af dat `SMTP_URL` in productie niet leeg is (anders zou daar niemand een
   mail krijgen) en dat `EMAIL_VERIFICATION_URL_BASE` https is.
+- **TLS is niet optioneel.** `SmtpMailTransport` zet `requireTLS`, zodat een `smtp://`-URL
+  (STARTTLS, meestal poort 587) de upgrade naar TLS afdwingt en de verzending laat falen als die
+  mislukt, in plaats van de SMTP-inloggegevens alsnog in platte tekst te versturen. Bij
+  `smtps://` (implicit TLS, poort 465) is de vlag een no-op. De env kiest dus wélke TLS-variant,
+  nooit óf er TLS is. Let op de nodemailer-valkuil: geef je `createTransport()` een object met een
+  `url`-property, dan gebruikt het alléén die URL en gooit het de overige opties weg — de vlag
+  gaat daarom als query-parameter mee (`withRequiredTls`).
+
+**Gevolg voor de client:** omdat het token eenmalig is, mag de verificatiepagina het hooguit één
+keer inwisselen. `VerifyEmailPage` dedupliceert daarom per token (ref, geen state): onder
+`<StrictMode>` draait het effect twee keer, en een tweede POST met hetzelfde token levert per
+definitie de neutrale fout op — met als zichtbaar gevolg een foutmelding op een geslaagde
+verificatie. Zie `web/src/VerifyEmailPage.test.tsx`.
 
 **Token gehasht at-rest, eenmalig en verlopend** (`server/src/auth/email-verification.ts`,
 tabel `EmailVerificationToken`): alleen de SHA-256-hash staat in de db; het rauwe 256-bit token gaat

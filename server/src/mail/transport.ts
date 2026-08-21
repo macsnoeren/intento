@@ -65,6 +65,12 @@ export class MemoryMailTransport implements MailTransport {
  * SMTP-transport (productie) op basis van nodemailer. De verbinding komt uit `SMTP_URL`; het
  * afzenderadres uit `MAIL_FROM`. Faalt de verzending, dan gooit `send()` — de aanroeper beslist
  * of dat de flow moet blokkeren (bij registratie niet: de mail is een aanvulling, geen harde eis).
+ *
+ * `requireTLS` staat hier hard aan (security by default): bij een `smtp://`-URL (STARTTLS-poort,
+ * meestal 587) dwingt nodemailer dan een STARTTLS-upgrade af en breekt de verbinding af als die
+ * mislukt, in plaats van de inloggegevens alsnog in platte tekst te versturen. Bij een
+ * `smtps://`-URL (implicit TLS, poort 465) is de verbinding al versleuteld en is de vlag een no-op.
+ * De env bepaalt dus wélke TLS-variant je gebruikt, nooit óf er TLS is.
  */
 export class SmtpMailTransport implements MailTransport {
   private readonly transporter: nodemailer.Transporter;
@@ -73,7 +79,7 @@ export class SmtpMailTransport implements MailTransport {
     smtpUrl: string,
     private readonly from: string,
   ) {
-    this.transporter = nodemailer.createTransport(smtpUrl);
+    this.transporter = nodemailer.createTransport(withRequiredTls(smtpUrl));
   }
 
   async send(message: MailMessage): Promise<void> {
@@ -85,6 +91,23 @@ export class SmtpMailTransport implements MailTransport {
       html: message.html,
     });
   }
+}
+
+/**
+ * Zet `requireTLS=true` in de SMTP-URL, tenzij de env die zelf al expliciet meegeeft.
+ *
+ * Bewust via een query-parameter en niet via een optie-object: geeft je `createTransport()` een
+ * object met een `url`-property, dan gebruikt nodemailer *alleen* de URL en gooit het de rest van
+ * het object weg (`lib/nodemailer.js`) — `{ url, requireTLS: true }` ziet er dus goed uit maar doet
+ * niets. Query-parameters lopen wél door de URL-parser heen. Een round-trip door `URL` laat
+ * gebruikersnaam en wachtwoord ongemoeid, ook als daar een `@` in zit.
+ */
+export function withRequiredTls(smtpUrl: string): string {
+  const url = new URL(smtpUrl);
+  if (!url.searchParams.has('requireTLS')) {
+    url.searchParams.set('requireTLS', 'true');
+  }
+  return url.toString();
 }
 
 /**

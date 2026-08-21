@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
@@ -9,6 +9,9 @@ import { ApiRequestError, type Api } from './api.ts';
  *
  * `onDone` brengt de gebruiker terug naar de normale app (login/beheer), waar het account
  * inmiddels als geverifieerd geldt.
+ *
+ * Het token is **eenmalig**: een tweede inwisseling van hetzelfde token faalt per definitie. Deze
+ * pagina mag het dus hooguit één keer versturen — zie de dedupe-ref hieronder.
  */
 export function VerifyEmailPage({
   api,
@@ -22,14 +25,25 @@ export function VerifyEmailPage({
   const [status, setStatus] = useState<'busy' | 'ok' | 'error'>('busy');
   const [message, setMessage] = useState('');
 
+  // Onthoudt welk token al is ingewisseld, zodat het effect het bij een tweede uitvoering niet
+  // opnieuw verstuurt. Nodig omdat React onder `<StrictMode>` (main.tsx, dev) elk component dubbel
+  // mount (mount → unmount → remount) en het effect dus twee keer draait: de eerste POST slaagde
+  // en maakte het eenmalige token op, waarna de tweede POST terecht "ongeldig of verlopen" kreeg —
+  // het account wás geverifieerd, maar de gebruiker zag een foutmelding. Een `active`-vlag lost dit
+  // niet op: die onderdrukt alleen het *resultaat* van de eerste POST, niet de tweede POST zelf.
+  // Een ref (geen state) omdat de waarde geen hertekening hoort te veroorzaken en meteen na de
+  // remount al gezet moet zijn. Verandert het token toch (andere link in hetzelfde tabblad), dan
+  // wisselen we dat nieuwe token wél in.
+  const exchangedTokenRef = useRef<string | null>(null);
+
   useEffect(() => {
-    let active = true;
+    if (exchangedTokenRef.current === token) return;
+    exchangedTokenRef.current = token;
     void (async () => {
       try {
         await api.verifyEmail(token);
-        if (active) setStatus('ok');
+        setStatus('ok');
       } catch (err) {
-        if (!active) return;
         setStatus('error');
         setMessage(
           err instanceof ApiRequestError
@@ -38,9 +52,8 @@ export function VerifyEmailPage({
         );
       }
     })();
-    return () => {
-      active = false;
-    };
+    // Bewust geen opruimvlag: een setState na unmount is in React 18+ een no-op (geen waarschuwing),
+    // en juist het onderdrukken van het antwoord veroorzaakte hier de verkeerde foutmelding.
   }, [api, token]);
 
   return (
@@ -51,9 +64,18 @@ export function VerifyEmailPage({
         <p role="status">Je e-mailadres is bevestigd. Je kunt nu alle functies gebruiken.</p>
       ) : null}
       {status === 'error' ? (
-        <p className="form__error" role="alert">
-          {message}
-        </p>
+        <>
+          <p className="form__error" role="alert">
+            {message}
+          </p>
+          {/* Een gebruikte link levert dezelfde neutrale fout op als een onbekende (geen
+              enumeratie). Deze hint voorkomt dat iemand met een al bevestigd adres blijft
+              hangen op "vraag een nieuwe aan". */}
+          <p className="muted">
+            Heb je deze link al eerder geopend? Dan is je e-mailadres waarschijnlijk al bevestigd en
+            kun je gewoon inloggen.
+          </p>
+        </>
       ) : null}
       {status !== 'busy' ? (
         <button className="button button--primary" type="button" onClick={onDone}>
