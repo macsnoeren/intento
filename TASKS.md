@@ -41,7 +41,7 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   *Acceptatie:* na registratie wordt een verificatiemail verstuurd (mock-transport in test); geldig token → account geverifieerd; verlopen/gebruikt/ongeldig token geweigerd; resend rate-limited en lekt niet of het adres bestaat; token nergens plaintext opgeslagen.
   *Opmerking:* T1.3 blijft functioneren zonder mailserver (verificatie is een aanvulling, geen harde blokkade op registratie) — kies en documenteer expliciet welke acties verificatie vereisen.
 
-- [ ] **T1.5 Seed maakt bootstrap-admin idempotent geverifieerd**
+- [x] **T1.5 Seed maakt bootstrap-admin idempotent geverifieerd**
   *DESIGN: §2, §6.2 (Account), §9.4.* De upsert in `seed.ts` laat bij een bestaand account `emailVerifiedAt` ongemoeid (`update: {}`), waardoor een admin die is aangemaakt vóór de T1.4-migratie (die de nullable kolom toevoegde) ná herseeden ongeverifieerd blijft — precies wat er in de dev-db gebeurde (`admin@intento.local` heeft `emailVerifiedAt = null`). Fix: in het `update`-blok `emailVerifiedAt` alsnog zetten wanneer die `null` is (read-before-upsert of een gerichte `updateMany`), zodat een bootstrap-/operator-admin na elke seed gegarandeerd geverifieerd is. Het wachtwoord blijft ongemoeid (respecteert een later gewijzigd wachtwoord). Documenteer de keuze kort in de seed-toelichting en `docs/security.md`.
   *Acceptatie:* seed uitgevoerd op een db met een bestaande ongeverifieerde bootstrap-admin → admin is daarna geverifieerd; wachtwoord ongewijzigd; herseeden blijft idempotent (geen dubbele rijen); verse `db:reset` + seed levert nog steeds een geverifieerde admin.
 

@@ -106,9 +106,13 @@ opties. `searchText` wordt herbouwd bij elke wijziging (nu in de seed; T3.2 bij 
 
 [`server/prisma/seed.ts`](../server/prisma/seed.ts) is idempotent (`npm run db:seed`) en
 plaatst een demo-organisatie (als **platformorganisatie**, `isPlatform: true` — T5.8) **en** een eerste `ADMIN`-account. E-mail/wachtwoord komen uit
-`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (dev-default met waarschuwing als niet gezet).
-De geseede bootstrap-admin wordt meteen als **geverifieerd** aangemaakt (T1.4) — die is door de
-operator ingericht, niet via publieke zelfaanmelding. Herseeden overschrijft een bestaand wachtwoord niet. Het script seedt óók de **AAC-bibliotheek**
+`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` (dev-default met waarschuwing als niet gezet). De logica zelf
+staat in [`server/src/db/bootstrap-seed.ts`](../server/src/db/bootstrap-seed.ts), zodat script en tests
+dezelfde code draaien. De geseede bootstrap-admin wordt meteen als **geverifieerd** aangemaakt (T1.4) — die
+is door de operator ingericht, niet via publieke zelfaanmelding. Bij **herseeden** wordt een bestaande
+bootstrap-admin die nog `emailVerifiedAt = null` heeft (bv. aangemaakt vóór de T1.4-migratie) alsnog
+geverifieerd (T1.5, gerichte `updateMany` op `emailVerifiedAt: null`); een al gezette verificatiedatum en
+het wachtwoord blijven ongemoeid. Het script seedt óók de **AAC-bibliotheek**
 (T3.1) via [`server/src/aac/library.ts`](../server/src/aac/library.ts) met de dataset uit
 [`server/src/aac/data.ts`](../server/src/aac/data.ts): symbolen worden op `concept` ge-upsert en
 relaties op hun unieke combinatie — idempotent, dus herseeden levert geen duplicaten.

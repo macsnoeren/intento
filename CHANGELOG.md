@@ -5,6 +5,29 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Gewijzigd
+- **T1.5 Seed maakt de bootstrap-admin idempotent geverifieerd.** De upsert in `server/prisma/seed.ts`
+  liet bij een **bestaand** account alles ongemoeid (`update: {}`), waardoor een admin die vóór de
+  T1.4-migratie was aangemaakt na herseeden `emailVerifiedAt = null` hield en op de verificatie-gate
+  (`403 EMAIL_NOT_VERIFIED`) bleef hangen — precies wat er met `admin@intento.local` in de dev-db gebeurde.
+  De seedlogica verhuisde naar [`server/src/db/bootstrap-seed.ts`](server/src/db/bootstrap-seed.ts)
+  (`seedBootstrapOrgAndAdmin`), zodat script én tests dezelfde code draaien; `prisma/seed.ts` is nu een dunne
+  runner. Na de upsert zet een **gerichte** `updateMany` op `emailVerifiedAt: null` de verificatie alsnog —
+  dus alléén voor een nog ongeverifieerd account: een al gezette verificatiedatum verschuift niet en het
+  **wachtwoord blijft ongemoeid** (een later gewijzigd wachtwoord blijft geldig). De seed meldt het expliciet
+  wanneer hij een bestaande admin alsnog verifieert. Tests: `server/src/db/bootstrap-seed.test.ts` (verse db,
+  herstel van een ongeverifieerde admin, wachtwoord/verificatiedatum ongemoeid, idempotentie zonder dubbele
+  rijen, lowercase-normalisatie van de e-mail). Gedocumenteerd in `docs/data-model.md`, `docs/security.md`
+  en `README.md`.
+
+### Beveiliging
+- **Afhankelijkheden bijgewerkt naar 0 kwetsbaarheden.** `npm audit` meldde 13 nieuwe advisories
+  (brace-expansion, fast-uri, find-my-way, nanoid, postcss, shell-quote, undici, valibot e.a.);
+  `npm audit fix` loste er 10 op. De resterende keten (`prisma` → `@prisma/config` → `deepmerge-ts < 8`,
+  stack-exhaustion) is opgelost met een root-`override` op `deepmerge-ts@^8.0.2` in plaats van de door npm
+  voorgestelde **downgrade naar prisma 6** (breaking). Prisma CLI (`generate`, `migrate deploy`, `db seed`)
+  en de volledige testsuite geverifieerd met die override; `npm audit` = 0.
+
 ### Toegevoegd
 - **T8.2 Audit-logging, security review en MVP-check.** Sluitstuk van de MVP (DESIGN §9.4, §10.3). Een
   herbruikbare `recordAudit(...)` (`server/src/audit/audit.ts` + centrale actiesleutels in

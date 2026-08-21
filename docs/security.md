@@ -48,6 +48,13 @@
       gegevens bekijken, maar het aanmaken van gebruikers (`POST /users`, privacygevoelige
       personen) is geblokkeerd → `403 EMAIL_NOT_VERIFIED` (`requireVerifiedEmail`). Getest in
       `auth/email-verification.test.ts` en `routes/email-verification.test.ts`.
+      **Bootstrap-admin (T1.5):** het door de operator geseede ADMIN-account heeft geen publieke
+      zelfaanmelding doorlopen en geldt daarom als geverifieerd. De seed (`db/bootstrap-seed.ts`) zet
+      `emailVerifiedAt` daarom óók op een **bestaand** account, maar uitsluitend wanneer die nog `null` is
+      (gerichte `updateMany` op `emailVerifiedAt: null`) — zo blijft een admin van vóór de T1.4-migratie na
+      herseeden niet op de verificatie-gate hangen, terwijl een al gezette verificatiedatum niet wordt
+      verschoven en het **wachtwoord ongemoeid** blijft (een later gewijzigd wachtwoord blijft geldig).
+      Getest in `db/bootstrap-seed.test.ts`.
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op
