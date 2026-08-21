@@ -60,7 +60,10 @@ export function errorHandler(
     reply
       .status(503)
       .header('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)))
-      .send({ ...toApiError('AI_WORKER_UNAVAILABLE', error.message), retryAfterMs: error.retryAfterMs });
+      .send({
+        ...toApiError('AI_WORKER_UNAVAILABLE', error.message),
+        retryAfterMs: error.retryAfterMs,
+      });
     return;
   }
 

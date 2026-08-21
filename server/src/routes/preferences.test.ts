@@ -61,10 +61,7 @@ describe('leermechanisme — voorkeuren (T6.3)', () => {
   }
 
   /** Start een gesprek, loopt de voorbeeldroute en (optioneel) bevestigt de boodschap. */
-  async function walkRoute(
-    cookie: string,
-    concepts: readonly string[] = ROUTE,
-  ): Promise<string> {
+  async function walkRoute(cookie: string, concepts: readonly string[] = ROUTE): Promise<string> {
     const start = await app.inject({
       method: 'POST',
       url: '/conversation/start',
@@ -179,7 +176,8 @@ describe('leermechanisme — voorkeuren (T6.3)', () => {
     expect(captured).not.toBeNull();
     const prefItems = captured!.userContext.filter((i) => i.kind === 'preference');
     expect(prefItems.length).toBeGreaterThan(0);
-    const walkingLabel = (await prisma.aacSymbol.findUnique({ where: { concept: 'walking' } }))!.label;
+    const walkingLabel = (await prisma.aacSymbol.findUnique({ where: { concept: 'walking' } }))!
+      .label;
     expect(prefItems.map((i) => i.value)).toContain(walkingLabel);
   });
 

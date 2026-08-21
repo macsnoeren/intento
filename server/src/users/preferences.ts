@@ -163,7 +163,9 @@ export async function listPreferences(
     prisma,
     prefs.map((p) => p.concept),
   );
-  return prefs.map((pref) => preferenceToPublic(pref, labelByConcept.get(pref.concept) ?? pref.concept));
+  return prefs.map((pref) =>
+    preferenceToPublic(pref, labelByConcept.get(pref.concept) ?? pref.concept),
+  );
 }
 
 /**

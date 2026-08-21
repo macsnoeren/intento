@@ -178,9 +178,9 @@ export function ConceptProposalsPage({
 
       <section className="panel" aria-label="AI-conceptvoorstellen">
         <p className="muted">
-          Nieuwe begrippen die de AI voorstelde maar (nog) niet in de bibliotheek staan. Ze bereikten
-          de gebruiker nooit. Koppel een voorstel aan een bestaand pictogram om het beschikbaar te
-          maken voor de AI, of wijs het af.
+          Nieuwe begrippen die de AI voorstelde maar (nog) niet in de bibliotheek staan. Ze
+          bereikten de gebruiker nooit. Koppel een voorstel aan een bestaand pictogram om het
+          beschikbaar te maken voor de AI, of wijs het af.
         </p>
         {loading ? (
           <p className="muted">Laden…</p>
@@ -204,7 +204,10 @@ export function ConceptProposalsPage({
                 ) : null}
                 {proposal.status === 'PENDING' ? (
                   <div className="review__actions">
-                    <LinkForm api={api} onApprove={(symbolId) => handleApprove(proposal.id, symbolId)} />
+                    <LinkForm
+                      api={api}
+                      onApprove={(symbolId) => handleApprove(proposal.id, symbolId)}
+                    />
                     <button
                       className="button button--danger"
                       type="button"

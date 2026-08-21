@@ -114,7 +114,8 @@ export function registerConceptProposalRoutes(
       const { symbolId } = approveConceptProposalRequestSchema.parse(request.body);
 
       const proposal = await prisma.conceptProposal.findUnique({ where: { id } });
-      if (!proposal) throw new HttpError(404, 'PROPOSAL_NOT_FOUND', 'Conceptvoorstel bestaat niet.');
+      if (!proposal)
+        throw new HttpError(404, 'PROPOSAL_NOT_FOUND', 'Conceptvoorstel bestaat niet.');
       if (proposal.status === 'APPROVED') {
         throw new HttpError(409, 'PROPOSAL_ALREADY_HANDLED', 'Dit voorstel is al goedgekeurd.');
       }
@@ -164,7 +165,8 @@ export function registerConceptProposalRoutes(
       const { id } = idParamsSchema.parse(request.params);
 
       const proposal = await prisma.conceptProposal.findUnique({ where: { id } });
-      if (!proposal) throw new HttpError(404, 'PROPOSAL_NOT_FOUND', 'Conceptvoorstel bestaat niet.');
+      if (!proposal)
+        throw new HttpError(404, 'PROPOSAL_NOT_FOUND', 'Conceptvoorstel bestaat niet.');
       if (proposal.status === 'APPROVED') {
         throw new HttpError(
           409,

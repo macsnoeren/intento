@@ -121,7 +121,9 @@ describe('begeleiderinterface — vraagmodus', () => {
             status: 'ACTIVE',
             mode: 'question',
             caregiverQuestion: 'Wat wil je drinken?',
-            history: [{ order: 0, question: 'Wat wil je drinken?', symbol: sym('drink', 'Drinken', '🥤') }],
+            history: [
+              { order: 0, question: 'Wat wil je drinken?', symbol: sym('drink', 'Drinken', '🥤') },
+            ],
           },
         }),
     });

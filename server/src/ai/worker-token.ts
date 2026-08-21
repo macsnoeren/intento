@@ -101,11 +101,11 @@ export async function revokeWorkerToken(prisma: PrismaClient, id: string): Promi
  * De reden waarom een worker-token geweigerd wordt. `missing`/`unknown` → 401 (geen geldig credential);
  * `revoked`/`expired`/`insufficient_scope` → 403 (wel een credential, maar niet (meer) toegestaan).
  */
-export type WorkerAuthFailure = 'missing' | 'unknown' | 'revoked' | 'expired' | 'insufficient_scope';
+export type WorkerAuthFailure =
+  'missing' | 'unknown' | 'revoked' | 'expired' | 'insufficient_scope';
 
 export type WorkerAuthResult =
-  | { ok: true; token: WorkerTokenModel }
-  | { ok: false; reason: WorkerAuthFailure };
+  { ok: true; token: WorkerTokenModel } | { ok: false; reason: WorkerAuthFailure };
 
 /**
  * Verifieert een rauw worker-token voor een vereiste scope. Zoekt op hash, controleert intrekking/vervaltijd

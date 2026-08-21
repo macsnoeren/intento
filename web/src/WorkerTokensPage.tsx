@@ -143,7 +143,11 @@ export function WorkerTokensPage({
               Een worker-token laat een externe AI-worker jobs van de wachtrij verwerken. Bewaar het
               rauwe token meteen: het wordt maar één keer getoond.
             </p>
-            <form className="form" onSubmit={(e) => void handleCreate(e)} aria-label="Worker-token aanmaken">
+            <form
+              className="form"
+              onSubmit={(e) => void handleCreate(e)}
+              aria-label="Worker-token aanmaken"
+            >
               <label className="field">
                 <span className="field__label">Naam</span>
                 <input
@@ -176,8 +180,8 @@ export function WorkerTokensPage({
             {freshToken ? (
               <div className="panel panel--highlight" role="status">
                 <p>
-                  Token voor <strong>{freshToken.name}</strong> aangemaakt. Kopieer het nu — het wordt
-                  niet opnieuw getoond:
+                  Token voor <strong>{freshToken.name}</strong> aangemaakt. Kopieer het nu — het
+                  wordt niet opnieuw getoond:
                 </p>
                 <code className="token-reveal">{freshToken.token}</code>
                 <button className="button" type="button" onClick={() => setFreshToken(null)}>
@@ -199,7 +203,9 @@ export function WorkerTokensPage({
                   <li key={token.id} className="token-list__item">
                     <div className="token-list__info">
                       <span className="token-list__name">{token.name}</span>
-                      <span className={`badge badge--${token.status}`}>{statusLabel(token.status)}</span>
+                      <span className={`badge badge--${token.status}`}>
+                        {statusLabel(token.status)}
+                      </span>
                       <span className="muted">{token.scopes.join(', ')}</span>
                       <span className="muted">
                         Laatst gezien: {formatDate(token.lastSeenAt)} · Vervalt:{' '}

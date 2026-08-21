@@ -92,7 +92,11 @@ export function registerPreferenceRoutes(
       }
       // Alleen een openstaande suggestie kan worden afgehandeld (idempotent/geen dubbele context).
       if (pref.suggestionStatus !== 'pending') {
-        throw new HttpError(409, 'NO_PENDING_SUGGESTION', 'Er staat geen suggestie open voor deze voorkeur.');
+        throw new HttpError(
+          409,
+          'NO_PENDING_SUGGESTION',
+          'Er staat geen suggestie open voor deze voorkeur.',
+        );
       }
 
       if (body.action === 'reject') {

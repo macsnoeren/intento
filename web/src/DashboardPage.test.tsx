@@ -49,7 +49,9 @@ describe('beheerdashboard', () => {
         },
       ],
     });
-    render(<DashboardPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />);
+    render(
+      <DashboardPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
+    );
 
     // Tellingen zichtbaar.
     expect(await screen.findByText('3')).toBeTruthy();

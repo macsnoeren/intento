@@ -80,7 +80,11 @@ export function registerPersonalContextRoutes(
         action: AUDIT_ACTIONS.CONTEXT_CREATE,
         targetType: 'personalContext',
         targetId: created.id,
-        metadata: { userId: id, category: created.category, aiUsageAllowed: created.aiUsageAllowed },
+        metadata: {
+          userId: id,
+          category: created.category,
+          aiUsageAllowed: created.aiUsageAllowed,
+        },
       });
 
       reply.status(201);
@@ -144,7 +148,11 @@ export function registerPersonalContextRoutes(
         action: AUDIT_ACTIONS.CONTEXT_UPDATE,
         targetType: 'personalContext',
         targetId: updated.id,
-        metadata: { userId: id, category: updated.category, aiUsageAllowed: updated.aiUsageAllowed },
+        metadata: {
+          userId: id,
+          category: updated.category,
+          aiUsageAllowed: updated.aiUsageAllowed,
+        },
       });
 
       return personalContextToPublic(updated, encryptor);

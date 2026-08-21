@@ -120,7 +120,11 @@ export function QuestionModePage({
           </p>
         </section>
       ) : (
-        <form className="panel form" aria-label="Vraag stellen" onSubmit={(e) => void handleSend(e)}>
+        <form
+          className="panel form"
+          aria-label="Vraag stellen"
+          onSubmit={(e) => void handleSend(e)}
+        >
           <label className="field">
             <span className="field__label">Gebruiker</span>
             <select

@@ -5,13 +5,7 @@
  * uitlogknop. Deze tabs schakelen ertussen; de actieve tab is niet klikbaar (`aria-current`).
  */
 export type AdminView =
-  | 'dashboard'
-  | 'users'
-  | 'aac'
-  | 'proposals'
-  | 'worker-tokens'
-  | 'audit-logs'
-  | 'account';
+  'dashboard' | 'users' | 'aac' | 'proposals' | 'worker-tokens' | 'audit-logs' | 'account';
 
 const TABS: { view: AdminView; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },

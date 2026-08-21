@@ -155,7 +155,14 @@ async function buildState(
   const [decision, history] = await Promise.all([
     // Bij een vraagmodus-sessie (T7.1) reist de begeleidersvraag als context mee naar de AI, zodat de
     // antwoorden op die vraag worden afgestemd (de opties blijven AAC-begrensd, §7.6).
-    decideNextQuestion(prisma, orchestrator, steps, excluded, userContext, session.caregiverQuestion),
+    decideNextQuestion(
+      prisma,
+      orchestrator,
+      steps,
+      excluded,
+      userContext,
+      session.caregiverQuestion,
+    ),
     buildHistory(prisma, steps),
   ]);
   return conversationStateResponseSchema.parse({

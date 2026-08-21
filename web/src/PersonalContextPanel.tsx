@@ -437,7 +437,9 @@ export function PersonalContextPanel({
       {errorBox}
 
       {sorted.length === 0 ? (
-        <p className="muted">Nog geen context. Start de wizard om deze stap voor stap in te vullen.</p>
+        <p className="muted">
+          Nog geen context. Start de wizard om deze stap voor stap in te vullen.
+        </p>
       ) : (
         <ul className="context-list">
           {sorted.map((item) =>

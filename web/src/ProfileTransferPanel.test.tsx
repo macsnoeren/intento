@@ -78,7 +78,9 @@ describe('ProfileImportPanel (T8.1)', () => {
 
     render(<ProfileImportPanel api={baseApi({ importProfile })} onImported={onImported} />);
 
-    const file = new File(['  v1:cipher  '], 'profiel.intento', { type: 'application/octet-stream' });
+    const file = new File(['  v1:cipher  '], 'profiel.intento', {
+      type: 'application/octet-stream',
+    });
     fireEvent.change(screen.getByLabelText('Profielbestand kiezen'), { target: { files: [file] } });
 
     await waitFor(() => expect(importProfile).toHaveBeenCalled());

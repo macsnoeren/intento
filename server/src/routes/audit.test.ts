@@ -141,7 +141,11 @@ describe('audit-logging — gevoelige acties', () => {
     const adminB = await seedAccount('b@intento.local', 'pw', 'ADMIN', orgB);
     await loginCookie(app, adminB.email, adminB.password);
 
-    const res = await app.inject({ method: 'GET', url: '/admin/audit-logs', headers: { cookie: cookieA } });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/admin/audit-logs',
+      headers: { cookie: cookieA },
+    });
     expect(res.statusCode).toBe(200);
     const body = auditLogListResponseSchema.parse(res.json());
 

@@ -198,11 +198,7 @@ export function PreferencesPanel({
                   >
                     Toevoegen
                   </button>
-                  <button
-                    type="button"
-                    className="button"
-                    onClick={() => setAdjustingId(pref.id)}
-                  >
+                  <button type="button" className="button" onClick={() => setAdjustingId(pref.id)}>
                     Aanpassen
                   </button>
                   <button

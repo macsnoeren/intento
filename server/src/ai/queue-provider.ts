@@ -1,11 +1,6 @@
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { AiWorkerBusyError, AiWorkerUnavailableError } from './errors.js';
-import {
-  enqueueJob,
-  waitForJobResult,
-  type JobTask,
-  type QueueConfig,
-} from './job-queue.js';
+import { enqueueJob, waitForJobResult, type JobTask, type QueueConfig } from './job-queue.js';
 import {
   AI_TASK_GENERATE_MESSAGE,
   AI_TASK_SELECT_NEXT_QUESTION,

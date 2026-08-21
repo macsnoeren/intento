@@ -53,6 +53,9 @@ export function createAiProvider(env: Env, prisma: PrismaClient = defaultPrisma)
 }
 
 /** Gemak: bouwt een orchestrator met de uit de env gekozen provider. */
-export function createAiOrchestrator(env: Env, prisma: PrismaClient = defaultPrisma): AiOrchestrator {
+export function createAiOrchestrator(
+  env: Env,
+  prisma: PrismaClient = defaultPrisma,
+): AiOrchestrator {
   return new AiOrchestrator(createAiProvider(env, prisma));
 }

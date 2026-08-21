@@ -48,10 +48,7 @@ const messagePrompt = {
 } satisfies AiMessagePrompt;
 
 /** Simuleert één worker: claimt de eerstvolgende job en levert `resultFor(task)` in. */
-async function driveOneJob(
-  tokenId: string,
-  resultFor: (task: string) => unknown,
-): Promise<void> {
+async function driveOneJob(tokenId: string, resultFor: (task: string) => unknown): Promise<void> {
   for (let i = 0; i < 300; i++) {
     const job = await claimNextJob(prisma, config, tokenId);
     if (job) {

@@ -39,14 +39,10 @@ export function registerWorkerTokenRoutes(
 ): void {
   const preHandler = [authorize(prisma, { roles: ['ADMIN'] }), requirePlatformOrg(prisma)];
 
-  app.get(
-    '/admin/worker-tokens',
-    { preHandler },
-    async (): Promise<WorkerTokenListResponse> => {
-      const tokens = await prisma.workerToken.findMany({ orderBy: { createdAt: 'desc' } });
-      return workerTokenListResponseSchema.parse({ tokens: tokens.map(workerTokenToPublic) });
-    },
-  );
+  app.get('/admin/worker-tokens', { preHandler }, async (): Promise<WorkerTokenListResponse> => {
+    const tokens = await prisma.workerToken.findMany({ orderBy: { createdAt: 'desc' } });
+    return workerTokenListResponseSchema.parse({ tokens: tokens.map(workerTokenToPublic) });
+  });
 
   app.post(
     '/admin/worker-tokens',
@@ -73,27 +69,23 @@ export function registerWorkerTokenRoutes(
     },
   );
 
-  app.post(
-    '/admin/worker-tokens/:id/revoke',
-    { preHandler },
-    async (request) => {
-      const { id } = idParamsSchema.parse(request.params);
-      const existing = await prisma.workerToken.findUnique({ where: { id } });
-      if (!existing) {
-        throw new HttpError(404, 'WORKER_TOKEN_NOT_FOUND', 'Worker-token niet gevonden.');
-      }
-      await revokeWorkerToken(prisma, id);
+  app.post('/admin/worker-tokens/:id/revoke', { preHandler }, async (request) => {
+    const { id } = idParamsSchema.parse(request.params);
+    const existing = await prisma.workerToken.findUnique({ where: { id } });
+    if (!existing) {
+      throw new HttpError(404, 'WORKER_TOKEN_NOT_FOUND', 'Worker-token niet gevonden.');
+    }
+    await revokeWorkerToken(prisma, id);
 
-      await recordAudit(prisma, request, {
-        action: AUDIT_ACTIONS.WORKER_TOKEN_REVOKE,
-        organizationId: null,
-        targetType: 'workerToken',
-        targetId: id,
-        metadata: { name: existing.name },
-      });
+    await recordAudit(prisma, request, {
+      action: AUDIT_ACTIONS.WORKER_TOKEN_REVOKE,
+      organizationId: null,
+      targetType: 'workerToken',
+      targetId: id,
+      metadata: { name: existing.name },
+    });
 
-      const updated = await prisma.workerToken.findUnique({ where: { id } });
-      return workerTokenToPublic(updated ?? existing);
-    },
-  );
+    const updated = await prisma.workerToken.findUnique({ where: { id } });
+    return workerTokenToPublic(updated ?? existing);
+  });
 }

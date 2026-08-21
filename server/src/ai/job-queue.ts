@@ -318,8 +318,7 @@ export async function heartbeatJob(
 
 /** De uitkomst van het wachten op een job-resultaat. */
 export type JobOutcome =
-  | { status: 'SUCCEEDED'; resultJson: string }
-  | { status: 'FAILED' | 'EXPIRED' | 'TIMEOUT' };
+  { status: 'SUCCEEDED'; resultJson: string } | { status: 'FAILED' | 'EXPIRED' | 'TIMEOUT' };
 
 /**
  * Wacht (pollend) tot een job een resultaat heeft, definitief mislukt/verloopt, of de wachttijd

@@ -22,7 +22,10 @@ const RECENT_ACTIVITY_LIMIT = 10;
  * Privacy by design (DESIGN §6.4, §9.4): de recente activiteit bevat **geen communicatie-inhoud** —
  * alleen de gebruikersnaam, status/modus, het aantal bevestigde boodschappen en het starttijdstip.
  */
-export function registerDashboardRoutes(app: FastifyInstance, { prisma }: DashboardRoutesDeps): void {
+export function registerDashboardRoutes(
+  app: FastifyInstance,
+  { prisma }: DashboardRoutesDeps,
+): void {
   app.get(
     '/admin/dashboard',
     { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
@@ -30,22 +33,24 @@ export function registerDashboardRoutes(app: FastifyInstance, { prisma }: Dashbo
       const account = requireAccount(request);
       const organizationId = account.organizationId;
 
-      const [userTotal, userActive, caregiverTotal, pendingProposals, sessions] = await Promise.all([
-        prisma.user.count({ where: { organizationId } }),
-        prisma.user.count({ where: { organizationId, active: true } }),
-        prisma.account.count({ where: { organizationId, role: 'CAREGIVER' } }),
-        prisma.conceptProposal.count({ where: { status: 'PENDING' } }),
-        prisma.conversationSession.findMany({
-          where: { user: { organizationId } },
-          orderBy: { startedAt: 'desc' },
-          take: RECENT_ACTIVITY_LIMIT,
-          include: {
-            user: { select: { id: true, name: true } },
-            // Alleen bevestigde boodschappen tellen (nooit de inhoud); in de MVP hoogstens één.
-            messages: { where: { confirmed: true }, select: { id: true } },
-          },
-        }),
-      ]);
+      const [userTotal, userActive, caregiverTotal, pendingProposals, sessions] = await Promise.all(
+        [
+          prisma.user.count({ where: { organizationId } }),
+          prisma.user.count({ where: { organizationId, active: true } }),
+          prisma.account.count({ where: { organizationId, role: 'CAREGIVER' } }),
+          prisma.conceptProposal.count({ where: { status: 'PENDING' } }),
+          prisma.conversationSession.findMany({
+            where: { user: { organizationId } },
+            orderBy: { startedAt: 'desc' },
+            take: RECENT_ACTIVITY_LIMIT,
+            include: {
+              user: { select: { id: true, name: true } },
+              // Alleen bevestigde boodschappen tellen (nooit de inhoud); in de MVP hoogstens één.
+              messages: { where: { confirmed: true }, select: { id: true } },
+            },
+          }),
+        ],
+      );
 
       const recentActivity = sessions.map((session) => ({
         sessionId: session.id,

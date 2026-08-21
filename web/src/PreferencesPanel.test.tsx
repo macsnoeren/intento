@@ -42,8 +42,7 @@ function fakeApi(initial: PreferencePublic[]): {
     resolveSuggestion(userId, prefId, body) {
       calls.push({ userId, prefId, body });
       const index = store.findIndex((p) => p.id === prefId);
-      const status =
-        body.action === 'reject' ? ('dismissed' as const) : ('accepted' as const);
+      const status = body.action === 'reject' ? ('dismissed' as const) : ('accepted' as const);
       const updated: PreferencePublic = {
         ...store[index]!,
         suggestionStatus: status,
@@ -126,9 +125,7 @@ describe('PreferencesPanel (T6.3)', () => {
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toMatchObject({ prefId: 'pref-1', body: { action: 'accept' } });
     // De suggestie is weg; de voorkeur staat nog in de lijst met de nieuwe status.
-    await waitFor(() =>
-      expect(screen.queryByText(/Wil je “Wandelen” toevoegen/)).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByText(/Wil je “Wandelen” toevoegen/)).toBeNull());
     expect(screen.getByText(/als context toegevoegd/)).toBeTruthy();
   });
 

@@ -142,7 +142,9 @@ describe('profielexport/-import (T8.1)', () => {
     const userId = await seedRichProfile(admin.organizationId);
 
     const { data } = profileExportResponseSchema.parse(
-      (await app.inject({ method: 'GET', url: `/users/${userId}/export`, headers: { cookie } })).json(),
+      (
+        await app.inject({ method: 'GET', url: `/users/${userId}/export`, headers: { cookie } })
+      ).json(),
     );
     const importRes = await app.inject({
       method: 'POST',
@@ -154,7 +156,9 @@ describe('profielexport/-import (T8.1)', () => {
   });
 
   it('maakt een exportbestand dat onleesbaar is zonder de juiste sleutel', async () => {
-    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100', ENCRYPTION_KEY: 'sleutel-een' }) });
+    app = await buildApp({
+      env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100', ENCRYPTION_KEY: 'sleutel-een' }),
+    });
     const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
     const cookie = await loginCookie(app, admin.email, admin.password);
     const userId = await seedRichProfile(admin.organizationId);
@@ -166,7 +170,9 @@ describe('profielexport/-import (T8.1)', () => {
     });
 
     const { data } = profileExportResponseSchema.parse(
-      (await app.inject({ method: 'GET', url: `/users/${userId}/export`, headers: { cookie } })).json(),
+      (
+        await app.inject({ method: 'GET', url: `/users/${userId}/export`, headers: { cookie } })
+      ).json(),
     );
     // De ondoorzichtige payload lekt geen plaintext PII.
     expect(data).not.toContain('Geheimnaam');
@@ -174,7 +180,9 @@ describe('profielexport/-import (T8.1)', () => {
     await app.close();
 
     // Een omgeving met een ándere sleutel kan het bestand niet lezen → 400 IMPORT_INVALID.
-    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100', ENCRYPTION_KEY: 'sleutel-twee' }) });
+    app = await buildApp({
+      env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100', ENCRYPTION_KEY: 'sleutel-twee' }),
+    });
     const other = await seedAccount('c@intento.local', 'pw', 'ADMIN');
     const cookie2 = await loginCookie(app, other.email, other.password);
     const res = await app.inject({
@@ -219,7 +227,12 @@ describe('profielexport/-import (T8.1)', () => {
   it('staat export/import alleen toe voor een ADMIN (CAREGIVER → 403)', async () => {
     app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100' }) });
     const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
-    const caregiver = await seedAccount('cg@intento.local', 'pw', 'CAREGIVER', admin.organizationId);
+    const caregiver = await seedAccount(
+      'cg@intento.local',
+      'pw',
+      'CAREGIVER',
+      admin.organizationId,
+    );
     const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
     const userId = await seedRichProfile(admin.organizationId);
 

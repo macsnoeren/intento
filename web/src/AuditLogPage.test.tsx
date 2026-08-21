@@ -54,7 +54,9 @@ describe('audit-log-pagina', () => {
         },
       ],
     });
-    render(<AuditLogPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />);
+    render(
+      <AuditLogPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
+    );
 
     expect(await screen.findByText('Instellingen aangepast')).toBeTruthy();
     expect(screen.getByText('Ingelogd')).toBeTruthy();
@@ -63,7 +65,9 @@ describe('audit-log-pagina', () => {
 
   it('toont een lege staat als er nog geen acties zijn', async () => {
     const api = fakeApi({ entries: [] });
-    render(<AuditLogPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />);
+    render(
+      <AuditLogPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
+    );
 
     expect(await screen.findByText('Nog geen geregistreerde acties.')).toBeTruthy();
   });

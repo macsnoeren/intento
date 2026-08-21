@@ -21,7 +21,9 @@ const adminAccount: AccountPublic = {
   isOperator: false,
 };
 
-function proposal(overrides: Partial<ConceptProposal> & { id: string; concept: string }): ConceptProposal {
+function proposal(
+  overrides: Partial<ConceptProposal> & { id: string; concept: string },
+): ConceptProposal {
   return {
     reason: 'de gebruiker wilde dit',
     status: 'PENDING',
@@ -89,7 +91,12 @@ describe('conceptvoorstellen — reviewlijst', () => {
   it('toont een openstaand voorstel', async () => {
     const api = fakeApi([proposal({ id: 'p-1', concept: 'teleporteren' })]);
     render(
-      <ConceptProposalsPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
     );
     expect(await screen.findByText('teleporteren')).toBeTruthy();
     expect(screen.getByText('Openstaand')).toBeTruthy();
@@ -98,7 +105,12 @@ describe('conceptvoorstellen — reviewlijst', () => {
   it('keurt een voorstel goed door het aan een gezocht pictogram te koppelen', async () => {
     const api = fakeApi([proposal({ id: 'p-1', concept: 'teleporteren' })]);
     render(
-      <ConceptProposalsPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
     );
 
     const item = (await screen.findByText('teleporteren')).closest('li') as HTMLElement;
@@ -117,14 +129,17 @@ describe('conceptvoorstellen — reviewlijst', () => {
   it('wijst een voorstel af', async () => {
     const api = fakeApi([proposal({ id: 'p-1', concept: 'teleporteren' })]);
     render(
-      <ConceptProposalsPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
     );
 
     fireEvent.click(await screen.findByRole('button', { name: /Voorstel teleporteren afwijzen/i }));
     expect(await screen.findByText('Afgewezen')).toBeTruthy();
     // Geen zoek-/afwijsknoppen meer voor een afgehandeld voorstel.
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /afwijzen/i })).toBeNull(),
-    );
+    await waitFor(() => expect(screen.queryByRole('button', { name: /afwijzen/i })).toBeNull());
   });
 });

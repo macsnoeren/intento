@@ -65,11 +65,7 @@ describe('gespreksflow op de AI-wachtrij — /conversation (queue-provider)', ()
   }
 
   /** Simuleert één worker: claimt de eerstvolgende job en levert `result` in. */
-  async function driveOneJob(
-    config: QueueConfig,
-    tokenId: string,
-    result: unknown,
-  ): Promise<void> {
+  async function driveOneJob(config: QueueConfig, tokenId: string, result: unknown): Promise<void> {
     for (let i = 0; i < 300; i++) {
       const job = await claimNextJob(prisma, config, tokenId);
       if (job) {
@@ -119,7 +115,9 @@ describe('gespreksflow op de AI-wachtrij — /conversation (queue-provider)', ()
     const cookie = await deviceCookie(app, user.id);
 
     // Bezet de enige slot met een claimbare job zodat de volgende aanvraag over capaciteit is.
-    await enqueueJob(prisma, config, AI_TASK_SELECT_NEXT_QUESTION, { task: AI_TASK_SELECT_NEXT_QUESTION });
+    await enqueueJob(prisma, config, AI_TASK_SELECT_NEXT_QUESTION, {
+      task: AI_TASK_SELECT_NEXT_QUESTION,
+    });
 
     const res = await app.inject({
       method: 'POST',

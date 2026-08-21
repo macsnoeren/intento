@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { loadEnv } from '../env.js';
-import { createAiOrchestrator, createAiProvider, MockAiProvider, QueueAiProvider } from './index.js';
+import {
+  createAiOrchestrator,
+  createAiProvider,
+  MockAiProvider,
+  QueueAiProvider,
+} from './index.js';
 import { prisma } from '../db/prisma.js';
 
 /** Minimale, geldige env voor de tests (dev-defaults volstaan). */

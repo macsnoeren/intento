@@ -11,7 +11,11 @@ import { authorize, requireAccount, requireVerifiedEmail } from '../auth/authori
 import { assertSameTenant } from '../auth/tenant.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { userToPublic } from '../users/serialize.js';
-import { buildProfileExport, encryptProfileExport, importProfile } from '../users/profile-transfer.js';
+import {
+  buildProfileExport,
+  encryptProfileExport,
+  importProfile,
+} from '../users/profile-transfer.js';
 import { recordAudit } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
 

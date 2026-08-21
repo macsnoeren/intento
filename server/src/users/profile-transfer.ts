@@ -139,7 +139,8 @@ export async function importProfile(
           userId: user.id,
           category: ctx.category,
           nameEncrypted: encryptor.encrypt(ctx.name),
-          relationshipEncrypted: ctx.relationship !== null ? encryptor.encrypt(ctx.relationship) : null,
+          relationshipEncrypted:
+            ctx.relationship !== null ? encryptor.encrypt(ctx.relationship) : null,
           aiUsageAllowed: ctx.aiUsageAllowed,
         })),
       });

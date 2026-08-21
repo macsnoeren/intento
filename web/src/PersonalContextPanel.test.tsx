@@ -163,9 +163,7 @@ describe('PersonalContextPanel — wizard (T6.2)', () => {
     // Verwijderen: item verdwijnt.
     fireEvent.click(screen.getByRole('button', { name: 'Anna de Vries verwijderen' }));
     await waitFor(() =>
-      expect(
-        screen.getByText(/Nog geen context|Start de wizard/, { exact: false }),
-      ).toBeTruthy(),
+      expect(screen.getByText(/Nog geen context|Start de wizard/, { exact: false })).toBeTruthy(),
     );
   });
 
