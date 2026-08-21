@@ -16,6 +16,7 @@ const ACTION_LABELS: Record<string, string> = {
   'auth.logout': 'Uitgelogd',
   'auth.register': 'Organisatie geregistreerd',
   'auth.email_verified': 'E-mail bevestigd',
+  'account.create': 'Begeleider-account aangemaakt',
   'user.create': 'Gebruiker aangemaakt',
   'user.delete': 'Gebruiker verwijderd',
   'user.settings.update': 'Instellingen aangepast',

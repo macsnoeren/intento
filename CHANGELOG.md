@@ -5,6 +5,34 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Toegevoegd
+- **T2.4 Begeleider-accounts aanmaken.** Tot nu toe ontstonden er alleen ADMIN-accounts (seed +
+  zelfaanmelding T1.3), waardoor de koppelweergave van T2.2 een doodlopend spoor was: de lege staat
+  zei "maak eerst een begeleider aan", maar er was nergens een plek om dat te doen. Nieuw endpoint
+  **`POST /admin/accounts`** (ADMIN-only, e-mail geverifieerd) maakt een `Account` met rol
+  **CAREGIVER** in de eigen organisatie. **Gekozen flow:** direct aanmaken met een
+  **server-gegenereerd tijdelijk wachtwoord** (256 bit, `auth/caregiver-account.ts`) in plaats van
+  een uitnodigingsmail met wachtwoord-instellink — zo blijft het inrichten van een organisatie
+  werken **zonder mailserver** (zelfde uitgangspunt als T1.3/T1.4) en kiest een beheerder nooit zélf
+  een wachtwoord voor iemand anders. Het rauwe wachtwoord verlaat de server **één keer**; at-rest
+  staat alleen de argon2id-hash (zoals bij koppelcodes T2.3 en worker-tokens T5.8). Rol en
+  organisatie komen uitsluitend van de server — het aanmaakschema kent geen `role`/`organizationId`,
+  dus meegestuurde waarden kunnen niet tot privilege-escalatie of een account in een andere tenant
+  leiden. Een bestaand e-mailadres (ook in een andere organisatie) geeft een **neutrale** `409
+  ACCOUNT_CREATE_FAILED` (geen enumeratie; uniciteit via de db-constraint, dus geen race en geen
+  timing-verschil). Het account start ongeverifieerd en krijgt best-effort een verificatiemail;
+  aanmaken wordt geaudit als `account.create` (alleen de rol als context, nooit het wachtwoord).
+  UI: nieuw paneel **"Begeleider aanmaken"** in de beheeromgeving (`web/src/CaregiverAccountsPanel.tsx`)
+  dat het tijdelijke wachtwoord één keer toont; de koppelweergave (T2.2) laadt daarna opnieuw zodat
+  het nieuwe account meteen aan te vinken is, en haar lege staat verwijst nu naar dat paneel.
+  `AccountPublic` kreeg een `name`-veld (nullable) zodat de beheer-UI de begeleider bij naam toont.
+  Tests: `server/src/routes/accounts.test.ts` (aanmaken + inloggen met het tijdelijke wachtwoord,
+  rol/tenant vast ongeacht invoer, 401/403, verificatie-gate, neutrale 409, 400 op ongeldige invoer,
+  audit-regel zonder wachtwoord, isolatie in de accountlijst), `web/src/CaregiverAccountsPanel.test.tsx`
+  en een end-to-end flow in `web/src/App.test.tsx` (aanmaken → verschijnt in de koppelweergave →
+  koppelen). Gedocumenteerd in `docs/api.md`, `docs/security.md` en `README.md`. Openstaand meerwerk:
+  de begeleider kan zijn tijdelijke wachtwoord nog niet zelf wijzigen (nieuwe taak **T2.5**).
+
 ### Gewijzigd
 - **T1.5 Seed maakt de bootstrap-admin idempotent geverifieerd.** De upsert in `server/prisma/seed.ts`
   liet bij een **bestaand** account alles ongemoeid (`update: {}`), waardoor een admin die vóór de

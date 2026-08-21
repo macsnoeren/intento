@@ -428,6 +428,17 @@ body {
   border-radius: var(--intento-radius);
 }
 
+/* Tijdelijk wachtwoord van een nieuw begeleider-account (T2.4). Eén keer zichtbaar, dus goed
+   leesbaar en overtypbaar — maar minder schreeuwend dan de koppelcode, want het is langer. */
+.temporary-password {
+  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.3rem 0;
+  color: var(--intento-accent);
+  overflow-wrap: anywhere;
+}
+
 .device-code__value {
   font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
   font-size: 2rem;

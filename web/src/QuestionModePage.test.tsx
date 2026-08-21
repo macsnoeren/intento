@@ -15,6 +15,7 @@ const caregiver: AccountPublic = {
   email: 'begeleider@intento.local',
   role: 'CAREGIVER',
   organizationId: 'org-1',
+  name: null,
   emailVerified: true,
 };
 

@@ -15,6 +15,7 @@ import {
   conversationConfirmResponseSchema,
   conversationGenerateResponseSchema,
   conversationStateResponseSchema,
+  createCaregiverResponseSchema,
   createWorkerTokenResponseSchema,
   deviceCodeResponseSchema,
   deviceSessionResponseSchema,
@@ -38,6 +39,8 @@ import {
   type AttachOpenSymbolsRequest,
   type AuditLogListResponse,
   type AuthResponse,
+  type CreateCaregiverRequest,
+  type CreateCaregiverResponse,
   type CaregiverConversationView,
   type CaregiverListResponse,
   type ConceptProposal,
@@ -126,6 +129,8 @@ export interface Api {
   createUser(body: CreateUserRequest): Promise<UserPublic>;
   updateSettings(id: string, body: UpdateSettingsRequest): Promise<UserPublic>;
   deleteUser(id: string): Promise<void>;
+  /** Begeleider-account aanmaken binnen de eigen organisatie (T2.4). ADMIN-only. */
+  createCaregiverAccount(body: CreateCaregiverRequest): Promise<CreateCaregiverResponse>;
   listCaregivers(userId: string): Promise<CaregiverListResponse>;
   linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
   generateDeviceCode(userId: string): Promise<DeviceCodeResponse>;
@@ -308,6 +313,11 @@ export const httpApi: Api & DeviceApi = {
   },
   async deleteUser(id) {
     await request(`/users/${id}`, { method: 'DELETE' });
+  },
+  async createCaregiverAccount(body) {
+    return createCaregiverResponseSchema.parse(
+      await request('/admin/accounts', { method: 'POST', body: JSON.stringify(body) }),
+    );
   },
   async listCaregivers(userId) {
     return caregiverListResponseSchema.parse(await request(`/admin/users/${userId}/caregivers`));

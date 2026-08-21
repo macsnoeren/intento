@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AccountPublic, UpdateSettingsRequest, UserPublic } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
+import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { PersonalContextPanel } from './PersonalContextPanel.tsx';
@@ -31,6 +32,9 @@ export function AdminUsersPage({
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Telt op na elk nieuw begeleider-account (T2.4); zit in de `key` van de koppelweergave zodat die
+  // opnieuw laadt en het verse account meteen aan te vinken is.
+  const [caregiverVersion, setCaregiverVersion] = useState(0);
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -121,6 +125,11 @@ export function AdminUsersPage({
             </button>
           </form>
 
+          <CaregiverAccountsPanel
+            api={api}
+            onCreated={() => setCaregiverVersion((version) => version + 1)}
+          />
+
           <ProfileImportPanel
             api={api}
             onImported={(user) => {
@@ -173,7 +182,7 @@ export function AdminUsersPage({
 
           {selected ? (
             <CaregiversPanel
-              key={`caregivers-${selected.id}`}
+              key={`caregivers-${selected.id}-${caregiverVersion}`}
               api={api}
               userId={selected.id}
               userName={selected.name}

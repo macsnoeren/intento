@@ -20,6 +20,7 @@ const adminAccount: AccountPublic = {
   email: 'admin@intento.local',
   role: 'ADMIN',
   organizationId: 'org-1',
+  name: null,
   emailVerified: true,
 };
 
@@ -74,6 +75,7 @@ function fakeApi(): Api {
     createUser: notImplemented,
     updateSettings: notImplemented,
     deleteUser: () => Promise.resolve(),
+    createCaregiverAccount: notImplemented,
     listCaregivers: notImplemented,
     linkCaregiver: notImplemented,
     generateDeviceCode: notImplemented,

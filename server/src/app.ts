@@ -96,7 +96,7 @@ export async function buildApp({
 
   registerHealthRoutes(app);
   registerAuthRoutes(app, { env, prisma, mail });
-  registerAccountRoutes(app, { prisma });
+  registerAccountRoutes(app, { env, prisma, mail });
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });

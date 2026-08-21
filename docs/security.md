@@ -46,7 +46,8 @@
       SMTP in productie (verplicht via prod-guard), log-transport in dev, geheugen-transport in
       tests. **Gekozen verificatie-gate:** onbevestigde accounts mogen inloggen en hun eigen
       gegevens bekijken, maar het aanmaken van gebruikers (`POST /users`, privacygevoelige
-      personen) is geblokkeerd → `403 EMAIL_NOT_VERIFIED` (`requireVerifiedEmail`). Getest in
+      personen) én van begeleider-accounts (`POST /admin/accounts`, T2.4 — toegangsverlening) is
+      geblokkeerd → `403 EMAIL_NOT_VERIFIED` (`requireVerifiedEmail`). Getest in
       `auth/email-verification.test.ts` en `routes/email-verification.test.ts`.
       **Bootstrap-admin (T1.5):** het door de operator geseede ADMIN-account heeft geen publieke
       zelfaanmelding doorlopen en geldt daarom als geverifieerd. De seed (`db/bootstrap-seed.ts`) zet
@@ -55,6 +56,21 @@
       herseeden niet op de verificatie-gate hangen, terwijl een al gezette verificatiedatum niet wordt
       verschoven en het **wachtwoord ongemoeid** blijft (een later gewijzigd wachtwoord blijft geldig).
       Getest in `db/bootstrap-seed.test.ts`.
+- [x] **Begeleider-accounts aanmaken (T2.4)** — `POST /admin/accounts` (ADMIN-only, geverifieerd)
+      maakt een CAREGIVER-login. **Rol en organisatie komen uitsluitend van de server**
+      (`auth/caregiver-account.ts`): het aanmaakschema kent geen `role`/`organizationId`-veld, dus een
+      meegestuurde waarde kan niet tot privilege-escalatie naar ADMIN of een account in een andere
+      tenant leiden (getest in `routes/accounts.test.ts`). **Gekozen flow:** direct aanmaken met een
+      **server-gegenereerd tijdelijk wachtwoord** (256 bit) in plaats van een uitnodigingsmail met
+      wachtwoord-instellink — zo blijft het inrichten van een organisatie werken **zonder mailserver**
+      (zelfde uitgangspunt als T1.3/T1.4) en kiest een beheerder nooit zélf een (zwak) wachtwoord voor
+      iemand anders. Het rauwe wachtwoord verlaat de server **één keer** in het antwoord; at-rest staat
+      alleen de argon2id-hash, precies als bij koppelcodes (T2.3) en worker-tokens (T5.8). Een reeds
+      bestaand e-mailadres — ook in een andere organisatie — geeft dezelfde neutrale
+      `409 ACCOUNT_CREATE_FAILED` (geen account-enumeratie over tenants heen); de uniciteit leunt op de
+      db-constraint, niet op een voorafgaande "bestaat al?"-lookup (geen race, geen timing-verschil).
+      Aanmaken wordt geaudit (`account.create`) met alléén de rol als context — nooit het wachtwoord.
+      *Openstaand:* de begeleider kan zijn tijdelijke wachtwoord nog niet zelf wijzigen (T2.5).
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op
@@ -167,8 +183,8 @@
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [x] **Audit-logging (T8.2, DESIGN §9.4)** — een herbruikbare `recordAudit(...)` (`server/src/audit/`)
       schrijft een **append-only** spoor over gevoelige acties: login (geslaagd én mislukt, brute-force-
-      detectie), logout, registratie, e-mailverificatie, gebruikersbeheer + instellingen, begeleider-
-      koppelingen, koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-
+      detectie), logout, registratie, e-mailverificatie, begeleider-accounts aanmaken (T2.4),
+      gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-
       tokens en conceptvoorstellen. **Best-effort en nooit blokkerend**: een hapering in de audit-tabel laat
       de hoofdactie niet mislukken (fout gelogd, niet doorgegooid). **Geen communicatie-inhoud of vrije-tekst-
       PII**: alleen een stabiele `action`-sleutel, uitkomst, objectverwijzing en kleine niet-gevoelige

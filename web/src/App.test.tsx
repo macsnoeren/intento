@@ -4,6 +4,8 @@ import type {
   AuthResponse,
   CaregiverLink,
   CaregiverListResponse,
+  CreateCaregiverRequest,
+  CreateCaregiverResponse,
   CreateUserRequest,
   CreateWorkerTokenRequest,
   CreateWorkerTokenResponse,
@@ -31,6 +33,7 @@ const adminAccount = {
   email: 'admin@intento.local',
   role: 'ADMIN' as const,
   organizationId: 'org-1',
+  name: null,
   emailVerified: true,
 };
 
@@ -72,6 +75,7 @@ function fakeApi(
   const contextsByUser = new Map<string, PersonalContextPublic[]>();
   // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
   const caregiverSeed = options.caregivers ?? [];
+  let caregiverCounter = caregiverSeed.length;
   const linksByUser = new Map<string, Set<string>>();
 
   function caregiversFor(userId: string): CaregiverLink[] {
@@ -128,6 +132,20 @@ function fakeApi(
       const index = users.findIndex((u) => u.id === id);
       if (index >= 0) users.splice(index, 1);
       return Promise.resolve();
+    },
+    createCaregiverAccount(body: CreateCaregiverRequest): Promise<CreateCaregiverResponse> {
+      // Server-gedrag nagebootst (T2.4): rol vast op CAREGIVER, eigen organisatie, tijdelijk
+      // wachtwoord uit de backend. Het account komt meteen in de organisatiebrede begeleiderlijst.
+      const account = {
+        id: `cg-${++caregiverCounter}`,
+        email: body.email,
+        role: 'CAREGIVER' as const,
+        organizationId: adminAccount.organizationId,
+        name: body.name,
+        emailVerified: false,
+      };
+      caregiverSeed.push({ accountId: account.id, email: account.email, linked: false });
+      return Promise.resolve({ account, temporaryPassword: 'tijdelijk-wachtwoord-123' });
     },
     listCaregivers(userId: string): Promise<CaregiverListResponse> {
       return Promise.resolve({ caregivers: caregiversFor(userId) });
@@ -401,6 +419,42 @@ describe('beheeromgeving-app', () => {
     expect(checkbox.checked).toBe(false);
 
     // Koppelen: schakelaar aan → blijft aangevinkt (server bevestigt de nieuwe stand).
+    fireEvent.click(checkbox);
+    await waitFor(() => expect(checkbox.checked).toBe(true));
+  });
+
+  it('laat een beheerder een begeleider-account aanmaken dat meteen koppelbaar is (T2.4)', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    // Gebruiker aanmaken en selecteren; de koppelweergave is nog leeg en wijst naar het paneel.
+    fireEvent.change(screen.getByLabelText('Naam van de gebruiker'), {
+      target: { value: 'Sanne' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Toevoegen' }));
+    await screen.findByRole('button', { name: 'Sanne' });
+    const linkPanel = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
+    await waitFor(() =>
+      expect(linkPanel.textContent).toContain('Nog geen begeleider-accounts in deze organisatie'),
+    );
+
+    // Begeleider aanmaken: het tijdelijke wachtwoord komt één keer in beeld.
+    const createPanel = screen.getByRole('region', { name: 'Begeleider aanmaken' });
+    fireEvent.change(within(createPanel).getByLabelText('Naam'), { target: { value: 'Sam' } });
+    fireEvent.change(within(createPanel).getByLabelText('E-mailadres'), {
+      target: { value: 'sam@intento.local' },
+    });
+    fireEvent.click(within(createPanel).getByRole('button', { name: 'Begeleider aanmaken' }));
+    expect((await within(createPanel).findByRole('status')).textContent).toContain(
+      'tijdelijk-wachtwoord-123',
+    );
+
+    // …en het account staat direct in de koppelweergave (T2.2) en is te koppelen.
+    const refreshed = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
+    const checkbox = await within(refreshed).findByRole<HTMLInputElement>('checkbox', {
+      name: 'sam@intento.local',
+    });
+    expect(checkbox.checked).toBe(false);
     fireEvent.click(checkbox);
     await waitFor(() => expect(checkbox.checked).toBe(true));
   });

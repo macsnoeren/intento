@@ -65,7 +65,8 @@ export function CaregiversPanel({
         <p className="muted">Laden…</p>
       ) : caregivers.length === 0 ? (
         <p className="muted">
-          Nog geen begeleider-accounts in deze organisatie. Maak eerst een begeleider aan.
+          Nog geen begeleider-accounts in deze organisatie. Maak er links één aan onder “Begeleider
+          aanmaken”; daarna verschijnt hij hier om te koppelen.
         </p>
       ) : (
         <ul className="caregiver-list">

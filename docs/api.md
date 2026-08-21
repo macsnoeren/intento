@@ -43,12 +43,21 @@
 Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of lockout-velden); `account.emailVerified` (boolean) geeft de verificatiestatus.
 `/auth/me` gebruikt sinds T1.2 hetzelfde `authorize(...)`-preHandler als beschermde routes.
 
-**Verificatie-gate (T1.4).** Onbevestigde accounts mogen inloggen en hun eigen gegevens bekijken, maar **gevoelige acties zijn geblokkeerd tot verificatie**. In de MVP is dat het aanmaken van gebruikers: `POST /users` → `403 EMAIL_NOT_VERIFIED` zolang `emailVerified` false is. De verificatietoken staat **gehasht** at-rest, is eenmalig en verloopt (`EMAIL_VERIFICATION_TTL_HOURS`).
+**Verificatie-gate (T1.4).** Onbevestigde accounts mogen inloggen en hun eigen gegevens bekijken, maar **gevoelige acties zijn geblokkeerd tot verificatie**. In de MVP is dat het aanmaken van gebruikers (`POST /users`) en van begeleider-accounts (`POST /admin/accounts`, T2.4) → `403 EMAIL_NOT_VERIFIED` zolang `emailVerified` false is. De verificatietoken staat **gehasht** at-rest, is eenmalig en verloopt (`EMAIL_VERIFICATION_TTL_HOURS`).
 
-### Accounts (T1.2)
+### Accounts (T1.2, T2.4)
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
 | GET | `/admin/accounts` | ADMIN | Lijst van logins **binnen de eigen organisatie** (`accountListResponseSchema`). Rol-beperkt (`403 FORBIDDEN` voor CAREGIVER/USER) en tenant-gefilterd op `organizationId`. Representatief voorbeeld van de autorisatie-/isolatielaag. |
+| POST | `/admin/accounts` | ADMIN + geverifieerd | Maakt een **begeleider-account** in de eigen organisatie (T2.4, `createCaregiverRequestSchema`: `{ name, email }`). `201` + `createCaregiverResponseSchema` (`{ account, temporaryPassword }`). Zie hieronder. |
+
+**Begeleider-accounts (T2.4).** `POST /admin/accounts` is de plek waar CAREGIVER-logins ontstaan; zonder dit endpoint bleef de koppelweergave van T2.2 leeg. Eigenschappen:
+
+- **Rol en organisatie komen van de server**, niet uit de body: de rol staat vast op `CAREGIVER` en de organisatie is die van de aanroepende ADMIN. Een meegestuurde `role`/`organizationId` wordt genegeerd (geen privilege-escalatie, geen account in een andere tenant).
+- **Geen wachtwoordveld.** De server genereert een tijdelijk wachtwoord (256 bit) en geeft dat **één keer** terug in het antwoord; daarna kent de db alleen de argon2id-hash. De beheerder geeft het via een veilig kanaal door. Gekozen boven een uitnodigingsmail met wachtwoord-instellink zodat Intento zonder mailserver bruikbaar blijft (zie `docs/security.md`).
+- Het account start **ongeverifieerd**; er gaat best-effort een verificatiemail uit (T1.4). Een falende mailserver laat het aanmaken niet mislukken.
+- Bestaat het e-mailadres al (ook in een **andere** organisatie), dan `409 ACCOUNT_CREATE_FAILED` met een **neutrale** melding — geen account-enumeratie.
+- Vereist een **geverifieerd** e-mailadres van de ADMIN (`403 EMAIL_NOT_VERIFIED`), net als `POST /users`. Aanmaken wordt geaudit als `account.create` (rol als context, nooit het wachtwoord).
 
 ### Gebruikers (T2.1)
 Gebruikers (`User`) zijn de communicerende personen, met een 1-op-1 communicatieprofiel

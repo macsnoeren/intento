@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleiderkoppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -135,6 +135,27 @@ curl -sb cookies.txt -X DELETE http://127.0.0.1:3000/users/<id>
 
 Aanmaken/verwijderen is ADMIN; instellingen aanpassen mag ook een CAREGIVER, maar alléén voor
 gebruikers waaraan hij gekoppeld is.
+
+### Begeleider-accounts aanmaken (T2.4)
+
+Begeleiders hebben een eigen login (rol CAREGIVER). Een beheerder maakt die aan in de
+beheeromgeving (paneel "Begeleider aanmaken", naast de gebruikerslijst): naam + e-mailadres,
+waarna de **server** het account maakt en een **tijdelijk wachtwoord** genereert. Dat wachtwoord
+wordt één keer getoond — daarna staat alleen de argon2id-hash in de db — en geef je via een veilig
+kanaal door. Rol en organisatie komen altijd van de server: een meegestuurde `role` of
+`organizationId` wordt genegeerd. Het nieuwe account verschijnt meteen in "Gekoppelde begeleiders"
+(hieronder) en moet daar aan een gebruiker gekoppeld worden voordat de begeleider iets ziet.
+
+```bash
+# Begeleider-account aanmaken (ADMIN, e-mail geverifieerd):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/accounts \
+  -H 'content-type: application/json' -d '{"name":"Sam","email":"sam@intento.local"}'
+# → 201 {"account":{…,"role":"CAREGIVER"},"temporaryPassword":"…"}  (wachtwoord: één keer zichtbaar)
+```
+
+Een reeds bestaand e-mailadres geeft bewust een neutrale `409` (geen account-enumeratie). Het
+account start ongeverifieerd; er gaat best-effort een verificatiemail uit. Zelf een wachtwoord
+wijzigen kan nog niet — dat is taak T2.5.
 
 ### Begeleiders koppelen (T2.2)
 
@@ -359,7 +380,7 @@ Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 ## Audit-logging (T8.2)
 
 Gevoelige acties laten een **onveranderlijk spoor** na (DESIGN §9.4): login (geslaagd én mislukt), logout,
-registratie, e-mailverificatie, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
+registratie, e-mailverificatie, begeleider-accounts, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
 persoonlijke context, profielexport/-import, worker-tokens en conceptvoorstellen. Het spoor bevat **geen
 communicatie-inhoud of vrije-tekst-PII** — alleen wie-wat-wanneer. Inzage via `GET /admin/audit-logs`
 (ADMIN, tenant-gefilterd op de eigen organisatie) en de beheerpagina **Audit-log**. Zie

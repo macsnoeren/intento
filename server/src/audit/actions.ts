@@ -11,6 +11,8 @@ export const AUDIT_ACTIONS = {
   AUTH_LOGOUT: 'auth.logout',
   AUTH_REGISTER: 'auth.register',
   AUTH_EMAIL_VERIFIED: 'auth.email_verified',
+  // Accountbeheer binnen de organisatie (T2.4)
+  ACCOUNT_CREATE: 'account.create',
   // Gebruikersbeheer + instellingen (T2.1)
   USER_CREATE: 'user.create',
   USER_DELETE: 'user.delete',

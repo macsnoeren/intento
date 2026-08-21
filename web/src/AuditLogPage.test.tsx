@@ -15,6 +15,7 @@ const adminAccount: AccountPublic = {
   email: 'admin@intento.local',
   role: 'ADMIN',
   organizationId: 'org-1',
+  name: null,
   emailVerified: true,
 };
 

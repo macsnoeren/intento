@@ -105,6 +105,11 @@ export const accountPublicSchema = z.object({
   role: accountRoleSchema,
   organizationId: z.string(),
   /**
+   * Weergavenaam van de accounthouder (T1.3 admin, T2.4 begeleider). `null` voor geseede/oudere
+   * accounts die zonder naam zijn aangemaakt — de beheer-UI valt dan terug op het e-mailadres.
+   */
+  name: z.string().nullable(),
+  /**
    * Of het e-mailadres is geverifieerd (T1.4). Onbevestigde accounts mogen inloggen, maar
    * bepaalde gevoelige acties zijn geblokkeerd tot verificatie; de web-UI toont hierop een
    * herinnerings-banner met een "opnieuw versturen"-knop.
@@ -176,6 +181,37 @@ export const accountListResponseSchema = z.object({
   accounts: z.array(accountPublicSchema),
 });
 export type AccountListResponse = z.infer<typeof accountListResponseSchema>;
+
+/**
+ * Aanmaakverzoek voor een **begeleider-account** (`POST /admin/accounts`, T2.4, DESIGN §2, §5.2,
+ * FR-017). Bewust **zonder rolveld**: de server zet de rol hard op `CAREGIVER` en de organisatie op
+ * die van de aanroepende ADMIN. Zo kan een meegestuurde `role`/`organizationId` nooit tot
+ * privilege-escalatie of een account in een andere tenant leiden. Ook **zonder wachtwoordveld**: de
+ * server genereert een sterk tijdelijk wachtwoord (zie `createCaregiverResponseSchema`), zodat een
+ * beheerder geen zwak wachtwoord kan kiezen voor iemand anders. E-mail naar lowercase
+ * genormaliseerd, net als bij login/registratie.
+ */
+export const createCaregiverRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  email: z
+    .email()
+    .max(320)
+    .transform((value) => value.toLowerCase()),
+});
+export type CreateCaregiverRequest = z.infer<typeof createCaregiverRequestSchema>;
+
+/**
+ * Antwoord van `POST /admin/accounts`: het nieuwe begeleider-account plus het **tijdelijke
+ * wachtwoord**. Dat wachtwoord is server-gegenereerd en wordt hier — net als een koppelcode (T2.3)
+ * of een worker-token (T5.8) — **één keer** teruggegeven; in de db staat alleen de argon2id-hash,
+ * dus het is daarna niet meer op te vragen. De beheerder geeft het via een veilig kanaal aan de
+ * begeleider door.
+ */
+export const createCaregiverResponseSchema = z.object({
+  account: accountPublicSchema,
+  temporaryPassword: z.string(),
+});
+export type CreateCaregiverResponse = z.infer<typeof createCaregiverResponseSchema>;
 
 // --- Gebruikers en communicatieprofiel (T2.1, DESIGN §2, §5.3, §6.2) ---
 

@@ -70,6 +70,7 @@ function fakeApi(): Api {
     createUser: notImplemented,
     updateSettings: notImplemented,
     deleteUser: notImplemented,
+    createCaregiverAccount: notImplemented,
     listCaregivers: notImplemented,
     linkCaregiver: notImplemented,
     generateDeviceCode: notImplemented,
