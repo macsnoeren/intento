@@ -16,6 +16,20 @@
       blijven de poortwachters; CORS bepaalt alleen wélke browser-oorsprong het antwoord mag lezen.
       Getest in `app.test.ts` met een echte OPTIONS-preflight (`app.inject()` doet zelf géén
       preflight, dus alleen zo'n test dekt dit af).
+- [x] **Cross-Origin-Resource-Policy (CORP)** — helmet zet globaal `same-origin`: geen enkele
+      andere origin mag een API-antwoord als subresource inladen. Eén bewuste uitzondering:
+      `GET /aac/images/:file` antwoordt met `cross-origin` (T8.7). De web-client draait op een
+      andere origin dan de API (Vite op `:5173` vs. API op `:3000`, in productie de web-host vs.
+      de API-host) en laadt pictogrammen als `<img src>`. Dat is een **no-cors** resource-load:
+      CORS-headers doen daar niets, CORP wél — de browser haalt het plaatje op en gooit het
+      daarna weg, met lege pictogramvakken in het gespreksscherm als gevolg (waargenomen in
+      Firefox bij T8.5). De versoepeling is route-scoped en beperkt tot niet-persoonlijke,
+      publieke presentatiedata; een onbekend pictogram (404) en elke andere route houden
+      `same-origin`. Beide kanten zijn getest in `routes/aac.test.ts`.
+      *Aandachtspunt voor productie:* helmets CSP (`img-src 'self' data:`) geldt alleen voor
+      documenten die de **API** serveert — de API serveert geen HTML, dus de web-client raakt
+      hij niet. Zet de web-host een eigen CSP, dan moet de API-origin daar in `img-src` staan,
+      anders blokkeert die CSP de pictogrammen alsnog.
 - [x] **Secrets via env** — `SIGNING_SECRET`/`ENCRYPTION_KEY` uit env, nooit in code.
       **Prod-guard:** de server weigert te starten in productie met dev-default-secrets
       of met `COOKIE_SECURE=false`. Getest in `app.test.ts`.

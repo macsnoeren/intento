@@ -28,6 +28,27 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   Definition of Done in `CLAUDE.md`.
 
 ### Gerepareerd
+- **T8.7 Pictogrammen laadden niet cross-origin door helmets `Cross-Origin-Resource-Policy`.**
+  `@fastify/helmet` zet op élk antwoord `Cross-Origin-Resource-Policy: same-origin`. De web-client
+  draait op een andere origin dan de API (Vite op `:5173` vs. API op `:3000`) en laadt pictogrammen
+  via `apiUrl()` als `<img src>` — een **no-cors** resource-load, waar CORS-headers niets aan
+  veranderen en CORP wél: de browser haalt het plaatje op en gooit het daarna weg, zodat het
+  gespreksscherm lege vakjes toonde (met labels en de rest van de UI gewoon zichtbaar). Fix:
+  `GET /aac/images/:file` zet zelf `Cross-Origin-Resource-Policy: cross-origin`, ná de
+  bestaat-check, zodat alleen een echt geserveerd pictogram versoepeld is en een 404 net als elke
+  andere route `same-origin` houdt. Bewust route-scoped in plaats van helmet globaal verruimen:
+  pictogrammen zijn publieke, niet-persoonlijke presentatiedata, de rest van de API blijft
+  afgeschermd tegen cross-origin inladen. Geverifieerd in een echte Firefox tegen de draaiende
+  dev-servers: vanaf `:5173` levert een `<img>` van `:3000` nu `naturalWidth 256` in plaats van een
+  `error`-event, en de volledige tabletflow (koppelcode → gespreksscherm) toont alle vier de
+  pictogrammen — met de regel er tijdelijk uit is precies het omgekeerde gemeten, dus de causaliteit
+  is aangetoond. Tests in `routes/aac.test.ts` dekken beide takken van de route (SVG-placeholder én
+  geüploade afbeelding) plus het behoud van `same-origin` op `/health` en op een onbekend pictogram.
+  Anders dan bij T8.4 zagen de tests dit wél kunnen zien — `app.inject()` geeft helmets headers
+  gewoon terug — er was simpelweg nooit een test op deze header. `docs/security.md` beschrijft de
+  afweging, inclusief het aandachtspunt dat helmets CSP (`img-src 'self' data:`) alleen geldt voor
+  documenten die de API zelf serveert; zet de web-host straks een eigen CSP, dan moet de API-origin
+  daar in `img-src` staan.
 - **T8.5 Tablet-gespreksscherm bleef hangen op "Laden…" onder React StrictMode.** `ConversationScreen`
   in `TabletApp.tsx` bewaakt met een `mountedRef` dat er geen state meer wordt gezet nadat het scherm
   is verdwenen (de AI-wachtlus uit T5.7 kan seconden doorlopen). Die vlag ging alleen in de

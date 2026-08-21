@@ -133,6 +133,14 @@ export function registerAacRoutes(
       throw new HttpError(404, 'SYMBOL_NOT_FOUND', 'Pictogram bestaat niet.');
     }
 
+    // Alleen deze route mag cross-origin geladen worden (T8.7). Helmet zet globaal
+    // `Cross-Origin-Resource-Policy: same-origin`; de web-client draait op een andere origin dan de
+    // API (Vite op :5173 vs. API op :3000) en laadt pictogrammen als `<img src>` — een no-cors
+    // resource-load, waar CORS-headers niets aan doen en CORP wél: de browser gooit het plaatje weg
+    // en de gebruiker ziet lege vakjes. Bewust route-scoped versoepeld: pictogrammen zijn publieke,
+    // niet-persoonlijke presentatiedata; elke andere route houdt `same-origin`.
+    reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
+
     // Geüploade afbeelding heeft voorrang; anders de glyph-placeholder als SVG.
     if (symbol.imageData && symbol.imageMimeType) {
       reply

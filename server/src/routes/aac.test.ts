@@ -151,4 +151,37 @@ describe('AAC-bibliotheek — /aac', () => {
     const res = await app.inject({ method: 'GET', url: '/aac/images/nonexistent.svg' });
     expect(res.statusCode).toBe(404);
   });
+
+  it('serveert pictogrammen met CORP cross-origin zodat een andere origin ze mag laden (T8.7)', async () => {
+    // Helmet zet globaal `Cross-Origin-Resource-Policy: same-origin`. De web-client draait op een
+    // andere origin dan de API en laadt pictogrammen als `<img src>`: een no-cors resource-load waar
+    // CORS niets aan verandert en CORP het plaatje weggooit (echt waargenomen in Firefox, lege
+    // vakjes in het gespreksscherm). Alleen deze route is daarom bewust versoepeld.
+    const walking = await prisma.aacSymbol.findUnique({ where: { concept: 'walking' } });
+
+    const svg = await app.inject({ method: 'GET', url: `/aac/images/${walking?.id}.svg` });
+    expect(svg.statusCode).toBe(200);
+    expect(svg.headers['cross-origin-resource-policy']).toBe('cross-origin');
+
+    // Ook voor een geüploade afbeelding (andere tak in de handler).
+    await prisma.aacSymbol.update({
+      where: { id: walking!.id },
+      data: { imageData: Buffer.from([0x89, 0x50, 0x4e, 0x47]), imageMimeType: 'image/png' },
+    });
+    const png = await app.inject({ method: 'GET', url: `/aac/images/${walking?.id}` });
+    expect(png.statusCode).toBe(200);
+    expect(png.headers['content-type']).toBe('image/png');
+    expect(png.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+
+  it('houdt CORP op same-origin voor niet-afbeeldingsroutes (T8.7)', async () => {
+    // De versoepeling is route-scoped: de rest van de API — ook een onbekend pictogram — blijft
+    // afgeschermd tegen cross-origin embedden.
+    const health = await app.inject({ method: 'GET', url: '/health' });
+    expect(health.headers['cross-origin-resource-policy']).toBe('same-origin');
+
+    const missing = await app.inject({ method: 'GET', url: '/aac/images/nonexistent.svg' });
+    expect(missing.statusCode).toBe(404);
+    expect(missing.headers['cross-origin-resource-policy']).toBe('same-origin');
+  });
 });
