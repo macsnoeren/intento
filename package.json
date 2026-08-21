@@ -14,7 +14,8 @@
     "web"
   ],
   "overrides": {
-    "@prisma/dev": "^0.24.14"
+    "@prisma/dev": "^0.24.14",
+    "deepmerge-ts": "^8.0.2"
   },
   "scripts": {
     "dev": "concurrently --raw \"npm:dev:server\" \"npm:dev:web\"",
