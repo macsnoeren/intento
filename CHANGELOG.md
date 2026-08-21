@@ -6,6 +6,31 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.6 "Tijdelijk wachtwoord"-markering op accounts.** Meerwerk uit T2.5: een begeleider die het
+  tijdelijke wachtwoord uit T2.4 nooit verving, bleef draaien op een wachtwoord dat zijn beheerder
+  kent — een login die feitelijk van twee mensen is, zonder dat iemand dat kon zien. `Account` heeft
+  nu **`mustChangePassword`** (migratie `account_must_change_password`, default `false`): gezet bij
+  het aanmaken van een begeleider-account (T2.4), gewist door een geslaagde `POST /auth/password`
+  (T2.5). **Gekozen gate: hard.** Zolang de markering staat laat `authorize(...)` alléén
+  `GET /auth/me` en `POST /auth/password` toe (en `POST /auth/logout`, dat geen `authorize` gebruikt);
+  elke andere route geeft **`403 PASSWORD_CHANGE_REQUIRED`**. Dat is bewust strenger dan de
+  verificatie-gate van T1.4 — een onbevestigd adres is *onbewezen*, een tijdelijk wachtwoord is
+  *levend en gedeeld* — en zit als **default-deny** in `authorize(...)` zelf, met een expliciete
+  opt-out (`allowPendingPasswordChange`) op precies die twee routes; zo staat een nieuwe route
+  automatisch achter de gate in plaats van hem per ongeluk te missen. `accountPublicSchema` geeft
+  `mustChangePassword` mee, zodat de client weet waaróm de rest dichtzit. UI: de web-app toont zo'n
+  account één **blokkerend scherm** ("Kies eerst een eigen wachtwoord") met het bestaande
+  wachtwoordpaneel erin, dat na de wissel meteen doorloopt naar de gewone weergave; de beheerder
+  krijgt een nieuw paneel **"Logins"** (`web/src/AccountsPanel.tsx`) in het gebruikersbeheer met per
+  account de markeringen "tijdelijk wachtwoord" en "e-mail niet bevestigd" — bewust zonder
+  reset-knop, want een beheerder zet nooit het wachtwoord van een ander. Bestaande accounts krijgen
+  bij de migratie `false`: of hun tijdelijke wachtwoord al vervangen is, valt achteraf niet vast te
+  stellen, en iedereen alsnog markeren zou werkende begeleiders buitensluiten. Tests:
+  `server/src/auth/temporary-password.test.ts` (markering bij aanmaken, zichtbaar in de accountlijst
+  van de beheerder, `403` op een route die de rol normaal wél mag, `/auth/me` en `/auth/password`
+  toegestaan, markering én gate weg na de wissel, zelf gekozen wachtwoorden nooit gemarkeerd) plus
+  web-tests in `App.test.tsx`. Gedocumenteerd in `docs/api.md`, `docs/security.md` en
+  `docs/data-model.md`.
 - **T2.5 Eigen wachtwoord wijzigen.** Meerwerk uit T2.4: een begeleider logde in met een tijdelijk,
   door de beheerder gegenereerd wachtwoord en kon dat niet vervangen — het bleef dus onbeperkt geldig
   én bekend bij iemand anders. Nieuw endpoint **`POST /auth/password`** (elke ingelogde rol,

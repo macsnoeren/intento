@@ -49,8 +49,15 @@ export async function changeOwnPassword(
   await prisma.account.update({
     where: { id: account.id },
     // Ook de lockout-boekhouding schoonvegen: wie zijn wachtwoord aantoonbaar kent, hoort niet
-    // met een halfvolle pogingenteller of een lopende blokkade achter te blijven.
-    data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+    // met een halfvolle pogingenteller of een lopende blokkade achter te blijven. En de
+    // tijdelijk-wachtwoord-markering (T2.6) valt hier weg: vanaf nu kent alleen de houder zelf het
+    // wachtwoord, dus de gate die hem tot deze route beperkte is niet langer van toepassing.
+    data: {
+      passwordHash,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      mustChangePassword: false,
+    },
   });
 
   const { count } = await prisma.session.deleteMany({

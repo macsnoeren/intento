@@ -29,19 +29,19 @@
 |---|---|---|---|
 | GET | `/health` | publiek | Liveness-check; `{ status, service, timestamp }`. Geen auth, geen DB. |
 
-### Auth (T1.1, T1.3, T1.4, T2.5)
+### Auth (T1.1, T1.3, T1.4, T2.5, T2.6)
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
 | POST | `/auth/register` | publiek | Body `{ organizationName, organizationType, adminName, email, password }` (`registerRequestSchema`). Maakt in **één transactie** een nieuwe `Organization` (`type` ∈ family/care/personal) + eerste ADMIN-`Account` (argon2id) en logt meteen in: `201` + `{ account }` en een `intento_session`-cookie. Verstuurt daarna een **verificatiemail** (T1.4, best-effort — een falende mailserver blokkeert de registratie niet). Reeds bestaand e-mailadres → `409 REGISTRATION_FAILED` (bewust generiek: lekt niet of het adres bestaat). Zwak wachtwoord (<12 tekens) / ongeldig `organizationType` / ongeldige e-mail → `400 VALIDATION_ERROR`. Te veel verzoeken → `429`. Streng rate-limited per IP. |
 | POST | `/auth/login` | publiek | Body `{ email, password }` (`loginRequestSchema`). Bij succes: `200` + `{ account }` en een `intento_session`-cookie. Fout wachtwoord/onbekende e-mail → `401 INVALID_CREDENTIALS` (bewust generiek). Te veel pogingen → `423 ACCOUNT_LOCKED`. Te veel verzoeken → `429`. Streng rate-limited per IP. Onbevestigde accounts mogen inloggen (zie verificatie-gate hieronder). |
-| POST | `/auth/password` | cookie (elke rol) | Body `{ currentPassword, newPassword }` (`changePasswordRequestSchema`). Wisselt het **eigen** wachtwoord — het account komt uit de sessie, niet uit de body, dus niemand wijzigt dat van een ander. `200` + `{ revokedSessions }` (`changePasswordResponseSchema`): het aantal **overige** sessies van dit account dat is ingetrokken (de huidige sessie blijft geldig). Fout huidig wachtwoord → `401 INVALID_CURRENT_PASSWORD`; nieuw wachtwoord < 12 tekens of gelijk aan het huidige → `400 VALIDATION_ERROR`; zonder sessie → `401 NOT_AUTHENTICATED`. Rate-limited per IP (`PASSWORD_CHANGE_RATE_LIMIT_MAX`) → `429`. |
+| POST | `/auth/password` | cookie (elke rol) | Body `{ currentPassword, newPassword }` (`changePasswordRequestSchema`). Wisselt het **eigen** wachtwoord — het account komt uit de sessie, niet uit de body, dus niemand wijzigt dat van een ander. `200` + `{ revokedSessions }` (`changePasswordResponseSchema`): het aantal **overige** sessies van dit account dat is ingetrokken (de huidige sessie blijft geldig). Fout huidig wachtwoord → `401 INVALID_CURRENT_PASSWORD`; nieuw wachtwoord < 12 tekens of gelijk aan het huidige → `400 VALIDATION_ERROR`; zonder sessie → `401 NOT_AUTHENTICATED`. Rate-limited per IP (`PASSWORD_CHANGE_RATE_LIMIT_MAX`) → `429`. Blijft bereikbaar voor een account met een nog niet vervangen tijdelijk wachtwoord (T2.6) — dit is de enige uitweg uit die gate; een geslaagde wissel wist `mustChangePassword`. |
 | POST | `/auth/logout` | cookie | Verwijdert de serverzijdige sessie en wist de cookie. Altijd `204`. |
-| GET | `/auth/me` | cookie | Huidig account (`{ account }`) of `401 NOT_AUTHENTICATED`. |
+| GET | `/auth/me` | cookie | Huidig account (`{ account }`) of `401 NOT_AUTHENTICATED`. Ook bereikbaar met een nog niet vervangen tijdelijk wachtwoord (T2.6), zodat de client `mustChangePassword` kan lezen en de houder naar het wachtwoordscherm kan sturen. |
 | POST | `/auth/verify-email` | publiek | Body `{ token }` (`verifyEmailRequestSchema`). Wisselt het verificatietoken in: `200` + `{ verified: true, account }` (`verifyEmailResponseSchema`). Ongeldig/verlopen/reeds gebruikt token → `400 INVALID_VERIFICATION_TOKEN` (neutrale melding, geen enumeratie). |
 | GET | `/auth/verify-email?token=…` | publiek | Zelfde logica als de POST-variant, zodat een directe klik op de maillink ook werkt. |
 | POST | `/auth/verify-email/resend` | publiek | Body `{ email }` (`resendVerificationRequestSchema`). Verstuurt een nieuw token als er een **onbevestigd** account bij het adres hoort. Antwoordt **altijd** neutraal `200 { message }` (`resendVerificationResponseSchema`) — of het adres nu bestaat, al geverifieerd is, of onbekend. Streng rate-limited per IP → `429`. |
 
-Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of lockout-velden); `account.emailVerified` (boolean) geeft de verificatiestatus.
+Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of lockout-velden); `account.emailVerified` (boolean) geeft de verificatiestatus en `account.mustChangePassword` (boolean, T2.6) of het account nog op het tijdelijke wachtwoord uit T2.4 draait.
 `/auth/me` gebruikt sinds T1.2 hetzelfde `authorize(...)`-preHandler als beschermde routes.
 
 **Eigen wachtwoord wijzigen (T2.5).** Nodig omdat een begeleider met het **tijdelijke** wachtwoord uit T2.4 binnenkomt: dat is door de beheerder aangemaakt en bij hem bekend, dus het hoort vervangen te kunnen worden. Eigenschappen:
@@ -55,10 +55,12 @@ Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of locko
 
 **Verificatie-gate (T1.4).** Onbevestigde accounts mogen inloggen en hun eigen gegevens bekijken, maar **gevoelige acties zijn geblokkeerd tot verificatie**. In de MVP is dat het aanmaken van gebruikers (`POST /users`) en van begeleider-accounts (`POST /admin/accounts`, T2.4) → `403 EMAIL_NOT_VERIFIED` zolang `emailVerified` false is. De verificatietoken staat **gehasht** at-rest, is eenmalig en verloopt (`EMAIL_VERIFICATION_TTL_HOURS`).
 
-### Accounts (T1.2, T2.4)
+**Tijdelijk-wachtwoord-gate (T2.6).** Een account dat nog op het **server-gegenereerde** wachtwoord uit T2.4 draait (`mustChangePassword` true) mag **alléén** `GET /auth/me` en `POST /auth/password` (plus `POST /auth/logout`, die geen `authorize` gebruikt). Elke andere route geeft `403 PASSWORD_CHANGE_REQUIRED`. Bewust **harder** dan de verificatie-gate hierboven: een onbevestigd adres is een onbewezen adres, maar een tijdelijk wachtwoord is een levend wachtwoord dat ook de beheerder kent. De gate zit daarom in `authorize(...)` zelf (default-deny, opt-out per route via `allowPendingPasswordChange`) in plaats van als opt-in guard per gevoelige route — zo staat een nieuwe route er automatisch achter. Een geslaagde `POST /auth/password` wist de markering en heft de gate op, zonder opnieuw inloggen.
+
+### Accounts (T1.2, T2.4, T2.6)
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
-| GET | `/admin/accounts` | ADMIN | Lijst van logins **binnen de eigen organisatie** (`accountListResponseSchema`). Rol-beperkt (`403 FORBIDDEN` voor CAREGIVER/USER) en tenant-gefilterd op `organizationId`. Representatief voorbeeld van de autorisatie-/isolatielaag. |
+| GET | `/admin/accounts` | ADMIN | Lijst van logins **binnen de eigen organisatie** (`accountListResponseSchema`). Rol-beperkt (`403 FORBIDDEN` voor CAREGIVER/USER) en tenant-gefilterd op `organizationId`. Representatief voorbeeld van de autorisatie-/isolatielaag. Per account zijn `emailVerified` (T1.4) en `mustChangePassword` (T2.6) zichtbaar, zodat de beheerder ziet wie nog op een tijdelijk wachtwoord zit. |
 | POST | `/admin/accounts` | ADMIN + geverifieerd | Maakt een **begeleider-account** in de eigen organisatie (T2.4, `createCaregiverRequestSchema`: `{ name, email }`). `201` + `createCaregiverResponseSchema` (`{ account, temporaryPassword }`). Zie hieronder. |
 
 **Begeleider-accounts (T2.4).** `POST /admin/accounts` is de plek waar CAREGIVER-logins ontstaan; zonder dit endpoint bleef de koppelweergave van T2.2 leeg. Eigenschappen:
@@ -66,6 +68,7 @@ Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of locko
 - **Rol en organisatie komen van de server**, niet uit de body: de rol staat vast op `CAREGIVER` en de organisatie is die van de aanroepende ADMIN. Een meegestuurde `role`/`organizationId` wordt genegeerd (geen privilege-escalatie, geen account in een andere tenant).
 - **Geen wachtwoordveld.** De server genereert een tijdelijk wachtwoord (256 bit) en geeft dat **één keer** terug in het antwoord; daarna kent de db alleen de argon2id-hash. De beheerder geeft het via een veilig kanaal door. Gekozen boven een uitnodigingsmail met wachtwoord-instellink zodat Intento zonder mailserver bruikbaar blijft (zie `docs/security.md`).
 - Het account start **ongeverifieerd**; er gaat best-effort een verificatiemail uit (T1.4). Een falende mailserver laat het aanmaken niet mislukken.
+- Het account start met `mustChangePassword` (T2.6) en kan dus niets anders dan zijn eigen wachtwoord wisselen tot dat gebeurd is — zie de tijdelijk-wachtwoord-gate hierboven.
 - Bestaat het e-mailadres al (ook in een **andere** organisatie), dan `409 ACCOUNT_CREATE_FAILED` met een **neutrale** melding — geen account-enumeratie.
 - Vereist een **geverifieerd** e-mailadres van de ADMIN (`403 EMAIL_NOT_VERIFIED`), net als `POST /users`. Aanmaken wordt geaudit als `account.create` (rol als context, nooit het wachtwoord).
 

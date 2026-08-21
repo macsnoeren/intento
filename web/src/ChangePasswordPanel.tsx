@@ -12,7 +12,18 @@ import { ApiRequestError, type Api } from './api.ts';
  * nieuwe wachtwoord wordt hier — puur als tikfoutbescherming — al vergeleken; de echte
  * sterkte-eis (`strongPasswordSchema`) en alle controles gebeuren op de server.
  */
-export function ChangePasswordPanel({ api }: { api: Api }): React.JSX.Element {
+export function ChangePasswordPanel({
+  api,
+  onChanged,
+}: {
+  api: Api;
+  /**
+   * Meldt een geslaagde wijziging (T2.6). De app ververst daarop het account: draaide dit account
+   * nog op een tijdelijk wachtwoord, dan valt die markering — en het blokkerende scherm eromheen —
+   * hiermee weg.
+   */
+  onChanged?: () => void;
+}): React.JSX.Element {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -42,6 +53,7 @@ export function ChangePasswordPanel({ api }: { api: Api }): React.JSX.Element {
           ? `Wachtwoord gewijzigd. Andere apparaten (${revokedSessions}) zijn uitgelogd en moeten opnieuw inloggen.`
           : 'Wachtwoord gewijzigd. Gebruik voortaan je nieuwe wachtwoord.',
       );
+      onChanged?.();
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Wijzigen mislukt.');
     } finally {

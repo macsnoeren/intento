@@ -67,6 +67,7 @@ function fakeApi(initial: PreferencePublic[]): {
     updateSettings: notImplemented,
     deleteUser: notImplemented,
     createCaregiverAccount: notImplemented,
+    listAccounts: notImplemented,
     listCaregivers: notImplemented,
     linkCaregiver: notImplemented,
     generateDeviceCode: notImplemented,

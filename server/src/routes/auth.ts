@@ -227,7 +227,9 @@ export function registerAuthRoutes(
   app.post(
     '/auth/password',
     {
-      preHandler: authorize(prisma),
+      // `allowPendingPasswordChange` (T2.6): juist een account dat nog op zijn tijdelijke
+      // wachtwoord zit moet hier terechtkunnen — dit is de enige uitweg uit die gate.
+      preHandler: authorize(prisma, { allowPendingPasswordChange: true }),
       config: {
         rateLimit: {
           max: env.PASSWORD_CHANGE_RATE_LIMIT_MAX,
@@ -287,8 +289,15 @@ export function registerAuthRoutes(
   });
 
   // Elk ingelogd account mag zijn eigen gegevens opvragen; de authorize()-preHandler
-  // handelt de 401 af en zet het geverifieerde account op de request.
-  app.get('/auth/me', { preHandler: authorize(prisma) }, (request): AuthResponse => {
-    return { account: toPublic(requireAccount(request)) };
-  });
+  // handelt de 401 af en zet het geverifieerde account op de request. Ook toegestaan met een nog
+  // niet vervangen tijdelijk wachtwoord (T2.6): de web-UI leest hier `mustChangePassword` om de
+  // houder naar het wachtwoordscherm te sturen — zonder dit antwoord weet hij niet waaróm de rest
+  // dichtzit.
+  app.get(
+    '/auth/me',
+    { preHandler: authorize(prisma, { allowPendingPasswordChange: true }) },
+    (request): AuthResponse => {
+      return { account: toPublic(requireAccount(request)) };
+    },
+  );
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AccountPublic, UpdateSettingsRequest, UserPublic } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
+import { AccountsPanel } from './AccountsPanel.tsx';
 import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
@@ -129,6 +130,10 @@ export function AdminUsersPage({
             api={api}
             onCreated={() => setCaregiverVersion((version) => version + 1)}
           />
+
+          {/* Accountlijst (T2.6): ververst op dezelfde teller, zodat een net aangemaakte
+              begeleider er meteen — mét zijn "tijdelijk wachtwoord"-markering — in staat. */}
+          <AccountsPanel api={api} refreshToken={caregiverVersion} />
 
           <ProfileImportPanel
             api={api}

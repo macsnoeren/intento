@@ -17,6 +17,7 @@ const adminAccount: AccountPublic = {
   organizationId: 'org-1',
   name: null,
   emailVerified: true,
+  mustChangePassword: false,
 };
 
 function fakeApi(response: AuditLogListResponse): Api {

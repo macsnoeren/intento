@@ -13,6 +13,7 @@ import { AccountPage } from './AccountPage.tsx';
 import { ConceptProposalsPage } from './ConceptProposalsPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
+import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
 import type { AdminView } from './AdminNav.tsx';
 
 /**
@@ -128,6 +129,27 @@ export function App({
         onLoggedIn={({ account: me }) => setAccount(me)}
         onRegister={() => setAuthScreen('register')}
       />
+    );
+  }
+
+  // Tijdelijk wachtwoord (T2.6): dit account draait nog op het wachtwoord dat de beheerder bij het
+  // aanmaken (T2.4) te zien kreeg. De server laat dan alleen `GET /auth/me` en `POST /auth/password`
+  // toe, dus elke gewone weergave zou vol 403's staan. Daarom één blokkerend scherm met precies de
+  // uitweg erin — geen zachte banner die je kunt wegkijken, want tot de wissel kent een tweede
+  // persoon dit wachtwoord.
+  if (account.mustChangePassword) {
+    return (
+      <main className="panel panel--narrow">
+        <h1 className="panel__title">Kies eerst een eigen wachtwoord</h1>
+        <p>
+          Je bent binnengekomen met een tijdelijk wachtwoord van je beheerder. Die kent het dus ook.
+          Kies hieronder een eigen wachtwoord; daarna staat de rest van Intento voor je open.
+        </p>
+        <ChangePasswordPanel api={api} onChanged={() => void refreshAccount()} />
+        <button className="button" type="button" onClick={() => void handleLogout()}>
+          Uitloggen
+        </button>
+      </main>
     );
   }
 

@@ -4,8 +4,10 @@ import type { AccountModel } from '../generated/prisma/models.js';
 /**
  * Mapt een account naar de publieke, veilige weergave (DESIGN §8.1). Nooit de wachtwoordhash of
  * interne lockout-velden; `emailVerified` is afgeleid van `emailVerifiedAt` (T1.4) en `name` mag
- * `null` zijn (geseede accounts van vóór T1.3). Gedeeld door de auth- en account-routes zodat de
- * vorm op één plek staat en niet uit elkaar loopt.
+ * `null` zijn (geseede accounts van vóór T1.3). `mustChangePassword` (T2.6) gaat wél mee: de eigen
+ * weergave heeft 'm nodig om de houder naar het wachtwoordscherm te sturen en de beheerder ziet er
+ * in zijn accountlijst aan wie nog op een bij hem bekend wachtwoord draait. Gedeeld door de auth-
+ * en account-routes zodat de vorm op één plek staat en niet uit elkaar loopt.
  */
 export function accountToPublic(account: AccountModel): AccountPublic {
   return accountPublicSchema.parse({
@@ -15,5 +17,6 @@ export function accountToPublic(account: AccountModel): AccountPublic {
     organizationId: account.organizationId,
     name: account.name,
     emailVerified: account.emailVerifiedAt !== null,
+    mustChangePassword: account.mustChangePassword,
   });
 }

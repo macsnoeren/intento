@@ -115,6 +115,15 @@ export const accountPublicSchema = z.object({
    * herinnerings-banner met een "opnieuw versturen"-knop.
    */
   emailVerified: z.boolean(),
+  /**
+   * Of dit account nog op het **tijdelijke** wachtwoord zit dat de server bij het aanmaken (T2.4)
+   * genereerde en aan de beheerder toonde (T2.6). Zolang dit `true` is kent een tweede persoon het
+   * wachtwoord; de server staat dan alléén `GET /auth/me` en `POST /auth/password` toe en de
+   * web-UI toont de houder een blokkerend "kies eerst een eigen wachtwoord"-scherm. In de
+   * accountlijst van de beheerder verschijnt het als markering, zodat zichtbaar is wie nog niet
+   * is overgestapt. Zelf gekozen wachtwoorden (zelfaanmelding T1.3, seed) zijn nooit gemarkeerd.
+   */
+  mustChangePassword: z.boolean(),
 });
 export type AccountPublic = z.infer<typeof accountPublicSchema>;
 

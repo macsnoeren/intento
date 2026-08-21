@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -155,7 +155,8 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/accounts \
 
 Een reeds bestaand e-mailadres geeft bewust een neutrale `409` (geen account-enumeratie). Het
 account start ongeverifieerd; er gaat best-effort een verificatiemail uit. De begeleider vervangt
-het tijdelijke wachtwoord daarna zelf (hieronder).
+het tijdelijke wachtwoord daarna zelf (hieronder) — en moet dat ook: zolang hij dat niet doet, komt
+hij nergens (zie "Tijdelijk wachtwoord" hieronder).
 
 ### Eigen wachtwoord wijzigen (T2.5)
 
@@ -177,6 +178,30 @@ het huidige, en na een geslaagde wijziging worden **alle overige sessies van dat
 ingetrokken** — je blijft alleen ingelogd op het apparaat waar je het wijzigde. Er is geen manier om
 via deze route het wachtwoord van iemand anders te zetten: het account komt uit de sessie. Een fout
 huidig wachtwoord geeft `401 INVALID_CURRENT_PASSWORD`; de route is apart rate-limited.
+
+### Tijdelijk wachtwoord: markering en gate (T2.6)
+
+Een account dat is aangemaakt met een server-gegenereerd wachtwoord (T2.4) draagt de markering
+`mustChangePassword`. Zolang die staat, kent **twee** mensen dat wachtwoord — de houder en de
+beheerder die het aanmaakte — en laat de server alleen `GET /auth/me` en `POST /auth/password` toe;
+al het overige geeft `403 PASSWORD_CHANGE_REQUIRED`. De web-app toont zo'n account daarom één
+blokkerend scherm ("Kies eerst een eigen wachtwoord"); zodra het wachtwoord gewisseld is, valt de
+markering weg en gaat de app zonder opnieuw inloggen door naar de gewone weergave.
+
+De beheerder ziet in het paneel **"Logins"** (naast de gebruikerslijst) welke accounts nog op hun
+tijdelijke wachtwoord zitten. Er staat bewust geen reset-knop bij: een beheerder zet nooit het
+wachtwoord van een ander — hij ziet hier alleen wie hij eraan moet herinneren.
+
+```bash
+# Logins van de eigen organisatie (ADMIN):
+curl -sb cookies.txt http://127.0.0.1:3000/admin/accounts
+# → 200 {"accounts":[{…,"emailVerified":true,"mustChangePassword":false}, …]}
+```
+
+Deze gate is strenger dan die van de e-mailverificatie (T1.4, waar alleen gevoelige acties dicht
+staan): een onbevestigd adres is een *onbewezen* adres, een tijdelijk wachtwoord is een *levend,
+gedeeld* wachtwoord. Accounts die vóór deze versie zijn aangemaakt, zijn niet met terugwerkende
+kracht gemarkeerd — dat valt niet meer vast te stellen zonder werkende begeleiders buiten te sluiten.
 
 ### Begeleiders koppelen (T2.2)
 

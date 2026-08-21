@@ -17,6 +17,7 @@ const adminAccount: AccountPublic = {
   organizationId: 'org-1',
   name: null,
   emailVerified: true,
+  mustChangePassword: false,
 };
 
 function proposal(overrides: Partial<ConceptProposal> & { id: string; concept: string }): ConceptProposal {

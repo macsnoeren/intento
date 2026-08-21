@@ -9,12 +9,16 @@ import { readSessionToken } from './request.js';
 /**
  * Autorisatie-middleware (T1.2, DESIGN §2, §9.4).
  *
- * Elke beschermde route hangt hetzelfde `authorize(...)`-preHandler ervoor. Dat doet twee
+ * Elke beschermde route hangt hetzelfde `authorize(...)`-preHandler ervoor. Dat doet drie
  * dingen, in deze volgorde:
  *   1. **Authenticatie** — sessietoken uit de cookie omzetten naar een account; ontbreekt
  *      dat (of is de sessie verlopen/geknoeid), dan 401.
  *   2. **Rolcontrole** — als de route rollen opgeeft en de rol van het account zit er niet
  *      bij, dan 403 (met de consistente foutstructuur uit DESIGN §8.1).
+ *   3. **Tijdelijk-wachtwoord-gate (T2.6)** — draait het account nog op het wachtwoord dat de
+ *      server bij het aanmaken genereerde en aan de beheerder toonde (`mustChangePassword`), dan
+ *      403 `PASSWORD_CHANGE_REQUIRED`, behalve op de routes die expliciet
+ *      `allowPendingPasswordChange` zetten (`GET /auth/me`, `POST /auth/password`).
  *
  * Het geverifieerde account wordt op `request.account` gezet, zodat de handler het zonder
  * herhaalde lookup kan gebruiken — inclusief `organizationId` voor tenant-filtering
@@ -32,6 +36,16 @@ declare module 'fastify' {
 export interface AuthorizeOptions {
   /** Toegestane rollen. Leeg/weggelaten = elk ingelogd account mag erbij (alleen 401-guard). */
   roles?: readonly AccountRole[];
+  /**
+   * Laat een account met een nog niet vervangen **tijdelijk** wachtwoord (T2.6) door. Bewust
+   * andersom dan de verificatie-gate van T1.4: die is een opt-in guard op een handvol gevoelige
+   * routes (`requireVerifiedEmail`), deze is **default-deny** met een opt-out op precies twee
+   * routes. Reden voor het verschil: een onbevestigd e-mailadres is een onbewezen adres, maar een
+   * tijdelijk wachtwoord is een **levend, gedeeld** wachtwoord — tot het vervangen is, kan de
+   * beheerder alles doen wat de houder kan. Default-deny betekent bovendien dat een nieuwe route
+   * automatisch achter de gate staat in plaats van hem per ongeluk te missen (fail-safe).
+   */
+  allowPendingPasswordChange?: boolean;
 }
 
 /**
@@ -43,6 +57,7 @@ export function authorize(
   options: AuthorizeOptions = {},
 ): preHandlerAsyncHookHandler {
   const roles = options.roles;
+  const allowPendingPasswordChange = options.allowPendingPasswordChange ?? false;
   return async (request) => {
     const token = readSessionToken(request);
     const account = token ? await findAccountBySessionToken(prisma, token) : null;
@@ -51,6 +66,13 @@ export function authorize(
     }
     if (roles && !roles.includes(account.role as AccountRole)) {
       throw new HttpError(403, 'FORBIDDEN', 'Je hebt geen toegang tot deze actie.');
+    }
+    if (account.mustChangePassword && !allowPendingPasswordChange) {
+      throw new HttpError(
+        403,
+        'PASSWORD_CHANGE_REQUIRED',
+        'Kies eerst zelf een wachtwoord; je tijdelijke wachtwoord is ook bij je beheerder bekend.',
+      );
     }
     request.account = account;
   };

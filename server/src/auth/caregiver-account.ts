@@ -22,7 +22,9 @@ import { hashPassword } from './password.js';
  *   - Het rauwe wachtwoord bestaat alleen in het antwoord op deze ene call — in de db staat
  *     uitsluitend de argon2id-hash, precies zoals bij koppelcodes (T2.3) en worker-tokens (T5.8).
  * Het account start **ongeverifieerd**; de route stuurt best-effort een verificatiemail zodat de
- * begeleider zijn adres alsnog bevestigt (zie `docs/security.md` voor de verificatie-gate).
+ * begeleider zijn adres alsnog bevestigt (zie `docs/security.md` voor de verificatie-gate). Het start
+ * óók met `mustChangePassword` (T2.6): zolang het tijdelijke wachtwoord geldt, kent de beheerder het
+ * wachtwoord van de begeleider — het account mag dan niets anders dan zijn eigen wachtwoord wisselen.
  */
 
 /**
@@ -64,6 +66,10 @@ export async function createCaregiverAccount(
         passwordHash,
         role: 'CAREGIVER',
         organizationId,
+        // Tijdelijk-wachtwoord-markering (T2.6): dit wachtwoord is bij de beheerder bekend, dus het
+        // account is pas echt van de begeleider alleen zodra hij het zelf vervangt. Tot dan laat
+        // `authorize()` alleen het eigen account bekijken en het wachtwoord wijzigen toe.
+        mustChangePassword: true,
       },
     });
     return { ok: true, account, temporaryPassword };

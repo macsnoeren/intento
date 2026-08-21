@@ -17,6 +17,7 @@ const caregiver: AccountPublic = {
   organizationId: 'org-1',
   name: null,
   emailVerified: true,
+  mustChangePassword: false,
 };
 
 function user(id: string, name: string): UserPublic {

@@ -1,5 +1,6 @@
 import {
   aacSearchResponseSchema,
+  accountListResponseSchema,
   aacSymbolAdminSchema,
   aacSymbolListResponseSchema,
   aiWaitingErrorSchema,
@@ -33,6 +34,7 @@ import {
   verifyEmailResponseSchema,
   workerTokenListResponseSchema,
   workerTokenPublicSchema,
+  type AccountListResponse,
   type AacSearchResponse,
   type AacSymbolAdmin,
   type AacSymbolInput,
@@ -136,6 +138,12 @@ export interface Api {
   deleteUser(id: string): Promise<void>;
   /** Begeleider-account aanmaken binnen de eigen organisatie (T2.4). ADMIN-only. */
   createCaregiverAccount(body: CreateCaregiverRequest): Promise<CreateCaregiverResponse>;
+  /**
+   * Logins van de eigen organisatie (T2.6). ADMIN-only en tenant-gefilterd op de server. De
+   * beheerder ziet hier per account of het e-mailadres bevestigd is en of het nog op het
+   * tijdelijke wachtwoord uit T2.4 draait.
+   */
+  listAccounts(): Promise<AccountListResponse>;
   listCaregivers(userId: string): Promise<CaregiverListResponse>;
   linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
   generateDeviceCode(userId: string): Promise<DeviceCodeResponse>;
@@ -328,6 +336,9 @@ export const httpApi: Api & DeviceApi = {
     return createCaregiverResponseSchema.parse(
       await request('/admin/accounts', { method: 'POST', body: JSON.stringify(body) }),
     );
+  },
+  async listAccounts() {
+    return accountListResponseSchema.parse(await request('/admin/accounts'));
   },
   async listCaregivers(userId) {
     return caregiverListResponseSchema.parse(await request(`/admin/users/${userId}/caregivers`));

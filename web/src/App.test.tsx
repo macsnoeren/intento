@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type {
+  AccountListResponse,
   AuthResponse,
   CaregiverLink,
   ChangePasswordResponse,
@@ -36,6 +37,7 @@ const adminAccount = {
   organizationId: 'org-1',
   name: null,
   emailVerified: true,
+  mustChangePassword: false,
 };
 
 function makeUser(id: string, name: string): UserPublic {
@@ -61,13 +63,20 @@ function fakeApi(
     loggedIn?: boolean;
     caregivers?: CaregiverLink[];
     emailVerified?: boolean;
+    /** Simuleer een account dat nog op zijn tijdelijke wachtwoord uit T2.4 zit (T2.6). */
+    mustChangePassword?: boolean;
     /** Simuleer een niet-platform-ADMIN: worker-token-endpoints geven 403 NOT_PLATFORM_ADMIN. */
     workerTokensForbidden?: boolean;
   } = {},
 ): Api {
   let session = options.loggedIn ?? false;
   let emailVerified = options.emailVerified ?? true;
-  const account = (): typeof adminAccount => ({ ...adminAccount, emailVerified });
+  let mustChangePassword = options.mustChangePassword ?? false;
+  const account = (): typeof adminAccount => ({
+    ...adminAccount,
+    emailVerified,
+    mustChangePassword,
+  });
   const users: UserPublic[] = [];
   let counter = 0;
   // In-memory worker-tokenstore (T5.8).
@@ -112,6 +121,8 @@ function fakeApi(
       return Promise.resolve({ message: 'Als het adres bekend is, is er een mail verstuurd.' });
     },
     changePassword(): Promise<ChangePasswordResponse> {
+      // Zoals de server (T2.6): een geslaagde wijziging heft de tijdelijk-wachtwoord-markering op.
+      mustChangePassword = false;
       return Promise.resolve({ revokedSessions: 0 });
     },
     logout(): Promise<void> {
@@ -147,9 +158,29 @@ function fakeApi(
         organizationId: adminAccount.organizationId,
         name: body.name,
         emailVerified: false,
+        // Een vers account draait nog op het tijdelijke wachtwoord dat de server teruggaf (T2.6).
+        mustChangePassword: true,
       };
       caregiverSeed.push({ accountId: account.id, email: account.email, linked: false });
       return Promise.resolve({ account, temporaryPassword: 'tijdelijk-wachtwoord-123' });
+    },
+    listAccounts(): Promise<AccountListResponse> {
+      // De beheerder zelf plus elke aangemaakte begeleider (die nog op zijn tijdelijke
+      // wachtwoord zit) — de accountlijst van T2.6.
+      return Promise.resolve({
+        accounts: [
+          account(),
+          ...caregiverSeed.map((c) => ({
+            id: c.accountId,
+            email: c.email,
+            role: 'CAREGIVER' as const,
+            organizationId: adminAccount.organizationId,
+            name: null,
+            emailVerified: false,
+            mustChangePassword: true,
+          })),
+        ],
+      });
     },
     listCaregivers(userId: string): Promise<CaregiverListResponse> {
       return Promise.resolve({ caregivers: caregiversFor(userId) });
@@ -478,6 +509,58 @@ describe('beheeromgeving-app', () => {
     const panel = await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Koppelcode genereren' }));
     expect((await within(panel).findByRole('status')).textContent).toContain('ABCD2345');
+  });
+
+  it('dwingt een account met een tijdelijk wachtwoord eerst naar het wachtwoordscherm (T2.6)', async () => {
+    render(<App api={fakeApi({ loggedIn: true, mustChangePassword: true })} />);
+
+    // Geen beheeromgeving: alleen het blokkerende scherm met de enige toegestane actie.
+    await screen.findByRole('heading', { name: 'Kies eerst een eigen wachtwoord' });
+    expect(screen.queryByRole('heading', { name: 'Gebruikersbeheer' })).toBeNull();
+
+    const panel = screen.getByRole('region', { name: 'Wachtwoord wijzigen' });
+    fireEvent.change(within(panel).getByLabelText('Huidig wachtwoord'), {
+      target: { value: 'tijdelijk-wachtwoord-123' },
+    });
+    fireEvent.change(within(panel).getByLabelText('Nieuw wachtwoord'), {
+      target: { value: 'mijn eigen sterke wachtwoord' },
+    });
+    fireEvent.change(within(panel).getByLabelText('Nieuw wachtwoord herhalen'), {
+      target: { value: 'mijn eigen sterke wachtwoord' },
+    });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Wachtwoord wijzigen' }));
+
+    // Na de wissel valt de markering weg en staat de beheeromgeving open.
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+  });
+
+  it('toont de beheerder welke logins nog op een tijdelijk wachtwoord zitten (T2.6)', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    // Alleen de beheerder zelf: geen markering op zijn regel (hij koos zijn eigen wachtwoord).
+    const panel = await screen.findByRole('region', { name: 'Logins in deze organisatie' });
+    const adminRow = await within(panel).findByRole('listitem');
+    expect(adminRow.textContent).toContain('admin@intento.local');
+    expect(adminRow.textContent).not.toContain('tijdelijk wachtwoord');
+
+    // Begeleider aanmaken (T2.4) → verschijnt gemarkeerd in de lijst.
+    const createPanel = screen.getByRole('region', { name: 'Begeleider aanmaken' });
+    fireEvent.change(within(createPanel).getByLabelText('Naam'), { target: { value: 'Sam' } });
+    fireEvent.change(within(createPanel).getByLabelText('E-mailadres'), {
+      target: { value: 'sam@intento.local' },
+    });
+    fireEvent.click(within(createPanel).getByRole('button', { name: 'Begeleider aanmaken' }));
+
+    const refreshed = await screen.findByRole('region', { name: 'Logins in deze organisatie' });
+    await waitFor(() => expect(within(refreshed).getAllByRole('listitem')).toHaveLength(2));
+    const caregiverRow = within(refreshed)
+      .getAllByRole('listitem')
+      .find((row) => row.textContent?.includes('sam@intento.local'));
+    expect(caregiverRow?.textContent).toContain('tijdelijk wachtwoord');
+    expect(within(refreshed).getByRole('status').textContent).toContain(
+      '1 login zit nog op een tijdelijk wachtwoord',
+    );
   });
 
   it('toont een verificatiebanner voor een onbevestigd account en verstuurt opnieuw (T1.4)', async () => {

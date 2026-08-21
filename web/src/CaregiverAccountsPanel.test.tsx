@@ -28,6 +28,7 @@ function response(overrides: Partial<CreateCaregiverResponse['account']> = {}) {
       organizationId: 'org-1',
       name: 'Sam',
       emailVerified: false,
+      mustChangePassword: true,
       ...overrides,
     },
     temporaryPassword: 'tijdelijk-wachtwoord-123',

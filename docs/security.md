@@ -91,8 +91,33 @@
       Getest in `auth/change-password.test.ts` (o.a. oud wachtwoord geweigerd, andere sessies dood, sessies
       van een ánder account ongemoeid, geen wachtwoord in db of audit-log).
       *Openstaand:* apparaat-tokens (T2.3) horen bij een gebruiker, niet bij dit account, en blijven dus
-      geldig; en een account dat nog op zijn tijdelijke wachtwoord zit wordt (nog) niet als zodanig
-      gemarkeerd (T2.6).
+      geldig.
+- [x] **Tijdelijk-wachtwoord-markering en -gate (T2.6)** — `Account.mustChangePassword` markeert een account
+      dat nog op het **server-gegenereerde** wachtwoord uit T2.4 draait: gezet bij
+      `createCaregiverAccount`, gewist door `POST /auth/password`. Zonder die markering bleef een
+      begeleider onbeperkt draaien op een wachtwoord dat zijn beheerder kent — een login die feitelijk van
+      twee mensen is, zonder dat iemand dat kon zien.
+      **Gekozen gate: hard.** Zolang de markering staat laat `authorize(...)` alléén `GET /auth/me` en
+      `POST /auth/password` toe (en `POST /auth/logout`, dat geen `authorize` gebruikt); elke andere route
+      geeft `403 PASSWORD_CHANGE_REQUIRED`. Dat is bewust **strenger** dan de verificatie-gate van T1.4:
+      een onbevestigd e-mailadres is een *onbewezen* adres, maar een tijdelijk wachtwoord is een *levend,
+      gedeeld* wachtwoord — tot de wissel kan de beheerder alles doen wat de houder kan, inclusief het
+      inzien van privacygevoelige gegevens van gebruikers. Het account krijgt dus precies de rechten die
+      het nodig heeft om die situatie zelf op te heffen, en niets meer.
+      **Vorm van de gate:** default-deny in `authorize(...)` zelf met een opt-out per route
+      (`allowPendingPasswordChange`), waar T1.4 juist een opt-in guard per gevoelige route gebruikt
+      (`requireVerifiedEmail`). Reden: bij een gate die *alles* dichtzet is opt-in fail-open — één nieuwe
+      route die de guard vergeet, staat open. Met default-deny staat elke nieuwe route er automatisch
+      achter (fail-safe), en de twee uitzonderingen staan expliciet in `routes/auth.ts`.
+      **Zichtbaar voor de beheerder:** `GET /admin/accounts` geeft `mustChangePassword` mee en de
+      beheer-UI toont die accounts met de markering "tijdelijk wachtwoord". Bewust géén reset-knop
+      ernaast: een beheerder zet nooit het wachtwoord van een ander (dat is de kern van T2.5) — hij ziet
+      hier wie hij eraan moet herinneren.
+      **Migratie:** bestaande accounts krijgen `false`. Van een account van vóór deze migratie is niet meer
+      vast te stellen of het tijdelijke wachtwoord al vervangen is; achteraf iedereen markeren zou werkende
+      begeleiders buitensluiten op basis van een aanname. Getest in `auth/temporary-password.test.ts`
+      (markering bij aanmaken, zichtbaar in de accountlijst, 403 op andere routes, wijzigen zelf altijd
+      toegestaan, markering én gate weg na de wissel, zelf gekozen wachtwoorden nooit gemarkeerd).
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op

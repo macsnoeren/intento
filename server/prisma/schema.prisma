@@ -160,6 +160,15 @@ model Account {
   /// inloggen maar bepaalde gevoelige acties (bv. gebruikers aanmaken) zijn geblokkeerd tot
   /// verificatie — zie docs/security.md. Geseede/bestaande accounts (vóór T1.4) blijven `null`.
   emailVerifiedAt DateTime?
+  /// Tijdelijk-wachtwoord-markering (T2.6, DESIGN §2, §9.4). `true` zolang dit account nog draait op
+  /// het **server-gegenereerde** wachtwoord dat een beheerder bij het aanmaken (T2.4) te zien kreeg:
+  /// dat wachtwoord is dus bij een tweede persoon bekend en het account is tot die tijd niet echt van
+  /// de houder alleen. Gezet bij `createCaregiverAccount`, gewist zodra de houder zelf via
+  /// `POST /auth/password` (T2.5) een eigen wachtwoord kiest. Zolang de vlag staat laat `authorize()`
+  /// alléén het eigen account bekijken en het wachtwoord wijzigen toe (`403 PASSWORD_CHANGE_REQUIRED`
+  /// op al het overige) — zie docs/security.md. Standaard `false`: zelf gekozen wachtwoorden
+  /// (zelfaanmelding T1.3, seed) zijn nooit bij een ander bekend.
+  mustChangePassword Boolean @default(false)
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
