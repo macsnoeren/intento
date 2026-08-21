@@ -132,8 +132,10 @@ export function AdminUsersPage({
           />
 
           {/* Accountlijst (T2.6): ververst op dezelfde teller, zodat een net aangemaakte
-              begeleider er meteen — mét zijn "tijdelijk wachtwoord"-markering — in staat. */}
-          <AccountsPanel api={api} refreshToken={caregiverVersion} />
+              begeleider er meteen — mét zijn "tijdelijk wachtwoord"-markering — in staat.
+              `currentAccountId` houdt de resetknop (T2.7) van het eigen account af: je eigen
+              wachtwoord wijzig je onder "Mijn account", mét je huidige wachtwoord. */}
+          <AccountsPanel api={api} refreshToken={caregiverVersion} currentAccountId={account.id} />
 
           <ProfileImportPanel
             api={api}

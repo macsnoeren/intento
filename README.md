@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -189,8 +189,9 @@ blokkerend scherm ("Kies eerst een eigen wachtwoord"); zodra het wachtwoord gewi
 markering weg en gaat de app zonder opnieuw inloggen door naar de gewone weergave.
 
 De beheerder ziet in het paneel **"Logins"** (naast de gebruikerslijst) welke accounts nog op hun
-tijdelijke wachtwoord zitten. Er staat bewust geen reset-knop bij: een beheerder zet nooit het
-wachtwoord van een ander — hij ziet hier alleen wie hij eraan moet herinneren.
+tijdelijke wachtwoord zitten, zodat hij weet wie hij eraan moet herinneren. Zelf een wachtwoord
+intypen voor iemand anders kan hij nergens; wat hij wél kan, is een **nieuw** tijdelijk wachtwoord
+laten uitgeven (T2.7, hieronder).
 
 ```bash
 # Logins van de eigen organisatie (ADMIN):
@@ -202,6 +203,28 @@ Deze gate is strenger dan die van de e-mailverificatie (T1.4, waar alleen gevoel
 staan): een onbevestigd adres is een *onbewezen* adres, een tijdelijk wachtwoord is een *levend,
 gedeeld* wachtwoord. Accounts die vóór deze versie zijn aangemaakt, zijn niet met terugwerkende
 kracht gemarkeerd — dat valt niet meer vast te stellen zonder werkende begeleiders buiten te sluiten.
+
+### Nieuw tijdelijk wachtwoord uitgeven (T2.7)
+
+Raakt iemand zijn tijdelijke wachtwoord kwijt — of strandt hij op de account-lockout — dan zit hij
+klem: inloggen lukt niet, en zonder sessie is `POST /auth/password` onbereikbaar. Een beheerder geeft
+daarom in het paneel **"Logins"** een **nieuw** tijdelijk wachtwoord uit (knop per login; het eigen
+account heeft er bewust geen). De **server** genereert dat wachtwoord — een beheerder kiest nooit het
+wachtwoord van een ander — en het account wordt meteen weer als "tijdelijk wachtwoord" gemarkeerd, dus
+de houder kiest bij zijn eerstvolgende login zelf een wachtwoord. Alle lopende sessies van dat account
+worden ingetrokken.
+
+```bash
+# Nieuw tijdelijk wachtwoord voor een login in de eigen organisatie (ADMIN, geen body):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/accounts/<accountId>/password
+# → 200 {"account":{…,"mustChangePassword":true},"temporaryPassword":"…","revokedSessions":2}
+# Het eigen account → 403 CANNOT_RESET_OWN_PASSWORD; een ander (of onbekend) account buiten je
+# organisatie → 403 FORBIDDEN.
+```
+
+Bewust géén publieke "wachtwoord vergeten"-flow per e-mail: Intento moet zonder mailserver bruikbaar
+blijven en een tweede, publiek bereikbare weg naar een account vergroot het aanvalsoppervlak. Zie
+[docs/security.md](docs/security.md) en [docs/api.md](docs/api.md).
 
 ### Begeleiders koppelen (T2.2)
 

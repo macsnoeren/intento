@@ -5,6 +5,7 @@ import {
   authResponseSchema,
   caregiverListResponseSchema,
   createCaregiverResponseSchema,
+  resetAccountPasswordResponseSchema,
 } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
@@ -385,5 +386,307 @@ describe('begeleider-accounts — POST /admin/accounts', () => {
     const listA = await app.inject({ method: 'GET', url: '/admin/accounts', headers: { cookie } });
     const emailsA = accountListResponseSchema.parse(listA.json()).accounts.map((a) => a.email);
     expect(emailsA).toContain(newCaregiver.email);
+  });
+});
+
+/**
+ * Nieuw tijdelijk wachtwoord uitgeven (T2.7, DESIGN §2, §6.2 Account, §9.4).
+ *
+ * Sinds de harde gate van T2.6 zit een begeleider die zijn tijdelijke wachtwoord kwijt is volledig
+ * klem: inloggen lukt niet en zonder sessie is `POST /auth/password` onbereikbaar. Deze tests dekken
+ * de weg terug (`POST /admin/accounts/:id/password`): het oude wachtwoord en lopende sessies zijn
+ * daarna dood, het account staat weer op de tijdelijk-wachtwoord-gate, en de rol-/tenantgrenzen en
+ * het audit-spoor kloppen.
+ */
+describe('nieuw tijdelijk wachtwoord — POST /admin/accounts/:id/password', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await resetAuthData();
+    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '100' }) });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  /** Beheerder + een begeleider in dezelfde organisatie; de begeleider is het doelwit. */
+  async function seedOrgWithCaregiver(): Promise<{
+    cookie: string;
+    adminId: string;
+    organizationId: string;
+    caregiver: { accountId: string; email: string; password: string };
+  }> {
+    const admin = await seedAccount('admin@intento.local', 'pw-admin', 'ADMIN');
+    const caregiver = await seedAccount(
+      'care@intento.local',
+      'oud-tijdelijk-wachtwoord',
+      'CAREGIVER',
+      admin.organizationId,
+    );
+    return {
+      cookie: await loginCookie(app, admin.email, admin.password),
+      adminId: admin.accountId,
+      organizationId: admin.organizationId,
+      caregiver,
+    };
+  }
+
+  it('zet een nieuw tijdelijk wachtwoord: het oude werkt niet meer, het nieuwe wel', async () => {
+    const { cookie, caregiver } = await seedOrgWithCaregiver();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+      headers: { cookie },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = resetAccountPasswordResponseSchema.parse(res.json());
+    expect(body.account.id).toBe(caregiver.accountId);
+    expect(body.temporaryPassword.length).toBeGreaterThanOrEqual(12);
+    expect(body.temporaryPassword).not.toBe(caregiver.password);
+
+    // Alleen de hash staat in de db — het wachtwoord is daarna niet meer op te vragen.
+    const stored = await prisma.account.findUnique({ where: { id: caregiver.accountId } });
+    expect(stored?.passwordHash).not.toContain(body.temporaryPassword);
+    expect(stored?.passwordHash.startsWith('$argon2id$')).toBe(true);
+
+    const oud = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: caregiver.email, password: caregiver.password },
+    });
+    expect(oud.statusCode).toBe(401);
+
+    const nieuw = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: caregiver.email, password: body.temporaryPassword },
+    });
+    expect(nieuw.statusCode).toBe(200);
+  });
+
+  it('markeert het account weer als tijdelijk wachtwoord en zet het op het blokkerende scherm', async () => {
+    const { cookie, caregiver } = await seedOrgWithCaregiver();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+      headers: { cookie },
+    });
+    const body = resetAccountPasswordResponseSchema.parse(res.json());
+    expect(body.account.mustChangePassword).toBe(true);
+
+    // De markering staat ook in de accountlijst van de beheerder (T2.6-weergave).
+    const list = await app.inject({ method: 'GET', url: '/admin/accounts', headers: { cookie } });
+    const listed = accountListResponseSchema
+      .parse(list.json())
+      .accounts.find((a) => a.id === caregiver.accountId);
+    expect(listed?.mustChangePassword).toBe(true);
+
+    // …en de T2.6-gate staat weer aan: alleen /auth/me en /auth/password mogen.
+    const cookieCare = await loginCookie(app, caregiver.email, body.temporaryPassword);
+    const me = await app.inject({
+      method: 'GET',
+      url: '/auth/me',
+      headers: { cookie: cookieCare },
+    });
+    expect(me.statusCode).toBe(200);
+    expect(authResponseSchema.parse(me.json()).account.mustChangePassword).toBe(true);
+
+    // Een route die een CAREGIVER normaal wél mag (vraagmodus, T7.1), zodat de weigering
+    // aantoonbaar van de gate komt en niet van de rolcontrole.
+    const geblokkeerd = await app.inject({
+      method: 'GET',
+      url: '/question/users',
+      headers: { cookie: cookieCare },
+    });
+    expect(geblokkeerd.statusCode).toBe(403);
+    expect(geblokkeerd.json()).toMatchObject({ error: { code: 'PASSWORD_CHANGE_REQUIRED' } });
+
+    // Zelf een wachtwoord kiezen mag wél — en heft de markering weer op.
+    const change = await app.inject({
+      method: 'POST',
+      url: '/auth/password',
+      headers: { cookie: cookieCare },
+      payload: {
+        currentPassword: body.temporaryPassword,
+        newPassword: 'zelfgekozen-wachtwoord-2026',
+      },
+    });
+    expect(change.statusCode).toBe(200);
+    const na = await prisma.account.findUnique({ where: { id: caregiver.accountId } });
+    expect(na?.mustChangePassword).toBe(false);
+  });
+
+  it('trekt alle lopende sessies van het doelaccount in', async () => {
+    const { cookie, caregiver } = await seedOrgWithCaregiver();
+    // De begeleider staat op twee apparaten ingelogd met het oude wachtwoord.
+    const cookieA = await loginCookie(app, caregiver.email, caregiver.password);
+    const cookieB = await loginCookie(app, caregiver.email, caregiver.password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+      headers: { cookie },
+    });
+    expect(resetAccountPasswordResponseSchema.parse(res.json()).revokedSessions).toBe(2);
+
+    for (const dood of [cookieA, cookieB]) {
+      const me = await app.inject({ method: 'GET', url: '/auth/me', headers: { cookie: dood } });
+      expect(me.statusCode).toBe(401);
+    }
+    expect(await prisma.session.count({ where: { accountId: caregiver.accountId } })).toBe(0);
+
+    // De sessie van de beheerder zelf blijft gewoon geldig.
+    const adminMe = await app.inject({ method: 'GET', url: '/auth/me', headers: { cookie } });
+    expect(adminMe.statusCode).toBe(200);
+  });
+
+  it('haalt een door de lockout buitengesloten account weer vlot', async () => {
+    const { cookie, caregiver } = await seedOrgWithCaregiver();
+    await prisma.account.update({
+      where: { id: caregiver.accountId },
+      data: { failedLoginAttempts: 5, lockedUntil: new Date(Date.now() + 60 * 60 * 1000) },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+      headers: { cookie },
+    });
+    const { temporaryPassword } = resetAccountPasswordResponseSchema.parse(res.json());
+
+    const stored = await prisma.account.findUnique({ where: { id: caregiver.accountId } });
+    expect(stored?.failedLoginAttempts).toBe(0);
+    expect(stored?.lockedUntil).toBeNull();
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email: caregiver.email, password: temporaryPassword },
+    });
+    expect(login.statusCode).toBe(200);
+  });
+
+  it('weigert het eigen account (dat loopt via POST /auth/password)', async () => {
+    const { cookie, adminId } = await seedOrgWithCaregiver();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${adminId}/password`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'CANNOT_RESET_OWN_PASSWORD' } });
+
+    // De beheerder kan gewoon door: zijn wachtwoord en sessie zijn ongemoeid.
+    const me = await app.inject({ method: 'GET', url: '/auth/me', headers: { cookie } });
+    expect(me.statusCode).toBe(200);
+  });
+
+  it('weigert een account uit een andere organisatie met 403 (tenant-isolatie)', async () => {
+    const { cookie } = await seedOrgWithCaregiver();
+    const andere = await seedAccount('care.b@intento.local', 'pw-b', 'CAREGIVER');
+    const hashVoor = (await prisma.account.findUnique({ where: { id: andere.accountId } }))
+      ?.passwordHash;
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${andere.accountId}/password`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
+
+    // Het account van de andere organisatie is onaangeroerd gebleven.
+    const na = await prisma.account.findUnique({ where: { id: andere.accountId } });
+    expect(na?.passwordHash).toBe(hashVoor);
+    expect(na?.mustChangePassword).toBe(false);
+
+    // …en een niet-bestaand id geeft exact dezelfde fout (geen enumeratie).
+    const onbekend = await app.inject({
+      method: 'POST',
+      url: '/admin/accounts/bestaat-niet/password',
+      headers: { cookie },
+    });
+    expect(onbekend.statusCode).toBe(403);
+    expect(onbekend.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
+  });
+
+  it('weigert zonder sessie met 401 en een CAREGIVER met 403', async () => {
+    const { caregiver, organizationId } = await seedOrgWithCaregiver();
+    const collega = await seedAccount(
+      'care2@intento.local',
+      'pw-care2',
+      'CAREGIVER',
+      organizationId,
+    );
+
+    const anoniem = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+    });
+    expect(anoniem.statusCode).toBe(401);
+    expect(anoniem.json()).toMatchObject({ error: { code: 'NOT_AUTHENTICATED' } });
+
+    const cookieCare = await loginCookie(app, collega.email, collega.password);
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+      headers: { cookie: cookieCare },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
+
+    // Geen van beide pogingen heeft het doelaccount aangeraakt.
+    const doel = await prisma.account.findUnique({ where: { id: caregiver.accountId } });
+    expect(doel?.mustChangePassword).toBe(false);
+  });
+
+  it('eist een geverifieerd e-mailadres van de ADMIN (T1.4-gate)', async () => {
+    const admin = await seedAccount('nieuw@intento.local', 'pw-nieuw', 'ADMIN', undefined, {
+      emailVerified: false,
+    });
+    const doel = await seedAccount(
+      'care.c@intento.local',
+      'pw-c',
+      'CAREGIVER',
+      admin.organizationId,
+    );
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${doel.accountId}/password`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'EMAIL_NOT_VERIFIED' } });
+  });
+
+  it('legt de uitgifte vast in het audit-log (zonder wachtwoord)', async () => {
+    const { cookie, caregiver, organizationId } = await seedOrgWithCaregiver();
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/accounts/${caregiver.accountId}/password`,
+      headers: { cookie },
+    });
+    const { temporaryPassword } = resetAccountPasswordResponseSchema.parse(res.json());
+
+    const entry = await prisma.auditLog.findFirst({ where: { action: 'account.password_reset' } });
+    expect(entry).toMatchObject({
+      organizationId,
+      targetType: 'account',
+      targetId: caregiver.accountId,
+      outcome: 'success',
+    });
+    expect(entry?.metadataJson ?? '').not.toContain(temporaryPassword);
   });
 });

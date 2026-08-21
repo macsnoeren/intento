@@ -6,6 +6,27 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.7 Nieuw tijdelijk wachtwoord uitgeven voor een vastgelopen account.** Meerwerk uit T2.6: door
+  de harde gate kon een begeleider die zijn tijdelijke wachtwoord kwijtraakte (of op de lockout
+  strandde) helemaal niets meer — inloggen lukte niet en zonder sessie is `POST /auth/password`
+  onbereikbaar; er was geen enkele weg terug. Nieuw endpoint
+  **`POST /admin/accounts/{id}/password`** (ADMIN + geverifieerd, rate-limited via
+  `PASSWORD_RESET_RATE_LIMIT_MAX`): de **server** genereert een nieuw tijdelijk wachtwoord (256 bit,
+  één keer getoond, argon2id at-rest), zet `mustChangePassword` weer op `true`, veegt de
+  lockout-boekhouding schoon en trekt **alle** sessies van dat account in. De beheerder kiest dus nog
+  steeds nooit het wachtwoord van een ander (T2.5 blijft de enige plek waar een wachtwoord blijvend
+  wordt gezet, mét her-authenticatie). Nooit op het eigen account
+  (`403 CANNOT_RESET_OWN_PASSWORD`) en nooit cross-tenant: `assertSameTenant` geeft dezelfde
+  `403 FORBIDDEN` voor "andere organisatie" en "bestaat niet". Geaudit als `account.password_reset`
+  (rol + aantal ingetrokken sessies, nooit het wachtwoord). **Gekozen boven een publieke "wachtwoord
+  vergeten"-flow per e-mail**: Intento moet zonder mailserver bruikbaar blijven en een tweede,
+  publiek bereikbare weg naar een account vergroot het aanvalsoppervlak (blijft mogelijk als latere
+  aanvulling, met de tokeneigenschappen van T1.4). UI: knop per login in het paneel "Logins" met een
+  bevestigingsstap en het wachtwoord één keer in beeld; het eigen account krijgt geen knop. Geen
+  migratie nodig (`mustChangePassword` bestaat sinds T2.6). Tests: `routes/accounts.test.ts` (oud
+  wachtwoord en sessies dood, markering + gate terug, lockout opgeheven, eigen account 403, andere
+  organisatie 403 en onaangeroerd, CAREGIVER 403 / anoniem 401, audit zonder wachtwoord) en
+  `web/src/AccountsPanel.test.tsx`.
 - **T2.6 "Tijdelijk wachtwoord"-markering op accounts.** Meerwerk uit T2.5: een begeleider die het
   tijdelijke wachtwoord uit T2.4 nooit verving, bleef draaien op een wachtwoord dat zijn beheerder
   kent — een login die feitelijk van twee mensen is, zonder dat iemand dat kon zien. `Account` heeft

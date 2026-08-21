@@ -79,6 +79,7 @@ function fakeApi(): Api {
     deleteUser: () => Promise.resolve(),
     createCaregiverAccount: notImplemented,
     listAccounts: notImplemented,
+    resetAccountPassword: notImplemented,
     listCaregivers: notImplemented,
     linkCaregiver: notImplemented,
     generateDeviceCode: notImplemented,

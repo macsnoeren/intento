@@ -15,6 +15,8 @@ export const AUDIT_ACTIONS = {
   AUTH_PASSWORD_CHANGE: 'auth.password_change',
   // Accountbeheer binnen de organisatie (T2.4)
   ACCOUNT_CREATE: 'account.create',
+  // Nieuw tijdelijk wachtwoord uitgegeven door een beheerder (T2.7) — nooit het wachtwoord zelf
+  ACCOUNT_PASSWORD_RESET: 'account.password_reset',
   // Gebruikersbeheer + instellingen (T2.1)
   USER_CREATE: 'user.create',
   USER_DELETE: 'user.delete',

@@ -57,11 +57,12 @@ Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of locko
 
 **Tijdelijk-wachtwoord-gate (T2.6).** Een account dat nog op het **server-gegenereerde** wachtwoord uit T2.4 draait (`mustChangePassword` true) mag **alléén** `GET /auth/me` en `POST /auth/password` (plus `POST /auth/logout`, die geen `authorize` gebruikt). Elke andere route geeft `403 PASSWORD_CHANGE_REQUIRED`. Bewust **harder** dan de verificatie-gate hierboven: een onbevestigd adres is een onbewezen adres, maar een tijdelijk wachtwoord is een levend wachtwoord dat ook de beheerder kent. De gate zit daarom in `authorize(...)` zelf (default-deny, opt-out per route via `allowPendingPasswordChange`) in plaats van als opt-in guard per gevoelige route — zo staat een nieuwe route er automatisch achter. Een geslaagde `POST /auth/password` wist de markering en heft de gate op, zonder opnieuw inloggen.
 
-### Accounts (T1.2, T2.4, T2.6)
+### Accounts (T1.2, T2.4, T2.6, T2.7)
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
 | GET | `/admin/accounts` | ADMIN | Lijst van logins **binnen de eigen organisatie** (`accountListResponseSchema`). Rol-beperkt (`403 FORBIDDEN` voor CAREGIVER/USER) en tenant-gefilterd op `organizationId`. Representatief voorbeeld van de autorisatie-/isolatielaag. Per account zijn `emailVerified` (T1.4) en `mustChangePassword` (T2.6) zichtbaar, zodat de beheerder ziet wie nog op een tijdelijk wachtwoord zit. |
 | POST | `/admin/accounts` | ADMIN + geverifieerd | Maakt een **begeleider-account** in de eigen organisatie (T2.4, `createCaregiverRequestSchema`: `{ name, email }`). `201` + `createCaregiverResponseSchema` (`{ account, temporaryPassword }`). Zie hieronder. |
+| POST | `/admin/accounts/{id}/password` | ADMIN + geverifieerd | Geeft een **nieuw tijdelijk wachtwoord** uit voor een account in de eigen organisatie (T2.7). Geen body. `200` + `resetAccountPasswordResponseSchema` (`{ account, temporaryPassword, revokedSessions }`). Eigen account → `403 CANNOT_RESET_OWN_PASSWORD`; account uit een andere organisatie of onbekend id → `403 FORBIDDEN` (dezelfde fout voor beide, geen enumeratie). Rate-limited per IP (`PASSWORD_RESET_RATE_LIMIT_MAX`) → `429`. Zie hieronder. |
 
 **Begeleider-accounts (T2.4).** `POST /admin/accounts` is de plek waar CAREGIVER-logins ontstaan; zonder dit endpoint bleef de koppelweergave van T2.2 leeg. Eigenschappen:
 
@@ -71,6 +72,16 @@ Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of locko
 - Het account start met `mustChangePassword` (T2.6) en kan dus niets anders dan zijn eigen wachtwoord wisselen tot dat gebeurd is — zie de tijdelijk-wachtwoord-gate hierboven.
 - Bestaat het e-mailadres al (ook in een **andere** organisatie), dan `409 ACCOUNT_CREATE_FAILED` met een **neutrale** melding — geen account-enumeratie.
 - Vereist een **geverifieerd** e-mailadres van de ADMIN (`403 EMAIL_NOT_VERIFIED`), net als `POST /users`. Aanmaken wordt geaudit als `account.create` (rol als context, nooit het wachtwoord).
+
+**Nieuw tijdelijk wachtwoord uitgeven (T2.7).** `POST /admin/accounts/{id}/password` is de **weg terug** voor een vastgelopen account: sinds de harde gate van T2.6 kan iemand die zijn tijdelijke wachtwoord kwijt is (of die op de lockout is gestrand) niets meer — inloggen lukt niet en zonder sessie is `POST /auth/password` onbereikbaar. Eigenschappen:
+
+- **De server genereert het wachtwoord**, net als bij aanmaken; de beheerder kiest dus nooit het wachtwoord van een ander (dat blijft de kern van T2.5). Het komt **één keer** terug in het antwoord; at-rest staat alleen de argon2id-hash.
+- Het account is daarna **opnieuw gemarkeerd** (`mustChangePassword`) en komt dus meteen op de tijdelijk-wachtwoord-gate terecht: de houder kiest bij de eerstvolgende login zelf een wachtwoord.
+- **Alle** sessies van het doelaccount worden ingetrokken (`revokedSessions`) — anders dan bij T2.5, waar de eigen sessie juist blijft. Elke lopende sessie hoort bij het oude wachtwoord, dus die moeten allemaal dood.
+- De **lockout-boekhouding** wordt schoongeveegd (`failedLoginAttempts`, `lockedUntil`), anders loopt het account na de uitgifte nog steeds tegen zijn blokkade aan.
+- **Nooit het eigen account** (`403 CANNOT_RESET_OWN_PASSWORD`): dat loopt via `POST /auth/password`, mét her-authenticatie. **Nooit cross-tenant**: `assertSameTenant` geeft dezelfde `403 FORBIDDEN` voor "andere organisatie" en "bestaat niet".
+- Geaudit als `account.password_reset` (rol + aantal ingetrokken sessies als context, nooit het wachtwoord).
+- **Gekozen boven een publieke "wachtwoord vergeten"-flow per e-mail**: Intento moet zonder mailserver bruikbaar blijven, en een tweede, publiek bereikbare weg naar een account vergroot het aanvalsoppervlak. Een e-mailflow blijft mogelijk als latere aanvulling (zelfde tokeneigenschappen als T1.4). Zie `docs/security.md`.
 
 ### Gebruikers (T2.1)
 Gebruikers (`User`) zijn de communicerende personen, met een 1-op-1 communicatieprofiel

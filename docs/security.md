@@ -110,14 +110,51 @@
       route die de guard vergeet, staat open. Met default-deny staat elke nieuwe route er automatisch
       achter (fail-safe), en de twee uitzonderingen staan expliciet in `routes/auth.ts`.
       **Zichtbaar voor de beheerder:** `GET /admin/accounts` geeft `mustChangePassword` mee en de
-      beheer-UI toont die accounts met de markering "tijdelijk wachtwoord". Bewust géén reset-knop
-      ernaast: een beheerder zet nooit het wachtwoord van een ander (dat is de kern van T2.5) — hij ziet
-      hier wie hij eraan moet herinneren.
+      beheer-UI toont die accounts met de markering "tijdelijk wachtwoord", zodat zichtbaar is wie hij
+      eraan moet herinneren. De beheerder zet daar nooit zélf een wachtwoord (dat is de kern van T2.5);
+      wat hij sinds T2.7 wél kan, is een **nieuw server-gegenereerd** tijdelijk wachtwoord laten
+      uitgeven (hieronder).
       **Migratie:** bestaande accounts krijgen `false`. Van een account van vóór deze migratie is niet meer
       vast te stellen of het tijdelijke wachtwoord al vervangen is; achteraf iedereen markeren zou werkende
       begeleiders buitensluiten op basis van een aanname. Getest in `auth/temporary-password.test.ts`
       (markering bij aanmaken, zichtbaar in de accountlijst, 403 op andere routes, wijzigen zelf altijd
       toegestaan, markering én gate weg na de wissel, zelf gekozen wachtwoorden nooit gemarkeerd).
+- [x] **Nieuw tijdelijk wachtwoord uitgeven (T2.7)** — `POST /admin/accounts/{id}/password`
+      (`auth/reset-password.ts`, ADMIN-only + geverifieerd) is de **weg terug** voor een vastgelopen
+      account. De harde gate van T2.6 maakte een dood spoor zichtbaar: wie zijn tijdelijke wachtwoord
+      kwijt is (of op de lockout strandt) kan niet inloggen, en zonder sessie is `POST /auth/password`
+      onbereikbaar. Eigenschappen:
+      **(1) server-gegenereerd wachtwoord** — dezelfde 256 bit als bij T2.4, één keer in het antwoord,
+      at-rest alleen de argon2id-hash; de beheerder kiest dus nog steeds nooit het wachtwoord van een
+      ander, hij geeft een sleutel af die de houder zelf moet vervangen;
+      **(2) opnieuw gemarkeerd** — `mustChangePassword` gaat weer op `true`, dus de houder komt meteen op
+      de gate van T2.6 en kiest bij de eerstvolgende login zelf een wachtwoord;
+      **(3) álle sessies ingetrokken** — anders dan bij T2.5 (waar de eigen sessie juist blijft) blijft
+      hier niets over: elke lopende sessie hoort bij het oude wachtwoord, dus een gekaapte sessie mag de
+      uitgifte niet overleven;
+      **(4) lockout schoongeveegd** — `failedLoginAttempts`/`lockedUntil` terug op nul, anders lost de
+      uitgifte precies het probleem niet op waarvoor ze bedoeld is;
+      **(5) nooit het eigen account** (`403 CANNOT_RESET_OWN_PASSWORD`) — dat loopt via `POST /auth/password`
+      mét her-authenticatie; hier zou een beheerder zichzelf zonder huidig wachtwoord een nieuw wachtwoord
+      kunnen geven;
+      **(6) nooit cross-tenant** — `assertSameTenant` geeft dezelfde `403 FORBIDDEN` voor "andere
+      organisatie" en "bestaat niet" (IDOR-mitigatie, geen enumeratie);
+      **(7) rate limiting** — `PASSWORD_RESET_RATE_LIMIT_MAX` (standaard 10 per 15 min).
+      Geaudit als `account.password_reset` met alleen de rol en het aantal ingetrokken sessies als
+      context — nooit het wachtwoord.
+      **Gekozen boven een publieke "wachtwoord vergeten"-flow per e-mail.** Zelfde afweging als bij T2.4:
+      Intento moet **zonder mailserver** bruikbaar blijven, en een begeleider-account ontstaat sowieso in
+      een gesprek tussen beheerder en begeleider — het veiligste kanaal is dat van het aanmaken zelf. Een
+      e-mailflow zou boven op SMTP ook een tweede, publiek bereikbare weg naar een account openen. Blijft
+      mogelijk als latere aanvulling, met dezelfde tokeneigenschappen als T1.4 (gehasht, eenmalig,
+      verlopend, neutrale respons).
+      **Binnen de organisatie mag dit voor elk account**, ook voor een andere ADMIN: beheerders zijn
+      elkaars gelijken binnen een tenant en een organisatie met één beheerder zou anders bij verlies van
+      dat wachtwoord onherstelbaar vastlopen. De prijs (een ADMIN kan de sessies van een collega-ADMIN
+      afkappen) is zichtbaar in het audit-log en blijft binnen de tenant.
+      Getest in `routes/accounts.test.ts` (oud wachtwoord dood, sessies dood, markering en gate terug,
+      lockout opgeheven, eigen account 403, andere organisatie 403 en onaangeroerd, onbekend id dezelfde
+      403, CAREGIVER 403 / anoniem 401, T1.4-gate, audit zonder wachtwoord).
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op
@@ -230,7 +267,7 @@
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [x] **Audit-logging (T8.2, DESIGN §9.4)** — een herbruikbare `recordAudit(...)` (`server/src/audit/`)
       schrijft een **append-only** spoor over gevoelige acties: login (geslaagd én mislukt, brute-force-
-      detectie), logout, registratie, e-mailverificatie, wachtwoordwijziging (T2.5), begeleider-accounts aanmaken (T2.4),
+      detectie), logout, registratie, e-mailverificatie, wachtwoordwijziging (T2.5), begeleider-accounts aanmaken (T2.4), een nieuw tijdelijk wachtwoord uitgeven (T2.7),
       gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-
       tokens en conceptvoorstellen. **Best-effort en nooit blokkerend**: een hapering in de audit-tabel laat
       de hoofdactie niet mislukken (fout gelogd, niet doorgegooid). **Geen communicatie-inhoud of vrije-tekst-

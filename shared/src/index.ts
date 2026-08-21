@@ -257,6 +257,28 @@ export const createCaregiverResponseSchema = z.object({
 });
 export type CreateCaregiverResponse = z.infer<typeof createCaregiverResponseSchema>;
 
+/**
+ * Antwoord van `POST /admin/accounts/{id}/password` (T2.7, DESIGN §2, §6.2 Account, §9.4): een
+ * beheerder geeft een **nieuw** server-gegenereerd tijdelijk wachtwoord uit voor een account in de
+ * eigen organisatie dat is vastgelopen — het tijdelijke wachtwoord uit T2.4 kwijt, of buitengesloten
+ * door de lockout. Zonder deze actie is er geen weg terug: inloggen lukt niet en zonder sessie is
+ * `POST /auth/password` (T2.5) onbereikbaar.
+ *
+ * Zelfde eigenschappen als bij aanmaken (T2.4): het wachtwoord is server-gegenereerd, wordt hier
+ * **één keer** teruggegeven en staat daarna alleen nog als argon2id-hash in de db. Het account is
+ * daarna opnieuw als `mustChangePassword` gemarkeerd, dus de houder komt bij de eerstvolgende login
+ * meteen op het blokkerende wachtwoordscherm. `revokedSessions` telt de sessies van dat account die
+ * hierbij zijn ingetrokken — álle sessies, ook op andere apparaten: wie met het oude wachtwoord
+ * binnenkwam, ligt eruit. (De beheerder wijzigt hier dus nooit zíjn eigen wachtwoord; dat loopt via
+ * `POST /auth/password`.)
+ */
+export const resetAccountPasswordResponseSchema = z.object({
+  account: accountPublicSchema,
+  temporaryPassword: z.string(),
+  revokedSessions: z.number().int().nonnegative(),
+});
+export type ResetAccountPasswordResponse = z.infer<typeof resetAccountPasswordResponseSchema>;
+
 // --- Gebruikers en communicatieprofiel (T2.1, DESIGN §2, §5.3, §6.2) ---
 
 /**

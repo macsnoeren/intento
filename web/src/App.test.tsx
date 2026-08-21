@@ -14,6 +14,7 @@ import type {
   DeviceCodeResponse,
   PersonalContextPublic,
   ResendVerificationResponse,
+  ResetAccountPasswordResponse,
   UpdateSettingsRequest,
   UserListResponse,
   UserPublic,
@@ -180,6 +181,24 @@ function fakeApi(
             mustChangePassword: true,
           })),
         ],
+      });
+    },
+    resetAccountPassword(accountId: string): Promise<ResetAccountPasswordResponse> {
+      // Server-gedrag nagebootst (T2.7): nieuw server-gegenereerd wachtwoord, account weer
+      // gemarkeerd, alle sessies van dat account ingetrokken.
+      const caregiver = caregiverSeed.find((c) => c.accountId === accountId);
+      return Promise.resolve({
+        account: {
+          id: accountId,
+          email: caregiver?.email ?? 'onbekend@intento.local',
+          role: 'CAREGIVER' as const,
+          organizationId: adminAccount.organizationId,
+          name: null,
+          emailVerified: false,
+          mustChangePassword: true,
+        },
+        temporaryPassword: 'nieuw-tijdelijk-wachtwoord-456',
+        revokedSessions: 1,
       });
     },
     listCaregivers(userId: string): Promise<CaregiverListResponse> {
@@ -608,7 +627,9 @@ describe('beheeromgeving-app', () => {
     expect(within(list).getByText('Actief')).toBeTruthy();
 
     // Intrekken → status wordt Ingetrokken en de intrek-knop verdwijnt.
-    fireEvent.click(within(list).getByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }));
+    fireEvent.click(
+      within(list).getByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }),
+    );
     await waitFor(() => expect(within(list).getByText('Ingetrokken')).toBeTruthy());
     expect(
       within(list).queryByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }),

@@ -29,6 +29,7 @@ import {
   preferencePublicSchema,
   questionStartResponseSchema,
   resendVerificationResponseSchema,
+  resetAccountPasswordResponseSchema,
   userListResponseSchema,
   userPublicSchema,
   verifyEmailResponseSchema,
@@ -73,6 +74,7 @@ import {
   type QuestionStartResponse,
   type RegisterRequest,
   type ResendVerificationResponse,
+  type ResetAccountPasswordResponse,
   type UpdateSettingsRequest,
   type UserListResponse,
   type UserPublic,
@@ -144,6 +146,12 @@ export interface Api {
    * tijdelijke wachtwoord uit T2.4 draait.
    */
   listAccounts(): Promise<AccountListResponse>;
+  /**
+   * Geeft een **nieuw** tijdelijk wachtwoord uit voor een account in de eigen organisatie (T2.7).
+   * ADMIN-only, nooit voor het eigen account (dat loopt via `changePassword`). Het wachtwoord komt
+   * hier één keer terug; alle sessies van dat account zijn daarna ingetrokken.
+   */
+  resetAccountPassword(accountId: string): Promise<ResetAccountPasswordResponse>;
   listCaregivers(userId: string): Promise<CaregiverListResponse>;
   linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
   generateDeviceCode(userId: string): Promise<DeviceCodeResponse>;
@@ -339,6 +347,11 @@ export const httpApi: Api & DeviceApi = {
   },
   async listAccounts() {
     return accountListResponseSchema.parse(await request('/admin/accounts'));
+  },
+  async resetAccountPassword(accountId) {
+    return resetAccountPasswordResponseSchema.parse(
+      await request(`/admin/accounts/${accountId}/password`, { method: 'POST' }),
+    );
   },
   async listCaregivers(userId) {
     return caregiverListResponseSchema.parse(await request(`/admin/users/${userId}/caregivers`));

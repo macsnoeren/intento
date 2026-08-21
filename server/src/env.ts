@@ -61,6 +61,17 @@ const envSchema = z
       .positive()
       .max(60)
       .default(15),
+    // Rate limiting op het opnieuw uitgeven van een tijdelijk wachtwoord door een beheerder
+    // (T2.7). ADMIN-only en tenant-gebonden, dus geen raadaanval — maar elke aanroep trekt alle
+    // sessies van een collega in en zet een wachtwoord dat die collega niet kent. Een ruimer
+    // venster dan bij login volstaat; het is een zeldzame, bewuste beheeractie.
+    PASSWORD_RESET_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
+    PASSWORD_RESET_RATE_LIMIT_WINDOW_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(60)
+      .default(15),
     // Strenge rate limiting op de zelfaanmelding (T1.3, publiek): tegen massaal aanmaken van
     // organisaties/accounts en account-enumeratie. Streng, want registreren is zeldzaam.
     REGISTER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(5),
