@@ -6,6 +6,28 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T9.11 De AAC-bibliotheek loopt niet meer dood.** "Een vraag stellen" en "Iets zeggen" hadden geen
+  enkele verfijning, dus wie ze koos kreeg meteen een voorstel ("Ik wil een vraag stellen.") in plaats
+  van een AI die uitzoekt waaróver de vraag gaat; "Er is iets aan de hand" kende alleen "Pijn" en pijn
+  maar drie lichaamsdelen. Toegevoegd: vraagwoorden (wat/wie/waar/wanneer/mag ik) met vervolgtakken,
+  sociale uitingen (ja, nee, dank je, hallo, dag, stop, nog een keer), meer problemen (jeuk, bang, ziek,
+  koud, warm, hulp, kapot) en een echte set lichaamsdelen (hand, vinger, **nagel**, tand, oor, rug, arm,
+  voet, oog, keel) — plus meer te eten, drinken en doen. Twee nieuwe categorieën (`question`,
+  `expression`) omdat vraagwoorden en uitingen geen intentie, gevoel of voorwerp zijn. Een test dwingt af
+  dat **elke** intentie minstens één verfijning heeft, zodat een nieuwe intentie nooit stilletjes
+  doodloopt. Seeden blijft idempotent (en gebeurt nu in twee transacties i.p.v. ~160 losse writes, wat de
+  testsuite ook merkbaar sneller maakte).
+- **T9.12 "🤷 Staat er niet bij".** Stond het juiste pictogram niet tussen de opties, dan kon de gebruiker
+  alleen een keuze maken die hij niet bedoelde. `POST /conversation/{id}/correction` kent nu naast
+  `wrong_guess` het type `no_fitting_option`: de concepten van dít punt worden uitgesloten en het gesprek
+  gaat een niveau hoger verder, **zonder** een gemaakte keuze terug te rollen. De tablet heeft er een knop
+  voor naast "↩ Terug" — bewust een bedieningsknop en geen extra pictogram in het keuzeraster, want dat
+  raster bevat alleen concepten die samen de boodschap vormen.
+- **T9.15 AI-activiteit zichtbaar.** Nieuw `GET /admin/ai/jobs` (platformbeheer) plus een beheertab
+  **AI-activiteit**: per AI-aanvraag de taak, status, doorlooptijd, de worker, en van het resultaat de
+  vraag, de aangedragen concepten met zekerheid en de motivering van de AI. De **prompt** verlaat de
+  server nooit (daar zit persoonlijke context in). Daarnaast logt de backend per beslissing één regel met
+  aantal kandidaten, aantal AI-opties, wat er wordt aangeboden en waarom.
 - **T9.1 Een beheerder mag ook begeleider zijn.** De beheeromgeving heeft een tab **"Begeleiden"** die
   dezelfde vraagmodus-pagina toont als een begeleider ziet (vraag stellen + meekijken). De server liet
   ADMIN op `/question/*` altijd al toe; alleen de weergave ontbrak, zodat een beheerder een tweede
@@ -28,6 +50,33 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   geen header, zoals bij een lokale Ollama. Het token staat alleen in de env — nooit in code of logs.
 
 ### Gerepareerd
+- **T9.13 "Opnieuw beginnen" gaf "Dit gesprek is al afgerond".** Na het bevestigen van een boodschap gaf
+  de knop een 409-fout. Oorzaak: `run()` wiste eerst het bevestigd-scherm en wachtte daarna pas op het
+  nieuwe gesprek; in dat tussenmoment stond de oude toestand (`done: true`) er nog, mountte het
+  voorstelscherm opnieuw op de zojuist **bevestigde** sessie en riep het `/generate` aan. De fout bleef
+  bovendien staan omdat het voorstelscherm zijn foutmelding niet wiste. Nu wordt de oude toestand eerst
+  gewist (laadscherm) en start het nieuwe gesprek schoon.
+- **T9.10 De AI snoeide de keuze weg.** Met een echte AI gaf het startscherm één optie ("Iets willen")
+  in plaats van de intentiecategorieën, en bij "waar heb je pijn?" drie lichaamsdelen waar het juiste niet
+  bij zat — de rest van de bibliotheek was onbereikbaar. De AI **ordent** nu binnen de kandidaten (haar
+  keuzes staan vooraan), maar alle overige kandidaten van datzelfde punt volgen erachter en blijven via
+  "Meer keuzes" (T9.6) bereikbaar.
+- **T9.14 Na ❌ Nee kon het gesprek doodlopen op een voorstel uit het niets.** In vraagmodus hield een
+  correctie alleen het begeleiders-anker over, waarna de app een "boodschap" voorstelde die de gebruiker
+  nooit had gekozen. Voorstellen mag nu alleen na een echte keuze van de **gebruiker** (het anker van de
+  begeleider telt niet mee, en een correctie rolt dat anker ook niet meer terug), en houdt een punt geen
+  kandidaten meer over, dan zoekt de beslissingslaag een niveau hoger verder. Een echt eindconcept levert
+  onveranderd een voorstel op.
+- **T9.16 De AI stelde haar vraag in het Engels.** Bij het naspelen van de test met een echte
+  Ollama-worker verscheen "Is the pain related to being sick?" op de tablet: de promptregels schreven de
+  AAC-begrenzing en de ik-vorm van de bóódschap voor, maar niets over de taal van de **vraag**. Het doel
+  in de prompt vraagt nu expliciet om een korte, eenvoudige **Nederlandse** vraag, rechtstreeks gericht
+  tot de gebruiker.
+- **T9.17 De AI-worker stierf bij elke herstart van de backend.** Valt de verbinding tijdens de long-poll
+  weg, dan komt dat als `http.client.RemoteDisconnected` binnen — een `OSError`, geen `URLError`, dus de
+  claim-lus ving hem niet en het worker-proces viel stil om (met daarna eindeloos `AI_WORKER_UNAVAILABLE`
+  voor de gebruiker). `TimeoutError` en `OSError` worden nu vertaald naar `BackendError`, zodat de lus het
+  gewoon opnieuw probeert.
 - **T9.5 Bevestigen faalde op de tablet bij een ingelogde beheerder in dezelfde browser.** `✅ Ja` gaf
   "Alleen de gebruiker kan zelf een boodschap bevestigen…" (`403 CONFIRM_REQUIRES_USER`) zodra er in
   dezelfde browser een beheer- of begeleiderssessie liep. Oorzaak: cookies zijn per **origin**, niet per

@@ -399,6 +399,9 @@ function fakeApi(
     listAacTopics() {
       return Promise.resolve({ topics: [] });
     },
+    listAiJobs() {
+      return Promise.resolve({ jobs: [] });
+    },
     getAiStatus() {
       return Promise.resolve({
         mode: 'mock' as const,

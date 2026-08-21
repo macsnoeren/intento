@@ -180,6 +180,56 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
     expect(res.json().error.code).toBe('NO_STEPS_TO_CORRECT');
   });
 
+  it('geeft bij "Geen van deze past" andere opties zonder een keuze terug te rollen (T9.12)', async () => {
+    const { cookie, sessionId } = await startFor(new AiOrchestrator(tunedProvider('none')));
+
+    await next(cookie, sessionId, 'problem');
+    const before = await next(cookie, sessionId, 'pain');
+    const shownBefore = (before.question?.options ?? []).map((o) => o.concept);
+    expect(shownBefore.length).toBeGreaterThan(0);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/correction`,
+      headers: { cookie },
+      payload: { type: 'no_fitting_option' },
+    });
+    expect(res.statusCode).toBe(200);
+    const state = conversationStateResponseSchema.parse(res.json());
+
+    // De gemaakte keuzes blijven staan — dit is geen "terug", maar "hier staat het niet tussen".
+    expect(state.history.map((step) => step.symbol.concept)).toEqual(['problem', 'pain']);
+    // Er is weer iets te kiezen, en geen enkele eerder getoonde optie zit er nog bij.
+    expect(state.question).not.toBeNull();
+    const shownAfter = (state.question?.options ?? []).map((o) => o.concept);
+    expect(shownAfter.length).toBeGreaterThan(0);
+    for (const concept of shownBefore) {
+      expect(shownAfter).not.toContain(concept);
+    }
+
+    // Elke overgeslagen optie is als signaal vastgelegd (geen leerdata; §3.4 punt 4).
+    const events = await prisma.correctionEvent.findMany({ where: { sessionId } });
+    expect(events.map((event) => event.type)).toEqual(shownBefore.map(() => 'no_fitting_option'));
+    expect(events.map((event) => event.rejectedConcept).sort()).toEqual([...shownBefore].sort());
+  });
+
+  it('laat "Geen van deze past" nooit een leeg startscherm achter (T9.12)', async () => {
+    const { cookie, sessionId } = await startFor(new AiOrchestrator(tunedProvider('none')));
+
+    // Op het startscherm alles overslaan: de intentiecategorieën komen gewoon terug (een leeg scherm
+    // is nooit een geldige uitkomst) in plaats van een boodschap uit het niets.
+    const res = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/correction`,
+      headers: { cookie },
+      payload: { type: 'no_fitting_option' },
+    });
+    expect(res.statusCode).toBe(200);
+    const state = conversationStateResponseSchema.parse(res.json());
+    expect(state.done).toBe(false);
+    expect((state.question?.options ?? []).length).toBeGreaterThan(0);
+  });
+
   it('weigert een onbekend correctietype (400)', async () => {
     const { cookie, sessionId } = await startFor(new AiOrchestrator(tunedProvider('do-activity')));
     await next(cookie, sessionId, 'want');

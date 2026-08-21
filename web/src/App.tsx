@@ -7,6 +7,7 @@ import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { QuestionModePage } from './QuestionModePage.tsx';
 import { AacLibraryPage } from './AacLibraryPage.tsx';
 import { WorkerTokensPage } from './WorkerTokensPage.tsx';
+import { AiActivityPage } from './AiActivityPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
 import { AccountPage } from './AccountPage.tsx';
@@ -245,6 +246,22 @@ export function App({
       <>
         {banner}
         <WorkerTokensPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  // AI-activiteit (T9.15): zien wat de AI op de achtergrond doet. Achter dezelfde platformgrens als het
+  // worker-tokenbeheer; een gewone organisatie-ADMIN krijgt van de server 403 en hier een uitleg.
+  if (view === 'ai-activity') {
+    return (
+      <>
+        {banner}
+        <AiActivityPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

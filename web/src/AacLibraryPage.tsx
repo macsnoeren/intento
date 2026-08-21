@@ -30,6 +30,8 @@ const CATEGORY_LABELS: Record<AacCategory, string> = {
   place: 'Plek',
   animal: 'Dier',
   object: 'Voorwerp',
+  question: 'Vraagwoord',
+  expression: 'Uiting',
 };
 
 const CATEGORY_OPTIONS = aacCategorySchema.options;

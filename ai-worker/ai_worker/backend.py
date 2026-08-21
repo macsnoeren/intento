@@ -74,6 +74,15 @@ class BackendClient:
             ) from exc
         except urllib.error.URLError as exc:
             raise BackendError(f"Backend onbereikbaar op {path}: {exc.reason}") from exc
+        except TimeoutError as exc:  # socket-time-out tijdens de long-poll
+            raise BackendError(f"Backend antwoordde niet op tijd op {path}.") from exc
+        except OSError as exc:
+            # Verbinding halverwege verbroken (backend herstart, proxy die de long-poll dichtgooit):
+            # `http.client.RemoteDisconnected` en verwanten komen hier binnen, níet als URLError. Zonder
+            # deze vangst viel de hele worker-lus om bij een backend-herstart (T9.17) — waargenomen bij de
+            # rooktest: elke herstart van de dev-server maakte de worker stil dood. Als BackendError kan de
+            # lus 'm gewoon opvangen en opnieuw proberen.
+            raise BackendError(f"Verbinding met de backend verbroken op {path}: {exc}") from exc
 
     def claim(self, *, timeout: float) -> Job | None:
         """Claimt de oudste wachtende job (long-poll). Geeft None bij 204 (niets claimbaar)."""

@@ -37,7 +37,8 @@ export const SYSTEM_RULES: readonly string[] = [
 /** Het doel van Intento zoals het model het per aanroep meekrijgt (DESIGN §1, §7.1). */
 export const GOAL =
   'Bepaal de meest waardevolle volgende pictogramvraag: verminder onzekerheid, overlaad de ' +
-  'gebruiker niet, en kies de snelste route naar de bedoelde betekenis.';
+  'gebruiker niet, en kies de snelste route naar de bedoelde betekenis. Formuleer de vraag in het ' +
+  'Nederlands, kort en eenvoudig, en richt je rechtstreeks tot de gebruiker.';
 
 /** AAC-begrenzingsregels (DESIGN §7.6). */
 export const AAC_RULES: readonly string[] = [

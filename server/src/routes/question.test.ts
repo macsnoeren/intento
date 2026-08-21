@@ -89,9 +89,16 @@ describe('vraagmodus — /question (T7.1)', () => {
     const { state } = pendingQuestionResponseSchema.parse(pending.json());
     expect(state).not.toBeNull();
     expect(state!.caregiverQuestion).toBe('Wat wil je drinken?');
-    // De antwoordopties zijn de dranken — AAC-begrensd tot de kinderen van het anker (§7.6).
+    // De antwoordopties zijn de dranken — AAC-begrensd tot de kinderen van het anker (§7.6). Sinds
+    // T9.11 kent de bibliotheek meer dranken; de begrenzing is dat er niets búiten de kinderen van
+    // het anker bij zit.
     const options = (state!.question?.options ?? []).map((o) => o.concept).sort();
-    expect(options).toEqual(['coffee', 'juice', 'milk', 'water']);
+    expect(options).toEqual(expect.arrayContaining(['coffee', 'juice', 'milk', 'water']));
+    const drinkChildren = await prisma.aacConceptRelation.findMany({
+      where: { parent: { concept: 'drink' } },
+      include: { child: true },
+    });
+    expect(options.sort()).toEqual(drinkChildren.map((r) => r.child.concept).sort());
 
     // Gebruiker kiest "water" → route klaar om een boodschap voor te stellen.
     const next = await app.inject({
@@ -290,6 +297,92 @@ describe('vraagmodus — /question (T7.1)', () => {
       headers: { cookie: cgCookie },
     });
     expect(crossTenant.statusCode).toBe(403);
+  });
+
+  it('laat ❌ Nee op een vraagmodus-sessie niet doodlopen op een voorstel uit het niets (T9.14)', async () => {
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('cg@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+    await linkCaregiver(caregiver.accountId, user.id);
+    const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
+    const deviceCk = await deviceCookie(app, user.id);
+
+    // De begeleider vraagt iets met "er is iets aan de hand" als onderwerp.
+    await app.inject({
+      method: 'POST',
+      url: '/question/start',
+      headers: { cookie: cgCookie },
+      payload: {
+        userId: user.id,
+        question: 'Waarom wil je je nagels niet knippen?',
+        anchorConcept: 'problem',
+      },
+    });
+
+    const pending = await app.inject({
+      method: 'GET',
+      url: '/conversation/pending',
+      headers: { cookie: deviceCk },
+    });
+    const { state } = pendingQuestionResponseSchema.parse(pending.json());
+    const sessionId = state!.sessionId;
+
+    // De gebruiker kiest "pijn" en wijst daarna het voorstel af.
+    await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/next`,
+      headers: { cookie: deviceCk },
+      payload: { symbolId: await symbolId('pain') },
+    });
+    const corrected = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/correction`,
+      headers: { cookie: deviceCk },
+      payload: {},
+    });
+    expect(corrected.statusCode).toBe(200);
+    const after = conversationStateResponseSchema.parse(corrected.json());
+
+    // Er volgt een nieuwe vraag, géén boodschapvoorstel: de gebruiker had niets meer gekozen, dus er
+    // valt niets van hém voor te stellen (DESIGN §2).
+    expect(after.done).toBe(false);
+    expect((after.question?.options ?? []).length).toBeGreaterThan(0);
+    // Het anker van de begeleider blijft staan; de vraag blijft in beeld.
+    expect(after.history.map((step) => step.symbol.concept)).toEqual(['problem']);
+    expect(after.caregiverQuestion).toBe('Waarom wil je je nagels niet knippen?');
+  });
+
+  it('weigert een correctie als de gebruiker alleen het begeleiders-anker heeft (T9.14)', async () => {
+    const org = await seedOrganization('Org');
+    const caregiver = await seedAccount('cg@intento.local', 'pw-c', 'CAREGIVER', org);
+    const user = await seedUser('Sanne', org);
+    await linkCaregiver(caregiver.accountId, user.id);
+    const cgCookie = await loginCookie(app, caregiver.email, caregiver.password);
+    const deviceCk = await deviceCookie(app, user.id);
+
+    await app.inject({
+      method: 'POST',
+      url: '/question/start',
+      headers: { cookie: cgCookie },
+      payload: { userId: user.id, question: 'Wat wil je drinken?', anchorConcept: 'drink' },
+    });
+    const pending = await app.inject({
+      method: 'GET',
+      url: '/conversation/pending',
+      headers: { cookie: deviceCk },
+    });
+    const { state } = pendingQuestionResponseSchema.parse(pending.json());
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/conversation/${state!.sessionId}/correction`,
+      headers: { cookie: deviceCk },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('NO_STEPS_TO_CORRECT');
+    // Het anker staat er nog: een correctie mag de vraag van de begeleider niet wegvegen.
+    expect(await prisma.conversationStep.count({ where: { sessionId: state!.sessionId } })).toBe(1);
   });
 
   it('GET /question/users toont een begeleider alléén de gekoppelde gebruikers', async () => {

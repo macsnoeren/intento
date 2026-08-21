@@ -387,11 +387,20 @@ server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `queue` voor gedist
 hieronder). Zie [docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
 [docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md) en [docs/api.md](docs/api.md).
 
+> **De AI ordent, ze snoeit niet (T9.10).** Binnen de AAC-kandidaten van een punt bepaalt de AI de
+> volgorde — haar beste keuzes staan vooraan — maar de overige kandidaten blijven erachter staan en zijn
+> via "Meer keuzes" bereikbaar. Een boodschap wordt pas voorgesteld als de **gebruiker** zelf iets koos
+> (in vraagmodus telt het anker van de begeleider niet mee), en loopt een tak leeg, dan zoekt de
+> beslissingslaag een niveau hoger verder in plaats van een boodschap te verzinnen (T9.14). Staat het
+> juiste pictogram er niet tussen, dan slaat "🤷 Staat er niet bij" dit punt over (T9.12).
+
 > **Draait er echt een AI? (T9.4/T9.8)** Met de standaard `AI_PROVIDER=mock` denkt er **geen** AI mee: de
 > mock-provider kiest de bibliotheekvolgorde. Dat is aan de flow niet te zien, dus de server logt bij het
 > opstarten welke modus draait (met een waarschuwing bij `mock`) en zowel de tablet als de beheeromgeving
 > tonen een statuslampje uit `GET /ai/status` — "AI denkt mee", "Geen AI-worker actief" of "Zonder AI".
-> Voor echte AI: `AI_PROVIDER=queue` **en** een draaiende [AI-worker](ai-worker/README.md).
+> Voor echte AI: `AI_PROVIDER=queue` **en** een draaiende [AI-worker](ai-worker/README.md). Wat de AI
+> per aanvraag deed (vraag, aangedragen concepten, motivering, duur) staat in het beheer onder
+> **AI-activiteit** (`GET /admin/ai/jobs`, platformbeheer) en in de serverlog (T9.15).
 
 ## Gedistribueerde AI-workers (T5.5)
 

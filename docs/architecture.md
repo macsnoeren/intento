@@ -126,7 +126,12 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   bibliotheek: bestaand concept → houden; synoniem/label → omzetten; anders → `ConceptProposal` +
   weglaten. Een onbekend/verzonnen concept bereikt de gebruiker dus **nooit** — ook niet van een
   onbetrouwbare provider of latere externe worker. De **interpretatie-zekerheid** (§7.4) bepaalt de fase
-  (`select` <60% / `refine` 60–85% / `propose` >85% of eindconcept). Zie
+  (`select` <60% / `refine` 60–85% / `propose` >85% of eindconcept). Sinds de gebruikerstest (T9.10/T9.14)
+  gelden er drie extra regels: de AI **ordent** de kandidaten maar snoeit ze niet weg (de rest volgt
+  erachter en blijft via "Meer keuzes" bereikbaar), voorstellen mag pas ná een keuze van de **gebruiker**
+  (het anker van de begeleider in vraagmodus telt niet mee) en een punt zonder kandidaten laat de laag een
+  **niveau hoger** verder zoeken in plaats van een boodschap te verzinnen — een echt eindconcept levert
+  onveranderd een voorstel op. Zie
   [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
 - **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,
   T5.5) — bij `AI_PROVIDER=queue` zet de `QueueAiProvider` aanvragen op een DB-wachtrij (`AiJob`) i.p.v.

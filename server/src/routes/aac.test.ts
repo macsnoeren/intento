@@ -174,6 +174,30 @@ describe('AAC-bibliotheek — /aac', () => {
     expect(png.headers['cross-origin-resource-policy']).toBe('cross-origin');
   });
 
+  it('laat geen enkele intentiecategorie doodlopen (T9.11)', async () => {
+    // "Een vraag stellen" was in de gebruikerstest meteen een eindpunt: de app sprong naar een voorstel
+    // in plaats van uit te zoeken waar de vraag over ging. Elke intentie moet dus verfijning hebben.
+    const intents = await prisma.aacSymbol.findMany({ where: { category: 'intent' } });
+    expect(intents.length).toBeGreaterThan(0);
+    for (const intent of intents) {
+      const children = await prisma.aacConceptRelation.count({ where: { parentId: intent.id } });
+      expect
+        .soft(children, `intentie "${intent.concept}" heeft geen verfijningen`)
+        .toBeGreaterThan(0);
+    }
+  });
+
+  it('kent de lichaamsdelen die de gebruikerstest nodig had (T9.11)', async () => {
+    // De echte begeleidersvraag ging over nagels knippen; zonder nagel/vinger/hand was dat niet uit te
+    // drukken en liep het gesprek vast op drie lichaamsdelen.
+    const painChildren = await prisma.aacConceptRelation.findMany({
+      where: { parent: { concept: 'pain' } },
+      include: { child: true },
+    });
+    const concepts = painChildren.map((relation) => relation.child.concept);
+    expect(concepts).toEqual(expect.arrayContaining(['nail', 'finger', 'hand', 'tooth']));
+  });
+
   it('geeft als onderwerpen alléén symbolen mét antwoordopties terug (T9.7)', async () => {
     const account = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
     const cookie = await loginCookie(app, account.email, account.password);

@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type {
   AacSymbol,
@@ -139,8 +139,21 @@ function fakeDeviceApi(
 
   function buildState(): ConversationStateResponse {
     const node = TREE[currentKey()]!;
-    const available = node.options.filter((o) => !excluded.has(o.concept));
-    const question = available.length > 0 ? { prompt: node.prompt, options: available } : null;
+    let available = node.options.filter((o) => !excluded.has(o.concept));
+    let prompt = node.prompt;
+    // Zoals de server (T9.14): een **eindconcept** (geen opties in de boom) betekent klaar, maar een punt
+    // waar alles is uitgesloten zoekt een niveau hoger verder in plaats van dood te lopen.
+    if (available.length === 0 && node.options.length > 0) {
+      const higher = [...history.slice(0, -1).map((step) => step.symbol.concept), '__root__']
+        .reverse()
+        .map((key) => TREE[key]!)
+        .find((candidate) => candidate.options.some((o) => !excluded.has(o.concept)));
+      if (higher) {
+        available = higher.options.filter((o) => !excluded.has(o.concept));
+        prompt = higher.prompt;
+      }
+    }
+    const question = available.length > 0 ? { prompt, options: available } : null;
     return {
       sessionId: 's-1',
       status: 'ACTIVE',
@@ -208,7 +221,16 @@ function fakeDeviceApi(
       history = history.slice(0, -1);
       return Promise.resolve(buildState());
     },
-    conversationCorrection(): Promise<ConversationStateResponse> {
+    conversationCorrection(
+      _sessionId: string,
+      type: 'wrong_guess' | 'no_fitting_option' = 'wrong_guess',
+    ): Promise<ConversationStateResponse> {
+      if (type === 'no_fitting_option') {
+        // "Staat er niet bij" (T9.12): niets terugrollen, maar alle nu getoonde opties uitsluiten,
+        // zodat er andere opties komen — zoals de server het doet.
+        for (const option of TREE[currentKey()]!.options) excluded.add(option.concept);
+        return Promise.resolve(buildState());
+      }
       // Vereenvoudigde heranalyse: rol de laatste keuze terug en sluit dat concept uit (§7.5). De echte
       // min-confidence-heranalyse is server-side gedekt; hier gaat het om de UI-flow (❌ → hervraag).
       const last = history[history.length - 1];
@@ -220,6 +242,13 @@ function fakeDeviceApi(
       if (busyGenerate > 0) {
         busyGenerate -= 1;
         return Promise.reject(busyError());
+      }
+      // Net als de server: een afgeronde sessie levert 409 (T9.13). Zo valt op als de UI na het
+      // bevestigen tóch nog op de oude sessie doorwerkt.
+      if (status === 'COMPLETED') {
+        return Promise.reject(
+          new ApiRequestError(409, 'SESSION_NOT_ACTIVE', 'Dit gesprek is al afgerond.'),
+        );
       }
       return Promise.resolve({
         sessionId: 's-1',
@@ -320,6 +349,31 @@ describe('gebruikersapp op de tablet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Opnieuw beginnen' }));
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    // Geen fout uit de vorige (afgeronde) sessie op het scherm (T9.13): de app riep `/generate` opnieuw
+    // aan op de zojuist bevestigde sessie en liet "Dit gesprek is al afgerond." staan.
+    expect(screen.queryByText(/al afgerond/i)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('slaat een punt over als het juiste pictogram er niet bij staat (T9.12)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByRole('heading', { name: 'Wat wil je?' });
+    expect(screen.getByRole('button', { name: 'Iets doen' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Iets drinken' })).toBeTruthy();
+
+    // "Staat er niet bij": de getoonde opties verdwijnen, de gemaakte keuze blijft staan.
+    fireEvent.click(screen.getByRole('button', { name: '🤷 Staat er niet bij' }));
+
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Iets doen' })).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Iets drinken' })).toBeNull();
+    // De keuze "Iets willen" staat nog in het afgelegde pad — dit is geen "terug".
+    expect(screen.getByRole('navigation', { name: 'Gekozen pad' }).textContent).toContain(
+      'Iets willen',
+    );
   });
 
   it('start bij ❌ Nee de correctieflow: gerichte hervraag zonder de afgewezen route', async () => {

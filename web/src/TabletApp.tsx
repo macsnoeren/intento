@@ -264,9 +264,21 @@ function ConversationScreen({
     return pending.state ?? api.startConversation();
   }
 
+  /**
+   * Een (nieuw) gesprek starten. De oude toestand gaat er **eerst** uit (T9.13): `run` haalt alleen het
+   * bevestigd-scherm weg, en zolang het nieuwe gesprek nog onderweg is stond de oude `state` er dan nog —
+   * met `done: true`. Daardoor mountte het voorstelscherm opnieuw op de zojuist **bevestigde** sessie en
+   * riep het `/generate` aan, wat "Dit gesprek is al afgerond." (409) gaf, precies zoals in de
+   * gebruikerstest. Met `state = null` toont de app netjes het laadscherm tot het nieuwe gesprek er is.
+   */
+  function restart(): void {
+    setState(null);
+    void run(() => beginConversation());
+  }
+
   // Eenmalig bij binnenkomst (of bij een nieuwe `api`) een gesprek beginnen.
   useEffect(() => {
-    void run(() => beginConversation());
+    restart();
   }, [api]);
 
   // Na bevestiging: de opgeslagen boodschap tonen met de mogelijkheid opnieuw te beginnen.
@@ -280,7 +292,7 @@ function ConversationScreen({
             className="button button--primary"
             type="button"
             disabled={busy}
-            onClick={() => void run(() => beginConversation())}
+            onClick={restart}
           >
             Opnieuw beginnen
           </button>
@@ -406,6 +418,21 @@ function ConversationScreen({
             {onLastPage ? '↺ Eerste keuzes' : '➕ Meer keuzes'}
           </button>
         ) : null}
+        {/* Uitweg als het juiste pictogram er niet tussen staat (T9.12). Bewust een knop in de balk en
+            geen extra pictogram in het keuzeraster: dat raster bevat uitsluitend AAC-concepten die
+            samen de boodschap vormen, en dit is bediening. */}
+        {state.question ? (
+          <button
+            className="button"
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void run(() => api.conversationCorrection(state.sessionId, 'no_fitting_option'))
+            }
+          >
+            🤷 Staat er niet bij
+          </button>
+        ) : null}
       </div>
     </main>
   );
@@ -442,6 +469,9 @@ function ProposalScreen({
   // de rustige wachtstand en pollen we automatisch opnieuw tot de zin er is.
   useEffect(() => {
     let active = true;
+    // Een fout van een vórige sessie mag hier niet blijven staan (T9.13): het voorstelscherm bleef
+    // anders "Dit gesprek is al afgerond." tonen nadat er allang een nieuw gesprek liep.
+    setError(null);
     void (async () => {
       for (;;) {
         try {

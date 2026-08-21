@@ -37,6 +37,14 @@ const PROMPT_BY_CONCEPT: Record<string, string> = {
   eat: 'Wat wil je eten?',
   drink: 'Wat wil je drinken?',
   pain: 'Waar heb je pijn?',
+  // T9.11: de nieuwe takken hebben ook een natuurlijke vraag nodig; zonder deze regels valt de
+  // gescripte engine terug op 'Kies bij "…":', wat op de tablet houterig staat.
+  itch: 'Waar heb je jeuk?',
+  'ask-what': 'Waar gaat je vraag over?',
+  'ask-who': 'Over wie gaat je vraag?',
+  'ask-where': 'Waar gaat je vraag over?',
+  'ask-when': 'Waarover wil je weten wanneer?',
+  'ask-may': 'Wat wil je vragen of het mag?',
 };
 
 /** Bouwt de prompttekst bij een bovenliggend concept (of de generieke fallback met het label). */

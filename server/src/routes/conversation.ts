@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   conversationChoiceRequestSchema,
@@ -24,7 +24,7 @@ import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { forbidAccountSession } from '../auth/authorize.js';
 import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
-import { decideNextQuestion } from '../conversation/decision.js';
+import { decideNextQuestion, findAvailableCandidates } from '../conversation/decision.js';
 import { analyzeCorrection } from '../conversation/correction.js';
 import { composeMessage } from '../conversation/generate.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
@@ -45,6 +45,15 @@ export interface ConversationRoutesDeps {
 
 /** Route-parameter: het sessie-id uit het pad. */
 const sessionParamsSchema = z.object({ id: z.string().min(1) });
+
+/**
+ * Aantal begin-stappen dat **niet** van de gebruiker komt (T9.14). In vraagmodus (T7.1) zet de begeleider
+ * het topic-anker als stap 0; die stap is geen keuze van de gebruiker. Alleen op basis daarvan mag er dus
+ * nooit een boodschap voorgesteld of teruggerold worden — de betekenis blijft van de gebruiker (DESIGN §2).
+ */
+function anchoredStepsFor(session: Pick<ConversationSessionModel, 'mode'>): number {
+  return session.mode === 'question' ? 1 : 0;
+}
 
 /**
  * Laadt een sessie en dwingt **gebruiker-isolatie** af: het gekoppelde apparaat mag alléén de sessies
@@ -145,6 +154,7 @@ async function buildState(
   encryptor: Encryptor,
   session: ConversationSessionModel,
   steps: ConversationStepModel[],
+  log?: FastifyBaseLogger,
 ): Promise<ConversationStateResponse> {
   // In deze sessie afgewezen concepten (T5.4) blijven uitgesloten — nooit dezelfde foutieve route (§7.5).
   // De toegestane persoonlijke context (T6.1) reist mee naar de AI — alleen `aiUsageAllowed=true` (§6.3).
@@ -162,9 +172,34 @@ async function buildState(
       excluded,
       userContext,
       session.caregiverQuestion,
+      anchoredStepsFor(session),
     ),
     buildHistory(prisma, steps),
   ]);
+
+  // Zichtbaar maken wát de AI deed (T9.15): taak, hoeveel kandidaten er waren, hoeveel opties de AI zelf
+  // aandroeg, wat er uiteindelijk wordt aangeboden en waarom. Bewust alléén AAC-concepten en tellingen —
+  // geen persoonlijke context, geen boodschapinhoud (DESIGN §9.4).
+  log?.info(
+    {
+      ai: {
+        provider: orchestrator.providerName,
+        sessionId: session.id,
+        step: steps.length,
+        candidates: decision.diagnostics.candidateCount,
+        aiOptions: decision.diagnostics.aiOptionCount,
+        offered: decision.diagnostics.offered,
+        widened: decision.diagnostics.widened,
+        confidence: decision.confidence,
+        phase: decision.phase,
+        done: decision.done,
+        reason: decision.diagnostics.reason,
+        proposedUnknown: decision.proposed,
+      },
+    },
+    'AI-beslissing voor de volgende vraag',
+  );
+
   return conversationStateResponseSchema.parse({
     sessionId: session.id,
     status: session.status,
@@ -211,7 +246,7 @@ export function registerConversationRoutes(
         data: { userId: device.userId, status: 'ACTIVE' },
       });
       reply.status(201);
-      return buildState(prisma, orchestrator, encryptor, session, []);
+      return buildState(prisma, orchestrator, encryptor, session, [], request.log);
     },
   );
 
@@ -238,6 +273,7 @@ export function registerConversationRoutes(
         encryptor,
         session,
         await loadSteps(prisma, session.id),
+        request.log,
       );
       return pendingQuestionResponseSchema.parse({ state });
     },
@@ -280,6 +316,7 @@ export function registerConversationRoutes(
         encryptor,
         session,
         await loadSteps(prisma, session.id),
+        request.log,
       );
       // De interpretatie-zekerheid van de nieuwe toestand vastleggen op de zojuist gezette stap
       // (§7.4; `ConversationStep.confidence` was `null` in de gescripte engine).
@@ -371,23 +408,31 @@ export function registerConversationRoutes(
         encryptor,
         session,
         await loadSteps(prisma, session.id),
+        request.log,
       );
     },
   );
 
-  // Correctie (❌ op een voorstel, T5.4, DESIGN §3.4, FR-009). Gaat **niet** terug naar het begin: de
-  // heranalyse (`analyzeCorrection`) bepaalt uit de per-stap-zekerheid (§7.4) de vermoedelijke foutstap,
-  // die stap en alles erna worden teruggerold, en het afgewezen concept wordt als `CorrectionEvent`
-  // vastgelegd zodat het de rest van de sessie niet meer wordt aangeboden (§7.5, via `buildState`). Er
-  // volgt een gerichtere hervraag op het teruggerolde punt. De correctie is een **signaal**, geen
-  // leerdata: er worden geen voorkeuren gemuteerd (§3.4 punt 4; de `Preference`-laag komt pas in T6.3).
+  // Correctie (T5.4/T9.12, DESIGN §3.4, FR-009). Twee soorten "dit klopt niet":
+  //
+  // - `wrong_guess` (❌ op een **voorstel**): gaat **niet** terug naar het begin. De heranalyse
+  //   (`analyzeCorrection`) bepaalt uit de per-stap-zekerheid (§7.4) de vermoedelijke foutstap, die stap
+  //   en alles erna worden teruggerold, en het afgewezen concept wordt als `CorrectionEvent` vastgelegd
+  //   zodat het de rest van de sessie niet meer wordt aangeboden (§7.5, via `buildState`). Het
+  //   begeleiders-anker van een vraagmodus-sessie blijft daarbij staan (T9.14).
+  // - `no_fitting_option` (T9.12, "Geen van deze past"): het juiste pictogram staat niet tussen de
+  //   aangeboden opties. Er wordt **niets teruggerold** — de gemaakte keuzes blijven staan — maar alle
+  //   concepten van dit punt worden uitgesloten, waarna de beslissingslaag een niveau hoger verdergaat.
+  //   Zo heeft de gebruiker altijd een uitweg als de bibliotheek zijn woord hier niet heeft.
+  //
+  // De correctie is een **signaal**, geen leerdata: er worden geen voorkeuren gemuteerd (§3.4 punt 4).
   app.post(
     '/conversation/:id/correction',
     { preHandler: deviceAuthorize(prisma) },
     async (request): Promise<ConversationStateResponse> => {
       const device = requireDevice(request);
       const { id } = sessionParamsSchema.parse(request.params);
-      // De body wordt gevalideerd (alleen `type: 'wrong_guess'` toegestaan); een lege body volstaat.
+      // De body wordt gevalideerd (`wrong_guess` of `no_fitting_option`); een lege body volstaat.
       const { type } = conversationCorrectionRequestSchema.parse(request.body ?? {});
 
       const session = await loadOwnedSession(prisma, device.userId, id);
@@ -396,11 +441,46 @@ export function registerConversationRoutes(
       }
 
       const steps = await loadSteps(prisma, session.id);
+
+      if (type === 'no_fitting_option') {
+        // De concepten die op dit punt aangeboden (kunnen) worden, uitsluiten voor de rest van de sessie.
+        // We rekenen ze hier opnieuw uit in plaats van de client te geloven: de bibliotheek bepaalt wat er
+        // op dit punt bestaat (§7.6), en zo kan een client nooit iets uitsluiten dat hier niet hoort.
+        const excludedNow = new Set<string>([
+          ...steps.map((step) => step.selectedConcept),
+          ...(await loadRejectedConcepts(prisma, session.id)),
+        ]);
+        const { available } = await findAvailableCandidates(prisma, steps, excludedNow);
+        if (available.length === 0) {
+          throw new HttpError(
+            400,
+            'NO_OPTIONS_TO_SKIP',
+            'Er zijn hier geen andere opties om over te slaan.',
+          );
+        }
+        await prisma.correctionEvent.createMany({
+          data: available.map((symbol) => ({
+            sessionId: session.id,
+            type,
+            stepOrder: steps.length,
+            rejectedConcept: symbol.concept,
+          })),
+        });
+        // Geen stappen teruggerold: de beslissingslaag zoekt vanzelf een niveau hoger verder (T9.14).
+        return buildState(prisma, orchestrator, encryptor, session, steps, request.log);
+      }
+
       if (steps.length === 0) {
         throw new HttpError(400, 'NO_STEPS_TO_CORRECT', 'Er is nog geen keuze om te corrigeren.');
       }
+      // In vraagmodus mag de ankerstap van de begeleider niet teruggerold worden; is er verder niets
+      // gekozen, dan valt er niets te corrigeren.
+      const anchored = anchoredStepsFor(session);
+      if (steps.length <= anchored) {
+        throw new HttpError(400, 'NO_STEPS_TO_CORRECT', 'Er is nog geen keuze om te corrigeren.');
+      }
 
-      const { stepOrder, rejectedConcept } = analyzeCorrection(steps);
+      const { stepOrder, rejectedConcept } = analyzeCorrection(steps, anchored);
 
       // Foutstap + alles erna terugrollen en de correctie vastleggen — in één transactie zodat de
       // uitsluiting en de teruggerolde stappen altijd consistent zijn.
@@ -420,6 +500,7 @@ export function registerConversationRoutes(
         encryptor,
         session,
         await loadSteps(prisma, session.id),
+        request.log,
       );
     },
   );

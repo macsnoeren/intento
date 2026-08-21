@@ -222,6 +222,7 @@ function fakeApi(): Api {
     importProfile: notImplemented,
     listAacTopics: notImplemented,
     getAiStatus: notImplemented,
+    listAiJobs: notImplemented,
   };
 }
 

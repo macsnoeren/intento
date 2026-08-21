@@ -121,20 +121,25 @@ export const adminSymbolInclude = {
  * overgeslagen met een waarschuwing in plaats van de hele seed te laten falen.
  */
 export async function seedAacLibrary(prisma: PrismaClient): Promise<void> {
-  for (const symbol of AAC_SEED_SYMBOLS) {
-    const data = {
-      label: symbol.label,
-      category: symbol.category,
-      glyph: symbol.glyph,
-      synonyms: symbol.synonyms,
-      searchText: buildSearchText(symbol),
-    };
-    await prisma.aacSymbol.upsert({
-      where: { concept: symbol.concept },
-      create: { concept: symbol.concept, ...data },
-      update: data,
-    });
-  }
+  // Eén transactie voor alle symbolen (en verderop één voor alle relaties). Losse upserts kosten op
+  // SQLite elk een eigen schrijftransactie; sinds de bibliotheek in T9.11 fors groeide, maakte dat het
+  // (per test opnieuw draaiende) seeden merkbaar traag — genoeg om tests op hun time-out te laten lopen.
+  await prisma.$transaction(
+    AAC_SEED_SYMBOLS.map((symbol) => {
+      const data = {
+        label: symbol.label,
+        category: symbol.category,
+        glyph: symbol.glyph,
+        synonyms: symbol.synonyms,
+        searchText: buildSearchText(symbol),
+      };
+      return prisma.aacSymbol.upsert({
+        where: { concept: symbol.concept },
+        create: { concept: symbol.concept, ...data },
+        update: data,
+      });
+    }),
+  );
 
   // Concept → id, zodat relaties op id kunnen verwijzen.
   const idByConcept = new Map(
@@ -144,6 +149,7 @@ export async function seedAacLibrary(prisma: PrismaClient): Promise<void> {
     ]),
   );
 
+  const relationWrites = [];
   for (const rel of AAC_SEED_RELATIONS) {
     const parentId = idByConcept.get(rel.parent);
     const childId = idByConcept.get(rel.child);
@@ -152,12 +158,15 @@ export async function seedAacLibrary(prisma: PrismaClient): Promise<void> {
       console.warn(`AAC-seed: relatie overgeslagen, onbekend concept ${rel.parent} → ${rel.child}`);
       continue;
     }
-    await prisma.aacConceptRelation.upsert({
-      where: { parentId_childId_relation: { parentId, childId, relation } },
-      create: { parentId, childId, relation },
-      update: {},
-    });
+    relationWrites.push(
+      prisma.aacConceptRelation.upsert({
+        where: { parentId_childId_relation: { parentId, childId, relation } },
+        create: { parentId, childId, relation },
+        update: {},
+      }),
+    );
   }
+  await prisma.$transaction(relationWrites);
 }
 
 /**

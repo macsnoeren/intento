@@ -32,14 +32,26 @@ export interface CorrectionAnalysis {
  */
 export function analyzeCorrection(
   steps: Pick<ConversationStepModel, 'order' | 'selectedConcept' | 'confidence'>[],
+  /**
+   * Aantal begin-stappen dat niet van de gebruiker komt (T9.14): in vraagmodus zet de begeleider het
+   * topic-anker als stap 0. Dat anker mag een correctie nooit terugrollen — anders ontsnapt het gesprek
+   * uit de gestelde vraag, precies zoals `/back` het anker al beschermt.
+   */
+  anchoredSteps = 0,
 ): CorrectionAnalysis {
-  const withConfidence = steps.filter(
-    (step): step is typeof step & { confidence: number } => typeof step.confidence === 'number',
+  const correctable = steps.filter((step) => step.order >= anchoredSteps);
+  // Alleen het anker over: er valt niets van de gebruiker terug te rollen. De aanroeper heeft dit al
+  // afgevangen; als terugval wijzen we de laatste stap aan zonder hem te beschermen.
+  const scope = correctable.length > 0 ? correctable : steps;
+
+  const withConfidence = scope.filter(
+    (step): step is (typeof scope)[number] & { confidence: number } =>
+      typeof step.confidence === 'number',
   );
 
   // Geen enkele zekerheid bekend → val terug op de laatste keuze.
   if (withConfidence.length === 0) {
-    const last = steps[steps.length - 1]!;
+    const last = scope[scope.length - 1]!;
     return { stepOrder: last.order, rejectedConcept: last.selectedConcept };
   }
 

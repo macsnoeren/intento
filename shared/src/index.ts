@@ -650,6 +650,8 @@ export const aacCategorySchema = z.enum([
   'place', // plekken (thuis, park, toilet, …)
   'animal', // dieren (hond, …)
   'object', // voorwerpen
+  'question', // vraagwoorden (wie, wat, waar, wanneer, mag ik) — T9.11
+  'expression', // sociale uitingen (ja, nee, dank je, hallo, stop) — T9.11
 ]);
 export type AacCategory = z.infer<typeof aacCategorySchema>;
 
@@ -979,15 +981,21 @@ export type ConversationChoiceResponse = z.infer<typeof conversationChoiceRespon
  * `wrong_guess`: de gebruiker koos ❌ ("Nee, dit klopt niet"). Bewust een gesloten lijst zodat latere
  * correctietypes expliciet worden toegevoegd.
  */
-export const conversationCorrectionTypeSchema = z.enum(['wrong_guess']);
+export const conversationCorrectionTypeSchema = z.enum(['wrong_guess', 'no_fitting_option']);
 export type ConversationCorrectionType = z.infer<typeof conversationCorrectionTypeSchema>;
 
 /**
- * Verzoek voor `POST /conversation/{id}/correction` (T5.4, DESIGN §3.4, §8.2, FR-009): de gebruiker
- * wijst het voorstel af. `type` staat standaard op `wrong_guess` (de enige waarde in de MVP), zodat een
- * lege body `{}` volstaat. De server heranalyseert dan de route, rolt de vermoedelijke foutstap terug
- * en geeft een gerichtere hervraag terug — **niet** terug naar het begin. Het antwoord is een gewone
- * `ConversationStateResponse` (het correctiescherm rendert dezelfde vorm als het keuzescherm).
+ * Verzoek voor `POST /conversation/{id}/correction` (T5.4/T9.12, DESIGN §3.4, §8.2, FR-009). Twee
+ * soorten "dit klopt niet", met elk een eigen herstel:
+ *
+ * - `wrong_guess` (standaard, zodat een lege body `{}` volstaat) — de gebruiker wijst het **voorstel**
+ *   af (❌ Nee). De server heranalyseert de route, rolt de vermoedelijke foutstap terug en geeft een
+ *   gerichtere hervraag terug — **niet** terug naar het begin.
+ * - `no_fitting_option` (T9.12) — het juiste pictogram staat **niet bij de aangeboden opties**. Alle
+ *   concepten van dit punt worden voor de rest van de sessie uitgesloten, waarna het gesprek een niveau
+ *   hoger verdergaat met andere opties. De reeds gemaakte keuzes blijven staan.
+ *
+ * Het antwoord is in beide gevallen een gewone `ConversationStateResponse` (hetzelfde keuzescherm).
  */
 export const conversationCorrectionRequestSchema = z.object({
   type: conversationCorrectionTypeSchema.default('wrong_guess'),
@@ -1376,6 +1384,55 @@ export const aacTopicListResponseSchema = z.object({
   topics: z.array(aacSymbolSchema),
 });
 export type AacTopicListResponse = z.infer<typeof aacTopicListResponseSchema>;
+
+// --- AI-activiteit: wat doet de AI eigenlijk? (T9.15, DESIGN §7.2, §7.4, §9.4) ---
+
+/** Status van een AI-job in de wachtrij (T5.5); vorm van `AiJob.status`, op de grens gevalideerd. */
+export const aiJobStatusSchema = z.enum([
+  'WAITING_FOR_WORKER',
+  'QUEUED',
+  'CLAIMED',
+  'SUCCEEDED',
+  'FAILED',
+  'EXPIRED',
+]);
+export type AiJobStatus = z.infer<typeof aiJobStatusSchema>;
+
+/**
+ * Eén regel in het AI-activiteitenoverzicht (T9.15): wat de AI gevraagd is, wat eruit kwam en hoe lang
+ * het duurde. Bewust een **samenvatting van het resultaat**, nooit de prompt: in de prompt zit
+ * persoonlijke context (T6.1) en die hoort niet in een beheerscherm (DESIGN §9.4).
+ */
+export const aiJobSummarySchema = z.object({
+  id: z.string(),
+  /** De AI-taak: volgende vraag kiezen of een boodschap formuleren. */
+  task: z.string(),
+  status: aiJobStatusSchema,
+  /** Aantal keren dat de job geclaimd is (een teruggelegde job telt door). */
+  attempts: z.number().int().min(0),
+  createdAt: z.iso.datetime(),
+  /** Doorlooptijd tot de laatste statuswijziging, in ms. */
+  durationMs: z.number().int().min(0),
+  /** Naam van het worker-token dat de job (als laatste) oppakte; `null` als hij nog niet geclaimd is. */
+  worker: z.string().nullable(),
+  /** Korte foutmelding bij een mislukte job; `null` als er geen fout was. */
+  error: z.string().nullable(),
+  /** De vraag die de AI formuleerde (alleen bij een geslaagde vraagselectie). */
+  question: z.string().nullable(),
+  /** De door de AI aangedragen concepten met hun zekerheid, in de volgorde die de AI koos. */
+  options: z.array(z.object({ concept: z.string(), confidence: z.number().nullable() })),
+  /** De motivering die de AI meegaf (`reason`), of `null`. */
+  reason: z.string().nullable(),
+  /** De interpretatie-zekerheid uit het resultaat, of `null`. */
+  confidence: z.number().nullable(),
+});
+export type AiJobSummary = z.infer<typeof aiJobSummarySchema>;
+
+/** Antwoord op `GET /admin/ai/jobs`: de recentste AI-jobs, nieuwste eerst (T9.15). */
+export const aiJobListResponseSchema = z.object({
+  jobs: z.array(aiJobSummarySchema),
+});
+export type AiJobListResponse = z.infer<typeof aiJobListResponseSchema>;
 
 // --- AI-status (T9.4, DESIGN §7.2, §9.2, §9.4, ADR-0010) ---
 

@@ -52,6 +52,9 @@ describe('buildAiPrompt — beperkte context (DESIGN §7.7)', () => {
     expect(prompt.task).toBe(AI_TASK_SELECT_NEXT_QUESTION);
     expect(prompt.systemRules).toEqual([...SYSTEM_RULES]);
     expect(prompt.goal).toBe(GOAL);
+    // De vraag moet in het Nederlands aan de gebruiker gesteld worden (T9.16): bij de rooktest met een
+    // echte AI kwam er "Is the pain related to being sick?" op de tablet te staan.
+    expect(prompt.goal).toContain('Nederlands');
     expect(prompt.aacRules).toEqual([...AAC_RULES]);
   });
 

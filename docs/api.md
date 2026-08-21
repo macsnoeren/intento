@@ -244,7 +244,7 @@ herstelt.
 | POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
 | POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. Bij een **vraagmodus**-sessie (T7.1) kan het door de begeleider gekozen topic-anker (de eerste stap) niet ongedaan worden gemaakt (`400` als alléén het anker rest), zodat het gesprek binnen de vraag blijft. |
 | GET | `/conversation/pending` | apparaat | Openstaande **begeleidersvraag** ophalen (vraagmodus, T7.1). `200` + `pendingQuestionResponseSchema` (`{ state: conversationStateResponseSchema \| null }`): de nieuwste `ACTIVE` vraagmodus-sessie van de eigen gebruiker als volledige gesprekstoestand (met `caregiverQuestion` gevuld), of `null` → geen vraag klaar (de tablet start dan een vrij gesprek). |
-| POST | `/conversation/{id}/correction` | apparaat | **Correctie** (❌ op een voorstel, T5.4, DESIGN §3.4, FR-009): `conversationCorrectionRequestSchema` (`{ type: "wrong_guess" }`, standaard — een lege body `{}` volstaat). De server **heranalyseert** de route en bepaalt uit de per-stap-zekerheid (`ConversationStep.confidence`, §7.4) de vermoedelijke **foutstap** (laagste zekerheid; tie → vroegste; terugval op de laatste stap), rolt die stap en alles erna terug, legt het afgewezen concept vast als **`CorrectionEvent`** en geeft een **gerichtere hervraag** terug (`conversationStateResponseSchema`) — **niet** terug naar het begin. Het afgewezen concept wordt de rest van de sessie **niet meer aangeboden** (§7.5). Er wordt niets geleerd/opgeslagen (sessie blijft `ACTIVE`). Zonder keuzes → `400 NO_STEPS_TO_CORRECT`; onbekend `type` → `400`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
+| POST | `/conversation/{id}/correction` | apparaat | **Correctie** (T5.4/T9.12, DESIGN §3.4, FR-009): `conversationCorrectionRequestSchema` (`{ type }`, standaard `wrong_guess` — een lege body `{}` volstaat). Twee soorten "dit klopt niet":<br>• **`wrong_guess`** (❌ op een voorstel) — de server **heranalyseert** de route en bepaalt uit de per-stap-zekerheid (`ConversationStep.confidence`, §7.4) de vermoedelijke **foutstap** (laagste zekerheid; tie → vroegste; terugval op de laatste stap), rolt die stap en alles erna terug, legt het afgewezen concept vast als **`CorrectionEvent`** en geeft een **gerichtere hervraag** terug — **niet** terug naar het begin. In vraagmodus blijft de **ankerstap van de begeleider** staan (T9.14); is dat de enige stap → `400 NO_STEPS_TO_CORRECT`.<br>• **`no_fitting_option`** (T9.12, "Staat er niet bij") — het juiste pictogram zit niet tussen de opties. Er wordt **niets teruggerold**: alle concepten van dít punt worden als `CorrectionEvent` uitgesloten, waarna de beslissingslaag een niveau hoger verdergaat. Op het startscherm komen de intentiecategorieën gewoon terug (nooit een leeg scherm); is er niets over te slaan → `400 NO_OPTIONS_TO_SKIP`.<br>Het antwoord is in beide gevallen `conversationStateResponseSchema`; uitgesloten concepten worden de rest van de sessie **niet meer aangeboden** (§7.5). Er wordt niets geleerd/opgeslagen (sessie blijft `ACTIVE`). Zonder keuzes → `400 NO_STEPS_TO_CORRECT`; onbekend `type` → `400`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T5.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). De **AI-orchestrator** formuleert de zin (met `confidence`, §7.4), begrensd door de **safety-laag** die geen concept buiten de sessie doorlaat (§7.8); zonder AI-capability of bij een onveilige zin valt hij terug op de deterministische **sjabloon-zin**. **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T5.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hervormt de zin **server-side** uit de opgeslagen keuzes via de orchestrator (nooit vrije clienttekst), met dezelfde safety-terugval, zodat de bewaarde boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Een **afwijzing** verloopt via `/correction` (gerichte hervraag, T5.4), niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). |
 
@@ -295,6 +295,15 @@ De AI is een **interne** laag; er is bewust **geen client-endpoint** dat rechtst
 in `server/src/ai/` en is vanaf T5.2 achter `/conversation/{id}/next` gezet — er is dus **geen** nieuwe
 publieke route; de vraagselectie is van de gescripte engine naar de orchestrator gewisseld.
 
+**Wat de AI wel en niet mag (T9.10/T9.14, DESIGN §3.1, §7.6).** De AI **ordent** binnen de AAC-kandidaten
+van dit punt; ze **snoeit ze niet weg**. Haar keuzes staan vooraan (dat is wat de tablet als eerste
+toont), maar alle overige kandidaten van hetzelfde punt volgen erachter en blijven via "Meer keuzes"
+(T9.6) bereikbaar — anders is een bestaand pictogram onbereikbaar, precies wat in de gebruikerstest
+misging. Verder: een boodschap wordt pas voorgesteld als de **gebruiker** zelf iets gekozen heeft (in
+vraagmodus telt het anker van de begeleider niet mee), en houdt een punt geen kandidaten meer over (bv.
+na een correctie), dan zoekt de beslissingslaag een niveau hoger verder in plaats van een boodschap te
+verzinnen. Een **eindconcept** (geen kinderen in de bibliotheek) blijft gewoon een voorstel opleveren.
+
 De vorm van de interne AI-in-/uitvoer (zod, `server/src/ai/provider.ts` — **niet** in `@intento/shared`,
 want de client kent ze niet):
 
@@ -343,6 +352,17 @@ Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
 Beide interfaces tonen dit als een klein statuslampje ("AI denkt mee" / "Geen AI-worker actief" /
 "Zonder AI"). Aanleiding is de gebruikerstest: de backend draaide op `AI_PROVIDER=mock` — de
 deterministische mock-provider — en niets liet zien dat er geen AI meedacht.
+
+### AI-activiteit (T9.15, DESIGN §7.2, §7.4, §9.4)
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/admin/ai/jobs` | ADMIN **van de platformorganisatie** | De 25 recentste AI-jobs, nieuwste eerst (`aiJobListResponseSchema`): taak, status, pogingen, doorlooptijd, de worker die hem oppakte, en van een geslaagd resultaat de **vraag**, de door de AI aangedragen **concepten met zekerheid** en haar **motivering**. Antwoord op "doet de AI wel opties bedenken?" uit de gebruikerstest. De **prompt** (`AiJob.payloadJson`) komt er nooit uit — daar zit persoonlijke context in (T6.1). Zelfde grens als het worker-tokenbeheer: `AiJob` is platform-infrastructuur en niet tenant-gebonden, dus een gewone organisatie-ADMIN krijgt `403 NOT_PLATFORM_ADMIN`. |
+
+Daarnaast logt de backend per beslissing één regel (`AI-beslissing voor de volgende vraag`) met provider,
+aantal kandidaten, hoeveel opties de AI zelf aandroeg, wat er wordt aangeboden, of er een niveau hoger is
+gezocht, de zekerheid/fase en de motivering — uitsluitend AAC-concepten en tellingen, geen persoonlijke
+context of boodschapinhoud.
 
 ## Gedistribueerde AI-workers — wachtrij en worker-protocol (T5.5, intern)
 

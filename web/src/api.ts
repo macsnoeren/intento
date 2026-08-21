@@ -4,6 +4,7 @@ import {
   accountListResponseSchema,
   aacSymbolAdminSchema,
   aacSymbolListResponseSchema,
+  aiJobListResponseSchema,
   aiStatusResponseSchema,
   aiWaitingErrorSchema,
   apiErrorSchema,
@@ -46,6 +47,7 @@ import {
   type AacSymbolInput,
   type AacSymbolListResponse,
   type AacTopicListResponse,
+  type AiJobListResponse,
   type AiStatusResponse,
   type AttachOpenSymbolsRequest,
   type AuditLogListResponse,
@@ -59,6 +61,7 @@ import {
   type ConceptProposal,
   type ConceptProposalListResponse,
   type ConversationConfirmResponse,
+  type ConversationCorrectionType,
   type DashboardResponse,
   type ConversationGenerateResponse,
   type ConversationStateResponse,
@@ -201,6 +204,11 @@ export interface Api {
   listAacTopics(): Promise<AacTopicListResponse>;
   /** Draait er een echte AI mee en is er een worker actief? (T9.4) Alleen infrastructuurmetadata. */
   getAiStatus(): Promise<AiStatusResponse>;
+  /**
+   * De recentste AI-aanvragen met wat de AI eruit gaf (T9.15) — platformbeheer, nooit de prompt.
+   * Een gewone organisatie-ADMIN krijgt 403 `NOT_PLATFORM_ADMIN`.
+   */
+  listAiJobs(): Promise<AiJobListResponse>;
   /** Gebruikers aan wie dit account (begeleider/beheerder) een vraag mag stellen (vraagmodus, T7.1). */
   listQuestionUsers(): Promise<UserListResponse>;
   /** Start een vraagmodus-sessie: de vraag verschijnt in de gebruikersapp op de tablet (T7.1). */
@@ -253,8 +261,16 @@ export interface DeviceApi {
   conversationNext(sessionId: string, symbolId: string): Promise<ConversationStateResponse>;
   /** Laatste keuze ongedaan maken; herstelt de vorige vraag/opties exact. */
   conversationBack(sessionId: string): Promise<ConversationStateResponse>;
-  /** Voorstel afwijzen (❌): heranalyse → gerichtere hervraag op de vermoedelijke foutstap (T5.4). */
-  conversationCorrection(sessionId: string): Promise<ConversationStateResponse>;
+  /**
+   * "Dit klopt niet" (T5.4/T9.12). `wrong_guess` (standaard) wijst het **voorstel** af: heranalyse →
+   * gerichtere hervraag op de vermoedelijke foutstap. `no_fitting_option` betekent dat het juiste
+   * pictogram niet tussen de aangeboden opties staat: dit punt wordt overgeslagen en het gesprek gaat
+   * met andere opties verder, zonder een gemaakte keuze terug te rollen.
+   */
+  conversationCorrection(
+    sessionId: string,
+    type?: ConversationCorrectionType,
+  ): Promise<ConversationStateResponse>;
   /** Boodschap laten voorstellen uit de gekozen concepten (sjabloon-zin + confidence; slaat niets op). */
   conversationGenerate(sessionId: string): Promise<ConversationGenerateResponse>;
   /** Boodschap bevestigen → sessie afronden en de boodschap opslaan. */
@@ -512,6 +528,9 @@ export const httpApi: Api & DeviceApi = {
   async getAiStatus() {
     return aiStatusResponseSchema.parse(await request('/ai/status'));
   },
+  async listAiJobs() {
+    return aiJobListResponseSchema.parse(await request('/admin/ai/jobs'));
+  },
   async listQuestionUsers() {
     return userListResponseSchema.parse(await request('/question/users'));
   },
@@ -610,9 +629,12 @@ export const httpApi: Api & DeviceApi = {
       await request(`/conversation/${sessionId}/back`, { method: 'POST', body: '{}' }),
     );
   },
-  async conversationCorrection(sessionId) {
+  async conversationCorrection(sessionId, type = 'wrong_guess') {
     return conversationStateResponseSchema.parse(
-      await request(`/conversation/${sessionId}/correction`, { method: 'POST', body: '{}' }),
+      await request(`/conversation/${sessionId}/correction`, {
+        method: 'POST',
+        body: JSON.stringify({ type }),
+      }),
     );
   },
   async conversationGenerate(sessionId) {

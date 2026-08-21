@@ -83,7 +83,10 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
     });
     const decision = await decideNextQuestion(prisma, orchestrator, steps('want'));
 
-    expect(conceptsOf(decision)).toEqual(['do-activity']); // onbekend concept weggelaten
+    // Het onbekende concept is weggelaten; de AI-keuze staat vooraan en de overige kandidaten van dit
+    // punt volgen erachter (T9.10: de AI ordent, ze snoeit de bibliotheek niet weg).
+    expect(conceptsOf(decision)[0]).toBe('do-activity');
+    expect(conceptsOf(decision)).not.toContain('faketeleport');
     expect(decision.proposed).toEqual(['faketeleport']);
     const proposal = await prisma.conceptProposal.findUnique({
       where: { concept: 'faketeleport' },
@@ -104,7 +107,85 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
     });
     const decision = await decideNextQuestion(prisma, orchestrator, steps('want'));
     expect(conceptsOf(decision)).not.toContain('want');
-    expect(conceptsOf(decision)).toEqual(['do-activity']);
+    // De door de AI gekozen optie staat vooraan; de rest van de kandidaten volgt (T9.10).
+    expect(conceptsOf(decision)[0]).toBe('do-activity');
+  });
+
+  it('biedt op het startscherm alle intentiecategorieën aan, ook als de AI er één kiest (T9.10)', async () => {
+    // In de gebruikerstest gaf een echte AI het startscherm met één optie terug; dan kiest de AI de
+    // intentie in plaats van de gebruiker. De AI mag ordenen, niet snoeien.
+    const orchestrator = stubOrchestrator({
+      question: 'Wat wil je?',
+      confidence: 0.7,
+      reason: 'de gebruiker wil vast iets',
+      options: [{ symbol: 'want', confidence: 0.9 }],
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, steps());
+
+    const intents = await prisma.aacSymbol.findMany({ where: { category: 'intent' } });
+    expect(conceptsOf(decision)).toHaveLength(intents.length);
+    // De keuze van de AI staat wél vooraan (dat is wat de tablet als eerste toont).
+    expect(conceptsOf(decision)[0]).toBe('want');
+    expect(decision.done).toBe(false);
+  });
+
+  it('stelt niets voor zolang alleen het begeleiders-anker gezet is (T9.14)', async () => {
+    // Vraagmodus: stap 0 is het anker van de begeleider. Ook een zeer zekere AI mag daarop geen
+    // "boodschap van de gebruiker" voorstellen — de gebruiker heeft nog niets gekozen.
+    const orchestrator = stubOrchestrator({
+      question: 'Wat wil je drinken?',
+      confidence: 0.99,
+      reason: 'heel zeker',
+      options: [{ symbol: 'water', confidence: 0.99 }],
+    });
+    const withAnchor = await decideNextQuestion(
+      prisma,
+      orchestrator,
+      steps('drink'),
+      [],
+      [],
+      'Wat wil je drinken?',
+      1,
+    );
+    expect(withAnchor.done).toBe(false);
+    expect(conceptsOf(withAnchor)).toContain('water');
+
+    // Zonder anker (vrij gesprek) is diezelfde zekerheid wél een voorstel: daar koos de gebruiker zelf.
+    const freeChoice = await decideNextQuestion(prisma, orchestrator, steps('drink'));
+    expect(freeChoice.done).toBe(true);
+  });
+
+  it('zoekt een niveau hoger als alle opties van dit punt zijn uitgesloten (T9.14)', async () => {
+    // Na een ❌-correctie kan een tak leeg raken. Dan hoort er een andere vraag te komen, geen
+    // boodschap uit het niets: in de gebruikerstest stelde de app een boodschap voor die de gebruiker
+    // nooit gekozen had.
+    const painChildren = await prisma.aacConceptRelation.findMany({
+      where: { parent: { concept: 'pain' } },
+      include: { child: true },
+    });
+    const excluded = painChildren.map((relation) => relation.child.concept);
+
+    const decision = await decideNextQuestion(
+      prisma,
+      mockOrchestrator,
+      steps('problem', 'pain'),
+      excluded,
+    );
+    expect(decision.done).toBe(false);
+    expect(decision.diagnostics.widened).toBe(true);
+    // De opties komen nu van een niveau hoger (de andere problemen), niet uit het uitgesloten niveau.
+    expect(conceptsOf(decision).length).toBeGreaterThan(0);
+    for (const concept of conceptsOf(decision)) {
+      expect(excluded).not.toContain(concept);
+    }
+  });
+
+  it('blijft bij een écht eindconcept gewoon een boodschap voorstellen', async () => {
+    // Onderscheid met de test hierboven: "water" heeft in de bibliotheek géén kinderen (eindconcept),
+    // dus daar is de route af — niet omhoog zoeken.
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, steps('drink', 'water'));
+    expect(decision.done).toBe(true);
+    expect(decision.diagnostics.widened).toBe(false);
   });
 
   it('sluit expliciet uitgesloten concepten uit (bv. afgewezen keuze bij correctie, T5.4)', async () => {

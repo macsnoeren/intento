@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { aiStatusResponseSchema } from '@intento/shared';
+import { aiJobListResponseSchema, aiStatusResponseSchema } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import { createWorkerToken } from '../ai/worker-token.js';
@@ -10,6 +10,7 @@ import {
   loginCookie,
   resetAuthData,
   seedAccount,
+  seedOrganization,
   seedUser,
   testEnv,
 } from '../test/auth-helpers.js';
@@ -111,6 +112,62 @@ describe('AI-status — GET /ai/status (T9.4)', () => {
     );
     expect(status.workersOnline).toBe(0);
     expect(status.active).toBe(false);
+  });
+
+  it('toont de recente AI-jobs met de keuzes van de AI, maar nooit de prompt (T9.15)', async () => {
+    const cookie = await withMode('queue');
+    // De bootstrap-org is de platformorganisatie; deze test-admin krijgt dezelfde grens als bij het
+    // worker-tokenbeheer, dus zetten we de vlag expliciet.
+    await prisma.organization.updateMany({ data: { isPlatform: true } });
+
+    const { record } = await createWorkerToken(prisma, { name: 'gpu-node-1' });
+    await prisma.aiJob.create({
+      data: {
+        task: 'select_next_question',
+        status: 'SUCCEEDED',
+        payloadJson: JSON.stringify({ geheim: 'persoonlijke context van de gebruiker' }),
+        resultJson: JSON.stringify({
+          question: 'Wat wil je drinken?',
+          options: [
+            { symbol: 'water', confidence: 0.8 },
+            { symbol: 'tea', confidence: 0.4 },
+          ],
+          reason: 'water past bij het pad',
+          confidence: 0.72,
+        }),
+        attempts: 1,
+        claimedById: record.id,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+
+    const res = await app!.inject({ method: 'GET', url: '/admin/ai/jobs', headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    const { jobs } = aiJobListResponseSchema.parse(res.json());
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({
+      task: 'select_next_question',
+      status: 'SUCCEEDED',
+      worker: 'gpu-node-1',
+      question: 'Wat wil je drinken?',
+      reason: 'water past bij het pad',
+      confidence: 0.72,
+    });
+    expect(jobs[0]!.options.map((option) => option.concept)).toEqual(['water', 'tea']);
+    // De prompt (met persoonlijke context) mag nergens in de respons zitten.
+    expect(res.body).not.toContain('persoonlijke context');
+    expect(res.body).not.toContain('payload');
+  });
+
+  it('houdt de AI-activiteit weg bij een gewone organisatie-ADMIN (T9.15)', async () => {
+    app = await buildApp({ env: testEnv({ AI_PROVIDER: 'queue', LOGIN_RATE_LIMIT_MAX: '100' }) });
+    const org = await seedOrganization('Gewone zorgorganisatie');
+    const admin = await seedAccount('admin@zorg.local', 'pw', 'ADMIN', org);
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    const res = await app.inject({ method: 'GET', url: '/admin/ai/jobs', headers: { cookie } });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'NOT_PLATFORM_ADMIN' } });
   });
 
   it('laat ook de tablet (device-auth) de status opvragen, maar niemand zonder auth', async () => {
