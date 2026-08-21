@@ -124,6 +124,13 @@ export const accountPublicSchema = z.object({
    * is overgestapt. Zelf gekozen wachtwoorden (zelfaanmelding T1.3, seed) zijn nooit gemarkeerd.
    */
   mustChangePassword: z.boolean(),
+  /**
+   * Of dit account de **platform-operatorconsole** mag gebruiken (T8.3). Bewust géén rol maar een
+   * aparte bevoegdheid: de rol bepaalt wat je binnen je eigen organisatie mag, deze vlag ontgrendelt
+   * de cross-tenant console op `/operator`. De web-client gebruikt 'm alleen om de ingang te tonen —
+   * de echte grens ligt op de server (`operatorAuthorize`), die elke operator-route apart bewaakt.
+   */
+  isOperator: z.boolean(),
 });
 export type AccountPublic = z.infer<typeof accountPublicSchema>;
 
@@ -1262,3 +1269,90 @@ export const auditLogListResponseSchema = z.object({
   entries: z.array(auditLogEntrySchema),
 });
 export type AuditLogListResponse = z.infer<typeof auditLogListResponseSchema>;
+
+// --- Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, §10.4) ---
+
+/**
+ * Publieke weergave van één organisatie in de **operatorconsole** (`GET /operator/organizations`).
+ *
+ * Dit is de enige plek in Intento waar data van meerdere tenants naast elkaar staat, dus de vorm is
+ * bewust smal: alleen **beheermetadata** (naam, soort, status, omvang). Geen communicatie-inhoud,
+ * geen persoonlijke context, geen gebruikersnamen — die blijven binnen de tenant (DESIGN §9.4).
+ * `userCount`/`accountCount` zijn aggregaten: een operator kan de omvang van een omgeving inschatten
+ * (misbruik, capaciteit) zonder de mensen erin te zien.
+ */
+export const operatorOrganizationSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  type: organizationTypeSchema,
+  /** Actief; `false` = door een operator gedeactiveerd (login/sessies/tablets geweigerd). */
+  active: z.boolean(),
+  /** Platformorganisatie: hier wonen de operators en het worker-tokenbeheer (T5.8). */
+  isPlatform: z.boolean(),
+  userCount: z.number().int().nonnegative(),
+  accountCount: z.number().int().nonnegative(),
+  createdAt: z.iso.datetime(),
+});
+export type OperatorOrganization = z.infer<typeof operatorOrganizationSchema>;
+
+/** Antwoord op `GET /operator/organizations`: alle organisaties (nieuwste eerst). */
+export const operatorOrganizationListResponseSchema = z.object({
+  organizations: z.array(operatorOrganizationSchema),
+});
+export type OperatorOrganizationListResponse = z.infer<
+  typeof operatorOrganizationListResponseSchema
+>;
+
+/**
+ * Nieuwe organisatie aanmaken vanuit de console (`POST /operator/organizations`). Bewust **zonder**
+ * eerste admin-account: een omgeving krijgt haar beheerder via zelfaanmelding (T1.3) of via de
+ * ADMIN-flow binnen de tenant (T2.4). De operator zet dus de omgeving neer, maar mint geen
+ * inloggegevens voor andermans tenant — dat zou een operator stilzwijgend toegang tot communicatie
+ * geven. Zie docs/security.md.
+ */
+export const createOperatorOrganizationRequestSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  type: organizationTypeSchema,
+});
+export type CreateOperatorOrganizationRequest = z.infer<
+  typeof createOperatorOrganizationRequestSchema
+>;
+
+/**
+ * Accountregel in het organisatiedetail van de console (`GET /operator/organizations/:id`).
+ *
+ * Alleen wat nodig is om misbruik of een vastgelopen omgeving te beoordelen: wie kan er inloggen,
+ * met welke rol, en is dat account al bevestigd/overgestapt van zijn tijdelijke wachtwoord. Nooit
+ * de wachtwoordhash, sessies, of iets uit de communicatie.
+ */
+export const operatorAccountSchema = z.object({
+  id: z.string(),
+  email: z.email(),
+  name: z.string().nullable(),
+  role: accountRoleSchema,
+  emailVerified: z.boolean(),
+  mustChangePassword: z.boolean(),
+  isOperator: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type OperatorAccount = z.infer<typeof operatorAccountSchema>;
+
+/**
+ * Gebruikersregel in het organisatiedetail. **Zonder naam**: de communicerende persoon is de meest
+ * beschermde entiteit in Intento (DESIGN §2, §9.4) en een operator hoeft voor beheer alleen te weten
+ * dát er gebruikers zijn en of ze actief zijn — niet wie. Vandaar id + status + aanmaakmoment.
+ */
+export const operatorUserSchema = z.object({
+  id: z.string(),
+  active: z.boolean(),
+  createdAt: z.iso.datetime(),
+});
+export type OperatorUser = z.infer<typeof operatorUserSchema>;
+
+/** Antwoord op `GET /operator/organizations/:id`: de organisatie met haar accounts en gebruikers. */
+export const operatorOrganizationDetailSchema = z.object({
+  organization: operatorOrganizationSchema,
+  accounts: z.array(operatorAccountSchema),
+  users: z.array(operatorUserSchema),
+});
+export type OperatorOrganizationDetail = z.infer<typeof operatorOrganizationDetailSchema>;

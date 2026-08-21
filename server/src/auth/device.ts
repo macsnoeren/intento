@@ -4,6 +4,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { DeviceModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { DEVICE_COOKIE_NAME } from './cookie.js';
+import { assertOrganizationActive } from './organization-status.js';
 
 /**
  * Apparaatkoppeling en device-auth (T2.3, DESIGN §6.2, §8.2, FR-018).
@@ -162,6 +163,16 @@ export function deviceAuthorize(prisma: PrismaClient): preHandlerAsyncHookHandle
     if (!device) {
       throw new HttpError(401, 'DEVICE_NOT_LINKED', 'Geen gekoppeld apparaat.');
     }
+    // Gedeactiveerde omgeving (T8.3): een gekoppelde tablet van een gestopte organisatie mag niet
+    // doorwerken. Het apparaat hangt aan een gebruiker, en die aan de organisatie.
+    const user = await prisma.user.findUnique({
+      where: { id: device.userId },
+      select: { organizationId: true },
+    });
+    if (!user) {
+      throw new HttpError(401, 'DEVICE_NOT_LINKED', 'Geen gekoppeld apparaat.');
+    }
+    await assertOrganizationActive(prisma, user.organizationId);
     request.device = device;
   };
 }

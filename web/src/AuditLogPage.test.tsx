@@ -18,6 +18,7 @@ const adminAccount: AccountPublic = {
   name: null,
   emailVerified: true,
   mustChangePassword: false,
+  isOperator: false,
 };
 
 function fakeApi(response: AuditLogListResponse): Api {

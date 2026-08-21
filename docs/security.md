@@ -279,10 +279,54 @@
       Getest in `routes/audit.test.ts` (login-succes/-failure, instellingen, context zonder PII, export,
       ADMIN-only + tenant-isolatie, CAREGIVER → 403).
 
+- [x] **Platform-operatorconsole — bewuste doorbreking van de tenant-isolatie (T8.3, ADR-0011)** —
+      Intento kende tot nu toe geen rol boven de tenants: elke ADMIN zit vast in zijn eigen organisatie
+      en `Organization.isPlatform` ontgrendelde alléén worker-tokenbeheer (T5.8). Er was dus niemand die
+      een omgeving kon aanmaken of — belangrijker — een **misbruikte omgeving kon stoppen**. De
+      operatorconsole vult dat gat, en is daarmee het **enige** deel van de codebase dat niet op
+      `organizationId` filtert. Die doorbreking is als volgt ingekaderd:
+      - **Twee onafhankelijke voorwaarden.** `Account.isOperator` **én** een organisatie met
+        `isPlatform=true`. Eén vlag alleen (een geïmporteerde of geknoeide rij) ontgrendelt niets.
+      - **De vlag is niet uit te delen.** Alleen `db/bootstrap-seed.ts` zet `isOperator`; er is geen
+        endpoint om iemand tot operator te promoveren. Een tenant-ADMIN kan zichzelf dus niet promoveren.
+      - **Eigen guard, eigen routetak, eigen request-veld.** `/operator/*` hangt achter
+        `operatorAuthorize(...)` (`auth/operator.ts`), niet achter `authorize()`. De guard zet
+        `request.operator` en laat `request.account` **leeg**, zodat `requireAccount`/`tenantScope`/
+        `assertSameTenant` daar hard falen (500) in plaats van stil op de organisatie van de operator te
+        filteren: een vergissing wordt een crash, geen datalek. Alle andere rollen krijgen op elk
+        operator-endpoint `403 NOT_OPERATOR` (één code voor "geen vlag" én "geen platform-org", zodat niet
+        lekt hoe dicht een aanvaller bij de console zit). De tijdelijk-wachtwoord- (T2.6) en
+        e-mailverificatiegate (T1.4) gelden hier ook — juist hier, want dit is het krachtigste account.
+      - **Beheermetadata, geen inhoud.** Naam/soort/status/aantallen; in het detail accounts (e-mail, rol,
+        status) en gebruikers **zonder naam**. Geen boodschappen, gesprekken, persoonlijke context of
+        voorkeuren; `select` is expliciet zodat een later toegevoegd Account-veld niet meelekt.
+      - **Beperkte werkwoorden.** Organisaties: lijst/detail/aanmaken/(de)activeren. Accounts en
+        gebruikers: alleen inzien. Bewust géén "inloggen als", géén wachtwoord-reset in andermans tenant en
+        géén eerste-admin bij een nieuwe omgeving — elk daarvan geeft stilzwijgend toegang tot communicatie.
+      - **Deactiveren werkt echt en meteen.** `Organization.active=false` wordt afgedwongen op login,
+        bestaande accountsessies (`authorize()`) én gekoppelde tablets (`deviceAuthorize()`) → `403
+        ORGANIZATION_SUSPENDED`. Geen verwijdering: gegevens blijven, hervatten is één klik. De
+        platformorganisatie is beschermd (`400 PLATFORM_ORGANIZATION_PROTECTED`) zodat een operator
+        zichzelf niet buitensluit.
+      - **Alles geaudit, zonder tenant.** Operator-acties loggen met de operator als actor en
+        `organizationId: null` (als bij worker-tokens), zodat ze niet opduiken in het audit-overzicht van
+        een organisatie die er zelf niets aan kon doen; de betrokken organisatie staat in `targetId`.
+      Getest in `routes/operator.test.ts`: 401 zonder sessie, 403 voor tenant-ADMIN/CAREGIVER/platform-ADMIN
+      zonder vlag/operatorvlag buiten de platform-org, de hele routetak dicht voor een gewone ADMIN, geen
+      gebruikersnaam of wachtwoordhash in de respons, deactivatie die sessie/login/tablet sluit, en — de
+      belofte die deze taak niet mocht breken — dat een operator op de **gewone** endpoints nog steeds niets
+      van een andere tenant ziet.
+
 ## Bekende afwegingen / restrisico's
 
 - `server.ts` bindt op `0.0.0.0`; op een gedeeld netwerk zonder firewall is de dev-server
   bereikbaar voor anderen. Voor productie hoort de app achter een reverse proxy (TLS).
+- **De bootstrap-admin is sinds T8.3 ook platform-operator.** Wie die inloggegevens heeft kan
+  omgevingen aanmaken en stoppen (niet: communicatie lezen). Dat maakt het beschermen van dat ene
+  account belangrijker dan voorheen: zet een echt `SEED_ADMIN_PASSWORD` buiten lokale ontwikkeling.
+- **Deactiveren kost één PK-lookup per geauthenticeerde request** (organisatiestatus, op elk van de
+  drie auth-paden). Bewust geaccepteerd boven meeliften op de sessie-join: de check moet op één plek
+  leesbaar zijn en overal hetzelfde doen.
 
 ## Reviewgeschiedenis
 

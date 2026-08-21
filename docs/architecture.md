@@ -138,6 +138,19 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   worker-uitvoer loopt door **dezelfde** orchestrator-zod-parse én validatielaag — een worker wordt nooit
   vertrouwd. Zie [adr/0010](adr/0010-distributed-ai-worker-queue.md).
 
+- **Platform-operatorconsole** (`auth/operator.ts`, `auth/organization-status.ts`,
+  `routes/operator.ts`, `web/src/OperatorConsole.tsx`, T8.3) — de enige laag die bewust **over de
+  tenant-grens heen** kijkt: organisaties beheren (aanmaken, (de)activeren) en accounts/gebruikers
+  inzien over alle omgevingen. Staat naast de gewone autorisatielaag, niet erin: een eigen guard
+  (`operatorAuthorize`) op een eigen routetak (`/operator/*`), die `request.operator` zet en
+  `request.account` **leeg laat**, zodat `requireAccount`/`tenantScope`/`assertSameTenant` daar hard
+  falen in plaats van stilletjes op de organisatie van de operator te filteren — een vergissing wordt
+  een crash, geen datalek. Toegang vereist `Account.isOperator` **én** `Organization.isPlatform`, en de
+  vlag is alleen via de bootstrap-seed te zetten. `organization-status.ts` dwingt daarnaast
+  `Organization.active` af op alle drie de auth-paden (login, accountsessie, device), zodat een
+  gedeactiveerde omgeving onmiddellijk stopt. In de web-bundel is het een aparte route-tak
+  (`routes.tsx` → `/operator`). Zie [adr/0011](adr/0011-platform-operator-console.md).
+
 ## Gerelateerde documentatie
 
 - Belangrijke keuzes met onderbouwing: [adr/](adr/)

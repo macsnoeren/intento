@@ -18,6 +18,10 @@ import { verifyLogin } from '../auth/service.js';
 import { registerOrganization } from '../auth/register.js';
 import { changeOwnPassword } from '../auth/change-password.js';
 import { createSession, deleteSessionByToken, findAccountBySessionToken } from '../auth/session.js';
+import {
+  isOrganizationActive,
+  ORGANIZATION_SUSPENDED_MESSAGE,
+} from '../auth/organization-status.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from '../auth/cookie.js';
 import { readSessionToken } from '../auth/request.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
@@ -89,6 +93,20 @@ export function registerAuthRoutes(
         }
         // Bewust generiek: geen onderscheid tussen onbekende e-mail en fout wachtwoord.
         throw new HttpError(401, 'INVALID_CREDENTIALS', 'Onjuiste e-mail of wachtwoord.');
+      }
+
+      // Gedeactiveerde omgeving (T8.3): wachtwoord klopt, maar er komt geen sessie. Bewust ná de
+      // wachtwoordcontrole, zodat de melding niet verklapt welke adressen bij een gestopte
+      // organisatie horen — je moet de inloggegevens al kennen om hem te zien.
+      if (!(await isOrganizationActive(prisma, result.account.organizationId))) {
+        await recordAudit(prisma, request, {
+          action: AUDIT_ACTIONS.AUTH_LOGIN,
+          outcome: 'failure',
+          accountId: result.account.id,
+          organizationId: result.account.organizationId,
+          metadata: { reason: 'organization_suspended' },
+        });
+        throw new HttpError(403, 'ORGANIZATION_SUSPENDED', ORGANIZATION_SUSPENDED_MESSAGE);
       }
 
       const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);

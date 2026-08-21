@@ -20,6 +20,7 @@ const admin: AccountPublic = {
   name: 'Ada de Beheerder',
   emailVerified: true,
   mustChangePassword: false,
+  isOperator: false,
 };
 
 const caregiver: AccountPublic = {
@@ -30,6 +31,7 @@ const caregiver: AccountPublic = {
   name: 'Sam de Begeleider',
   emailVerified: false,
   mustChangePassword: false,
+  isOperator: false,
 };
 
 function fakeApi(

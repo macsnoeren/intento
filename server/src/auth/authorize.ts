@@ -5,6 +5,7 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { findAccountBySessionToken } from './session.js';
 import { readSessionToken } from './request.js';
+import { assertOrganizationActive } from './organization-status.js';
 
 /**
  * Autorisatie-middleware (T1.2, DESIGN §2, §9.4).
@@ -19,6 +20,9 @@ import { readSessionToken } from './request.js';
  *      server bij het aanmaken genereerde en aan de beheerder toonde (`mustChangePassword`), dan
  *      403 `PASSWORD_CHANGE_REQUIRED`, behalve op de routes die expliciet
  *      `allowPendingPasswordChange` zetten (`GET /auth/me`, `POST /auth/password`).
+ *   4. **Organisatiestatus (T8.3)** — is de organisatie door een platform-operator gedeactiveerd,
+ *      dan 403 `ORGANIZATION_SUSPENDED`. Bewust hier en niet alleen bij login: zo stopt een
+ *      lopende sessie meteen in plaats van pas als hij verloopt (zie `organization-status.ts`).
  *
  * Het geverifieerde account wordt op `request.account` gezet, zodat de handler het zonder
  * herhaalde lookup kan gebruiken — inclusief `organizationId` voor tenant-filtering
@@ -74,6 +78,8 @@ export function authorize(
         'Kies eerst zelf een wachtwoord; je tijdelijke wachtwoord is ook bij je beheerder bekend.',
       );
     }
+    // Gedeactiveerde omgeving (T8.3): ook een geldige sessie komt er niet meer in.
+    await assertOrganizationActive(prisma, account.organizationId);
     request.account = account;
   };
 }

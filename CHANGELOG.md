@@ -6,6 +6,38 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T8.3 Platform-operatorconsole: cross-tenant organisatie- en gebruikersbeheer.** Intento kende geen
+  rol bóven de tenants: elke ADMIN zit vast in zijn eigen organisatie (T1.2) en `Organization.isPlatform`
+  ontgrendelde alléén worker-tokenbeheer (T5.8). Er was dus niemand die een omgeving kon neerzetten en —
+  belangrijker — een **misbruikte omgeving kon stoppen**; die bleef gewoon draaien. Nieuw:
+  `Account.isOperator` en `Organization.active` (migratie `operator_console_and_org_active`, veilige
+  defaults) plus de routetak **`/operator/*`**: lijst, detail, aanmaken en (de)activeren van organisaties,
+  en inzage in accounts/gebruikers over tenants heen. **Gekozen: een aparte bevoegdheid, geen vierde rol.**
+  `role` beantwoordt "wat mag je binnen je organisatie?" en wordt overal met tenant-filtering gecombineerd;
+  een `PLATFORM_ADMIN` in dat enum zou door elke bestaande rolcontrole rimpelen en suggereren dat operator
+  een plek op dezelfde as is. De vlag telt bovendien alléén in een organisatie met `isPlatform=true` (twee
+  onafhankelijke voorwaarden) en wordt **uitsluitend door de bootstrap-seed** gezet — er is geen API om
+  iemand tot operator te promoveren. Security is hier het hart: eigen guard (`operatorAuthorize`, níét
+  `authorize()`), eigen routetak, en — de kern — de guard zet **`request.operator` en laat
+  `request.account` leeg**, zodat `requireAccount`/`tenantScope`/`assertSameTenant` op een operator-route
+  hard falen in plaats van stilletjes op de organisatie van de operator te filteren: een vergissing wordt
+  een crash, geen datalek. Elk ander account (ook een platform-ADMIN zonder vlag) krijgt op élk
+  operator-endpoint `403 NOT_OPERATOR`; de tijdelijk-wachtwoord- en verificatiegate gelden hier óók. De
+  responses dragen alleen **beheermetadata** — geen communicatie-inhoud, geen persoonlijke context, en
+  gebruikers **zonder naam**; expliciete `select` zodat een later Account-veld niet meelekt. Bewust géén
+  "inloggen als", géén wachtwoord-reset in andermans tenant en géén eerste-admin bij een nieuwe omgeving.
+  **Deactiveren doet echt iets en meteen:** `active=false` wordt afgedwongen op login, bestaande
+  accountsessies én gekoppelde tablets (`403 ORGANIZATION_SUSPENDED`) — geen verwijdering (gegevens
+  blijven, hervatten is één klik), en de platformorganisatie is beschermd (`400
+  PLATFORM_ORGANIZATION_PROTECTED`) zodat een operator zichzelf niet buitensluit. Alle acties geaudit met
+  de operator als actor en `organizationId: null` (als bij worker-tokens), zodat ze niet opduiken in het
+  audit-overzicht van een organisatie die er niets aan kon doen. UI: aparte route **`/operator`**
+  (`OperatorConsole.tsx`, route-dispatch verhuisd naar `routes.tsx` en getest) met één expliciete link op
+  "Mijn account" — geen tab tussen het tenant-beheer. Docs: ADR-0011, `docs/security.md`, `docs/api.md`,
+  `docs/data-model.md`, README. Tests: `routes/operator.test.ts` (401/403-matrix incl. de hele routetak
+  dicht voor een gewone ADMIN, cross-tenant lijst, geen gebruikersnaam of hash in de respons, deactivatie
+  die sessie/login/tablet sluit, platform-org beschermd, en dat een operator op de **gewone** endpoints nog
+  steeds niets van een andere tenant ziet), `web/src/OperatorConsole.test.tsx` en `web/src/routes.test.tsx`.
 - **T2.7 Nieuw tijdelijk wachtwoord uitgeven voor een vastgelopen account.** Meerwerk uit T2.6: door
   de harde gate kon een begeleider die zijn tijdelijke wachtwoord kwijtraakte (of op de lockout
   strandde) helemaal niets meer — inloggen lukte niet en zonder sessie is `POST /auth/password`

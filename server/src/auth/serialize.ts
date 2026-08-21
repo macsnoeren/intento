@@ -6,8 +6,10 @@ import type { AccountModel } from '../generated/prisma/models.js';
  * interne lockout-velden; `emailVerified` is afgeleid van `emailVerifiedAt` (T1.4) en `name` mag
  * `null` zijn (geseede accounts van vóór T1.3). `mustChangePassword` (T2.6) gaat wél mee: de eigen
  * weergave heeft 'm nodig om de houder naar het wachtwoordscherm te sturen en de beheerder ziet er
- * in zijn accountlijst aan wie nog op een bij hem bekend wachtwoord draait. Gedeeld door de auth-
- * en account-routes zodat de vorm op één plek staat en niet uit elkaar loopt.
+ * in zijn accountlijst aan wie nog op een bij hem bekend wachtwoord draait. `isOperator` (T8.3) gaat
+ * eveneens mee: de web-client toont daarmee de ingang naar de operatorconsole — de echte grens ligt op
+ * de server (`operatorAuthorize`). Gedeeld door de auth- en account-routes zodat de vorm op één plek
+ * staat en niet uit elkaar loopt.
  */
 export function accountToPublic(account: AccountModel): AccountPublic {
   return accountPublicSchema.parse({
@@ -18,5 +20,6 @@ export function accountToPublic(account: AccountModel): AccountPublic {
     name: account.name,
     emailVerified: account.emailVerifiedAt !== null,
     mustChangePassword: account.mustChangePassword,
+    isOperator: account.isOperator,
   });
 }

@@ -39,6 +39,12 @@ export const BOOTSTRAP_ORGANIZATION_ID = 'seed-demo-org';
  * is** (gerichte `updateMany`), zodat een admin die vóór de T1.4-migratie is aangemaakt na
  * herseeden niet ongeverifieerd achterblijft en de oorspronkelijke verificatiedatum van een al
  * geverifieerd account niet wordt verschoven. Het wachtwoord blijft ongemoeid.
+ *
+ * **Operator (T8.3).** De bootstrap-admin is óók de platform-operator: hij mag via `/operator` over
+ * tenants heen organisaties beheren. Dat is bewust de *enige* plek waar `isOperator` gezet wordt —
+ * er is geen API om de vlag uit te delen, dus niemand kan zichzelf naar de console promoveren. Ook
+ * bij herseeden gezet (net als `isPlatform` op de organisatie), zodat een omgeving die vóór T8.3 is
+ * geseed na een herseed een werkende console heeft.
  */
 export async function seedBootstrapOrgAndAdmin(
   prisma: PrismaClient,
@@ -51,7 +57,9 @@ export async function seedBootstrapOrgAndAdmin(
     where: { id: organizationId },
     // De bootstrap-org is de **platform-/operatororganisatie** (T5.8): alleen ADMINs hiervan
     // mogen worker-tokens (infrastructuur-credentials) beheren. Ook bij herseeden gezet.
-    update: { isPlatform: true },
+    // Ook `active` (T8.3): de platformorganisatie kan niet gedeactiveerd worden, en een herseed zet
+    // een handmatig gewijzigde rij weer goed.
+    update: { isPlatform: true, active: true },
     create: {
       id: organizationId,
       name: options.organizationName ?? 'Demo-omgeving',
@@ -64,7 +72,8 @@ export async function seedBootstrapOrgAndAdmin(
   const created = await prisma.account.upsert({
     where: { email },
     // Wachtwoord bij herseeden niet overschrijven (respecteert een later gewijzigd wachtwoord).
-    update: {},
+    // De operatorvlag wél: die hoort onlosmakelijk bij de bootstrap-admin (T8.3).
+    update: { isOperator: true },
     create: {
       email,
       passwordHash: await hashPassword(options.adminPassword),
@@ -72,6 +81,8 @@ export async function seedBootstrapOrgAndAdmin(
       organizationId: organization.id,
       // Bootstrap-admin: meteen geverifieerd zodat alle beheeracties direct beschikbaar zijn (T1.4).
       emailVerifiedAt: verifiedAt,
+      // Platform-operator (T8.3): mag de cross-tenant console gebruiken.
+      isOperator: true,
     },
   });
 

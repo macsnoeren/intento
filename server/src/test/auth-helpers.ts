@@ -85,6 +85,31 @@ export async function seedAccount(
 }
 
 /**
+ * Maakt de **platformorganisatie** (`isPlatform`) met een ADMIN-account daarin — de basis voor de
+ * platform-gebonden tests (worker-tokens T5.8, operatorconsole T8.3). Met `isOperator: true` krijg je
+ * een volwaardige platform-operator; zonder is het een gewone ADMIN die toevallig in de platform-org
+ * zit (precies het geval dat op `/operator` een 403 hoort te krijgen).
+ */
+export async function seedPlatformAccount(
+  email = 'ops@intento.local',
+  password = 'pw-platform-operator',
+  options: { isOperator?: boolean; organizationId?: string } = {},
+): Promise<SeededAccount> {
+  const orgId =
+    options.organizationId ??
+    (
+      await prisma.organization.create({
+        data: { name: 'Platform', type: 'family', isPlatform: true },
+      })
+    ).id;
+  const seeded = await seedAccount(email, password, 'ADMIN', orgId);
+  if (options.isOperator) {
+    await prisma.account.update({ where: { id: seeded.accountId }, data: { isOperator: true } });
+  }
+  return seeded;
+}
+
+/**
  * Maakt een gebruiker (met standaard-communicatieprofiel) in de opgegeven organisatie. Zonder
  * `organizationId` wordt er een nieuwe organisatie aangemaakt. Handig om isolatie tussen
  * organisaties aan te tonen (org A ziet nooit gebruikers van org B).

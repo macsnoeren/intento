@@ -39,6 +39,7 @@ const adminAccount = {
   name: null,
   emailVerified: true,
   mustChangePassword: false,
+  isOperator: false,
 };
 
 function makeUser(id: string, name: string): UserPublic {
@@ -161,6 +162,7 @@ function fakeApi(
         emailVerified: false,
         // Een vers account draait nog op het tijdelijke wachtwoord dat de server teruggaf (T2.6).
         mustChangePassword: true,
+        isOperator: false,
       };
       caregiverSeed.push({ accountId: account.id, email: account.email, linked: false });
       return Promise.resolve({ account, temporaryPassword: 'tijdelijk-wachtwoord-123' });
@@ -179,6 +181,7 @@ function fakeApi(
             name: null,
             emailVerified: false,
             mustChangePassword: true,
+            isOperator: false,
           })),
         ],
       });
@@ -196,6 +199,7 @@ function fakeApi(
           name: null,
           emailVerified: false,
           mustChangePassword: true,
+          isOperator: false,
         },
         temporaryPassword: 'nieuw-tijdelijk-wachtwoord-456',
         revokedSessions: 1,
@@ -355,6 +359,23 @@ function fakeApi(
     },
     listAuditLogs() {
       return Promise.resolve({ entries: [] });
+    },
+    // Operatorconsole (T8.3) — eigen routetak met eigen test; hier stubs zodat de beheer-app
+    // tegen de volledige `Api` compileert.
+    listOperatorOrganizations() {
+      return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
+    },
+    createOperatorOrganization() {
+      return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
+    },
+    getOperatorOrganization() {
+      return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
+    },
+    deactivateOperatorOrganization() {
+      return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
+    },
+    activateOperatorOrganization() {
+      return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
     },
     listConceptProposals() {
       return Promise.resolve({ proposals: [] });

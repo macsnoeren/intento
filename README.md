@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1); **platform-operatorconsole** op `/operator` (T8.3). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -450,10 +450,53 @@ Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 
 Gevoelige acties laten een **onveranderlijk spoor** na (DESIGN §9.4): login (geslaagd én mislukt), logout,
 registratie, e-mailverificatie, wachtwoordwijziging, begeleider-accounts, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
-persoonlijke context, profielexport/-import, worker-tokens en conceptvoorstellen. Het spoor bevat **geen
+persoonlijke context, profielexport/-import, worker-tokens, conceptvoorstellen en platform-operatoracties (T8.3). Het spoor bevat **geen
 communicatie-inhoud of vrije-tekst-PII** — alleen wie-wat-wanneer. Inzage via `GET /admin/audit-logs`
 (ADMIN, tenant-gefilterd op de eigen organisatie) en de beheerpagina **Audit-log**. Zie
 [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
+
+## Platform-operatorconsole (T8.3)
+
+Intento is strikt multi-tenant: elke ADMIN zit vast in zijn **eigen** organisatie. Daardoor was er tot nu toe
+niemand die het platform zelf kon beheren — een omgeving aanmaken kon alleen via zelfaanmelding, en een
+**misbruikte omgeving stoppen** kon helemaal niet. De operatorconsole vult dat gat, en is het enige deel van
+Intento dat bewust over de tenant-grens heen kijkt (zie [ADR-0011](docs/adr/0011-platform-operator-console.md)).
+
+Toegang vereist **twee** onafhankelijke voorwaarden: `Account.isOperator` én een organisatie met
+`isPlatform=true`. De bootstrap-seed-admin krijgt beide; er is **geen API** om iemand tot operator te maken, dus
+een organisatiebeheerder kan zichzelf niet promoveren. De routetak `/operator/*` hangt achter een **eigen**
+guard (`operatorAuthorize`, niet `authorize()`) die `request.operator` zet en `request.account` leeg laat — de
+tenant-helpers falen daar dus hard in plaats van stilletjes op de organisatie van de operator te filteren. Elk
+ander account krijgt op elk operator-endpoint `403 NOT_OPERATOR`.
+
+Wat de console toont is **beheermetadata**: welke omgevingen er zijn, hoe groot ze zijn, of ze actief zijn, en
+welke logins erin zitten. Geen boodschappen, geen gesprekken, geen persoonlijke context — en zelfs geen namen
+van gebruikers. Er is bewust geen "inloggen als", geen wachtwoord-reset in andermans omgeving en geen
+eerste-admin bij een nieuwe omgeving: elk daarvan zou een operator stilzwijgend toegang tot communicatie geven.
+
+**Deactiveren** (`Organization.active=false`) is geen verwijdering maar wel een onmiddellijke stop: login,
+bestaande accountsessies én gekoppelde tablets worden geweigerd met `403 ORGANIZATION_SUSPENDED`. De gegevens
+blijven staan; hervatten is één klik. De platformorganisatie zelf is beschermd, zodat een operator zichzelf niet
+buitensluit. Elke actie wordt geaudit met de operator als actor.
+
+De console draait op de aparte URL **`/operator`** (`npm run dev:web`, open <http://localhost:5173/operator>) —
+niet als tab in het gewone beheer; een operator vindt 'm via één link op "Mijn account".
+
+```bash
+# Inloggen als de bootstrap-admin (die is ook operator) en de omgevingen bekijken:
+curl -sc cookies.txt -X POST http://127.0.0.1:3000/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@intento.local","password":"change-me-admin"}'
+curl -sb cookies.txt http://127.0.0.1:3000/operator/organizations
+# Een omgeving neerzetten (zonder accounts — de beheerder meldt zich zelf aan):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/operator/organizations \
+  -H 'content-type: application/json' -d '{"name":"Zorggroep Noord","type":"care"}'
+# Een misbruikte omgeving stoppen (en later weer hervatten):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/operator/organizations/<id>/deactivate -d '{}'
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/operator/organizations/<id>/activate -d '{}'
+```
+
+Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 
 ## MVP — Definition of Done (DESIGN §10.3)
 

@@ -43,6 +43,24 @@ export function AccountPage({
         </p>
       </section>
 
+      {/* Platform-operator (T8.3): de console is een aparte routetak (`/operator`) en staat bewust
+          níét als tab tussen het tenant-beheer — cross-tenant beheer hoort geen klik naast
+          "Gebruikers" te zijn. Wel één expliciete link voor wie de bevoegdheid heeft, anders is de
+          console onvindbaar. De link is geen beveiliging: de server weigert elke operator-call van
+          een niet-operator. */}
+      {account.isOperator ? (
+        <section className="panel" aria-label="Platformbeheer">
+          <h2 className="panel__subtitle">Platformbeheer</h2>
+          <p className="muted">
+            Dit account is platform-operator. De operatorconsole beheert omgevingen over
+            organisaties heen en staat los van dit beheerscherm.
+          </p>
+          <a className="button" href="/operator">
+            Operatorconsole openen
+          </a>
+        </section>
+      ) : null}
+
       <ChangePasswordPanel api={api} />
     </main>
   );

@@ -25,6 +25,7 @@ import { registerWorkerTokenRoutes } from './routes/worker-tokens.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerConceptProposalRoutes } from './routes/concept-proposals.js';
 import { registerAuditRoutes } from './routes/audit.js';
+import { registerOperatorRoutes } from './routes/operator.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createAiOrchestrator, type AiOrchestrator } from './ai/index.js';
@@ -121,6 +122,8 @@ export async function buildApp({
   registerConceptProposalRoutes(app, { prisma });
   // Audit-log-inzage (T8.2): ADMIN bekijkt het spoor van gevoelige acties van de eigen organisatie.
   registerAuditRoutes(app, { prisma });
+  // Platform-operatorconsole (T8.3): de enige, apart bewaakte routetak die over tenants heen kijkt.
+  registerOperatorRoutes(app, { prisma });
 
   return app;
 }

@@ -413,3 +413,33 @@ in een organisatie-lijst. Het `ip`-veld blijft server-side (niet in de respons).
 | Methode | Pad | Doel |
 |---|---|---|
 | GET | `/admin/audit-logs?limit=` | `200` + `auditLogListResponseSchema`: `{ entries[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Elke regel: `action`, `outcome`, `accountId`, `targetType`, `targetId`, `metadata`, `createdAt` — **geen** `ip`, **geen** communicatie-inhoud. |
+
+### Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, ADR-0011)
+
+`operatorAuthorize(...)` — een **eigen** guard, niet `authorize()` (geen sessie → `401`; elk ander account,
+inclusief een gewone ADMIN of een platform-ADMIN zonder de vlag → `403 NOT_OPERATOR`). Toegang vereist twee
+onafhankelijke voorwaarden: `Account.isOperator` **én** een organisatie met `isPlatform=true`; de vlag wordt
+alleen door de bootstrap-seed gezet en is via geen enkele API uit te delen.
+
+Dit is het **enige** deel van de API dat niet op `organizationId` filtert — bewust, en bewust ingekaderd: de
+guard zet `request.operator` en laat `request.account` leeg, zodat de tenant-helpers hier hard falen in plaats
+van stilletjes op de organisatie van de operator te filteren. De responses dragen uitsluitend
+**beheermetadata**: geen communicatie-inhoud, geen persoonlijke context, geen voorkeuren, en geen namen van
+gebruikers (die blijven binnen hun eigen omgeving). Elke muterende actie wordt geaudit met de operator als
+actor en **zonder** tenant (`organizationId: null`), zoals bij worker-tokens.
+
+Deactiveren is geen verwijdering maar wel een harde, onmiddellijke stop: `Organization.active=false` wordt
+afgedwongen bij login, op bestaande accountsessies (`authorize()`) én op gekoppelde tablets
+(`deviceAuthorize()`), telkens met `403 ORGANIZATION_SUSPENDED`. De platformorganisatie zelf is beschermd,
+zodat een operator zichzelf niet buitensluit.
+
+| Methode | Pad | Doel |
+|---|---|---|
+| GET | `/operator/organizations` | `200` + `operatorOrganizationListResponseSchema`: alle organisaties (nieuwste eerst) met `name`, `type`, `active`, `isPlatform`, `userCount`, `accountCount`, `createdAt`. |
+| POST | `/operator/organizations` | `201` + `operatorOrganizationSchema`. Body `{ name, type }` (`createOperatorOrganizationRequestSchema`). Zet een omgeving neer **zonder accounts** — de beheerder ervan meldt zich zelf aan (T1.3). Nooit `isPlatform`. |
+| GET | `/operator/organizations/{id}` | `200` + `operatorOrganizationDetailSchema`: de organisatie, haar `accounts[]` (e-mail, naam, rol, `emailVerified`, `mustChangePassword`, `isOperator`, `createdAt` — nooit de hash) en `users[]` (**id/status/datum, geen naam**). `404 ORGANIZATION_NOT_FOUND` bij onbekend id. |
+| POST | `/operator/organizations/{id}/deactivate` | `200` + `operatorOrganizationSchema` (`active: false`). Idempotent. `400 PLATFORM_ORGANIZATION_PROTECTED` op de platformorganisatie. |
+| POST | `/operator/organizations/{id}/activate` | `200` + `operatorOrganizationSchema` (`active: true`). Idempotent. |
+
+De console draait in de web-app op de aparte route `/operator` (`web/src/OperatorConsole.tsx`) — niet als tab
+in het tenant-beheer; een operator vindt 'm via één link op "Mijn account".

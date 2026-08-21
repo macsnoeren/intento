@@ -23,6 +23,7 @@ const adminAccount: AccountPublic = {
   name: null,
   emailVerified: true,
   mustChangePassword: false,
+  isOperator: false,
 };
 
 function makeSymbol(
@@ -209,6 +210,11 @@ function fakeApi(): Api {
     viewUserConversation: notImplemented,
     getDashboard: notImplemented,
     listAuditLogs: notImplemented,
+    listOperatorOrganizations: notImplemented,
+    createOperatorOrganization: notImplemented,
+    getOperatorOrganization: notImplemented,
+    deactivateOperatorOrganization: notImplemented,
+    activateOperatorOrganization: notImplemented,
     listConceptProposals: () => Promise.resolve({ proposals: [] }),
     approveConceptProposal: notImplemented,
     rejectConceptProposal: notImplemented,

@@ -22,6 +22,9 @@ import {
   deviceCodeResponseSchema,
   deviceSessionResponseSchema,
   openSymbolsSearchResponseSchema,
+  operatorOrganizationDetailSchema,
+  operatorOrganizationListResponseSchema,
+  operatorOrganizationSchema,
   pendingQuestionResponseSchema,
   personalContextListResponseSchema,
   personalContextPublicSchema,
@@ -60,7 +63,11 @@ import {
   type CreateWorkerTokenResponse,
   type DeviceCodeResponse,
   type DeviceSessionResponse,
+  type CreateOperatorOrganizationRequest,
   type OpenSymbolsSearchResponse,
+  type OperatorOrganization,
+  type OperatorOrganizationDetail,
+  type OperatorOrganizationListResponse,
   type PendingQuestionResponse,
   type PersonalContextInput,
   type PersonalContextListResponse,
@@ -193,6 +200,19 @@ export interface Api {
   getDashboard(): Promise<DashboardResponse>;
   /** Audit-log van gevoelige acties van de eigen organisatie (nieuwste eerst) (T8.2, DESIGN §9.4). */
   listAuditLogs(): Promise<AuditLogListResponse>;
+  /**
+   * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4). Deze vijf calls gaan naar de aparte
+   * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
+   * erdoorheen (403 `NOT_OPERATOR` voor al het andere). Ze leveren uitsluitend beheermetadata —
+   * nooit communicatie-inhoud of persoonlijke context.
+   */
+  listOperatorOrganizations(): Promise<OperatorOrganizationListResponse>;
+  createOperatorOrganization(
+    body: CreateOperatorOrganizationRequest,
+  ): Promise<OperatorOrganization>;
+  getOperatorOrganization(id: string): Promise<OperatorOrganizationDetail>;
+  deactivateOperatorOrganization(id: string): Promise<OperatorOrganization>;
+  activateOperatorOrganization(id: string): Promise<OperatorOrganization>;
   /** AI-conceptvoorstellen ter beoordeling (openstaande eerst) (T7.3, FR-016). */
   listConceptProposals(): Promise<ConceptProposalListResponse>;
   /** Voorstel goedkeuren: koppel het begrip aan een bestaand pictogram (daarna bruikbaar voor de AI). */
@@ -488,6 +508,35 @@ export const httpApi: Api & DeviceApi = {
   },
   async listAuditLogs() {
     return auditLogListResponseSchema.parse(await request('/admin/audit-logs'));
+  },
+  async listOperatorOrganizations() {
+    return operatorOrganizationListResponseSchema.parse(await request('/operator/organizations'));
+  },
+  async createOperatorOrganization(body) {
+    return operatorOrganizationSchema.parse(
+      await request('/operator/organizations', { method: 'POST', body: JSON.stringify(body) }),
+    );
+  },
+  async getOperatorOrganization(id) {
+    return operatorOrganizationDetailSchema.parse(
+      await request(`/operator/organizations/${encodeURIComponent(id)}`),
+    );
+  },
+  async deactivateOperatorOrganization(id) {
+    return operatorOrganizationSchema.parse(
+      await request(`/operator/organizations/${encodeURIComponent(id)}/deactivate`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    );
+  },
+  async activateOperatorOrganization(id) {
+    return operatorOrganizationSchema.parse(
+      await request(`/operator/organizations/${encodeURIComponent(id)}/activate`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    );
   },
   async listConceptProposals() {
     return conceptProposalListResponseSchema.parse(await request('/admin/concept-proposals'));

@@ -36,6 +36,10 @@ export const AUDIT_ACTIONS = {
   // Worker-tokens (T5.8)
   WORKER_TOKEN_CREATE: 'worker_token.create',
   WORKER_TOKEN_REVOKE: 'worker_token.revoke',
+  // Platform-operatorconsole (T8.3) — cross-tenant beheer, altijd met de operator als actor
+  OPERATOR_ORGANIZATION_CREATE: 'operator.organization.create',
+  OPERATOR_ORGANIZATION_DEACTIVATE: 'operator.organization.deactivate',
+  OPERATOR_ORGANIZATION_ACTIVATE: 'operator.organization.activate',
   // AI-conceptvoorstellen (T7.3)
   CONCEPT_PROPOSAL_APPROVE: 'concept_proposal.approve',
   CONCEPT_PROPOSAL_REJECT: 'concept_proposal.reject',

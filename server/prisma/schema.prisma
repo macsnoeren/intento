@@ -38,6 +38,11 @@ model Organization {
   /// `true` en publieke zelfaanmelding (T1.3) nooit. Zo kan een zelf-aangemelde familie/zorg-
   /// admin geen infra-credentials munten die jobs van álle tenants zouden verwerken (DESIGN §9.4).
   isPlatform Boolean @default(false)
+  /// Of de omgeving actief is (T8.3). Een platform-operator kan een organisatie **deactiveren** om
+  /// misbruik te stoppen: dat is bewust geen verwijdering (gegevens blijven staan, herstel is één
+  /// klik) maar wel een harde stop — inloggen, bestaande accountsessies én gekoppelde tablets van
+  /// een inactieve organisatie worden geweigerd (`ORGANIZATION_SUSPENDED`). Zie docs/security.md.
+  active     Boolean @default(true)
   createdAt  DateTime @default(now())
 
   accounts Account[]
@@ -169,6 +174,14 @@ model Account {
   /// op al het overige) — zie docs/security.md. Standaard `false`: zelf gekozen wachtwoorden
   /// (zelfaanmelding T1.3, seed) zijn nooit bij een ander bekend.
   mustChangePassword Boolean @default(false)
+  /// Platform-operator (T8.3, DESIGN §9.1, §9.4). `true` = dit account mag de operatorconsole
+  /// gebruiken: organisaties en accounts **over tenants heen** inzien en beheren. Bewust een aparte
+  /// vlag naast `role`, niet een vierde rol: de rol bepaalt wat je binnen je eigen organisatie mag
+  /// (en blijft overal tenant-gefilterd), terwijl deze vlag een tweede, expliciet gescheiden
+  /// bevoegdheid ontgrendelt op een eigen `/operator`-routetak met een eigen guard. De vlag telt
+  /// alléén binnen een organisatie met `isPlatform=true` (dubbele voorwaarde) en wordt uitsluitend
+  /// door de bootstrap-seed gezet — nooit via een API. Zie ADR-0011 en docs/security.md.
+  isOperator     Boolean @default(false)
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
