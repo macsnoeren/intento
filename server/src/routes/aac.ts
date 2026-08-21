@@ -1,8 +1,9 @@
-import type { FastifyInstance, preHandlerAsyncHookHandler } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   aacSearchQuerySchema,
   aacSearchResponseSchema,
+  aacTopicListResponseSchema,
   aacSymbolInputSchema,
   aacSymbolListResponseSchema,
   aacRelationInputSchema,
@@ -11,16 +12,15 @@ import {
   openSymbolsSearchResponseSchema,
   type AacSearchResponse,
   type AacSymbolAdmin,
+  type AacTopicListResponse,
   type AacSymbolListResponse,
   type OpenSymbolsSearchResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { Env } from '../env.js';
 import { HttpError } from '../errors.js';
-import { readSessionToken } from '../auth/request.js';
-import { findAccountBySessionToken } from '../auth/session.js';
-import { readDeviceToken, findDeviceByToken } from '../auth/device.js';
 import { authorize } from '../auth/authorize.js';
+import { authorizeAccountOrDevice } from '../auth/account-or-device.js';
 import {
   adminSymbolInclude,
   buildSearchText,
@@ -57,24 +57,6 @@ const adminListQuerySchema = z.object({
  */
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-/**
- * Toegangsguard voor de AAC-bibliotheek: **een ingelogd account óf een gekoppeld apparaat** mag
- * erbij. De bibliotheek is gedeelde, niet-gevoelige app-data (geen tenant-filtering), maar bewust
- * niet publiek — alleen geauthenticeerde clients (beheer-UI, begeleider) én de tablet (device-token,
- * nodig tijdens communicatie) kunnen zoeken. Zonder een van beide: 401.
- */
-function authorizeAccountOrDevice(prisma: PrismaClient): preHandlerAsyncHookHandler {
-  return async (request) => {
-    const sessionToken = readSessionToken(request);
-    if (sessionToken && (await findAccountBySessionToken(prisma, sessionToken))) return;
-
-    const deviceToken = readDeviceToken(request);
-    if (deviceToken && (await findDeviceByToken(prisma, deviceToken))) return;
-
-    throw new HttpError(401, 'NOT_AUTHENTICATED', 'Niet ingelogd.');
-  };
-}
-
 /** Haalt één symbool met relaties op en serialiseert het naar de beheerweergave (of 404). */
 async function loadAdminSymbol(prisma: PrismaClient, id: string): Promise<AacSymbolAdmin> {
   const symbol = await prisma.aacSymbol.findUnique({ where: { id }, include: adminSymbolInclude });
@@ -97,6 +79,7 @@ async function loadAdminSymbol(prisma: PrismaClient, id: string): Promise<AacSym
  * - `PUT /admin/aac/symbols/:id` — symbool bewerken (concept-botsing → 409).
  * - `DELETE /admin/aac/symbols/:id` — symbool verwijderen (relaties casceren mee).
  * - `POST /admin/aac/symbols/:id/image` — pictogram uploaden (multipart; mime-allowlist + limiet).
+ * - `GET /aac/topics` — onderwerpen met antwoordopties (voor de vraagmodus, T9.7).
  * - `POST /admin/aac/relations` — relatie ouder→kind leggen (geen zelfrelatie; dubbel → 409).
  * - `DELETE /admin/aac/relations/:id` — relatie verwijderen.
  * - `GET /admin/aac/opensymbols/search?q=…` — proxy naar OpenSymbols (T3.3); gesaneerde resultaten.
@@ -117,6 +100,26 @@ export function registerAacRoutes(
         orderBy: { label: 'asc' },
       });
       return aacSearchResponseSchema.parse({ symbols: symbols.map(symbolToPublic) });
+    },
+  );
+
+  // Onderwerpen met antwoordopties (T9.7) — ingelogd account of gekoppeld apparaat. Dit zijn precies de
+  // symbolen die minstens één kind hebben in de relatieboom: alleen die kunnen als **anker** van een
+  // begeleidersvraag dienen, want de kinderen vormen de antwoordopties (`POST /question/start` weigert
+  // een anker zonder kinderen met `ANCHOR_WITHOUT_OPTIONS`). De begeleiderinterface vult er haar
+  // onderwerp-keuzelijst mee, zodat de verstuurknop niet langer grijs blijft zonder aanwijsbare reden.
+  app.get(
+    '/aac/topics',
+    { preHandler: authorizeAccountOrDevice(prisma) },
+    async (): Promise<AacTopicListResponse> => {
+      const parents = await prisma.aacConceptRelation.findMany({
+        distinct: ['parentId'],
+        include: { parent: true },
+        orderBy: { parent: { label: 'asc' } },
+      });
+      return aacTopicListResponseSchema.parse({
+        topics: parents.map((relation) => symbolToPublic(relation.parent)),
+      });
     },
   );
 

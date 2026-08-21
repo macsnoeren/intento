@@ -551,12 +551,19 @@ export const caregiverLinkSchema = z.object({
   accountId: z.string(),
   email: z.email(),
   linked: z.boolean(),
+  /**
+   * De rol van het account (T9.1). Een **beheerder mag ook begeleider zijn**: een ADMIN kan aan een
+   * gebruiker gekoppeld worden en verschijnt daarom in deze lijst. De rol reist mee zodat de UI zichtbaar
+   * houdt wie beheerder is en wie 'gewone' begeleider.
+   */
+  role: accountRoleSchema,
 });
 export type CaregiverLink = z.infer<typeof caregiverLinkSchema>;
 
 /**
- * Antwoord op `GET /admin/users/{id}/caregivers`: alle CAREGIVER-accounts van de eigen
- * organisatie met per account of het aan deze gebruiker gekoppeld is (tenant-gefilterd).
+ * Antwoord op `GET /admin/users/{id}/caregivers`: alle accounts van de eigen organisatie die
+ * begeleider kunnen zijn (CAREGIVER **en** ADMIN — T9.1), met per account of het aan deze gebruiker
+ * gekoppeld is (tenant-gefilterd).
  */
 export const caregiverListResponseSchema = z.object({
   caregivers: z.array(caregiverLinkSchema),
@@ -566,8 +573,8 @@ export type CaregiverListResponse = z.infer<typeof caregiverListResponseSchema>;
 /**
  * Koppelverzoek (`POST /admin/users/{id}/caregivers`). Eén endpoint voor koppelen én
  * ontkoppelen: `linked: true` legt de koppeling, `linked: false` verwijdert die. Idempotent —
- * herhaald koppelen/ontkoppelen levert dezelfde eindtoestand. `accountId` moet een
- * CAREGIVER-account binnen dezelfde organisatie zijn (afgedwongen op de server).
+ * herhaald koppelen/ontkoppelen levert dezelfde eindtoestand. `accountId` moet een CAREGIVER- of
+ * ADMIN-account binnen dezelfde organisatie zijn (afgedwongen op de server, T9.1).
  */
 export const linkCaregiverRequestSchema = z.object({
   accountId: z.string().min(1),
@@ -1356,3 +1363,50 @@ export const operatorOrganizationDetailSchema = z.object({
   users: z.array(operatorUserSchema),
 });
 export type OperatorOrganizationDetail = z.infer<typeof operatorOrganizationDetailSchema>;
+
+// --- AAC-onderwerpen voor de vraagmodus (T9.7, DESIGN §3.2, §7.6) ---
+
+/**
+ * Antwoord op `GET /aac/topics`: de symbolen die **antwoordopties hebben** (minstens één kind in de
+ * relatieboom) en dus als onderwerp van een begeleidersvraag kunnen dienen (T7.1). De begeleider koos
+ * dat onderwerp voorheen alleen via een zoekveld, waardoor de verstuurknop grijs bleef zonder uitleg
+ * (T9.7); met deze lijst is het gewoon te kiezen.
+ */
+export const aacTopicListResponseSchema = z.object({
+  topics: z.array(aacSymbolSchema),
+});
+export type AacTopicListResponse = z.infer<typeof aacTopicListResponseSchema>;
+
+// --- AI-status (T9.4, DESIGN §7.2, §9.2, §9.4, ADR-0010) ---
+
+/**
+ * De draaiende AI-modus van de backend. `mock` is de deterministische mock-provider (géén echte AI:
+ * hij kiest simpelweg de bibliotheekvolgorde), `queue` zet elke aanvraag op de wachtrij voor externe
+ * workers (T5.5/T5.6). De waarde komt rechtstreeks uit `AI_PROVIDER`.
+ */
+export const aiModeSchema = z.enum(['mock', 'queue', 'ollama']);
+export type AiMode = z.infer<typeof aiModeSchema>;
+
+/**
+ * Antwoord op `GET /ai/status` (T9.4): kan de gebruiker/begeleider zien dát er een AI meedenkt?
+ *
+ * In de gebruikerstest bleek dit niet zichtbaar: de backend draaide op `AI_PROVIDER=mock` en het leek
+ * of de AI niets deed. Bewust **alleen infrastructuurmetadata** — nooit communicatie-inhoud, prompts
+ * of persoonlijke context: de tablet toont er hooguit een klein statuslampje mee.
+ */
+export const aiStatusResponseSchema = z.object({
+  /** De ingestelde modus (`AI_PROVIDER`). */
+  mode: aiModeSchema,
+  /** Of deze modus een externe worker nodig heeft (alleen `queue`). */
+  workerRequired: z.boolean(),
+  /** Aantal worker-tokens dat recent activiteit toonde (claim/heartbeat binnen het tijdvenster). */
+  workersOnline: z.number().int().min(0),
+  /** Laatste worker-activiteit, of `null` als er nog nooit een worker langskwam. */
+  lastSeenAt: z.iso.datetime().nullable(),
+  /**
+   * Denkt er nu echt een AI mee? Waar bij `queue` met minstens één recent geziene worker; onwaar bij
+   * `mock` (deterministische terugval) en bij `queue` zonder actieve worker.
+   */
+  active: z.boolean(),
+});
+export type AiStatusResponse = z.infer<typeof aiStatusResponseSchema>;

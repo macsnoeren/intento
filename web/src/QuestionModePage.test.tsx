@@ -53,7 +53,15 @@ function sym(concept: string, label: string, glyph: string): AacSymbol {
 
 function fakeApi(
   overrides: Partial<
-    Pick<Api, 'listQuestionUsers' | 'searchAac' | 'startQuestion' | 'viewUserConversation'>
+    Pick<
+      Api,
+      | 'listQuestionUsers'
+      | 'searchAac'
+      | 'listAacTopics'
+      | 'startQuestion'
+      | 'viewUserConversation'
+      | 'getAiStatus'
+    >
   > = {},
 ): Api {
   const notImplemented = () =>
@@ -63,6 +71,21 @@ function fakeApi(
     ...base,
     listQuestionUsers: () => Promise.resolve({ users: [user('u-1', 'Sanne')] }),
     searchAac: () => Promise.resolve({ symbols: [sym('drink', 'Drinken', '🥤')] }),
+    // Onderwerpen met antwoordopties (T9.7) en de AI-statusindicator (T9.4) worden bij het openen
+    // opgehaald; expliciet meegeven, want de spread hierboven kopieert de Proxy-methodes niet.
+    listAacTopics: () => Promise.resolve({ topics: [sym('drink', 'Drinken', '🥤')] }),
+    // Het meekijkpaneel haalt zichzelf op zodra er een gebruiker gekozen is (T9.3); standaard "geen
+    // lopend gesprek", zodat het in tests over de vraagflow geen ruis (of foutmelding) oplevert.
+    viewUserConversation: (userId: string) =>
+      Promise.resolve({ userId, userName: 'Sanne', supportMode: false, session: null }),
+    getAiStatus: () =>
+      Promise.resolve({
+        mode: 'queue' as const,
+        workerRequired: true,
+        workersOnline: 1,
+        lastSeenAt: '2026-08-21T10:00:00.000Z',
+        active: true,
+      }),
     startQuestion: notImplemented,
     ...overrides,
   };
@@ -130,8 +153,7 @@ describe('begeleiderinterface — vraagmodus', () => {
     render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} />);
     await screen.findByRole('option', { name: 'Sanne' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Meekijken' }));
-
+    // Geen klik nodig: het paneel haalt de stand zelf op en ververst daarna automatisch (T9.3).
     // Ondersteuningsmodus-indicator, de eigen vraag en het afgelegde pad verschijnen — read-only.
     expect(await screen.findByText(/Ondersteuningsmodus actief/)).toBeTruthy();
     const watch = screen.getByRole('region', { name: 'Meekijken met het gesprek' });
@@ -149,8 +171,108 @@ describe('begeleiderinterface — vraagmodus', () => {
     render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} />);
     await screen.findByRole('option', { name: 'Sanne' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Meekijken' }));
     expect(await screen.findByText(/geen gesprek/i)).toBeTruthy();
+  });
+
+  it('laat het onderwerp uit de lijst kiezen zonder te zoeken (T9.7)', async () => {
+    const sent: QuestionStartRequest[] = [];
+    const api = fakeApi({
+      listAacTopics: () =>
+        Promise.resolve({
+          topics: [sym('drink', 'Drinken', '🥤'), sym('eat', 'Eten', '🍽️')],
+        }),
+      startQuestion: (body) => {
+        sent.push(body);
+        return Promise.resolve({ sessionId: 's-1', userId: body.userId, question: body.question });
+      },
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} />);
+    await screen.findByRole('option', { name: 'Sanne' });
+
+    // Zolang er iets ontbreekt staat de knop uit — mét uitleg waarom (dat ontbrak vóór T9.7).
+    expect(screen.getByRole('button', { name: 'Vraag versturen' }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(screen.getByText(/Kies eerst .*een vraag en een onderwerp/)).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Vraag'), { target: { value: 'Wat wil je drinken?' } });
+    fireEvent.change(await screen.findByLabelText('Onderwerp kiezen uit de lijst'), {
+      target: { value: 'drink' },
+    });
+
+    const send = screen.getByRole('button', { name: 'Vraag versturen' });
+    expect(send.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(send);
+
+    expect((await screen.findByRole('status')).textContent).toContain('Vraag verstuurd naar Sanne');
+    expect(sent).toEqual([
+      { userId: 'u-1', question: 'Wat wil je drinken?', anchorConcept: 'drink' },
+    ]);
+  });
+
+  it('ververst het meekijken vanzelf zodra de gebruiker een keuze maakt (T9.3)', async () => {
+    // De nep-backend levert bij de tweede aanroep een verder gevorderd gesprek; de begeleider hoeft
+    // daar niets voor te klikken.
+    let calls = 0;
+    const api = fakeApi({
+      viewUserConversation: (userId) => {
+        calls += 1;
+        return Promise.resolve({
+          userId,
+          userName: 'Sanne',
+          supportMode: false,
+          session:
+            calls === 1
+              ? {
+                  sessionId: 's-1',
+                  status: 'ACTIVE' as const,
+                  mode: 'free' as const,
+                  caregiverQuestion: null,
+                  history: [],
+                }
+              : {
+                  sessionId: 's-1',
+                  status: 'ACTIVE' as const,
+                  mode: 'free' as const,
+                  caregiverQuestion: null,
+                  history: [
+                    {
+                      order: 0,
+                      question: 'Wat wil je duidelijk maken?',
+                      symbol: sym('drink', 'Drinken', '🥤'),
+                    },
+                  ],
+                },
+        });
+      },
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} watchPollMs={20} />);
+
+    const watch = await screen.findByRole('region', { name: 'Meekijken met het gesprek' });
+    // Eerste stand: nog geen keuze.
+    expect(await within(watch).findByText(/nog geen keuze/i)).toBeTruthy();
+    // Zonder één klik verschijnt de nieuwe keuze in het afgelegde pad.
+    expect(await within(watch).findByRole('navigation', { name: 'Gekozen pad' })).toBeTruthy();
+    expect(within(watch).getByText(/Drinken/)).toBeTruthy();
+  });
+
+  it('toont de beheernavigatie wanneer de pagina als beheertab draait (T9.1)', async () => {
+    const api = fakeApi();
+    const visited: string[] = [];
+    render(
+      <QuestionModePage
+        api={api}
+        account={{ ...caregiver, role: 'ADMIN' }}
+        onLogout={() => {}}
+        onNavigate={(view) => visited.push(view)}
+      />,
+    );
+    await screen.findByRole('option', { name: 'Sanne' });
+
+    const nav = screen.getByRole('navigation', { name: 'Beheer' });
+    expect(within(nav).getByRole('button', { name: 'Gebruikers' })).toBeTruthy();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Gebruikers' }));
+    expect(visited).toEqual(['users']);
   });
 
   it('toont een fout als versturen mislukt', async () => {

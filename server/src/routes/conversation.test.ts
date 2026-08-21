@@ -423,4 +423,24 @@ describe('gespreksflow — /conversation', () => {
     expect(ok.statusCode).toBe(200);
     expect(conversationConfirmResponseSchema.parse(ok.json()).status).toBe('COMPLETED');
   });
+
+  it('laat de tablet bevestigen ook als er een beheerderscookie van dezelfde browser meereist (T9.5)', async () => {
+    const { cookie, sessionId } = await walkExampleRoute();
+
+    // Cookies zijn per origin, niet per tab: wie in dezelfde browser is ingelogd in het beheer en
+    // daarnaast /tablet opent, stuurt onvermijdelijk beide cookies mee. Dat mag de gebruiker niet op
+    // zijn eigen tablet blokkeren — het apparaat-token wint.
+    const admin = await seedAccount('beheer@intento.local', 'pw-admin', 'ADMIN');
+    const adminCookie = await loginCookie(app, admin.email, admin.password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie: `${cookie}; ${adminCookie}` },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    expect(conversationConfirmResponseSchema.parse(res.json()).status).toBe('COMPLETED');
+    expect(await prisma.generatedMessage.count({ where: { sessionId, confirmed: true } })).toBe(1);
+  });
 });

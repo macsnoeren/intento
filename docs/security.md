@@ -189,15 +189,22 @@
       twee organisaties en op 401/403 in `routes/accounts.test.ts` en `auth/tenant.test.ts`.
       Fijnmaziger dan rol + tenant: een CAREGIVER ziet/beheert alléén de gebruikers waaraan hij
       gekoppeld is (`assertCaregiverAccess`, `auth/caregivers.ts`) — niet-gekoppeld → `403`.
-      Getest in `routes/caregivers.test.ts` (T2.2). Read-only **meekijken** met een lopend gesprek
+      Getest in `routes/caregivers.test.ts` (T2.2). Sinds T9.1 kan ook een **ADMIN** als begeleider aan een
+      gebruiker gekoppeld worden; dat verruimt niets aan toegang (een ADMIN mocht binnen de eigen
+      organisatie altijd al alles zien) — een `USER`-account blijft geweigerd (`400 NOT_A_CAREGIVER`). Read-only **meekijken** met een lopend gesprek
       (`GET /question/users/{id}/conversation`, T7.2) staat achter dezelfde tenant- + koppeling-check.
-- [x] **Bevestigen is exclusief van de gebruiker (T7.2, DESIGN §2, §3.3, FR-011)** — een boodschap
-      **bevestigen** kan nooit vanuit een begeleider-/beheerdersessie. `POST /conversation/{id}/confirm`
-      draait achter `forbidAccountSession` (`auth/authorize.ts`) vóór `deviceAuthorize`: is er een geldige
-      account-sessie op de request, dan `403 CONFIRM_REQUIRES_USER` — alleen de tablet (device-auth) mag
-      bevestigen. In ondersteuningsmodus tikt de begeleider aan op de tablet, maar de betekenis (en het
-      bevestigen) blijft van de gebruiker. Getest in `routes/conversation.test.ts` (caregiver-cookie → 403,
-      device-cookie → 200).
+- [x] **Bevestigen is exclusief van de gebruiker (T7.2, aangescherpt in T9.5; DESIGN §2, §3.3, FR-011)** —
+      een boodschap **bevestigen** kan nooit vanuit de begeleider-/beheer-UI. `POST /conversation/{id}/confirm`
+      draait achter `forbidAccountSession` (`auth/authorize.ts`) vóór `deviceAuthorize`. Het **apparaat-token
+      wint**: draagt de request een geldig apparaat-token, dan komt hij van de gekoppelde tablet van de
+      gebruiker en gaat hij door; draagt hij géén apparaat-token maar wél een account-sessie, dan
+      `403 CONFIRM_REQUIRES_USER`. In ondersteuningsmodus tikt de begeleider aan op de tablet, maar de
+      betekenis (en het bevestigen) blijft van de gebruiker. Reden voor de volgorde: cookies zijn per
+      **origin**, niet per tab — een beheerder die in dezelfde browser is ingelogd én `/tablet` opent stuurt
+      beide cookies mee, en de oude regel blokkeerde daarmee de gebruiker op zijn eigen tablet (echt
+      waargenomen in de gebruikerstest). De waarborg blijft hard: bevestigen vereist een gekoppeld apparaat,
+      en de beheer-/begeleider-UI heeft dat token niet. Getest in `routes/conversation.test.ts`
+      (caregiver-cookie zonder apparaat → 403, device-cookie → 200, device- **plus** admin-cookie → 200).
 - [x] **Apparaatkoppeling (T2.3)** — koppelcode én apparaat-token staan **gehasht at-rest**
       (SHA-256, alleen de hash in de db, `auth/device.ts`), net als sessietokens. Codes hebben
       ~40 bit entropie, zijn **eenmalig** (race-veilig geclaimd via conditionele update) en
@@ -352,6 +359,11 @@
 - **Deactiveren kost één PK-lookup per geauthenticeerde request** (organisatiestatus, op elk van de
   drie auth-paden). Bewust geaccepteerd boven meeliften op de sessie-join: de check moet op één plek
   leesbaar zijn en overal hetzelfde doen.
+- **`GET /ai/status` (T9.4) lekt bewust een klein beetje infrastructuurinformatie**: modus, aantal recent
+  actieve workers en het laatste activiteitsmoment, leesbaar voor elk ingelogd account én elke gekoppelde
+  tablet. Geen tokennamen, tenantgegevens of gespreksinhoud. De afweging: zonder deze indicator kan
+  niemand zien dát er geen AI meedenkt — precies de verwarring uit de gebruikerstest — en de gelekte
+  metadata zegt niets over personen.
 
 ## Reviewgeschiedenis
 

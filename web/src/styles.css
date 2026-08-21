@@ -448,6 +448,53 @@ body {
   color: var(--intento-accent);
 }
 
+/* Tablet-adres bij de koppelcode (T9.2): waar de code ingevoerd moet worden. Klein en selecteerbaar. */
+.device-code__url {
+  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 1rem;
+  margin: 0.2rem 0 0.6rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* AI-statusindicator (T9.4): klein lampje dat laat zien of er echt een AI meedenkt. Bewust ingetogen —
+   het mag nooit met de boodschap of de keuzes concurreren. */
+.ai-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--intento-surface-alt, #eef2f8);
+  color: var(--intento-fg);
+}
+
+.ai-status__dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.ai-status--ok .ai-status__dot {
+  color: #1a7f4b;
+}
+
+.ai-status--warn .ai-status__dot {
+  color: #b06000;
+}
+
+/* De badge in de tabletkop staat rechts naast de overige indicatoren. */
+.tablet__status {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
 /* Gebruikersapp op de tablet (T4.2): rustig, grote klikvlakken, één keuze per scherm. */
 .tablet {
   max-width: 60rem;

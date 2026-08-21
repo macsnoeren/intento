@@ -164,7 +164,12 @@ function fakeApi(
         mustChangePassword: true,
         isOperator: false,
       };
-      caregiverSeed.push({ accountId: account.id, email: account.email, linked: false });
+      caregiverSeed.push({
+        accountId: account.id,
+        email: account.email,
+        role: 'CAREGIVER',
+        linked: false,
+      });
       return Promise.resolve({ account, temporaryPassword: 'tijdelijk-wachtwoord-123' });
     },
     listAccounts(): Promise<AccountListResponse> {
@@ -391,6 +396,18 @@ function fakeApi(
     exportProfile() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    listAacTopics() {
+      return Promise.resolve({ topics: [] });
+    },
+    getAiStatus() {
+      return Promise.resolve({
+        mode: 'mock' as const,
+        workerRequired: false,
+        workersOnline: 0,
+        lastSeenAt: null,
+        active: false,
+      });
+    },
     importProfile() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
@@ -474,7 +491,9 @@ describe('beheeromgeving-app', () => {
   it('laat een beheerder een begeleider aan een gebruiker koppelen', async () => {
     const api = fakeApi({
       loggedIn: true,
-      caregivers: [{ accountId: 'cg-1', email: 'begeleider@intento.local', linked: false }],
+      caregivers: [
+        { accountId: 'cg-1', email: 'begeleider@intento.local', role: 'CAREGIVER', linked: false },
+      ],
     });
     render(<App api={api} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
@@ -545,10 +564,24 @@ describe('beheeromgeving-app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Toevoegen' }));
     await screen.findByRole('button', { name: 'Sanne' });
 
-    // Koppelpaneel verschijnt; code genereren toont de code.
+    // Koppelpaneel verschijnt; code genereren toont de code én het adres waar hij ingevoerd wordt (T9.2).
     const panel = await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Koppelcode genereren' }));
-    expect((await within(panel).findByRole('status')).textContent).toContain('ABCD2345');
+    const result = await within(panel).findByRole('status');
+    expect(result.textContent).toContain('ABCD2345');
+    expect(result.textContent).toContain('/tablet');
+  });
+
+  it('toont in de beheeromgeving de tab "Begeleiden" en kan daar een vraag stellen (T9.1)', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    const nav = screen.getByRole('navigation', { name: 'Beheer' });
+    fireEvent.click(within(nav).getByRole('button', { name: 'Begeleiden' }));
+
+    // Dezelfde vraagmodus-pagina als de begeleider ziet — de server liet ADMIN hier altijd al toe.
+    expect(await screen.findByRole('heading', { name: 'Vraag stellen' })).toBeTruthy();
+    expect(screen.getByRole('navigation', { name: 'Beheer' })).toBeTruthy();
   });
 
   it('dwingt een account met een tijdelijk wachtwoord eerst naar het wachtwoordscherm (T2.6)', async () => {

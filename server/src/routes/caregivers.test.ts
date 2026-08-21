@@ -50,8 +50,11 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
       headers: { cookie },
     });
     expect(before.statusCode).toBe(200);
+    // Sinds T9.1 staat de beheerder zélf ook in de lijst (een beheerder mag begeleider zijn), met de
+    // rol erbij zodat de UI het onderscheid kan tonen. Op e-mail gesorteerd: admin@ vóór cg@.
     expect(caregiverListResponseSchema.parse(before.json()).caregivers).toEqual([
-      { accountId: caregiver.accountId, email: caregiver.email, linked: false },
+      { accountId: admin.accountId, email: admin.email, role: 'ADMIN', linked: false },
+      { accountId: caregiver.accountId, email: caregiver.email, role: 'CAREGIVER', linked: false },
     ]);
 
     // Koppelen.
@@ -62,7 +65,11 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
       payload: { accountId: caregiver.accountId, linked: true },
     });
     expect(link.statusCode).toBe(200);
-    expect(caregiverListResponseSchema.parse(link.json()).caregivers[0]?.linked).toBe(true);
+    expect(
+      caregiverListResponseSchema
+        .parse(link.json())
+        .caregivers.find((c) => c.accountId === caregiver.accountId)?.linked,
+    ).toBe(true);
     expect(
       await prisma.caregiverAssignment.findUnique({
         where: { userId_accountId: { userId: user.id, accountId: caregiver.accountId } },
@@ -86,17 +93,23 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
       payload: { accountId: caregiver.accountId, linked: false },
     });
     expect(unlink.statusCode).toBe(200);
-    expect(caregiverListResponseSchema.parse(unlink.json()).caregivers[0]?.linked).toBe(false);
+    expect(
+      caregiverListResponseSchema
+        .parse(unlink.json())
+        .caregivers.find((c) => c.accountId === caregiver.accountId)?.linked,
+    ).toBe(false);
     expect(await prisma.caregiverAssignment.count({ where: { userId: user.id } })).toBe(0);
   });
 
-  it('toont in het overzicht alléén CAREGIVER-accounts van de eigen organisatie', async () => {
+  it('toont in het overzicht de CAREGIVER- én ADMIN-accounts van de eigen organisatie (T9.1)', async () => {
     const org = await seedOrganization('Org');
     const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
     await seedAccount('cg1@intento.local', 'pw', 'CAREGIVER', org);
     await seedAccount('cg2@intento.local', 'pw', 'CAREGIVER', org);
-    // Ruis: een tweede admin (geen caregiver) en een caregiver in een andere organisatie.
+    // Een tweede beheerder hoort er sinds T9.1 bij (mag begeleider zijn); een USER-account en een
+    // begeleider uit een andere organisatie blijven eruit.
     await seedAccount('admin2@intento.local', 'pw', 'ADMIN', org);
+    await seedAccount('user-acc@intento.local', 'pw', 'USER', org);
     await seedAccount(
       'cg-other@intento.local',
       'pw',
@@ -112,10 +125,40 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
       headers: { cookie },
     });
     const emails = caregiverListResponseSchema.parse(res.json()).caregivers.map((c) => c.email);
-    expect(emails).toEqual(['cg1@intento.local', 'cg2@intento.local']);
+    expect(emails).toEqual([
+      'admin2@intento.local',
+      'admin@intento.local',
+      'cg1@intento.local',
+      'cg2@intento.local',
+    ]);
   });
 
-  it('weigert het koppelen van een account dat geen CAREGIVER is met 400', async () => {
+  it('koppelt een ADMIN-account als begeleider aan een gebruiker (T9.1)', async () => {
+    const org = await seedOrganization('Org');
+    const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
+    const user = await seedUser('Sanne', org);
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/users/${user.id}/caregivers`,
+      headers: { cookie },
+      payload: { accountId: admin.accountId, linked: true },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(
+      caregiverListResponseSchema
+        .parse(res.json())
+        .caregivers.find((c) => c.accountId === admin.accountId),
+    ).toMatchObject({ role: 'ADMIN', linked: true });
+    expect(
+      await prisma.caregiverAssignment.findUnique({
+        where: { userId_accountId: { userId: user.id, accountId: admin.accountId } },
+      }),
+    ).not.toBeNull();
+  });
+
+  it('weigert het koppelen van een USER-account met 400', async () => {
     const org = await seedOrganization('Org');
     const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
     const notCaregiver = await seedAccount('user-acc@intento.local', 'pw', 'USER', org);

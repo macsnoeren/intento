@@ -8,6 +8,7 @@ import type {
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, apiUrl, httpApi, isAiWaitingError, type DeviceApi } from './api.ts';
+import { AiStatusBadge } from './AiStatusBadge.tsx';
 
 /** Wachttijd (ms) waarop we terugvallen als de backend er geen meestuurt. */
 const DEFAULT_WAIT_MS = 3000;
@@ -176,10 +177,10 @@ function DeviceLinkScreen({
 
 /**
  * Gespreksscherm: startscherm (intentie-categorieën) en keuzescherm (vraag + N pictogramopties),
- * één keuze per scherm. Toont de opties begrensd tot `iconsPerScreen` uit het communicatieprofiel
- * en de tekstlabels alleen als `showText` aanstaat. `↩ Terug` maakt de laatste keuze ongedaan; de
- * contextindicator (broodkruimel van het afgelegde pad) verschijnt alleen als `contextIndicator`
- * in het profiel aanstaat (T2.4).
+ * één keuze per scherm. Toont per scherm hooguit `iconsPerScreen` opties uit het communicatieprofiel —
+ * de rest blijft bereikbaar via "Meer keuzes" (T9.6) — en de tekstlabels alleen als `showText`
+ * aanstaat. `↩ Terug` maakt de laatste keuze ongedaan; de contextindicator (broodkruimel van het
+ * afgelegde pad) verschijnt alleen als `contextIndicator` in het profiel aanstaat (T2.4).
  *
  * Wanneer de route een eindconcept bereikt (`done`), toont de app het **voorstelscherm** (T4.3):
  * de gekozen pictogramreeks + de gegenereerde zin met ✅ Bevestigen / ❌ Nee. Bevestigen rondt de
@@ -200,6 +201,10 @@ function ConversationScreen({
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState<{ position?: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Welke "pagina" met opties op dit scherm staat (T9.6). Het profiel bepaalt hoeveel pictogrammen er
+  // tegelijk mogen staan (`iconsPerScreen`); de overige opties zijn via "Meer keuzes" bereikbaar in
+  // plaats van stilzwijgend weg te vallen. Elke nieuwe vraag begint weer op pagina 0.
+  const [optionPage, setOptionPage] = useState(0);
 
   // Voorkomt state-updates na unmount tijdens een lopende poll-lus (T5.7): de wachtlus kan seconden
   // duren, en de tablet kan intussen weg-navigeren. De vlag gaat in de effectbody weer op `true`,
@@ -231,6 +236,8 @@ function ConversationScreen({
           if (!mountedRef.current) return;
           setWaiting(null);
           setState(next);
+          // Nieuwe vraag = weer bij de eerste, meest waarschijnlijke opties beginnen (T9.6).
+          setOptionPage(0);
           return;
         } catch (err) {
           if (!isAiWaitingError(err)) throw err;
@@ -317,12 +324,27 @@ function ConversationScreen({
   }
 
   const hasHistory = state.history.length > 0;
-  // De engine levert de volledige kindset; de tablet toont er hooguit `iconsPerScreen`. Welke opties
-  // getoond worden is in T4.2 simpelweg de eerste N; de AI kiest later de meest relevante (T5.2).
-  const options = state.question ? state.question.options.slice(0, profile.iconsPerScreen) : [];
+  // De engine/AI levert de volledige, op zekerheid geordende kandidatenset; het communicatieprofiel
+  // bepaalt hoeveel pictogrammen er tegelijk op het scherm mogen (`iconsPerScreen`). Tot T9.6 werden de
+  // overige opties simpelweg afgekapt — met vijf intenties en de standaard van vier viel "Iets zeggen"
+  // daardoor onzichtbaar weg en was die nooit te kiezen. Nu blijven de schermen even rustig, maar zijn
+  // de resterende opties via "Meer keuzes" bereikbaar (rondlopend terug naar de eerste pagina).
+  const allOptions = state.question ? state.question.options : [];
+  const perScreen = Math.max(1, profile.iconsPerScreen);
+  const pageCount = Math.max(1, Math.ceil(allOptions.length / perScreen));
+  const page = Math.min(optionPage, pageCount - 1);
+  const options = allOptions.slice(page * perScreen, page * perScreen + perScreen);
+  const hasMoreOptions = pageCount > 1;
+  const onLastPage = page === pageCount - 1;
 
   return (
     <main className="tablet">
+      {/* Zichtbaar of er echt een AI meedenkt (T9.4) — anders is niet te zien dat de app op de
+          deterministische mock draait of dat er geen worker actief is. */}
+      <div className="tablet__status">
+        <AiStatusBadge api={api} />
+      </div>
+
       <SupportModeBanner active={profile.supportMode} />
 
       {state.caregiverQuestion ? (
@@ -374,6 +396,16 @@ function ConversationScreen({
         >
           ↩ Terug
         </button>
+        {hasMoreOptions ? (
+          <button
+            className="button"
+            type="button"
+            disabled={busy}
+            onClick={() => setOptionPage((current) => (current + 1) % pageCount)}
+          >
+            {onLastPage ? '↺ Eerste keuzes' : '➕ Meer keuzes'}
+          </button>
+        ) : null}
       </div>
     </main>
   );

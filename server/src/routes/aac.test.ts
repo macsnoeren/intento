@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { aacSearchResponseSchema } from '@intento/shared';
+import { aacSearchResponseSchema, aacTopicListResponseSchema } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import { createLinkCode } from '../auth/device.js';
@@ -172,6 +172,31 @@ describe('AAC-bibliotheek — /aac', () => {
     expect(png.statusCode).toBe(200);
     expect(png.headers['content-type']).toBe('image/png');
     expect(png.headers['cross-origin-resource-policy']).toBe('cross-origin');
+  });
+
+  it('geeft als onderwerpen alléén symbolen mét antwoordopties terug (T9.7)', async () => {
+    const account = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
+    const cookie = await loginCookie(app, account.email, account.password);
+
+    const res = await app.inject({ method: 'GET', url: '/aac/topics', headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    const { topics } = aacTopicListResponseSchema.parse(res.json());
+    const concepts = topics.map((topic) => topic.concept);
+
+    // "drink" heeft kinderen (water/sap/koffie/melk) en is dus een bruikbaar vraag-anker; "water" is
+    // een eindconcept en mag hier niet in staan — daarop zou `/question/start` 400 geven.
+    expect(concepts).toContain('drink');
+    expect(concepts).not.toContain('water');
+    // Elk onderwerp komt precies één keer voor, ook al heeft het meerdere kinderen.
+    expect(new Set(concepts).size).toBe(concepts.length);
+    // Alfabetisch op label, zodat de keuzelijst in de begeleiderinterface stabiel is.
+    const labels = topics.map((topic) => topic.label);
+    expect(labels).toEqual([...labels].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it('weigert de onderwerpenlijst zonder authenticatie met 401 (T9.7)', async () => {
+    const res = await app.inject({ method: 'GET', url: '/aac/topics' });
+    expect(res.statusCode).toBe(401);
   });
 
   it('houdt CORP op same-origin voor niet-afbeeldingsroutes (T8.7)', async () => {

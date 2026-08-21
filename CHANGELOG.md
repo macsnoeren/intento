@@ -5,6 +5,51 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Toegevoegd
+- **T9.1 Een beheerder mag ook begeleider zijn.** De beheeromgeving heeft een tab **"Begeleiden"** die
+  dezelfde vraagmodus-pagina toont als een begeleider ziet (vraag stellen + meekijken). De server liet
+  ADMIN op `/question/*` altijd al toe; alleen de weergave ontbrak, zodat een beheerder een tweede
+  account nodig had om een vraag te stellen. Daarnaast kan een ADMIN-account nu ook als **begeleider aan
+  een gebruiker gekoppeld** worden: `GET/POST /admin/users/{id}/caregivers` accepteert CAREGIVER én ADMIN
+  en draagt per account de `role`, zodat zichtbaar blijft wie beheerder is. Een `USER`-account blijft
+  geweigerd (`400 NOT_A_CAREGIVER`). Dit verruimt geen toegang: binnen de eigen organisatie zag een ADMIN
+  alles al.
+- **T9.4 Zichtbaar of er een AI-worker actief is.** Nieuw `GET /ai/status` (ingelogd account **of**
+  gekoppelde tablet) met de draaiende modus, het aantal worker-tokens met activiteit in de laatste 60 s en
+  het laatste activiteitsmoment — uitsluitend infrastructuurmetadata, nooit prompts of gespreksinhoud.
+  Beide interfaces tonen het als een klein lampje (`AiStatusBadge`): "AI denkt mee", "Geen AI-worker
+  actief" of "Zonder AI". Bewust geen live region: het lampje mag de gespreksflow niet onderbreken.
+- **T9.7 Onderwerpkeuze in de vraagmodus.** Nieuw `GET /aac/topics` levert precies de symbolen die
+  antwoordopties hebben (minstens één kind in de relatieboom) — dezelfde ankers die `POST /question/start`
+  accepteert. De begeleiderinterface kiest het onderwerp daaruit in plaats van het te moeten opzoeken, en
+  onder de verstuurknop staat nu wat er nog ontbreekt zolang hij uitstaat.
+- **T9.9 `OLLAMA_TOKEN` voor een afgeschermd Ollama-endpoint.** De worker stuurt `Authorization: Bearer …`
+  mee zodra de variabele gevuld is (nodig voor een gehost endpoint, o.a. de `…:cloud`-modellen); leeg =
+  geen header, zoals bij een lokale Ollama. Het token staat alleen in de env — nooit in code of logs.
+
+### Gerepareerd
+- **T9.5 Bevestigen faalde op de tablet bij een ingelogde beheerder in dezelfde browser.** `✅ Ja` gaf
+  "Alleen de gebruiker kan zelf een boodschap bevestigen…" (`403 CONFIRM_REQUIRES_USER`) zodra er in
+  dezelfde browser een beheer- of begeleiderssessie liep. Oorzaak: cookies zijn per **origin**, niet per
+  tab, dus `/tablet` stuurde beide cookies mee en `forbidAccountSession` weigerde elke request met een
+  account-cookie. Het **apparaat-token wint** nu: een geldig apparaat-token is de tablet van de gebruiker
+  en gaat door; zonder apparaat-token maar mét account-sessie blijft het `403`. De waarborg blijft hard —
+  bevestigen vereist een gekoppeld apparaat, dat de beheer-UI niet heeft.
+- **T9.3 Meekijken ververst zichzelf.** Het meekijkpaneel haalde de gesprekcontext alleen op na een klik
+  (T7.2, om geen ongevraagd verkeer te maken), waardoor je een gesprek niet kon volgen. Het paneel laadt
+  nu bij openen en ververst elke 4 s (lichte snapshot, geen AI-aanroep); de knop blijft als directe
+  verversing. Bij een fout blijft de laatste stand staan met een melding — het pollen loopt door.
+- **T9.6 De laatste intentiecategorie viel weg op het startscherm.** De tablet kapte de opties af op
+  `iconsPerScreen`, dus bij vijf intenties en de standaard van vier was "Iets zeggen" onzichtbaar én
+  onbereikbaar. De schermen blijven even rustig, maar de resterende opties zijn nu bereikbaar via
+  **"➕ Meer keuzes"** (met "↺ Eerste keuzes" terug); elke nieuwe vraag begint weer op de eerste pagina.
+- **T9.2 Koppelcode toont het tablet-adres.** Bij de code staat nu het volledige adres (`<origin>/tablet`)
+  waar hij ingevoerd moet worden.
+- **T9.8 "Geen AI" is niet langer onzichtbaar.** In de gebruikerstest leek de AI niets te doen; de backend
+  draaide op de standaard `AI_PROVIDER=mock` (deterministische mock-provider). De server logt nu bij het
+  opstarten welke modus draait — met een expliciete waarschuwing bij `mock` — en `.env.example`/`README.md`
+  benoemen de stap naar `queue` + worker. Zichtbaar in de UI via T9.4.
+
 ### Gewijzigd
 - **T8.6 Opmaak weer groen en afgedwongen.** `npm run format:check` stond al langere tijd rood
   (34 bestanden) zonder dat iemand het merkte: het hoorde niet bij de Definition of Done — die

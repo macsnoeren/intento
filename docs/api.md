@@ -158,16 +158,20 @@ sleutel**. Beide acties zijn **ADMIN-only** en tenant-gebonden.
 > **Sleutel-let op:** import in een andere deployment werkt alleen als die deployment dezelfde `ENCRYPTION_KEY`
 > deelt (MVP-keuze). Een wachtwoordgebaseerde exportsleutel voor cross-omgeving-overdracht is toekomstig werk.
 
-### Begeleiders koppelen (T2.2)
-Een beheerder bepaalt welke begeleiders (CAREGIVER-accounts) aan een gebruiker gekoppeld zijn.
-De koppeling stuurt de toegang: een niet-gekoppelde begeleider krijgt op de gebruiker-routes
-hierboven `403 FORBIDDEN`. Beide endpoints zijn tenant-gebonden (gebruiker én begeleider moeten
-in de eigen organisatie zitten, anders `403`).
+### Begeleiders koppelen (T2.2, T9.1)
+Een beheerder bepaalt welke begeleiders aan een gebruiker gekoppeld zijn. De koppeling stuurt de
+toegang: een niet-gekoppelde begeleider krijgt op de gebruiker-routes hierboven `403 FORBIDDEN`. Beide
+endpoints zijn tenant-gebonden (gebruiker én begeleider moeten in de eigen organisatie zitten, anders
+`403`).
+
+Sinds T9.1 kan **ook een ADMIN-account** begeleider zijn: in kleine organisaties is de beheerder vaak
+zelf degene die aan tafel de vraag stelt. De lijst draagt daarom per account de `role`, zodat zichtbaar
+blijft wie beheerder is. Een `USER`-account kan geen begeleider zijn (`400 NOT_A_CAREGIVER`).
 
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
-| GET | `/admin/users/{id}/caregivers` | ADMIN | Alle CAREGIVER-accounts van de eigen organisatie met per account of het aan deze gebruiker gekoppeld is (`caregiverListResponseSchema`). |
-| POST | `/admin/users/{id}/caregivers` | ADMIN | Koppelt (`{ accountId, linked: true }`) of ontkoppelt (`linked: false`) één begeleider (`linkCaregiverRequestSchema`); idempotent. `200` + de bijgewerkte lijst. Account is geen CAREGIVER → `400 NOT_A_CAREGIVER`; account uit een andere organisatie → `403 FORBIDDEN`. |
+| GET | `/admin/users/{id}/caregivers` | ADMIN | Alle CAREGIVER- én ADMIN-accounts van de eigen organisatie met per account de `role` en of het aan deze gebruiker gekoppeld is (`caregiverListResponseSchema`). |
+| POST | `/admin/users/{id}/caregivers` | ADMIN | Koppelt (`{ accountId, linked: true }`) of ontkoppelt (`linked: false`) één begeleider (`linkCaregiverRequestSchema`); idempotent. `200` + de bijgewerkte lijst. Account is geen CAREGIVER/ADMIN → `400 NOT_A_CAREGIVER`; account uit een andere organisatie → `403 FORBIDDEN`. |
 
 ### Tabletkoppeling (T2.3)
 Een tablet wordt via een koppelcode aan **precies één** gebruiker gebonden en start daarna
@@ -193,6 +197,7 @@ pictogram is óf een door een beheerder **geüploade afbeelding** (voorrang) óf
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
 | GET | `/aac/search?q=…` | account **of** apparaat | Zoekt hoofdletterongevoelig op concept, label én synoniemen (`aacSearchQuerySchema`; lege `q` → `400`). `200` + `aacSearchResponseSchema` (`{ symbols: [{ id, concept, label, category, glyph, synonyms, imageUrl, attribution }] }`; `attribution` = bron/licentie of `null`). Zonder account- of apparaat-auth → `401 NOT_AUTHENTICATED`. |
+| GET | `/aac/topics` | account **of** apparaat | De symbolen die **antwoordopties hebben** (minstens één kind in de relatieboom) en dus als anker van een begeleidersvraag kunnen dienen (T9.7). `200` + `aacTopicListResponseSchema` (`{ topics: [AacSymbol] }`), alfabetisch op label, elk onderwerp één keer. Voedt de onderwerp-keuzelijst in de vraagmodus; precies de ankers die `POST /question/start` accepteert. Zonder auth → `401`. |
 | GET | `/aac/images/{id}` | publiek | Pictogram van een symbool: de geüploade afbeelding met haar eigen `Content-Type`, of anders een `image/svg+xml`-placeholder (uit `glyph`+`label`), cachebaar. Bewust publiek: presentatiedata die de web-client als `<img src>` laadt. Onbekend id → `404 SYMBOL_NOT_FOUND`. `imageUrl` in de payload draagt na een upload een cache-buster `?v=<imageVersion>`. (Het oude pad met `.svg`-suffix blijft werken.) Antwoordt als enige route met `Cross-Origin-Resource-Policy: cross-origin`, zodat een web-client op een andere origin het plaatje als `<img src>` mag laden (T8.7, zie [security.md](security.md)); een 404 en alle andere routes houden `same-origin`. |
 
 **Beheer (T3.2) — alléén ADMIN.** De bibliotheek is platformbreed gedeeld, dus deze routes worden
@@ -271,10 +276,17 @@ beperkte AI-prompt, zodat de AI de antwoorden op de vraag afstemt terwijl de opt
 
 **Ondersteuningsmodus (T7.2, DESIGN §3.3, FR-011).** Staat `supportMode` in het communicatieprofiel aan,
 dan tikt de begeleider aan namens de gebruiker; de tablet toont dat expliciet ("Ondersteuningsmodus
-actief"), maar de betekenis blijft van de gebruiker. **Bevestigen kan nooit vanuit een begeleiderssessie**:
-`POST /conversation/{id}/confirm` draait achter `forbidAccountSession` + `deviceAuthorize`. Is er een
-geldige **account**-sessie op de request (begeleider/beheerder), dan `403 CONFIRM_REQUIRES_USER` — nog vóór
-de device-auth; alleen de tablet (device-auth) mag bevestigen (DESIGN §2, §3.3).
+actief"), maar de betekenis blijft van de gebruiker. **Bevestigen kan nooit vanuit de begeleider-/beheer-UI**:
+`POST /conversation/{id}/confirm` draait achter `forbidAccountSession` + `deviceAuthorize`. Draagt de
+request een geldig **apparaat-token**, dan komt hij van de gekoppelde tablet van de gebruiker en gaat hij
+door; draagt hij géén apparaat-token maar wél een account-sessie, dan `403 CONFIRM_REQUIRES_USER` — nog
+vóór de device-auth (DESIGN §2, §3.3).
+
+> **Waarom het apparaat wint (T9.5).** Cookies zijn per **origin**, niet per tab: een begeleider die in
+> dezelfde browser is ingelogd in het beheer en daarnaast `/tablet` opent, stuurt onvermijdelijk beide
+> cookies mee. De eerdere regel ("account-cookie ⇒ altijd 403") blokkeerde daardoor de gebruiker op zijn
+> eigen tablet. De waarborg blijft even hard: bevestigen vereist een gekoppeld apparaat, en de beheer-/
+> begeleider-UI heeft dat token niet.
 
 ## AI-orchestrator en validatielaag (intern, T5.1/T5.2/T5.3)
 
@@ -321,6 +333,16 @@ Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test), `queue` (g
 T5.5, zie hieronder) of `ollama` (niet in-process; Ollama draait als worker achter de wachtrij — T5.6).
 Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
 [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
+
+### AI-status (T9.4, DESIGN §7.2, §9.2)
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/ai/status` | account **of** apparaat | Draait er echt een AI mee? `200` + `aiStatusResponseSchema` (`{ mode, workerRequired, workersOnline, lastSeenAt, active }`). `mode` is de ingestelde `AI_PROVIDER`; `workerRequired` is waar bij `queue`; `workersOnline` telt de niet-ingetrokken worker-tokens met activiteit in de laatste 60 s; `active` is waar bij `queue` mét zo'n worker. Bewust **alleen infrastructuurmetadata** — geen prompts, gespreksinhoud, tokennamen of tenantgegevens, zodat ook de tablet het mag opvragen. Zonder auth → `401`. |
+
+Beide interfaces tonen dit als een klein statuslampje ("AI denkt mee" / "Geen AI-worker actief" /
+"Zonder AI"). Aanleiding is de gebruikerstest: de backend draaide op `AI_PROVIDER=mock` — de
+deterministische mock-provider — en niets liet zien dat er geen AI meedacht.
 
 ## Gedistribueerde AI-workers — wachtrij en worker-protocol (T5.5, intern)
 

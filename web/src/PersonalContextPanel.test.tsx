@@ -107,6 +107,8 @@ function fakeApi(): Api {
     rejectConceptProposal: notImplemented,
     exportProfile: notImplemented,
     importProfile: notImplemented,
+    listAacTopics: notImplemented,
+    getAiStatus: notImplemented,
     ...contextApi,
   };
 }

@@ -103,6 +103,8 @@ function fakeApi(initial: PreferencePublic[]): {
     rejectConceptProposal: notImplemented,
     exportProfile: notImplemented,
     importProfile: notImplemented,
+    listAacTopics: notImplemented,
+    getAiStatus: notImplemented,
     ...prefApi,
   };
   return { api, calls };

@@ -12,6 +12,7 @@ def make_config(*, max_threads: int = 2, **overrides: object) -> WorkerConfig:
         worker_token="test-token",
         ollama_url="http://ollama.test",
         ollama_model="test-model",
+        ollama_token="",
         max_threads=max_threads,
         ollama_timeout_s=5.0,
         claim_timeout_s=1.0,

@@ -61,6 +61,11 @@ class WorkerConfig:
     ollama_url: str
     ollama_model: str
 
+    # Optioneel bearer-token voor een **afgeschermd** Ollama-endpoint (T9.9): een gehoste Ollama of een
+    # proxy ervoor eist `Authorization: Bearer …`. Leeg = geen header, zoals bij een lokale Ollama.
+    # Staat alleen in de env; hij wordt nooit gelogd of doorgegeven aan de backend.
+    ollama_token: str
+
     # Maximum aantal gelijktijdige Ollama-aanroepen. Begrenst zowel de threadpool als het claimen, zodat
     # de worker (en daarmee de site) Ollama nooit overvraagt (DESIGN §9.4).
     max_threads: int
@@ -142,6 +147,7 @@ class WorkerConfig:
             worker_token=required("WORKER_TOKEN"),
             ollama_url=ollama_url,
             ollama_model=required("OLLAMA_MODEL"),
+            ollama_token=optional("OLLAMA_TOKEN", ""),
             max_threads=positive_int("MAX_THREADS", 2),
             ollama_timeout_s=positive_float("OLLAMA_TIMEOUT_S", 120.0),
             claim_timeout_s=positive_float("CLAIM_TIMEOUT_S", 30.0),

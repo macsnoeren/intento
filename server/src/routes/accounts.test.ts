@@ -244,15 +244,23 @@ describe('begeleider-accounts — POST /admin/accounts', () => {
     });
     const { account } = createCaregiverResponseSchema.parse(created.json());
 
-    // De koppelweergave toont het nieuwe account direct…
+    // De koppelweergave toont het nieuwe account direct… (naast de beheerder zelf, die sinds T9.1
+    // ook begeleider mag zijn).
     const list = await app.inject({
       method: 'GET',
       url: `/admin/users/${user.id}/caregivers`,
       headers: { cookie },
     });
-    expect(caregiverListResponseSchema.parse(list.json()).caregivers).toEqual([
-      { accountId: account.id, email: newCaregiver.email, linked: false },
-    ]);
+    expect(
+      caregiverListResponseSchema
+        .parse(list.json())
+        .caregivers.find((c) => c.accountId === account.id),
+    ).toEqual({
+      accountId: account.id,
+      email: newCaregiver.email,
+      role: 'CAREGIVER',
+      linked: false,
+    });
 
     // …en koppelen slaagt.
     const link = await app.inject({
@@ -262,7 +270,11 @@ describe('begeleider-accounts — POST /admin/accounts', () => {
       payload: { accountId: account.id, linked: true },
     });
     expect(link.statusCode).toBe(200);
-    expect(caregiverListResponseSchema.parse(link.json()).caregivers[0]?.linked).toBe(true);
+    expect(
+      caregiverListResponseSchema
+        .parse(link.json())
+        .caregivers.find((c) => c.accountId === account.id)?.linked,
+    ).toBe(true);
   });
 
   it('weigert zonder sessie met 401 en een CAREGIVER met 403', async () => {

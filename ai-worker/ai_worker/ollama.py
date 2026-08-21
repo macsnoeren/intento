@@ -5,6 +5,10 @@ als ``format``, zodat Ollama gestructureerde uitvoer afdwingt (Ollama structured
 JSON-tekst uit het ``response``-veld wordt geparsed en teruggegeven; de vorm wordt daarna in `prompts.py`
 gecontroleerd en op de backend-grens (T5.5) nogmaals gevalideerd — een worker wordt nooit vertrouwd.
 
+Is `OLLAMA_TOKEN` gezet, dan gaat elke aanroep met een ``Authorization: Bearer``-header de deur uit
+(T9.9): een gehost of afgeschermd Ollama-endpoint eist dat. Zonder token gaat er geen header mee, zoals
+bij een lokale Ollama.
+
 Bewust op `urllib` uit de stdlib gebouwd (geen third-party-dependencies).
 """
 
@@ -23,9 +27,19 @@ class OllamaError(RuntimeError):
 class OllamaClient:
     """Dunne client rond ``/api/generate`` met afgedwongen JSON-structuur."""
 
-    def __init__(self, base_url: str, model: str, *, opener: Any | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        *,
+        token: str = "",
+        opener: Any | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model = model
+        # Bearer-token voor een afgeschermd/gehost Ollama-endpoint (T9.9). Leeg = geen header, zodat een
+        # lokale Ollama zonder authenticatie precies werkt zoals voorheen.
+        self._token = token.strip()
         self._opener = opener or urllib.request.build_opener()
 
     def generate_structured(
@@ -63,6 +77,8 @@ class OllamaClient:
             f"{self._base_url}/api/generate", data=data, method="POST"
         )
         request.add_header("Content-Type", "application/json")
+        if self._token:
+            request.add_header("Authorization", f"Bearer {self._token}")
         try:
             with self._opener.open(request, timeout=timeout) as response:
                 raw = response.read().decode("utf-8")

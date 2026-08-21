@@ -23,6 +23,17 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.ollama_model, "llama3.1")
         self.assertEqual(config.max_threads, 3)
 
+    def test_ollama_token_is_optional_and_defaults_to_empty(self) -> None:
+        # Een lokale Ollama heeft geen token; dan mag er ook geen header meegaan (T9.9).
+        self.assertEqual(WorkerConfig.from_env(dict(VALID_ENV), env_file=None).ollama_token, "")
+
+    def test_ollama_token_is_read_from_env(self) -> None:
+        env = dict(VALID_ENV, OLLAMA_TOKEN="  geheim-token  ")
+        self.assertEqual(
+            WorkerConfig.from_env(env, env_file=None).ollama_token,
+            "geheim-token",
+        )
+
     def test_missing_required_field_raises(self) -> None:
         env = dict(VALID_ENV)
         del env["WORKER_TOKEN"]

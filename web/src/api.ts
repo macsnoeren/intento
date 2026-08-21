@@ -1,8 +1,10 @@
 import {
   aacSearchResponseSchema,
+  aacTopicListResponseSchema,
   accountListResponseSchema,
   aacSymbolAdminSchema,
   aacSymbolListResponseSchema,
+  aiStatusResponseSchema,
   aiWaitingErrorSchema,
   apiErrorSchema,
   auditLogListResponseSchema,
@@ -43,6 +45,8 @@ import {
   type AacSymbolAdmin,
   type AacSymbolInput,
   type AacSymbolListResponse,
+  type AacTopicListResponse,
+  type AiStatusResponse,
   type AttachOpenSymbolsRequest,
   type AuditLogListResponse,
   type AuthResponse,
@@ -190,6 +194,13 @@ export interface Api {
   ): Promise<PreferencePublic>;
   /** Zoekt AAC-symbolen (concept/label/synoniem) — o.a. voor de topic-keuze in de vraagmodus (T7.1). */
   searchAac(q: string): Promise<AacSearchResponse>;
+  /**
+   * De onderwerpen die antwoordopties hebben en dus als anker van een begeleidersvraag kunnen dienen
+   * (T9.7). Vult de keuzelijst in de vraagmodus, zodat de begeleider niet eerst hoeft te zoeken.
+   */
+  listAacTopics(): Promise<AacTopicListResponse>;
+  /** Draait er een echte AI mee en is er een worker actief? (T9.4) Alleen infrastructuurmetadata. */
+  getAiStatus(): Promise<AiStatusResponse>;
   /** Gebruikers aan wie dit account (begeleider/beheerder) een vraag mag stellen (vraagmodus, T7.1). */
   listQuestionUsers(): Promise<UserListResponse>;
   /** Start een vraagmodus-sessie: de vraag verschijnt in de gebruikersapp op de tablet (T7.1). */
@@ -253,6 +264,11 @@ export interface DeviceApi {
    * klaarstaande vraag terug, of `null` als er geen is — dan start de tablet een vrij gesprek.
    */
   getPendingQuestion(): Promise<PendingQuestionResponse>;
+  /**
+   * Draait er een echte AI mee (T9.4)? De tablet toont het als een klein lampje, zodat gebruiker en
+   * begeleider zien dát er een AI meedenkt — of juist niet.
+   */
+  getAiStatus(): Promise<AiStatusResponse>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -489,6 +505,12 @@ export const httpApi: Api & DeviceApi = {
   async searchAac(q) {
     const params = new URLSearchParams({ q });
     return aacSearchResponseSchema.parse(await request(`/aac/search?${params.toString()}`));
+  },
+  async listAacTopics() {
+    return aacTopicListResponseSchema.parse(await request('/aac/topics'));
+  },
+  async getAiStatus() {
+    return aiStatusResponseSchema.parse(await request('/ai/status'));
   },
   async listQuestionUsers() {
     return userListResponseSchema.parse(await request('/question/users'));

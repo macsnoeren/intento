@@ -195,6 +195,23 @@ export function App({
     );
   }
 
+  // Begeleiden (T9.1): dezelfde vraagmodus-pagina als de begeleider ziet, maar als beheertab. Een
+  // beheerder is in kleine organisaties vaak zelf de begeleider aan tafel; de server liet ADMIN op
+  // `/question/*` altijd al toe, alleen de weergave ontbrak.
+  if (view === 'question') {
+    return (
+      <>
+        {banner}
+        <QuestionModePage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
   if (view === 'proposals') {
     return (
       <>

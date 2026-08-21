@@ -1,9 +1,10 @@
 - [ ] Het design is small gemaakt. Ik zou het graag een wat professionelere webpagina maken dat ook wat breder is met een mooie menu ed.
-- [ ] De administrator van de webpagina mag ook een begeleider zijn.
-- [ ] Bij tablet koppelen mag de link er wel bijstaan voor de zekerheid.
-- [ ] De begeleider kan meekijken, maar moet elke keer op de verversen knop klikken. Dit moet gewoon automatisch gaan.
-- [ ] Het moet ook zichtbaar zijn in de tablet en de applicatie dat er een AI worker actief is. Andere is het gek.
-- [ ] Ik krijg in de tablet als je Ja zeg: "Alleen de gebruiker kan zelf een boodschap bevestigen; een begeleider kan dat nooit namens de gebruiker."
-- [ ] "Wat wil je duidelijk maken?" met de intentiecategorieën ask, problem, feel, want, say. Ik heb geen say maar de rest wel.
-- [ ] bij de begeleider blijft vraag versturen niet klikbaar (grayed-out)
-- [ ] Het lijkt erop dat er helemaal geen AI probeert te achterhalen wat de gebruiker wil.
+- [x] De administrator van de webpagina mag ook een begeleider zijn. *(opgelost in T9.1, zie TASKS.md)*
+- [x] Bij tablet koppelen mag de link er wel bijstaan voor de zekerheid. *(opgelost in T9.2, zie TASKS.md)*
+- [x] De begeleider kan meekijken, maar moet elke keer op de verversen knop klikken. Dit moet gewoon automatisch gaan. *(opgelost in T9.3, zie TASKS.md)*
+- [x] Het moet ook zichtbaar zijn in de tablet en de applicatie dat er een AI worker actief is. Andere is het gek. *(opgelost in T9.4, zie TASKS.md)*
+- [x] Ik krijg in de tablet als je Ja zeg: "Alleen de gebruiker kan zelf een boodschap bevestigen; een begeleider kan dat nooit namens de gebruiker." *(opgelost in T9.5, zie TASKS.md)*
+- [x] "Wat wil je duidelijk maken?" met de intentiecategorieën ask, problem, feel, want, say. Ik heb geen say maar de rest wel. *(opgelost in T9.6, zie TASKS.md)*
+- [x] bij de begeleider blijft vraag versturen niet klikbaar (grayed-out) *(opgelost in T9.7, zie TASKS.md)*
+- [x] Het lijkt erop dat er helemaal geen AI probeert te achterhalen wat de gebruiker wil. *(opgelost in T9.8, zie TASKS.md)*
+- [x] De Ollama-worker kan een `OLLAMA_TOKEN` meesturen voor een afgeschermd endpoint. *(opgelost in T9.9)*

@@ -20,8 +20,16 @@ export interface CaregiverRoutesDeps {
 const userParamsSchema = z.object({ id: z.string().min(1) });
 
 /**
- * Bouwt de koppelweergave: alle CAREGIVER-accounts van de organisatie met per account of het
- * aan deze gebruiker gekoppeld is. Gedeeld door GET en de response na een POST, zodat de UI
+ * Rollen die begeleider van een gebruiker kunnen zijn (T9.1). Naast CAREGIVER staat ADMIN in deze lijst:
+ * in kleine organisaties (een gezin, een kleine zorglocatie) is de beheerder vaak zélf de begeleider aan
+ * tafel, en die hoorde daarvoor een tweede account aan te maken. De rol reist mee naar de UI zodat
+ * zichtbaar blijft wie beheerder is. `USER` staat er bewust niet bij: dat is de communicerende persoon.
+ */
+const CAREGIVER_ELIGIBLE_ROLES = ['ADMIN', 'CAREGIVER'] as const;
+
+/**
+ * Bouwt de koppelweergave: alle accounts van de organisatie die begeleider kunnen zijn, met per account
+ * of het aan deze gebruiker gekoppeld is. Gedeeld door GET en de response na een POST, zodat de UI
  * na een wijziging meteen de actuele stand krijgt.
  */
 async function buildCaregiverList(
@@ -30,7 +38,7 @@ async function buildCaregiverList(
   userId: string,
 ): Promise<CaregiverListResponse> {
   const caregivers = await prisma.account.findMany({
-    where: { organizationId, role: 'CAREGIVER' },
+    where: { organizationId, role: { in: [...CAREGIVER_ELIGIBLE_ROLES] } },
     orderBy: { email: 'asc' },
   });
   const links = await prisma.caregiverAssignment.findMany({ where: { userId } });
@@ -40,6 +48,7 @@ async function buildCaregiverList(
     caregivers: caregivers.map((caregiver) => ({
       accountId: caregiver.id,
       email: caregiver.email,
+      role: caregiver.role,
       linked: linkedIds.has(caregiver.id),
     })),
   });
@@ -53,9 +62,9 @@ async function buildCaregiverList(
  * gekoppelde gebruikers (afgedwongen via `assertCaregiverAccess` op de gebruiker-routes).
  *
  * Beide endpoints zijn ADMIN-only en volledig tenant-gebonden: de gebruiker moet in de eigen
- * organisatie zitten (`assertSameTenant`) en een te koppelen account moet een CAREGIVER binnen
- * dezelfde organisatie zijn — zo kan een beheerder nooit een gebruiker of begeleider uit een
- * andere organisatie raken (multi-tenant-isolatie, DESIGN §9.4).
+ * organisatie zitten (`assertSameTenant`) en een te koppelen account moet een CAREGIVER **of ADMIN**
+ * binnen dezelfde organisatie zijn (T9.1: een beheerder mag ook begeleider zijn) — zo kan een beheerder
+ * nooit een gebruiker of begeleider uit een andere organisatie raken (multi-tenant-isolatie, DESIGN §9.4).
  */
 export function registerCaregiverRoutes(
   app: FastifyInstance,
@@ -100,11 +109,16 @@ export function registerCaregiverRoutes(
           'Geen geldig begeleider-account in deze organisatie.',
         );
       }
-      if (caregiver.role !== 'CAREGIVER') {
+      // Een beheerder mag ook begeleider zijn (T9.1); alleen een USER-account kan het niet zijn.
+      if (
+        !CAREGIVER_ELIGIBLE_ROLES.includes(
+          caregiver.role as (typeof CAREGIVER_ELIGIBLE_ROLES)[number],
+        )
+      ) {
         throw new HttpError(
           400,
           'NOT_A_CAREGIVER',
-          'Alleen accounts met de rol CAREGIVER kunnen gekoppeld worden.',
+          'Alleen accounts met de rol CAREGIVER of ADMIN kunnen als begeleider gekoppeld worden.',
         );
       }
 

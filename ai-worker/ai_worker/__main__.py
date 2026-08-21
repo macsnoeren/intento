@@ -31,7 +31,7 @@ def main() -> int:
         return 1
 
     backend = BackendClient(config.backend_url, config.worker_token)
-    ollama = OllamaClient(config.ollama_url, config.ollama_model)
+    ollama = OllamaClient(config.ollama_url, config.ollama_model, token=config.ollama_token)
     worker = Worker(config, backend, ollama)
 
     def handle_signal(_signum: int, _frame: FrameType | None) -> None:

@@ -387,6 +387,12 @@ server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `queue` voor gedist
 hieronder). Zie [docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
 [docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md) en [docs/api.md](docs/api.md).
 
+> **Draait er echt een AI? (T9.4/T9.8)** Met de standaard `AI_PROVIDER=mock` denkt er **geen** AI mee: de
+> mock-provider kiest de bibliotheekvolgorde. Dat is aan de flow niet te zien, dus de server logt bij het
+> opstarten welke modus draait (met een waarschuwing bij `mock`) en zowel de tablet als de beheeromgeving
+> tonen een statuslampje uit `GET /ai/status` — "AI denkt mee", "Geen AI-worker actief" of "Zonder AI".
+> Voor echte AI: `AI_PROVIDER=queue` **en** een draaiende [AI-worker](ai-worker/README.md).
+
 ## Gedistribueerde AI-workers (T5.5)
 
 Met **`AI_PROVIDER=queue`** zet de backend AI-aanvragen op een **DB-wachtrij** (`AiJob`) i.p.v. ze

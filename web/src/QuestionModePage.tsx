@@ -6,7 +6,9 @@ import type {
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
+import { AiStatusBadge } from './AiStatusBadge.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
+import { AdminNav, type AdminView } from './AdminNav.tsx';
 
 /**
  * Begeleiderinterface — **vraagmodus** (T7.1, DESIGN §3.2, §5.2, FR-012).
@@ -14,21 +16,33 @@ import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
  * Een begeleider stelt een gekoppelde gebruiker een vraag ("Wat wil je drinken?"). De begeleider kiest:
  *  1. de **gebruiker** (alleen aan hem gekoppelde gebruikers verschijnen — de backend filtert);
  *  2. de letterlijke **vraag**;
- *  3. een **onderwerp** (AAC-topic, bv. "Drinken") waarvan de mogelijke antwoorden komen; via de
- *     AAC-zoekfunctie op te zoeken.
+ *  3. een **onderwerp** (AAC-topic, bv. "Drinken") waarvan de mogelijke antwoorden komen; te kiezen
+ *     uit de lijst met onderwerpen die antwoordopties hebben (`GET /aac/topics`, T9.7) of op te
+ *     zoeken via de AAC-zoekfunctie.
  *
  * Versturen roept `POST /question/start` aan: de vraag verschijnt daarna in de gebruikersapp op de
  * tablet, waar de gebruiker het antwoord zelf samenstelt en bevestigt. De begeleider bevestigt nooit
  * namens de gebruiker (DESIGN §2, §3.3).
+ *
+ * Sinds T9.1 is dit scherm er ook voor een **beheerder**: in kleine organisaties is de beheerder vaak
+ * zelf de begeleider aan tafel. Geeft de aanroeper `onNavigate` mee, dan verschijnt de beheernavigatie
+ * erboven en gedraagt de pagina zich als beheertab; zonder die prop is het de kale begeleiderweergave
+ * (inclusief het eigen-wachtwoordpaneel, want dat is voor een begeleider zijn enige scherm).
  */
 export function QuestionModePage({
   api,
   account,
   onLogout,
+  onNavigate,
+  watchPollMs,
 }: {
   api: Api;
   account: AccountPublic;
   onLogout: () => void;
+  /** Aanwezig in de beheeromgeving (T9.1): toont de beheernavigatie boven deze pagina. */
+  onNavigate?: (view: AdminView) => void;
+  /** Verversinterval (ms) van het meekijkpaneel (T9.3); injecteerbaar zodat tests niet hoeven te wachten. */
+  watchPollMs?: number;
 }): React.JSX.Element {
   const [users, setUsers] = useState<UserPublic[]>([]);
   const [userId, setUserId] = useState('');
@@ -36,6 +50,9 @@ export function QuestionModePage({
   const [topicQuery, setTopicQuery] = useState('');
   const [results, setResults] = useState<AacSymbol[]>([]);
   const [anchor, setAnchor] = useState<AacSymbol | null>(null);
+  // Alle onderwerpen die daadwerkelijk antwoordopties hebben (T9.7). Zonder deze lijst was het
+  // onderwerp alleen via zoeken te vinden en bleef de verstuurknop grijs zonder aanwijsbare reden.
+  const [topics, setTopics] = useState<AacSymbol[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -50,6 +67,23 @@ export function QuestionModePage({
         if (list.length > 0) setUserId((prev) => prev || list[0]!.id);
       } catch (err) {
         if (active) setError(err instanceof ApiRequestError ? err.message : 'Laden mislukt.');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [api]);
+
+  // Onderwerpen (met antwoordopties) ophalen voor de keuzelijst (T9.7). Mislukt dit, dan blijft de
+  // zoekfunctie gewoon werken — daarom geen harde fout, alleen een lege lijst.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const { topics: list } = await api.listAacTopics();
+        if (active) setTopics(list);
+      } catch {
+        if (active) setTopics([]);
       }
     })();
     return () => {
@@ -90,17 +124,28 @@ export function QuestionModePage({
     }
   }
 
+  // Wat ontbreekt er nog voordat de vraag verstuurd kan worden? Tot T9.7 stond de knop simpelweg grijs
+  // zonder uitleg — met vijf mogelijke oorzaken (geen gebruiker, lege vraag, geen onderwerp).
+  const missing: string[] = [];
+  if (!userId) missing.push('een gebruiker');
+  if (question.trim().length === 0) missing.push('een vraag');
+  if (!anchor) missing.push('een onderwerp');
+
   return (
     <main className="admin">
       <header className="admin__header">
         <h1 className="panel__title">Vraag stellen</h1>
         <div className="admin__account">
+          <AiStatusBadge api={api} />
           <span>{account.email}</span>
           <button className="button" type="button" onClick={onLogout}>
             Uitloggen
           </button>
         </div>
       </header>
+
+      {/* In de beheeromgeving (T9.1) hoort deze pagina bij de andere beheertabs. */}
+      {onNavigate ? <AdminNav active="question" onNavigate={onNavigate} /> : null}
 
       {error ? (
         <p className="form__error" role="alert">
@@ -154,7 +199,30 @@ export function QuestionModePage({
 
           <fieldset className="field">
             <legend className="field__label">Onderwerp (mogelijke antwoorden)</legend>
-            <div className="form form--inline" role="group" aria-label="Onderwerp kiezen">
+            <p className="muted">
+              De antwoorden komen uit dit onderwerp. Kies er één uit de lijst, of zoek er een op.
+            </p>
+
+            {topics.length > 0 ? (
+              <select
+                className="field__input"
+                aria-label="Onderwerp kiezen uit de lijst"
+                value={anchor?.id ?? ''}
+                onChange={(e) => {
+                  setAnchor(topics.find((topic) => topic.id === e.target.value) ?? null);
+                  setResults([]);
+                }}
+              >
+                <option value="">— Kies een onderwerp —</option>
+                {topics.map((topic) => (
+                  <option key={topic.id} value={topic.id}>
+                    {topic.glyph} {topic.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+
+            <div className="form form--inline" role="group" aria-label="Onderwerp opzoeken">
               <input
                 className="field__input"
                 type="text"
@@ -214,31 +282,55 @@ export function QuestionModePage({
             <button
               className="button button--primary"
               type="submit"
-              disabled={busy || !userId || question.trim().length === 0 || !anchor}
+              disabled={busy || missing.length > 0}
             >
               Vraag versturen
             </button>
+            {missing.length > 0 ? (
+              <p className="muted" role="note">
+                Kies eerst {missing.join(' en ')} om de vraag te kunnen versturen.
+              </p>
+            ) : null}
           </div>
         </form>
       )}
 
-      {userId ? <ConversationWatch api={api} userId={userId} /> : null}
+      {userId ? <ConversationWatch api={api} userId={userId} pollMs={watchPollMs} /> : null}
 
       {/* Eigen wachtwoord wijzigen (T2.5). Een begeleider komt binnen met een tijdelijk wachtwoord
-          dat zijn beheerder kent (T2.4); dit is zijn enige weergave, dus staat het paneel hier. */}
-      <ChangePasswordPanel api={api} />
+          dat zijn beheerder kent (T2.4); dit is zijn enige weergave, dus staat het paneel hier. In de
+          beheeromgeving (T9.1) staat het al op "Mijn account" — dan laten we het hier weg. */}
+      {onNavigate ? null : <ChangePasswordPanel api={api} />}
     </main>
   );
 }
+
+/** Standaardinterval (ms) waarmee het meekijkpaneel zichzelf ververst (T9.3). */
+const WATCH_POLL_MS = 4000;
 
 /**
  * Meekijken met het lopende gesprek (T7.2, DESIGN §3.3, §5.2, FR-011). De begeleider ziet **read-only**
  * de gesprekcontext van de gekoppelde gebruiker: of de gebruiker in ondersteuningsmodus staat, een
  * eventuele eigen vraag en het afgelegde pad (broodkruimel). Bewust géén keuze-/bevestigknoppen: kiezen
- * en bevestigen kan uitsluitend de gebruiker zelf op de tablet (server-side afgedwongen). Ophalen gebeurt
- * op verzoek (knop) zodat er geen ongevraagd polling-verkeer loopt; de begeleider ververst zelf.
+ * en bevestigen kan uitsluitend de gebruiker zelf op de tablet (server-side afgedwongen).
+ *
+ * Het paneel ververst zichzelf (T9.3). In T7.2 gebeurde dat alleen op een knop, om geen ongevraagd
+ * verkeer te maken — maar meekijken met een gesprek dat je zelf moet aanklikken om te zien bewegen is
+ * geen meekijken: in de gebruikerstest bleek dit onbruikbaar. Het interval is bewust rustig en de
+ * aanroep is licht (een snapshot uit de opgeslagen stappen, géén AI-aanroep). De handmatige knop blijft
+ * als directe verversing. Bij een fout blijft de laatst bekende stand staan met een melding erbij,
+ * zodat één hikje het beeld niet wist; het pollen loopt gewoon door.
  */
-function ConversationWatch({ api, userId }: { api: Api; userId: string }): React.JSX.Element {
+function ConversationWatch({
+  api,
+  userId,
+  pollMs = WATCH_POLL_MS,
+}: {
+  api: Api;
+  userId: string;
+  /** Verversinterval in ms; `0` = alleen handmatig. Tests zetten hem laag i.p.v. echt te wachten. */
+  pollMs?: number;
+}): React.JSX.Element {
   const [view, setView] = useState<CaregiverConversationView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -248,6 +340,35 @@ function ConversationWatch({ api, userId }: { api: Api; userId: string }): React
     setView(null);
     setError(null);
   }, [userId]);
+
+  // Automatisch meekijken: meteen ophalen en daarna op interval, zolang dit paneel in beeld is.
+  useEffect(() => {
+    let active = true;
+
+    async function load(): Promise<void> {
+      try {
+        const next = await api.viewUserConversation(userId);
+        if (!active) return;
+        setView(next);
+        setError(null);
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof ApiRequestError ? err.message : 'Meekijken mislukt.');
+      }
+    }
+
+    void load();
+    if (pollMs <= 0) {
+      return () => {
+        active = false;
+      };
+    }
+    const timer = setInterval(() => void load(), pollMs);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [api, userId, pollMs]);
 
   async function refresh(): Promise<void> {
     setError(null);
@@ -266,9 +387,14 @@ function ConversationWatch({ api, userId }: { api: Api; userId: string }): React
       <div className="form form--inline">
         <h2 className="panel__title">Meekijken met het gesprek</h2>
         <button className="button" type="button" onClick={() => void refresh()} disabled={busy}>
-          {view ? 'Verversen' : 'Meekijken'}
+          Nu verversen
         </button>
       </div>
+      <p className="muted">
+        {pollMs > 0
+          ? `Dit scherm werkt zichzelf elke ${Math.round(pollMs / 1000)} seconden bij.`
+          : 'Ververs handmatig om de laatste stand te zien.'}
+      </p>
 
       {error ? (
         <p className="form__error" role="alert">

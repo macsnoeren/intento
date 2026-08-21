@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type {
   AacSymbol,
+  AiStatusResponse,
   ConversationConfirmResponse,
   ConversationGenerateResponse,
   CommunicationProfile,
@@ -53,6 +54,12 @@ const TREE: Record<string, { prompt: string; options: AacSymbol[] }> = {
   'do-activity': { prompt: 'Wat wil je doen?', options: [OUTSIDE, INSIDE] },
   outside: { prompt: '', options: [] }, // eindconcept → done
   inside: { prompt: '', options: [] }, // eindconcept → done
+  // De overige intenties zijn in deze nep-boom eindconcepten; nodig sinds T9.6, want die zijn nu ook
+  // van de tweede optiepagina te kiezen.
+  feel: { prompt: '', options: [] },
+  say: { prompt: '', options: [] },
+  ask: { prompt: '', options: [] },
+  problem: { prompt: '', options: [] },
 };
 
 function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationProfile {
@@ -101,6 +108,8 @@ function fakeDeviceApi(
     busyGenerate?: number;
     /** Een klaarstaande begeleidersvraag (vraagmodus, T7.1); `null`/weggelaten = geen → vrij gesprek. */
     pendingQuestion?: ConversationStateResponse | null;
+    /** De AI-status die de indicator toont (T9.4); standaard: één actieve worker. */
+    aiStatus?: AiStatusResponse;
   } = {},
 ): DeviceApi {
   const comm = options.comm ?? profile();
@@ -162,6 +171,17 @@ function fakeDeviceApi(
     },
     getPendingQuestion() {
       return Promise.resolve({ state: options.pendingQuestion ?? null });
+    },
+    getAiStatus() {
+      return Promise.resolve(
+        options.aiStatus ?? {
+          mode: 'queue' as const,
+          workerRequired: true,
+          workersOnline: 1,
+          lastSeenAt: new Date().toISOString(),
+          active: true,
+        },
+      );
     },
     startConversation(): Promise<ConversationStateResponse> {
       history = [];
@@ -431,6 +451,76 @@ describe('gebruikersapp op de tablet', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
     expect(await screen.findByRole('heading', { name: 'Wat wil je?' })).toBeTruthy();
+  });
+
+  it('maakt de opties buiten het eerste scherm bereikbaar via "Meer keuzes" (T9.6)', async () => {
+    // De root heeft vijf intenties; met `iconsPerScreen: 4` staat de vijfde ("Er is iets aan de hand")
+    // op de tweede pagina. Vóór T9.6 werd die simpelweg afgekapt en was hij nooit te kiezen.
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    const group = screen.getByRole('group', { name: 'Wat wil je duidelijk maken?' });
+    expect(within(group).getAllByRole('button')).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: 'Er is iets aan de hand' })).toBeNull();
+
+    // Volgende pagina: de resterende optie verschijnt en is gewoon te kiezen.
+    fireEvent.click(screen.getByRole('button', { name: '➕ Meer keuzes' }));
+    expect(screen.getByRole('button', { name: 'Er is iets aan de hand' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Iets willen' })).toBeNull();
+
+    // Op de laatste pagina loopt de knop terug naar de eerste keuzes.
+    fireEvent.click(screen.getByRole('button', { name: '↺ Eerste keuzes' }));
+    expect(screen.getByRole('button', { name: 'Iets willen' })).toBeTruthy();
+  });
+
+  it('toont geen "Meer keuzes" als alle opties op één scherm passen (T9.6)', async () => {
+    render(
+      <TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ iconsPerScreen: 8 }) })} />,
+    );
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    expect(screen.queryByRole('button', { name: /Meer keuzes/ })).toBeNull();
+  });
+
+  it('kiest een optie van de tweede pagina en gaat gewoon verder (T9.6)', async () => {
+    render(
+      <TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ iconsPerScreen: 2 }) })} />,
+    );
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    // Pagina 1 = [Iets willen, Hoe ik mij voel]; "Iets zeggen" staat op pagina 2.
+    fireEvent.click(screen.getByRole('button', { name: '➕ Meer keuzes' }));
+    expect(screen.getByRole('button', { name: 'Iets zeggen' })).toBeTruthy();
+
+    // Een keuze van een volgende pagina werkt als elke andere keuze: de route loopt door (hier een
+    // eindconcept, dus meteen het voorstelscherm).
+    fireEvent.click(screen.getByRole('button', { name: 'Een vraag stellen' }));
+    expect(await screen.findByRole('heading', { name: 'Ik wil een vraag stellen.' })).toBeTruthy();
+  });
+
+  it('toont dat er geen AI meedenkt wanneer de backend op de mock draait (T9.4)', async () => {
+    render(
+      <TabletApp
+        api={fakeDeviceApi({
+          linked: true,
+          aiStatus: {
+            mode: 'mock',
+            workerRequired: false,
+            workersOnline: 0,
+            lastSeenAt: null,
+            active: false,
+          },
+        })}
+      />,
+    );
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+    expect(await screen.findByText('Zonder AI')).toBeTruthy();
+  });
+
+  it('toont dat de AI meedenkt zodra er een worker actief is (T9.4)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+    expect(await screen.findByText('AI denkt mee')).toBeTruthy();
   });
 
   it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {

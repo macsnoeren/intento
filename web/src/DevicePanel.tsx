@@ -3,11 +3,23 @@ import type { DeviceCodeResponse } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
+ * Het adres waarop de gebruikersapp draait: hetzelfde web-adres met `/tablet` erachter (zie
+ * `routes.tsx`). Injecteerbaar in tests. Buiten de browser (SSR/test zonder DOM) valt hij terug op het
+ * pad alleen, zodat er nooit een half adres wordt getoond.
+ */
+export function tabletUrl(origin: string | undefined = globalThis.location?.origin): string {
+  return origin ? `${origin.replace(/\/+$/, '')}/tablet` : '/tablet';
+}
+
+/**
  * Tablet koppelen aan een gebruiker (T2.3, DESIGN §3.7 stap 5, §5.2, FR-018). Een beheerder
  * genereert hier een koppelcode; die code wordt één keer getoond en voert de begeleider op de
  * tablet in (`POST /devices/link`), waarna het apparaat direct in de gebruikersapp start zonder
  * dagelijkse login. De code is eenmalig en verloopt — daarom staat er een duidelijke waarschuwing
  * en tonen we het vervalmoment. De code is daarna niet opnieuw op te vragen (alleen gehasht in de db).
+ *
+ * Naast de code staat het **adres** waarop de code ingevoerd wordt (T9.2): in de gebruikerstest bleek
+ * de code op zichzelf niet genoeg — zonder het pad `/tablet` weet je niet waar je hem kwijt moet.
  */
 export function DevicePanel({
   api,
@@ -61,7 +73,9 @@ export function DevicePanel({
 
       {result && expiresAt ? (
         <div className="device-code" role="status">
-          <p className="muted">Voer deze code in op de tablet (eenmalig):</p>
+          <p className="muted">Open op de tablet dit adres:</p>
+          <p className="device-code__url">{tabletUrl()}</p>
+          <p className="muted">…en voer daar deze code in (eenmalig):</p>
           <p className="device-code__value">{result.code}</p>
           <p className="muted">
             Geldig tot{' '}

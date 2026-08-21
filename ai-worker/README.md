@@ -58,6 +58,7 @@ Zet dat token als `WORKER_TOKEN` in `.env`. De belangrijkste variabelen (alle ge
 | `WORKER_TOKEN`        | Rauw worker-token (infrastructuur-credential)                    | — (verplicht)             |
 | `OLLAMA_URL`          | Ollama-endpoint (mag een andere machine zijn)                    | `http://localhost:11434`  |
 | `OLLAMA_MODEL`        | Ollama-modelnaam                                                 | — (verplicht)             |
+| `OLLAMA_TOKEN`        | Bearer-token voor een afgeschermd/gehost Ollama-endpoint         | leeg (geen header)        |
 | `MAX_THREADS`         | Max. gelijktijdige Ollama-aanroepen                              | `2`                       |
 | `OLLAMA_TIMEOUT_S`    | Time-out per Ollama-aanroep                                      | `120`                     |
 | `CLAIM_TIMEOUT_S`     | Client-time-out voor de long-poll-claim (> server-long-poll)     | `30`                      |
@@ -65,6 +66,11 @@ Zet dat token als `WORKER_TOKEN` in `.env`. De belangrijkste variabelen (alle ge
 | `IDLE_SLEEP_S`        | Pauze na een lege claim                                          | `1`                       |
 
 Ontbrekende of ongeldige configuratie laat de worker **luid** stoppen (exit 1) met een duidelijke melding.
+
+**Afgeschermde Ollama (T9.9).** Een lokale Ollama vraagt niet om authenticatie; een gehost endpoint (of
+een proxy ervoor, zoals bij de `…:cloud`-modellen) wél. Zet in dat geval `OLLAMA_TOKEN`: elke aanroep
+draagt dan `Authorization: Bearer <token>`. Laat hem leeg voor een lokale Ollama — dan gaat er bewust
+géén header mee. Het token staat alleen in de env: het wordt nooit gelogd en gaat nooit naar de backend.
 
 ## Draaien
 

@@ -466,8 +466,10 @@ export function registerConversationRoutes(
   // valt bij twijfel terug op de deterministische sjabloon. Alleen **bevestigde** communicatie wordt
   // bewaard (DESIGN §3.6). Een afwijzing verloopt via `/back`, niet hier.
   // Bevestigen is exclusief van de gebruiker (DESIGN §2, §3.3, FR-011): `forbidAccountSession` weigert
-  // elke begeleider-/beheerdersessie met 403 vóór de device-auth, zodat een boodschap nooit vanuit een
-  // begeleiderssessie bevestigd kan worden — alleen de tablet (device-auth) mag hier komen.
+  // vóór de device-auth elke request die géén apparaat-token draagt maar wél een account-sessie, met 403 —
+  // een boodschap kan zo nooit vanuit de begeleider-/beheer-UI bevestigd worden. Draagt de request wél een
+  // geldig apparaat-token, dan komt hij van de gekoppelde tablet van de gebruiker en gaat hij door, ook als
+  // er toevallig een beheerderscookie van dezelfde browser meereist (T9.5).
   app.post(
     '/conversation/:id/confirm',
     { preHandler: [forbidAccountSession(prisma), deviceAuthorize(prisma)] },

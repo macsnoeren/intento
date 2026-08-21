@@ -211,6 +211,48 @@ Gefaseerde takenlijst, afgeleid van `DESIGN.md` (§10 roadmap). Elke taak is een
   (route-scoped `cross-origin`-CORP op `/aac/images/:file`) is nog nodig.
   *Acceptatie:* pictogrammen zichtbaar in de web-UI vanaf een andere origin dan de API (handmatige rook + test op de headers van `/aac/images/:file`); alle overige routes houden aantoonbaar `Cross-Origin-Resource-Policy: same-origin` (test); bestaande tests blijven groen.
 
+## Fase 9 — Bevindingen uit de gebruikerstest (`TEST-FEEDBACK.md`)
+
+- [x] **T9.1 Een beheerder mag ook begeleider zijn**
+  *DESIGN: §2, §3.2, §5.2, FR-012/017.* De beheeromgeving toont de begeleiderinterface (vraagmodus + meekijken) alléén als `account.role === 'CAREGIVER'` (`App.tsx`), terwijl de server ADMIN op `/question/*` al toestaat. Een ADMIN kan dus geen vraag stellen of meekijken zonder een tweede account. Bovendien weigert `POST /admin/users/:id/caregivers` een ADMIN-account met 400 `NOT_A_CAREGIVER` en toont `GET .../caregivers` alleen CAREGIVER-accounts, zodat een beheerder zich ook niet als begeleider aan een gebruiker kan koppelen. Fix: tab "Begeleiden" in de beheernavigatie die de vraagmodus-pagina rendert, en ADMIN-accounts toestaan in de begeleiderkoppeling (met rol zichtbaar in de lijst, zodat duidelijk blijft wie beheerder is).
+  *Acceptatie:* een ADMIN stelt via de beheeromgeving een vraag en kijkt mee; een ADMIN-account is als begeleider aan een gebruiker te koppelen (test); de bestaande CAREGIVER-flows en isolatietests blijven groen.
+
+- [x] **T9.2 Koppelcode toont ook het tablet-adres**
+  *DESIGN: §3.7 (stap 5), §5.2, FR-018.* `DevicePanel` toont alleen de koppelcode, niet wáár die ingevoerd moet worden. Wie de tablet klaarzet moet het pad `/tablet` weten. Fix: het volledige adres (`<origin>/tablet`) bij de code tonen.
+  *Acceptatie:* na het genereren van een koppelcode staat het tablet-adres zichtbaar bij de code (test).
+
+- [x] **T9.3 Meekijken ververst automatisch**
+  *DESIGN: §3.3, §5.2, FR-011.* `ConversationWatch` haalt de gesprekcontext alleen op als de begeleider op "Meekijken"/"Verversen" klikt (bewuste keuze in T7.2: geen ongevraagd verkeer). In de praktijk is meekijken daarmee onbruikbaar — de begeleider ziet de keuzes van de gebruiker pas na een klik. Fix: automatisch pollen op een rustig interval zolang het paneel zichtbaar is, met de handmatige knop als terugval.
+  *Acceptatie:* het meekijkpaneel toont een nieuwe keuze zonder klik (test met tijdsprong); pollen stopt bij unmount en bij een fout blijft de laatste stand staan met melding.
+
+- [x] **T9.4 Zichtbaar of er een AI-worker actief is**
+  *DESIGN: §7.2, §9.2, §9.4, ADR-0010.* Niets in de UI laat zien of er een AI achter zit: bij `AI_PROVIDER=mock` draait de deterministische mock (géén AI) en bij `queue` zonder draaiende worker loopt alles in een wachtstand/503. Fix: `GET /ai/status` (account óf apparaat) met de modus (`mock`/`queue`), het aantal recent geziene workers en de laatste worker-activiteit — uitsluitend infrastructuurmetadata, geen communicatie-inhoud. Indicator in de tablet-app én in de beheeromgeving.
+  *Acceptatie:* met `AI_PROVIDER=mock` meldt de UI zichtbaar dat er geen AI actief is; met `queue` + een worker die net geclaimd heeft, meldt de UI dat de AI actief is (tests op endpoint en indicator).
+
+- [x] **T9.5 Bevestigen op de tablet faalt als er in dezelfde browser een beheerder is ingelogd**
+  *DESIGN: §2, §3.3, FR-011.* `forbidAccountSession` (T7.2) hangt vóór `deviceAuthorize` op `/conversation/:id/confirm` en weigert **elke** request met een geldige account-cookie. Cookies zijn per origin, niet per tab: wie in dezelfde browser is ingelogd in het beheer en daarna `/tablet` opent, stuurt beide cookies mee en krijgt op ✅ Ja de melding "Alleen de gebruiker kan zelf een boodschap bevestigen…" — precies wat er in de test gebeurde. Fix: een geldig **apparaat-token** wint (dat ís de tablet van de gebruiker); alleen een request zonder apparaat-token maar mét account-sessie blijft 403.
+  *Acceptatie:* bevestigen vanaf een gekoppeld apparaat slaagt óók met een begeleider-/beheerderscookie op dezelfde request; een request met alléén een account-cookie krijgt onverminderd 403 (bestaande isolatietest blijft groen).
+
+- [x] **T9.6 Startscherm laat een intentiecategorie wegvallen ("Iets zeggen")**
+  *DESIGN: §3.1, §5.1, FR-003.* De tablet kapt de opties af op `iconsPerScreen` (`options.slice(0, …)`), dus met de standaard van 4 en vijf intenties valt de alfabetisch laatste (`say` — "Iets zeggen") stilzwijgend weg en is die nooit te kiezen. Fix: opties per scherm blijven begrensd, maar de resterende opties worden bereikbaar via een expliciete "Meer keuzes"-knop (met terug naar de eerste pagina), zodat het profiel gerespecteerd blijft en geen enkele optie onbereikbaar is.
+  *Acceptatie:* met `iconsPerScreen=4` en vijf intenties is "Iets zeggen" via "Meer keuzes" bereikbaar en te kiezen (test); bij ≤ `iconsPerScreen` opties verschijnt de knop niet.
+
+- [x] **T9.7 "Vraag versturen" blijft grijs**
+  *DESIGN: §3.2, §5.2, FR-012.* De verstuurknop is uitgeschakeld tot er een **onderwerp** gekozen is, maar dat kan alleen via een zoekveld en nergens staat dat het verplicht is — de begeleider ziet een permanent grijze knop zonder uitleg. Fix: een keuzelijst met de onderwerpen die daadwerkelijk antwoordopties hebben (`GET /aac/topics`), plus een zichtbare uitleg waarom de knop nog uitstaat.
+  *Acceptatie:* een begeleider kiest een onderwerp uit de lijst zonder te zoeken en verstuurt de vraag; zolang de knop uitstaat, staat er zichtbaar wat er nog ontbreekt (test).
+
+- [x] **T9.8 Geen AI actief: `AI_PROVIDER=mock` valt niet op**
+  *DESIGN: §7.2, §7.7, §9.2.* In de test leek de AI niets te doen; de oorzaak is dat de backend op de standaard `AI_PROVIDER=mock` draaide — de deterministische mock kiest simpelweg de bibliotheekvolgorde. Dat is nergens zichtbaar en het opstarten meldt het ook niet. Fix: bij het opstarten expliciet loggen welke AI-modus draait (met een waarschuwing bij `mock`), `.env.example` en `README.md` scherper maken over de stap naar `queue` + worker, en de indicator uit T9.4 gebruiken.
+  *Acceptatie:* de server logt bij `mock` zichtbaar dat er geen echte AI draait; met `queue` + worker doorloopt een gesprek de echte AI (handmatige rook gerapporteerd).
+
+- [x] **T9.9 Ollama-endpoint met token (`OLLAMA_TOKEN`)**
+  *DESIGN: §7.2, §9.4.* De worker praat ongeauthenticeerd met Ollama; een gehost/afgeschermd endpoint (o.a. de cloud-modellen) vereist een `Authorization: Bearer`-token, dat nergens te configureren is. Fix: optionele `OLLAMA_TOKEN` in de worker-config die als bearer-header meegaat; leeg = geen header (lokale Ollama). Het token staat alleen in de env, nooit in code of logs.
+  *Acceptatie:* met `OLLAMA_TOKEN` gezet draagt elke Ollama-aanroep de bearer-header (test), zonder token gaat er geen `Authorization`-header mee (test); README en `.env.example` documenteren de variabele.
+
+- [ ] **T9.10 Met een echte AI blijft er te weinig te kiezen over op het startscherm** *(ontdekt bij T9.8)*
+  *DESIGN: §3.1, §7.4, §7.6, FR-003.* Bij de rooktest met `AI_PROVIDER=queue` + een draaiende Ollama-worker (gpt-oss:120b-cloud) gaf `POST /conversation/start` als eerste scherm de prompt "Wat wil je?" met **één** optie ("Iets willen") en `confidence: 0.7`: de AI mag binnen de kandidaten kiezen én ordenen, en snoeit de vijf intentiecategorieën terug tot één. Met de mock valt dat niet op (die geeft alle kandidaten terug). Dat botst met DESIGN §3.1: het startscherm biedt de gebruiker de intentiecategorieën aan; met één optie is er niets meer te kiezen en stuurt de AI in plaats van de gebruiker. Richting: een **ondergrens op het aantal aangeboden opties** (bv. minimaal `min(iconsPerScreen, kandidaten)`) in `decision.ts`, en/of het startscherm (geen stappen) altijd de volledige intentieset laten tonen en de AI daar alleen laten **ordenen**. Prompt aanscherpen hoort erbij (§7.6: kiezen/ordenen, niet weglaten). Let op de wisselwerking met de voorsteldrempel (§7.4) en met "Meer keuzes" (T9.6).
+  *Acceptatie:* met een echte AI-worker toont het startscherm de intentiecategorieën (minimaal `iconsPerScreen` opties zolang er kandidaten zijn); een test met een provider-mock die één optie teruggeeft toont aan dat de ondergrens wordt afgedwongen; bestaande tests blijven groen.
+
 ---
 
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)

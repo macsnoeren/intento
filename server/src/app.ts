@@ -21,6 +21,7 @@ import { registerPersonalContextRoutes } from './routes/personal-context.js';
 import { registerPreferenceRoutes } from './routes/preferences.js';
 import { registerProfileTransferRoutes } from './routes/profile-transfer.js';
 import { registerAiWorkerRoutes } from './routes/ai-worker.js';
+import { registerAiStatusRoutes } from './routes/ai-status.js';
 import { registerWorkerTokenRoutes } from './routes/worker-tokens.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
 import { registerConceptProposalRoutes } from './routes/concept-proposals.js';
@@ -119,6 +120,9 @@ export async function buildApp({
   // Worker-endpoints voor de gedistribueerde AI-wachtrij (T5.5). Altijd geregistreerd: ze werken op de
   // AiJob-tabel en zijn onschadelijk zonder queue-provider (er komen dan simpelweg geen jobs binnen).
   registerAiWorkerRoutes(app, { env, prisma });
+  // AI-status (T9.4): draait er een echte AI en is er een worker actief? Alleen infrastructuurmetadata,
+  // leesbaar voor een ingelogd account én voor de tablet, zodat beide kunnen tonen dát er een AI meedenkt.
+  registerAiStatusRoutes(app, { prisma, env });
   // Beheer-UI voor worker-tokens (T5.8): platform-ADMIN mint/lijst/trekt infra-credentials in.
   registerWorkerTokenRoutes(app, { prisma });
   // Beheerdashboard (T7.3): tenant-overzicht (gebruikers/begeleiders/activiteit) + openstaande voorstellen.
