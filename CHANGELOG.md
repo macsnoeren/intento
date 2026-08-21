@@ -6,6 +6,30 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Toegevoegd
+- **T2.5 Eigen wachtwoord wijzigen.** Meerwerk uit T2.4: een begeleider logde in met een tijdelijk,
+  door de beheerder gegenereerd wachtwoord en kon dat niet vervangen — het bleef dus onbeperkt geldig
+  én bekend bij iemand anders. Nieuw endpoint **`POST /auth/password`** (elke ingelogde rol,
+  `auth/change-password.ts`) wisselt het **eigen** wachtwoord: het account komt uit de sessie en het
+  verzoekschema kent geen account-id, dus er is geen pad naar dat van een ander. Het **huidige**
+  wachtwoord moet mee (her-authenticatie tegen een gekaapte sessie of een onbeheerd ingelogd scherm),
+  het nieuwe gaat door `strongPasswordSchema` (≥12 tekens) en mag niet gelijk zijn aan het huidige;
+  opslag blijft argon2id. Na een geslaagde wijziging worden **alle overige sessies van dat account
+  ingetrokken** — het antwoord meldt hoeveel (`{ revokedSessions }`) — terwijl de huidige sessie
+  geldig blijft. Bewust **geen** lockout-boekhouding zoals bij login (een gekaapte sessie zou de
+  eigenaar anders kunnen buitensluiten); in plaats daarvan eigen rate limiting via
+  `PASSWORD_CHANGE_RATE_LIMIT_MAX`/`_WINDOW_MINUTES` (standaard 5 per 15 min). Fout huidig wachtwoord
+  → `401 INVALID_CURRENT_PASSWORD` — hier mág de melding concreet zijn, want de aanroeper is al als
+  dít account geauthenticeerd. Geaudit als `auth.password_change` (success én failure), zonder ooit
+  een wachtwoord of hash te loggen. UI: paneel **"Wachtwoord wijzigen"**
+  (`web/src/ChangePasswordPanel.tsx`) in een nieuwe beheertab **"Mijn account"**
+  (`web/src/AccountPage.tsx`) en onderaan de vraagmodus, zodat ook een begeleider — die alleen die
+  weergave heeft — erbij kan. Tests: `server/src/auth/change-password.test.ts` (nieuw wachtwoord werkt
+  en het oude niet meer, fout huidig wachtwoord laat alles ongemoeid, 401 zonder sessie, 400 op zwak
+  of ongewijzigd wachtwoord, andere sessies dood en de eigen sessie levend, sessies van een ánder
+  account ongemoeid, rate limiting, geen wachtwoord in db of audit-log) en
+  `web/src/ChangePasswordPanel.test.tsx`. Gedocumenteerd in `docs/api.md`, `docs/security.md`,
+  `README.md` en `.env.example`. Openstaand meerwerk: accounts die nog op hun tijdelijke wachtwoord
+  zitten worden niet als zodanig gemarkeerd (nieuwe taak **T2.6**).
 - **T2.4 Begeleider-accounts aanmaken.** Tot nu toe ontstonden er alleen ADMIN-accounts (seed +
   zelfaanmelding T1.3), waardoor de koppelweergave van T2.2 een doodlopend spoor was: de lege staat
   zei "maak eerst een begeleider aan", maar er was nergens een plek om dat te doen. Nieuw endpoint
@@ -30,8 +54,8 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   rol/tenant vast ongeacht invoer, 401/403, verificatie-gate, neutrale 409, 400 op ongeldige invoer,
   audit-regel zonder wachtwoord, isolatie in de accountlijst), `web/src/CaregiverAccountsPanel.test.tsx`
   en een end-to-end flow in `web/src/App.test.tsx` (aanmaken → verschijnt in de koppelweergave →
-  koppelen). Gedocumenteerd in `docs/api.md`, `docs/security.md` en `README.md`. Openstaand meerwerk:
-  de begeleider kan zijn tijdelijke wachtwoord nog niet zelf wijzigen (nieuwe taak **T2.5**).
+  koppelen). Gedocumenteerd in `docs/api.md`, `docs/security.md` en `README.md`. Meerwerk dat hieruit voortkwam: de begeleider kon zijn
+  tijdelijke wachtwoord niet zelf wijzigen — opgelost in **T2.5** (hierboven).
 
 ### Gewijzigd
 - **T1.5 Seed maakt de bootstrap-admin idempotent geverifieerd.** De upsert in `server/prisma/seed.ts`

@@ -65,6 +65,7 @@ function fakeApi(): Api {
     register: notImplemented,
     verifyEmail: notImplemented,
     resendVerification: notImplemented,
+    changePassword: notImplemented,
     logout: notImplemented,
     listUsers: notImplemented,
     createUser: notImplemented,

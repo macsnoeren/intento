@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -154,8 +154,29 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/accounts \
 ```
 
 Een reeds bestaand e-mailadres geeft bewust een neutrale `409` (geen account-enumeratie). Het
-account start ongeverifieerd; er gaat best-effort een verificatiemail uit. Zelf een wachtwoord
-wijzigen kan nog niet — dat is taak T2.5.
+account start ongeverifieerd; er gaat best-effort een verificatiemail uit. De begeleider vervangt
+het tijdelijke wachtwoord daarna zelf (hieronder).
+
+### Eigen wachtwoord wijzigen (T2.5)
+
+Elk ingelogd account wisselt zijn **eigen** wachtwoord via het paneel "Wachtwoord wijzigen": voor een
+beheerder onder de tab **Mijn account**, voor een begeleider onderaan de vraagmodus. Vooral bedoeld
+voor de begeleider die met het tijdelijke wachtwoord uit T2.4 binnenkomt — dat kent zijn beheerder
+immers ook.
+
+```bash
+# Eigen wachtwoord wijzigen (elke rol, met sessie-cookie):
+curl -sb cookies.txt -X POST http://127.0.0.1:3000/auth/password \
+  -H 'content-type: application/json' \
+  -d '{"currentPassword":"tijdelijk-wachtwoord","newPassword":"mijn eigen wachtwoord"}'
+# → 200 {"revokedSessions":2}   (aantal ándere sessies dat is uitgelogd)
+```
+
+Het huidige wachtwoord moet mee (her-authenticatie), het nieuwe moet ≥ 12 tekens zijn en anders dan
+het huidige, en na een geslaagde wijziging worden **alle overige sessies van dat account
+ingetrokken** — je blijft alleen ingelogd op het apparaat waar je het wijzigde. Er is geen manier om
+via deze route het wachtwoord van iemand anders te zetten: het account komt uit de sessie. Een fout
+huidig wachtwoord geeft `401 INVALID_CURRENT_PASSWORD`; de route is apart rate-limited.
 
 ### Begeleiders koppelen (T2.2)
 
@@ -380,7 +401,7 @@ Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 ## Audit-logging (T8.2)
 
 Gevoelige acties laten een **onveranderlijk spoor** na (DESIGN §9.4): login (geslaagd én mislukt), logout,
-registratie, e-mailverificatie, begeleider-accounts, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
+registratie, e-mailverificatie, wachtwoordwijziging, begeleider-accounts, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
 persoonlijke context, profielexport/-import, worker-tokens en conceptvoorstellen. Het spoor bevat **geen
 communicatie-inhoud of vrije-tekst-PII** — alleen wie-wat-wanneer. Inzage via `GET /admin/audit-logs`
 (ADMIN, tenant-gefilterd op de eigen organisatie) en de beheerpagina **Audit-log**. Zie

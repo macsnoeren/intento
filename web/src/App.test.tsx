@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   AuthResponse,
   CaregiverLink,
+  ChangePasswordResponse,
   CaregiverListResponse,
   CreateCaregiverRequest,
   CreateCaregiverResponse,
@@ -109,6 +110,9 @@ function fakeApi(
     },
     resendVerification(): Promise<ResendVerificationResponse> {
       return Promise.resolve({ message: 'Als het adres bekend is, is er een mail verstuurd.' });
+    },
+    changePassword(): Promise<ChangePasswordResponse> {
+      return Promise.resolve({ revokedSessions: 0 });
     },
     logout(): Promise<void> {
       session = false;

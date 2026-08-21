@@ -70,6 +70,7 @@ function fakeApi(): Api {
     register: notImplemented,
     verifyEmail: notImplemented,
     resendVerification: notImplemented,
+    changePassword: notImplemented,
     logout: () => Promise.resolve(),
     listUsers: notImplemented,
     createUser: notImplemented,

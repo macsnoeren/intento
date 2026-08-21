@@ -60,6 +60,7 @@ function fakeApi(initial: PreferencePublic[]): {
     register: notImplemented,
     verifyEmail: notImplemented,
     resendVerification: notImplemented,
+    changePassword: notImplemented,
     logout: notImplemented,
     listUsers: notImplemented,
     createUser: notImplemented,

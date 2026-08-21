@@ -1,10 +1,13 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import {
+  changePasswordRequestSchema,
+  changePasswordResponseSchema,
   loginRequestSchema,
   registerRequestSchema,
   resendVerificationRequestSchema,
   verifyEmailRequestSchema,
   type AuthResponse,
+  type ChangePasswordResponse,
   type ResendVerificationResponse,
   type VerifyEmailResponse,
 } from '@intento/shared';
@@ -13,6 +16,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../errors.js';
 import { verifyLogin } from '../auth/service.js';
 import { registerOrganization } from '../auth/register.js';
+import { changeOwnPassword } from '../auth/change-password.js';
 import { createSession, deleteSessionByToken, findAccountBySessionToken } from '../auth/session.js';
 import { SESSION_COOKIE_NAME, sessionCookieOptions } from '../auth/cookie.js';
 import { readSessionToken } from '../auth/request.js';
@@ -211,6 +215,56 @@ export function registerAuthRoutes(
       }
 
       return { message: RESEND_NEUTRAL_MESSAGE };
+    },
+  );
+
+  // --- Eigen wachtwoord wijzigen (T2.5) ---
+
+  // Elk **ingelogd** account wisselt hier zijn eigen wachtwoord. Het account komt uit de sessie,
+  // nooit uit de body: er is geen manier om via deze route het wachtwoord van een ander te zetten.
+  // Rate-limited (elke poging kost een argon2-verificatie en raadt effectief het huidige
+  // wachtwoord) en de overige sessies van dit account worden bij succes ingetrokken.
+  app.post(
+    '/auth/password',
+    {
+      preHandler: authorize(prisma),
+      config: {
+        rateLimit: {
+          max: env.PASSWORD_CHANGE_RATE_LIMIT_MAX,
+          timeWindow: env.PASSWORD_CHANGE_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+        },
+      },
+    },
+    async (request): Promise<ChangePasswordResponse> => {
+      const account = requireAccount(request);
+      const input = changePasswordRequestSchema.parse(request.body);
+
+      const result = await changeOwnPassword(prisma, account, input, readSessionToken(request));
+
+      if (!result.ok) {
+        // Mislukte poging auditen: een reeks hiervan op een ingelogde sessie is een signaal.
+        await recordAudit(prisma, request, {
+          action: AUDIT_ACTIONS.AUTH_PASSWORD_CHANGE,
+          outcome: 'failure',
+          targetType: 'account',
+          targetId: account.id,
+          metadata: { reason: result.reason },
+        });
+        // Hier mág de melding wél concreet zijn (anders dan bij login): de aanroeper is al
+        // geauthenticeerd als dít account, dus "je huidige wachtwoord klopt niet" vertelt hem
+        // niets wat hij niet al weet — er valt geen ander account mee te enumereren.
+        throw new HttpError(401, 'INVALID_CURRENT_PASSWORD', 'Het huidige wachtwoord klopt niet.');
+      }
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.AUTH_PASSWORD_CHANGE,
+        targetType: 'account',
+        targetId: account.id,
+        // Alleen het aantal ingetrokken sessies als context — nooit het wachtwoord of de hash.
+        metadata: { revokedSessions: result.revokedSessions },
+      });
+
+      return changePasswordResponseSchema.parse({ revokedSessions: result.revokedSessions });
     },
   );
 

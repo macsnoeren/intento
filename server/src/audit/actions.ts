@@ -11,6 +11,8 @@ export const AUDIT_ACTIONS = {
   AUTH_LOGOUT: 'auth.logout',
   AUTH_REGISTER: 'auth.register',
   AUTH_EMAIL_VERIFIED: 'auth.email_verified',
+  // Eigen wachtwoord wijzigen (T2.5) — nooit het wachtwoord zelf, alleen dát het gewijzigd is
+  AUTH_PASSWORD_CHANGE: 'auth.password_change',
   // Accountbeheer binnen de organisatie (T2.4)
   ACCOUNT_CREATE: 'account.create',
   // Gebruikersbeheer + instellingen (T2.1)

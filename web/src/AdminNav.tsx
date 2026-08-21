@@ -1,8 +1,8 @@
 /**
  * Navigatie tussen de beheerpagina's (T3.2). De beheeromgeving heeft nu een dashboard (T7.3),
  * gebruikersbeheer (fase 2), de AAC-bibliotheek (fase 3), de reviewlijst van AI-conceptvoorstellen
- * (T7.3) en het worker-tokenbeheer (T5.8) — met dezelfde koptekst en uitlogknop. Deze tabs
- * schakelen ertussen; de actieve tab is niet klikbaar (`aria-current`).
+ * (T7.3), het worker-tokenbeheer (T5.8) en het eigen account (T2.5) — met dezelfde koptekst en
+ * uitlogknop. Deze tabs schakelen ertussen; de actieve tab is niet klikbaar (`aria-current`).
  */
 export type AdminView =
   | 'dashboard'
@@ -10,7 +10,8 @@ export type AdminView =
   | 'aac'
   | 'proposals'
   | 'worker-tokens'
-  | 'audit-logs';
+  | 'audit-logs'
+  | 'account';
 
 const TABS: { view: AdminView; label: string }[] = [
   { view: 'dashboard', label: 'Dashboard' },
@@ -19,6 +20,7 @@ const TABS: { view: AdminView; label: string }[] = [
   { view: 'proposals', label: 'Conceptvoorstellen' },
   { view: 'worker-tokens', label: 'Worker-tokens' },
   { view: 'audit-logs', label: 'Audit-log' },
+  { view: 'account', label: 'Mijn account' },
 ];
 
 export function AdminNav({

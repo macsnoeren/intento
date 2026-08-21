@@ -50,6 +50,17 @@ const envSchema = z
     // Strenge rate limiting op de login-route: max verzoeken per IP per venster.
     LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
+    // Rate limiting op het wijzigen van het eigen wachtwoord (T2.5). De route is al
+    // geauthenticeerd, maar elke poging kost een argon2-verificatie én raadt effectief het
+    // huidige wachtwoord — streng begrenzen dus, zonder het account te blokkeren (dat zou een
+    // gekaapte sessie een makkelijke DoS op de eigenaar geven).
+    PASSWORD_CHANGE_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(5),
+    PASSWORD_CHANGE_RATE_LIMIT_WINDOW_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(60)
+      .default(15),
     // Strenge rate limiting op de zelfaanmelding (T1.3, publiek): tegen massaal aanmaken van
     // organisaties/accounts en account-enumeratie. Streng, want registreren is zeldzaam.
     REGISTER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(5),

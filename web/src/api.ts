@@ -6,6 +6,7 @@ import {
   apiErrorSchema,
   auditLogListResponseSchema,
   authResponseSchema,
+  changePasswordResponseSchema,
   caregiverConversationViewSchema,
   caregiverListResponseSchema,
   conceptProposalSchema,
@@ -39,6 +40,8 @@ import {
   type AttachOpenSymbolsRequest,
   type AuditLogListResponse,
   type AuthResponse,
+  type ChangePasswordRequest,
+  type ChangePasswordResponse,
   type CreateCaregiverRequest,
   type CreateCaregiverResponse,
   type CaregiverConversationView,
@@ -124,6 +127,8 @@ export interface Api {
   register(body: RegisterRequest): Promise<AuthResponse>;
   verifyEmail(token: string): Promise<VerifyEmailResponse>;
   resendVerification(email: string): Promise<ResendVerificationResponse>;
+  /** Wisselt het **eigen** wachtwoord (T2.5); de server pakt het account uit de sessie. */
+  changePassword(body: ChangePasswordRequest): Promise<ChangePasswordResponse>;
   logout(): Promise<void>;
   listUsers(): Promise<UserListResponse>;
   createUser(body: CreateUserRequest): Promise<UserPublic>;
@@ -293,6 +298,11 @@ export const httpApi: Api & DeviceApi = {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
+    );
+  },
+  async changePassword(body) {
+    return changePasswordResponseSchema.parse(
+      await request('/auth/password', { method: 'POST', body: JSON.stringify(body) }),
     );
   },
   async logout() {

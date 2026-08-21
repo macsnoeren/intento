@@ -29,11 +29,12 @@
 |---|---|---|---|
 | GET | `/health` | publiek | Liveness-check; `{ status, service, timestamp }`. Geen auth, geen DB. |
 
-### Auth (T1.1, T1.3, T1.4)
+### Auth (T1.1, T1.3, T1.4, T2.5)
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
 | POST | `/auth/register` | publiek | Body `{ organizationName, organizationType, adminName, email, password }` (`registerRequestSchema`). Maakt in **één transactie** een nieuwe `Organization` (`type` ∈ family/care/personal) + eerste ADMIN-`Account` (argon2id) en logt meteen in: `201` + `{ account }` en een `intento_session`-cookie. Verstuurt daarna een **verificatiemail** (T1.4, best-effort — een falende mailserver blokkeert de registratie niet). Reeds bestaand e-mailadres → `409 REGISTRATION_FAILED` (bewust generiek: lekt niet of het adres bestaat). Zwak wachtwoord (<12 tekens) / ongeldig `organizationType` / ongeldige e-mail → `400 VALIDATION_ERROR`. Te veel verzoeken → `429`. Streng rate-limited per IP. |
 | POST | `/auth/login` | publiek | Body `{ email, password }` (`loginRequestSchema`). Bij succes: `200` + `{ account }` en een `intento_session`-cookie. Fout wachtwoord/onbekende e-mail → `401 INVALID_CREDENTIALS` (bewust generiek). Te veel pogingen → `423 ACCOUNT_LOCKED`. Te veel verzoeken → `429`. Streng rate-limited per IP. Onbevestigde accounts mogen inloggen (zie verificatie-gate hieronder). |
+| POST | `/auth/password` | cookie (elke rol) | Body `{ currentPassword, newPassword }` (`changePasswordRequestSchema`). Wisselt het **eigen** wachtwoord — het account komt uit de sessie, niet uit de body, dus niemand wijzigt dat van een ander. `200` + `{ revokedSessions }` (`changePasswordResponseSchema`): het aantal **overige** sessies van dit account dat is ingetrokken (de huidige sessie blijft geldig). Fout huidig wachtwoord → `401 INVALID_CURRENT_PASSWORD`; nieuw wachtwoord < 12 tekens of gelijk aan het huidige → `400 VALIDATION_ERROR`; zonder sessie → `401 NOT_AUTHENTICATED`. Rate-limited per IP (`PASSWORD_CHANGE_RATE_LIMIT_MAX`) → `429`. |
 | POST | `/auth/logout` | cookie | Verwijdert de serverzijdige sessie en wist de cookie. Altijd `204`. |
 | GET | `/auth/me` | cookie | Huidig account (`{ account }`) of `401 NOT_AUTHENTICATED`. |
 | POST | `/auth/verify-email` | publiek | Body `{ token }` (`verifyEmailRequestSchema`). Wisselt het verificatietoken in: `200` + `{ verified: true, account }` (`verifyEmailResponseSchema`). Ongeldig/verlopen/reeds gebruikt token → `400 INVALID_VERIFICATION_TOKEN` (neutrale melding, geen enumeratie). |
@@ -42,6 +43,15 @@
 
 Responsevorm `{ account }` = `authResponseSchema` (nooit `passwordHash` of lockout-velden); `account.emailVerified` (boolean) geeft de verificatiestatus.
 `/auth/me` gebruikt sinds T1.2 hetzelfde `authorize(...)`-preHandler als beschermde routes.
+
+**Eigen wachtwoord wijzigen (T2.5).** Nodig omdat een begeleider met het **tijdelijke** wachtwoord uit T2.4 binnenkomt: dat is door de beheerder aangemaakt en bij hem bekend, dus het hoort vervangen te kunnen worden. Eigenschappen:
+
+- **Her-authenticatie:** het huidige wachtwoord moet mee, zodat een gekaapte sessie of een onbeheerd ingelogd scherm het account niet kan overnemen.
+- **Alleen het eigen account:** het verzoek kent geen account-id; de server pakt het account uit de sessie.
+- **Overige sessies ingetrokken:** na een wijziging blijven alleen de sessies van het wijzigende apparaat over — wie het oude wachtwoord kende, ligt eruit. Apparaat-tokens (T2.3) staan hier los van: die horen bij een *gebruiker*, niet bij dit account.
+- **Geen lockout:** anders dan bij login telt een mislukte poging hier niet mee voor `LOGIN_MAX_ATTEMPTS` — een gekaapte sessie zou de eigenaar anders eenvoudig kunnen buitensluiten. Brute-force wordt door de rate limiting op de route afgevangen.
+- Audit: `auth.password_change` (success én failure), zonder ooit een wachtwoord of hash te loggen.
+- Anders dan bij login mág de foutmelding hier concreet zijn ("het huidige wachtwoord klopt niet"): de aanroeper is al als dít account geauthenticeerd, dus er valt niets te enumereren.
 
 **Verificatie-gate (T1.4).** Onbevestigde accounts mogen inloggen en hun eigen gegevens bekijken, maar **gevoelige acties zijn geblokkeerd tot verificatie**. In de MVP is dat het aanmaken van gebruikers (`POST /users`) en van begeleider-accounts (`POST /admin/accounts`, T2.4) → `403 EMAIL_NOT_VERIFIED` zolang `emailVerified` false is. De verificatietoken staat **gehasht** at-rest, is eenmalig en verloopt (`EMAIL_VERIFICATION_TTL_HOURS`).
 

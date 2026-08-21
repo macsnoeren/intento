@@ -70,7 +70,29 @@
       `409 ACCOUNT_CREATE_FAILED` (geen account-enumeratie over tenants heen); de uniciteit leunt op de
       db-constraint, niet op een voorafgaande "bestaat al?"-lookup (geen race, geen timing-verschil).
       Aanmaken wordt geaudit (`account.create`) met alléén de rol als context — nooit het wachtwoord.
-      *Openstaand:* de begeleider kan zijn tijdelijke wachtwoord nog niet zelf wijzigen (T2.5).
+      De begeleider vervangt het tijdelijke wachtwoord zelf via `POST /auth/password` (T2.5, hieronder).
+- [x] **Eigen wachtwoord wijzigen (T2.5)** — `POST /auth/password` (`auth/change-password.ts`) laat
+      **elk ingelogd account** zijn eigen wachtwoord wisselen; onmisbaar naast T2.4, want anders blijft het
+      tijdelijke wachtwoord onbeperkt geldig én bij de beheerder bekend. Eigenschappen:
+      **(1) her-authenticatie** — het huidige wachtwoord moet mee, zodat een gekaapte sessie of een
+      onbeheerd ingelogd scherm het account niet stilletjes kan overnemen;
+      **(2) alleen het eigen account** — het verzoekschema kent geen account-id, de server pakt het account
+      uit de sessie, dus er is geen pad naar andermans wachtwoord;
+      **(3) overige sessies ingetrokken** — na een wijziging blijft alleen de sessie van het wijzigende
+      apparaat over (wie het oude wachtwoord kende, ligt eruit), terwijl de wijziger niet uit zijn eigen
+      scherm valt; het antwoord meldt hoeveel sessies zijn ingetrokken;
+      **(4) geen lockout-boekhouding** — anders dan bij login telt een mislukte poging hier niet mee voor
+      `LOGIN_MAX_ATTEMPTS`, want een gekaapte sessie zou de rechtmatige eigenaar daarmee kunnen
+      buitensluiten; brute-force wordt afgevangen met eigen rate limiting
+      (`PASSWORD_CHANGE_RATE_LIMIT_MAX`, standaard 5 per 15 min).
+      Het nieuwe wachtwoord gaat door `strongPasswordSchema` (≥12 tekens) en mag niet gelijk zijn aan het
+      huidige; opslag is argon2id, nooit plaintext. Geaudit als `auth.password_change` (success én failure),
+      met alleen het aantal ingetrokken sessies resp. een reden als context — nooit een wachtwoord of hash.
+      Getest in `auth/change-password.test.ts` (o.a. oud wachtwoord geweigerd, andere sessies dood, sessies
+      van een ánder account ongemoeid, geen wachtwoord in db of audit-log).
+      *Openstaand:* apparaat-tokens (T2.3) horen bij een gebruiker, niet bij dit account, en blijven dus
+      geldig; en een account dat nog op zijn tijdelijke wachtwoord zit wordt (nog) niet als zodanig
+      gemarkeerd (T2.6).
 - [x] **Access control / IDOR** — autorisatie-middleware `authorize(prisma, { roles })`
       (`auth/authorize.ts`): geen/ongeldige sessie → `401 NOT_AUTHENTICATED`, verkeerde rol →
       `403 FORBIDDEN`. Tenant-isolatie via `tenantScope(account)` (where-filter op
@@ -183,7 +205,7 @@
 - [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
 - [x] **Audit-logging (T8.2, DESIGN §9.4)** — een herbruikbare `recordAudit(...)` (`server/src/audit/`)
       schrijft een **append-only** spoor over gevoelige acties: login (geslaagd én mislukt, brute-force-
-      detectie), logout, registratie, e-mailverificatie, begeleider-accounts aanmaken (T2.4),
+      detectie), logout, registratie, e-mailverificatie, wachtwoordwijziging (T2.5), begeleider-accounts aanmaken (T2.4),
       gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-
       tokens en conceptvoorstellen. **Best-effort en nooit blokkerend**: een hapering in de audit-tabel laat
       de hoofdactie niet mislukken (fout gelogd, niet doorgegooid). **Geen communicatie-inhoud of vrije-tekst-

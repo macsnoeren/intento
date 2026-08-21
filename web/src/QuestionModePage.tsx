@@ -6,6 +6,7 @@ import type {
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
+import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
 
 /**
  * Begeleiderinterface — **vraagmodus** (T7.1, DESIGN §3.2, §5.2, FR-012).
@@ -218,6 +219,10 @@ export function QuestionModePage({
       )}
 
       {userId ? <ConversationWatch api={api} userId={userId} /> : null}
+
+      {/* Eigen wachtwoord wijzigen (T2.5). Een begeleider komt binnen met een tijdelijk wachtwoord
+          dat zijn beheerder kent (T2.4); dit is zijn enige weergave, dus staat het paneel hier. */}
+      <ChangePasswordPanel api={api} />
     </main>
   );
 }

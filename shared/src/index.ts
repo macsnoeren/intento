@@ -124,6 +124,41 @@ export const authResponseSchema = z.object({
 });
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 
+// --- Eigen wachtwoord wijzigen (T2.5, DESIGN §2, §6.2 Account, §9.4) ---
+
+/**
+ * Verzoek om het **eigen** wachtwoord te wijzigen (`POST /auth/password`, T2.5). Er zit bewust
+ * géén account-id in: de server pakt altijd het ingelogde account uit de sessie, zodat niemand
+ * via de body het wachtwoord van een ander kan zetten.
+ *
+ * `currentPassword` is verplicht (her-authenticatie: een gekaapte sessie of een onbeheerd
+ * apparaat kan het wachtwoord niet zomaar overnemen) en wordt — net als bij login — alleen op
+ * niet-leeg gevalideerd; sterkte-eisen gelden voor het **nieuwe** wachtwoord. De extra `refine`
+ * weigert "wijzigen" naar hetzelfde wachtwoord: dat zou de sessies van dit account intrekken
+ * zonder dat er iets verandert, en is bij een tijdelijk wachtwoord (T2.4) juist niet de bedoeling.
+ */
+export const changePasswordRequestSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(1024),
+    newPassword: strongPasswordSchema,
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    path: ['newPassword'],
+    message: 'Kies een ander wachtwoord dan het huidige.',
+  });
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
+
+/**
+ * Antwoord op `POST /auth/password`: hoeveel **andere** sessies van dit account zijn ingetrokken
+ * (de huidige sessie blijft geldig, zodat de wijziger niet uit zijn eigen scherm valt). De web-UI
+ * meldt daarmee expliciet dat andere apparaten opnieuw moeten inloggen — een zichtbare
+ * bevestiging dat een eventuele meelifter eruit ligt.
+ */
+export const changePasswordResponseSchema = z.object({
+  revokedSessions: z.number().int().nonnegative(),
+});
+export type ChangePasswordResponse = z.infer<typeof changePasswordResponseSchema>;
+
 // --- E-mailverificatie (T1.4, DESIGN §2, §3.7 stap 1, §9.4) ---
 
 /**
