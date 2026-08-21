@@ -202,9 +202,13 @@ function ConversationScreen({
   const [error, setError] = useState<string | null>(null);
 
   // Voorkomt state-updates na unmount tijdens een lopende poll-lus (T5.7): de wachtlus kan seconden
-  // duren, en de tablet kan intussen weg-navigeren.
+  // duren, en de tablet kan intussen weg-navigeren. De vlag gaat in de effectbody weer op `true`,
+  // niet alleen bij de declaratie (T8.5): onder `<StrictMode>` mount React elk component dubbel
+  // (mount → unmount → remount), en zonder deze regel bleef de vlag na de gesimuleerde unmount
+  // `false` — waarna elke setState werd overgeslagen en het scherm eeuwig op "Laden…" bleef staan.
   const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };

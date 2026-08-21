@@ -307,6 +307,16 @@ het aantal opties is begrensd tot `iconsPerScreen` (2/4/6/8) en tekstlabels vers
 `contextIndicator` in het profiel aanstaat (T2.4, per gebruiker) — een contextindicator die het
 afgelegde pad toont. Het voorstellen en bevestigen van de uiteindelijke boodschap volgt in T4.3.
 
+> **Effecten en `<StrictMode>` (T8.5).** De app draait in dev onder `<StrictMode>` (`main.tsx`), dat
+> elk component bewust dubbel mount (mount → unmount → remount) om onveilige effecten zichtbaar te
+> maken. Een "ben ik nog gemount?"-vlag moet daarom in de **effectbody** weer op `true` — zet je hem
+> alleen bij de declaratie, dan blijft hij na de gesimuleerde unmount `false` en worden alle latere
+> `setState`-aanroepen stil overgeslagen (het scherm bleef zo hangen op "Laden…"). Gebruik bij
+> voorkeur het `let active = true`-patroon binnen het effect zelf; een ref alleen wanneer de guard
+> gedeeld wordt met event-handlers, zoals in `ConversationScreen`. Let op: tests die zonder
+> StrictMode renderen zien dit soort fouten niet — `TabletApp.test.tsx` heeft er daarom expliciet
+> twee die dat wél doen.
+
 De backend-endpoints (apparaat-auth, elke sessie automatisch gebruiker-geïsoleerd):
 
 ```bash

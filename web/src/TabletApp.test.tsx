@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type {
@@ -384,7 +385,9 @@ describe('gebruikersapp op de tablet', () => {
   });
 
   it('toont de ondersteuningsmodus-indicator wanneer supportMode aanstaat (T7.2, §3.3)', async () => {
-    render(<TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ supportMode: true }) })} />);
+    render(
+      <TabletApp api={fakeDeviceApi({ linked: true, comm: profile({ supportMode: true }) })} />,
+    );
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
     expect(screen.getByText(/Ondersteuningsmodus actief/)).toBeTruthy();
 
@@ -398,6 +401,36 @@ describe('gebruikersapp op de tablet', () => {
     render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
     await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
     expect(screen.queryByText(/Ondersteuningsmodus actief/)).toBeNull();
+  });
+
+  // T8.5: onder `<StrictMode>` (main.tsx, dev) mount React elk component dubbel
+  // (mount → unmount → remount). Een "gemount?"-vlag die alleen in de cleanup op `false` gaat en
+  // nooit terug op `true`, blokkeert daarna elke setState → het scherm blijft eeuwig op "Laden…".
+  it('toont de eerste vraag ook onder StrictMode (dubbele mount, T8.5)', async () => {
+    render(
+      <StrictMode>
+        <TabletApp api={fakeDeviceApi({ linked: true })} />
+      </StrictMode>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' }),
+    ).toBeTruthy();
+    expect(screen.queryByText('Laden…')).toBeNull();
+  });
+
+  // Vervolg op T8.5: na de dubbele mount moet ook de rest van de flow (keuze → volgende vraag)
+  // blijven werken; de vlag mag niet halverwege alsnog op `false` blijven staan.
+  it('blijft onder StrictMode reageren op een keuze (T8.5)', async () => {
+    render(
+      <StrictMode>
+        <TabletApp api={fakeDeviceApi({ linked: true })} />
+      </StrictMode>,
+    );
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    expect(await screen.findByRole('heading', { name: 'Wat wil je?' })).toBeTruthy();
   });
 
   it('verbergt de contextindicator wanneer contextIndicator uitstaat', async () => {

@@ -6,6 +6,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 ## [Unreleased]
 
 ### Gerepareerd
+- **T8.5 Tablet-gespreksscherm bleef hangen op "Laden…" onder React StrictMode.** `ConversationScreen`
+  in `TabletApp.tsx` bewaakt met een `mountedRef` dat er geen state meer wordt gezet nadat het scherm
+  is verdwenen (de AI-wachtlus uit T5.7 kan seconden doorlopen). Die vlag ging alleen in de
+  effect-cleanup op `false` en stond nergens weer op `true`. In `<StrictMode>` — dat in `main.tsx`
+  om de hele app staat en dus in élke dev-sessie meedraait — mount React ieder component bewust
+  dubbel (mount → unmount → remount). Na de gesimuleerde unmount bleef de vlag `false`, waarna het
+  laad-effect de eerste vraag wél ophaalde maar de guard elke `setState` oversloeg: `state` bleef
+  `null` en de tablet toonde eindeloos "Laden…". De backend was onschuldig — link → device-cookie →
+  `/conversation/pending` → `/conversation/start` levert de eerste vraag in ~50 ms. Fix: de vlag ook
+  aan het begin van de effectbody op `true` zetten, zodat een remount hem herstelt. Bewust geen
+  overstap op het `let active`-per-effect-patroon: `run()` wordt óók vanuit event-handlers
+  aangeroepen en deelt de guard, dus een ref is hier de juiste vorm. De andere schermen (`App.tsx`,
+  `OperatorConsole.tsx`, `QuestionModePage.tsx`, `VerifyEmailPage.tsx` en `ProposalScreen`) zijn
+  nagelopen: die gebruiken al het StrictMode-veilige `let active`-patroon per effect. Verificatie in
+  twee lagen, omdat dit precies een gat is dat de bestaande tests niet zagen (geen enkele test
+  renderde onder StrictMode): twee nieuwe tests in `TabletApp.test.tsx` renderen de app in
+  `<StrictMode>` (eerste vraag verschijnt; een keuze werkt daarna nog), en dezelfde flow is met een
+  echte Firefox tegen de draaiende dev-servers gerookt — zónder fix blijft het scherm op "Laden…",
+  mét fix verschijnt "Wat wil je duidelijk maken?" met de pictogramopties.
 - **T8.4 CORS-methoden hersteld (DELETE/PUT/PATCH).** `@fastify/cors` v11 heeft de default `methods`
   versmald naar `GET,HEAD,POST`; onze registratie in `app.ts` gaf geen expliciete lijst mee. Gevolg in
   de browser: de preflight voor élke cross-origin DELETE/PUT/PATCH kreeg een
