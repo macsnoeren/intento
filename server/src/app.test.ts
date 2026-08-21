@@ -37,6 +37,47 @@ describe('buildApp', () => {
     expect(response.headers).toHaveProperty('content-security-policy');
   });
 
+  it('staat de schrijfmethoden DELETE/PUT/PATCH toe in de CORS-preflight (T8.4)', async () => {
+    // @fastify/cors v11 versmalde de default `methods` naar GET,HEAD,POST; zonder expliciete
+    // lijst blokkeert de browser elke cross-origin DELETE/PUT/PATCH nog vóór de route draait.
+    for (const method of ['DELETE', 'PUT', 'PATCH'] as const) {
+      const response = await app.inject({
+        method: 'OPTIONS',
+        url: '/users/willekeurig-id',
+        headers: {
+          origin: 'http://localhost:5173',
+          'access-control-request-method': method,
+        },
+      });
+
+      expect(response.statusCode).toBe(204);
+      const allowed = String(response.headers['access-control-allow-methods'] ?? '')
+        .split(',')
+        .map((value) => value.trim());
+      expect(allowed).toContain(method);
+      expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+      expect(response.headers['access-control-allow-credentials']).toBe('true');
+    }
+  });
+
+  it('houdt de origin-restrictie: geen wildcard, geen echo van een vreemde origin', async () => {
+    const response = await app.inject({
+      method: 'OPTIONS',
+      url: '/users/willekeurig-id',
+      headers: {
+        origin: 'https://aanvaller.example',
+        'access-control-request-method': 'DELETE',
+      },
+    });
+
+    // Met een statische `origin` antwoordt de plugin altijd met de geconfigureerde origin; de
+    // browser weigert het antwoord dan omdat die niet met de eigen origin overeenkomt. Wat hier
+    // misgaat als iemand de configuratie verruimt: een `*` of een echo van de vreemde origin.
+    expect(response.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(response.headers['access-control-allow-origin']).not.toBe('*');
+    expect(response.headers['access-control-allow-origin']).not.toBe('https://aanvaller.example');
+  });
+
   it('onbekende route geeft 404 in de consistente foutstructuur', async () => {
     const response = await app.inject({ method: 'GET', url: '/bestaat-niet' });
 

@@ -71,9 +71,14 @@ export async function buildApp({
   await app.register(helmet);
 
   // De web-client (andere origin tijdens ontwikkeling) mag met cookies praten.
+  // `methods` staat er expliciet bij (T8.4): @fastify/cors v11 versmalde de default naar
+  // `GET,HEAD,POST`, waardoor de browser-preflight elke cross-origin DELETE/PUT/PATCH blokkeerde
+  // (gebruiker/context/pictogram verwijderen, instellingen opslaan). Server-tests merkten dat niet:
+  // `app.inject()` doet geen preflight, dus alleen een expliciete OPTIONS-test dekt dit af.
   await app.register(cors, {
     origin: env.CORS_ORIGIN,
     credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   // Ondertekende cookies (o.a. het sessietoken); geknoeide cookies worden geweigerd.

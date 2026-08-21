@@ -8,7 +8,14 @@
 
 - [x] **Security headers** — `@fastify/helmet` op alle responses (CSP, HSTS,
       `X-Content-Type-Options: nosniff`, `X-Frame-Options`, …). Getest in `app.test.ts`.
-- [x] **CORS** — alleen de geconfigureerde `CORS_ORIGIN` met credentials.
+- [x] **CORS** — alleen de geconfigureerde `CORS_ORIGIN` met credentials, en een **expliciete
+      methodenlijst** (`GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS`). Die lijst staat er niet voor de
+      sier: `@fastify/cors` v11 heeft als default `GET,HEAD,POST`, waardoor de browser-preflight
+      elke cross-origin DELETE/PUT/PATCH blokkeert vóórdat de route draait (T8.4). Uitbreiden van
+      de methoden verruimt de toegang niet — de origin-restrictie en de authenticatie per route
+      blijven de poortwachters; CORS bepaalt alleen wélke browser-oorsprong het antwoord mag lezen.
+      Getest in `app.test.ts` met een echte OPTIONS-preflight (`app.inject()` doet zelf géén
+      preflight, dus alleen zo'n test dekt dit af).
 - [x] **Secrets via env** — `SIGNING_SECRET`/`ENCRYPTION_KEY` uit env, nooit in code.
       **Prod-guard:** de server weigert te starten in productie met dev-default-secrets
       of met `COOKIE_SECURE=false`. Getest in `app.test.ts`.

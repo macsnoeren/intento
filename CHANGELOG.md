@@ -5,6 +5,26 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Gerepareerd
+- **T8.4 CORS-methoden hersteld (DELETE/PUT/PATCH).** `@fastify/cors` v11 heeft de default `methods`
+  versmald naar `GET,HEAD,POST`; onze registratie in `app.ts` gaf geen expliciete lijst mee. Gevolg in
+  de browser: de preflight voor élke cross-origin DELETE/PUT/PATCH kreeg een
+  `access-control-allow-methods` zónder die methode, dus het echte verzoek werd nooit verstuurd —
+  gebruiker/context/pictogram verwijderen en `PUT /users/{id}/settings` faalden met "Kan de server niet
+  bereiken". De server-tests bleven ondertussen groen: `app.inject()` doet geen preflight, dus geen
+  enkele test raakte het pad dat stukging. Fix: expliciet
+  `methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS']`. De origin-restrictie blijft
+  ongewijzigd (één `CORS_ORIGIN`, geen wildcard) — meer methoden toestaan verruimt de toegang niet,
+  want authenticatie en autorisatie per route veranderen niet. Nieuwe regressietests in `app.test.ts`
+  doen een echte OPTIONS-preflight per methode en bewaken dat het antwoord nooit `*` of de vreemde
+  origin echoot. Verificatie liep verder via een draaiende server: preflight + echte `PUT .../settings`
+  (200) en `DELETE /users/{id}` (204), telkens met `Origin` en `access-control-allow-origin` in het
+  antwoord. De andere `@fastify/*`-plugins zijn nagelopen op stilzwijgende default-drift: cookie-,
+  rate-limit- en multipart-opties worden bij ons expliciet meegegeven, en helmet levert nog de volledige
+  headerset. Eén ding kwam daarbij wél boven water (genoteerd als T8.7, niet hier gefixt): helmets
+  default `Cross-Origin-Resource-Policy: same-origin` blokkeert de AAC-pictogrammen die de web-client
+  cross-origin als `<img src>` laadt.
+
 ### Toegevoegd
 - **T8.3 Platform-operatorconsole: cross-tenant organisatie- en gebruikersbeheer.** Intento kende geen
   rol bóven de tenants: elke ADMIN zit vast in zijn eigen organisatie (T1.2) en `Organization.isPlatform`
