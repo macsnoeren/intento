@@ -528,8 +528,24 @@ npm run typecheck    # tsc --noEmit in elke workspace
 npm run lint         # ESLint (flat config, type-aware)
 npm test             # vitest in server en web
 npm audit            # 0 kwetsbaarheden
-npm run format       # Prettier schrijven (format:check om te controleren)
+npm run format:check # Prettier-opmaak controleren (npm run format schrijft de fixes)
 ```
+
+### Opmaak wordt afgedwongen
+
+`format:check` hoorde lang niet bij de Definition of Done en niets dwong het af, waardoor de
+opmaak stilletjes afdreef tot 34 bestanden rood stonden. Sinds T8.6 staat het in de Definition
+of Done én bewaakt een **pre-commit hook** het:
+
+- De hook staat in [.githooks/pre-commit](.githooks/pre-commit) en draait Prettier alleen over de
+  *staged* bestanden, dus hij kost nauwelijks tijd.
+- `npm install` installeert hem via het `prepare`-script (`git config core.hooksPath .githooks`);
+  handmatig kan dat met `npm run prepare`. Overslaan in een noodgeval: `git commit --no-verify`.
+- Regeleindes liggen dubbel vast — [.gitattributes](.gitattributes) (`* text=auto eol=lf`) en
+  `endOfLine: "lf"` in `.prettierrc.json` — zodat een checkout of editor op Windows geen CRLF
+  terugbrengt. Dat was eerder de reden dat vier bestanden volledig als "verkeerd opgemaakt"
+  golden. Aangeleverd naslagmateriaal (`INTENTO-DESIGN/`, `PROJECT-NODEJS/`, `LICENSE`) is
+  bewust uitgezonderd: dat onderhouden we niet zelf en Prettier negeert het al.
 
 ## Documentatie
 

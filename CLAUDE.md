@@ -54,6 +54,7 @@ Injectie (geparametriseerde queries) · XSS (URL's `http(s)`-only valideren) · 
 - [ ] Werkt (app echt gedraaid / happy path gerookt)
 - [ ] `npm run typecheck` groen
 - [ ] `npm run lint` groen
+- [ ] `npm run format:check` groen (de pre-commit hook bewaakt dit ook)
 - [ ] `npm test` — alle tests groen (incl. nieuwe)
 - [ ] `npm audit` — 0 kwetsbaarheden
 - [ ] Input gevalideerd (zod) + autorisatie/isolatie getest

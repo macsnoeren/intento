@@ -5,6 +5,28 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Gewijzigd
+- **T8.6 Opmaak weer groen en afgedwongen.** `npm run format:check` stond al langere tijd rood
+  (34 bestanden) zonder dat iemand het merkte: het hoorde niet bij de Definition of Done — die
+  noemde alleen `typecheck`, `lint`, `test` en `audit` — en niets dwong het af, dus de opmaak
+  dreef per taak verder af. Opgelost in twee stappen, bewust gescheiden. Eerst één losse,
+  gedragsvrije commit met alleen `prettier --write .`: regels boven `printWidth: 100` afgebroken,
+  union-types opnieuw gewrapt en vier CRLF-bestanden naar LF geschreven. Die diff raakt bijna de
+  hele codebase, dus hij staat apart zodat de diff van latere taken leesbaar blijft; dat het echt
+  om opmaak ging is geverifieerd door per bestand de tokenstroom (zonder witruimte en komma's) te
+  vergelijken — het enige verschil zijn weggevallen leidende `|`-tekens in union-types, en tests
+  bleven exact op 45/353 (server) en 15/83 (web). Daarna pas de borging. Regeleindes liggen nu
+  dubbel vast: `.gitattributes` met `* text=auto eol=lf` plus een expliciete `endOfLine: "lf"` in
+  `.prettierrc.json`, zodat CRLF niet via een andere editor of een checkout op Windows terugkomt —
+  precies hoe die vier bestanden ooit rood werden. Aangeleverd naslagmateriaal (`INTENTO-DESIGN/`,
+  `PROJECT-NODEJS/`, `LICENSE`) is expliciet uitgezonderd met `-text`: dat onderhouden we niet zelf,
+  Prettier negeert het al, en renormaliseren zou alleen ruis opleveren. Tegen terugvallen: een
+  pre-commit hook in `.githooks/` die Prettier alleen over de *staged* bestanden draait, zichzelf
+  installeert via het `prepare`-script (`git config core.hooksPath .githooks`, dus zonder nieuwe
+  dependency zoals husky of lint-staged) en beide kanten op getest is — een verkeerd opgemaakt
+  bestand blokkeert de commit, een correct bestand gaat door. `format:check` staat nu ook in de
+  Definition of Done in `CLAUDE.md`.
+
 ### Gerepareerd
 - **T8.5 Tablet-gespreksscherm bleef hangen op "Laden…" onder React StrictMode.** `ConversationScreen`
   in `TabletApp.tsx` bewaakt met een `mountedRef` dat er geen state meer wordt gezet nadat het scherm

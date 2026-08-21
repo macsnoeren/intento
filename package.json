@@ -18,6 +18,7 @@
     "deepmerge-ts": "^8.0.2"
   },
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "concurrently --raw \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm run dev --workspace=server",
     "dev:web": "npm run dev --workspace=web",

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Pre-commit hook (T8.6): houdt `npm run format:check` groen.
+#
+# De opmaak was maandenlang rood zonder dat iemand het merkte, omdat niets het afdwong.
+# Deze hook controleert alleen de *staged* bestanden, dus hij blijft snel. Prettier slaat
+# zelf over wat in .prettierignore staat (--ignore-unknown doet hetzelfde voor extensies
+# zonder parser), dus we hoeven hier niets te filteren.
+#
+# Geïnstalleerd door het `prepare`-script (`git config core.hooksPath .githooks`).
+# Eenmalig overslaan kan met `git commit --no-verify`.
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+if ! printf '%s\n' "$staged" | xargs npx --no-install prettier --check --ignore-unknown; then
+  echo
+  echo "Opmaak niet in orde. Draai 'npm run format' en stage de wijzigingen opnieuw."
+  exit 1
+fi

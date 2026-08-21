@@ -1,0 +1,14 @@
+# Regeleindes vastleggen (T8.6).
+#
+# Prettier schrijft met `endOfLine: "lf"`. Zonder deze regels kon een editor of een
+# checkout op Windows CRLF terugbrengen, waarna Prettier het hele bestand als
+# "verkeerd opgemaakt" markeerde en `npm run format:check` opnieuw rood werd — precies
+# wat er met vier bronbestanden gebeurd was. `text=auto eol=lf` normaliseert alles wat
+# git als tekst herkent naar LF in de repository én in de werkmap, ongeacht platform.
+* text=auto eol=lf
+
+# Uitzondering: aangeleverd naslagmateriaal dat we niet zelf onderhouden en dat
+# Prettier ook negeert. Renormaliseren zou hier alleen een ruis-diff opleveren.
+INTENTO-DESIGN/** -text
+PROJECT-NODEJS/** -text
+LICENSE -text
