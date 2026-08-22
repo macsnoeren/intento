@@ -30,6 +30,7 @@ import { analyzeCorrection } from '../conversation/correction.js';
 import { readOfferedConcepts, readPendingOffer, type PendingOffer } from '../conversation/offer.js';
 import { readHypothesis } from '../conversation/hypothesis.js';
 import { composeMessage } from '../conversation/generate.js';
+import { defaultStrategy } from '../conversation/strategy.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
 import { DEFAULT_INTERPRETATION_CONFIDENCE, phaseForDecision } from '../ai/thresholds.js';
 import type { ChosenConcept } from '../conversation/message.js';
@@ -261,6 +262,9 @@ async function ensureOffer(
     questionContext: session.caregiverQuestion,
     anchoredSteps: anchoredStepsFor(session),
     userId: session.userId,
+    // De aanpak van dit gesprek (T11.2, DESIGN §7.10). De env-grenzen blijven er als plafond overheen
+    // gaan: een strategie kan ze aanscherpen, nooit oprekken.
+    strategy: defaultStrategy(),
     maxCandidates: env.AI_MAX_CANDIDATES,
     allowNewConcepts: env.AI_ALLOW_NEW_CONCEPTS,
     icons: deps.openSymbols ?? null,

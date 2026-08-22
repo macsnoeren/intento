@@ -3,6 +3,7 @@ import type { AacSymbolModel, ConversationStepModel } from '../generated/prisma/
 import { normalizeSearch } from '../aac/library.js';
 import type { AiUserContextItem } from '../ai/provider.js';
 import { loadChildSymbols } from './engine.js';
+import { defaultStrategy, type StrategyCandidateSource } from './strategy.js';
 
 /**
  * Kandidatenselectie voor de volgende vraag (T10.2, DESIGN §7.3, ADR-0012).
@@ -28,6 +29,12 @@ import { loadChildSymbols } from './engine.js';
  * De volgorde is bewust: de aanroeper (`decision.ts`) laat de AI hierbinnen kiezen en ordenen, en vult
  * bij een te kleine AI-selectie aan in deze volgorde. Zo blijft de boom de ruggengraat van het gesprek
  * terwijl de rest van de bibliotheek bereikbaar wordt.
+ *
+ * **Welke bronnen meedoen en in welke volgorde, komt sinds T11.2 uit de gespreksstrategie** (§7.10):
+ * de volgorde hierboven is die van de standaardstrategie `refine`. Een strategie die concrete dingen
+ * vóór categorieën zet, draait `descendants` en `children` om; een strategie die op het dagritme leunt,
+ * zet `preference` vooraan. De bronnen zelf en hun betekenis liggen hier vast — een strategie kiest
+ * eruit, ze verzint er geen.
  *
  * Wat deze module **niet** doet: terugvallen op de intentiecategorieën als er niets overblijft. Dat was
  * precies de bevinding uit de derde gebruikerstest — "geen van deze past" zette de gebruiker terug op het
@@ -100,8 +107,12 @@ const STOP_WORDS = new Set([
   'zou',
 ]);
 
-/** De herkomst van een kandidaat; puur voor diagnose/logging (T9.15) en de aanvulvolgorde. */
-export type CandidateSource = 'children' | 'descendants' | 'retrieval' | 'preference' | 'intent';
+/**
+ * De herkomst van een kandidaat; puur voor diagnose/logging (T9.15) en de aanvulvolgorde. Dit is de
+ * strategiebron (§7.10) plus `intent`: die laatste is geen strategiekeuze maar de gegarandeerde bodem
+ * onder het gesprek, en wordt door `decision.ts` toegevoegd.
+ */
+export type CandidateSource = StrategyCandidateSource | 'intent';
 
 export interface CandidateSet {
   /**
@@ -220,8 +231,13 @@ export interface CollectCandidatesInput {
   questionContext?: string | null;
   /** De toegestane gebruikerscontext (T6.1/T6.3) — voedt de retrieval-termen. */
   userContext?: AiUserContextItem[];
-  /** Bovengrens op de set (env `AI_MAX_CANDIDATES`). */
+  /** Bovengrens op de set (`maxCandidates` van de strategie, begrensd door env `AI_MAX_CANDIDATES`). */
   limit: number;
+  /**
+   * De bronnen in prioriteitsvolgorde (T11.2, §7.10). Weggelaten = de volgorde van de
+   * standaardstrategie, zodat aanroepers die geen strategie kennen (tests, scripts) ongewijzigd werken.
+   */
+  sources?: readonly StrategyCandidateSource[];
 }
 
 /**
@@ -257,10 +273,14 @@ export async function collectCandidates(
     pathLabels: pathSymbols.map((symbol) => symbol.label),
   });
 
+  // Alleen ophalen wat deze strategie ook gebruikt: een bron die niet in de volgorde staat, kost geen
+  // query. `children` wordt altijd geladen — `atLeafConcept` hangt ervan af, ongeacht de strategie.
+  const sources = input.sources ?? defaultStrategy().candidateSources;
+  const wanted = new Set(sources);
   const [grandchildren, retrieved, preferred] = await Promise.all([
-    loadGrandchildSymbols(prisma, children, limit),
-    retrieveByTerms(prisma, terms, limit),
-    loadPreferredSymbols(prisma, userId, limit),
+    wanted.has('descendants') ? loadGrandchildSymbols(prisma, children, limit) : [],
+    wanted.has('retrieval') ? retrieveByTerms(prisma, terms, limit) : [],
+    wanted.has('preference') ? loadPreferredSymbols(prisma, userId, limit) : [],
   ]);
 
   const candidates: AacSymbolModel[] = [];
@@ -286,10 +306,13 @@ export async function collectCandidates(
     }
   };
 
-  add(children, 'children');
-  add(grandchildren, 'descendants');
-  add(retrieved, 'retrieval');
-  add(preferred, 'preference');
+  const symbolsBySource: Record<StrategyCandidateSource, AacSymbolModel[]> = {
+    children,
+    descendants: grandchildren,
+    retrieval: retrieved,
+    preference: preferred,
+  };
+  for (const source of sources) add(symbolsBySource[source], source);
 
   const available = candidates.filter((symbol) => !excluded.has(symbol.concept));
   return { candidates, available, sourceByConcept, counts, atLeafConcept };

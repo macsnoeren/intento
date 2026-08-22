@@ -28,6 +28,10 @@ import { z } from 'zod';
  * doorwerken (de gebruiker moet vooruitgang merken) maar zorgt dat één uitschieter de voorsteldrempel
  * niet alleen kan halen: vanaf een neutrale 0,7 tilt één antwoord van 0,95 de hypothese naar 0,85 —
  * precies de grens — en pas een tweede bevestiging brengt hem er duidelijk overheen.
+ *
+ * Dit is sinds T11.2 de waarde van de standaardstrategie `refine` (DESIGN §7.10): een rustiger strategie
+ * dempt sterker, een verkennende minder. De demping zelf blijft de mechaniek — alleen het gewicht is een
+ * parameter.
  */
 export const HYPOTHESIS_SMOOTHING = 0.6;
 
@@ -75,13 +79,20 @@ export function readHypothesis(value: unknown): Hypothesis | null {
  */
 export function updateHypothesis(
   previous: Hypothesis | null,
-  next: { stepCount: number; rawConfidence: number; concepts: string[]; reason: string },
+  next: {
+    stepCount: number;
+    rawConfidence: number;
+    concepts: string[];
+    reason: string;
+    /** Het dempingsgewicht van de actieve strategie (T11.2); weggelaten = de standaardwaarde. */
+    smoothing?: number;
+  },
 ): Hypothesis {
+  const smoothing = next.smoothing ?? HYPOTHESIS_SMOOTHING;
   const confidence =
     previous === null
       ? next.rawConfidence
-      : previous.confidence * (1 - HYPOTHESIS_SMOOTHING) +
-        next.rawConfidence * HYPOTHESIS_SMOOTHING;
+      : previous.confidence * (1 - smoothing) + next.rawConfidence * smoothing;
 
   const entry: HypothesisEntry = {
     stepCount: next.stepCount,

@@ -25,6 +25,10 @@ import {
  * "geen van deze past" geen enkel effect had op de richting van het gesprek. Ook dit blijft gesloten en
  * afgeleid: het zijn AAC-concepten en door het systeem geformuleerde vragen, geen vrije tekst van de
  * gebruiker.
+ *
+ * Sinds T11.2 leveren het **doel** en de **AAC-regels** hun inhoud uit de actieve gespreksstrategie
+ * (DESIGN §7.10). Dat verandert niets aan de vorm: de sleutelset blijft gesloten en `buildAiPrompt`
+ * blijft de enige bouwer — een strategie vult velden, ze voegt er nooit een toe.
  */
 
 /**
@@ -95,6 +99,14 @@ export interface AiPromptInput {
   askedQuestions?: string[];
   /** De afgewezen concepten met hun soort afwijzing (T10.4, §7.5); leeg als er niets is afgewezen. */
   rejectedConcepts?: AiRejectedConcept[];
+  /**
+   * Het doel zoals de **gespreksstrategie** het formuleert (T11.2, DESIGN §7.10); weggelaten = `GOAL`.
+   * Een strategie vult hier de *inhoud* van een bestaand veld; de sleutelset van de prompt blijft
+   * gesloten (zie de moduletoelichting) — een strategie kan er nooit een veld bij verzinnen.
+   */
+  goal?: string;
+  /** De AAC-regels van de strategie (T11.2); weggelaten = `AAC_RULES`. De harde regels blijven erin. */
+  aacRules?: readonly string[];
 }
 
 /**
@@ -110,8 +122,8 @@ export function buildAiPrompt(input: AiPromptInput): AiPrompt {
   return aiPromptSchema.parse({
     task: AI_TASK_SELECT_NEXT_QUESTION,
     systemRules: [...SYSTEM_RULES],
-    goal: GOAL,
-    aacRules: [...AAC_RULES],
+    goal: input.goal ?? GOAL,
+    aacRules: [...(input.aacRules ?? AAC_RULES)],
     userContext: input.userContext ?? [],
     questionContext: input.questionContext ?? null,
     conversationContext,

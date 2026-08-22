@@ -401,6 +401,16 @@ gedistribueerde workers — zie hieronder). Zie
 > **gebruiker** zelf iets koos (in vraagmodus telt het anker van de begeleider niet mee, T9.14). Loopt een
 > punt leeg, dan volgt eerst een vrije ronde, dan de intentiecategorieën, en pas dán een voorstel.
 
+> **Welke aanpak draait er? (Fase 11)** De knoppen die bepalen *hoe* de AI zoekt — bronvolgorde,
+> aanbodgrootte, drempels, demping en de promptformulering — zijn gebundeld tot één benoemde
+> **gespreksstrategie** (`conversation/strategy.ts`, DESIGN §7.10). De bestaande aanpak heet `refine`
+> ("Stap voor stap verfijnen") en is de standaard. Die knoppen zijn niet neutraal: ze veronderstellen
+> iemand die categorieën begrijpt en stapsgewijs verfijnt, en dat past niet bij iedereen. Wat een
+> strategie **nooit** verandert zijn de garanties — eigenaarschap, deduplicatie, "afgewezen komt niet
+> terug", de gesloten promptsleutelset en "nooit een leeg scherm"; die worden afgedwongen door één
+> invariant-testsuite die over álle geregistreerde strategieën draait. Zie
+> [docs/adr/0013](docs/adr/0013-conversation-strategies.md).
+
 > **Draait er echt een AI? (T9.4/T9.8)** Met de standaard `AI_PROVIDER=mock` denkt er **geen** AI mee: de
 > mock-provider kiest de bibliotheekvolgorde. Dat is aan de flow niet te zien, dus de server logt bij het
 > opstarten welke modus draait (met een waarschuwing bij `mock`) en zowel de tablet als de beheeromgeving

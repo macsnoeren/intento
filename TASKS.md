@@ -391,7 +391,7 @@ bewust bij "Na de MVP".
   scheiding tussen zoekwijze en garanties; er is een ADR in `docs/adr/`; `docs/architecture.md` verwijst
   ernaar.
 
-- [ ] **T11.2 De huidige aanpak wordt een expliciete, benoemde strategie**
+- [x] **T11.2 De huidige aanpak wordt een expliciete, benoemde strategie**
   *DESIGN: §7.10 (na T11.1), §7.3.* Introduceer `conversation/strategy.ts` met een `ConversationStrategy`
   (sleutel, label, uitleg voor de begeleider, en de parameters: kandidatenbronnen + volgorde,
   `maxCandidates`, `minOffered`/`maxOffered`, `confidenceRefine`/`confidencePropose`,

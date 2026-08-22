@@ -16,6 +16,18 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   domeinregels vallen er expliciet buiten — een strategie verandert de **zoekwijze**, nooit de
   **garanties**. Geen code in deze taak.
 
+- **T11.2 De huidige aanpak is een expliciete strategie geworden** (`conversation/strategy.ts`). De
+  parameters die de zoekwijze bepalen komen nu uit één `ConversationStrategy` in plaats van uit losse
+  constanten in `candidates.ts`, `decision.ts`, `ai/thresholds.ts`, `hypothesis.ts` en `ai/prompt.ts`. De
+  bestaande waarden vormen de strategie **`refine`** ("Stap voor stap verfijnen"), de standaard uit de
+  registry; het gedrag verandert niet — alle bestaande gespreks- en beslissingstests blijven ongewijzigd
+  groen, en `strategy.test.ts` pint de waarden vast zodat een wijziging een zichtbare keuze is. De
+  env-grenzen (`AI_MAX_CANDIDATES`, `AI_ALLOW_NEW_CONCEPTS`) blijven als **plafond** gelden: een strategie
+  kan ze aanscherpen, nooit oprekken. Nieuw is de gedeelde **invariant-testsuite**
+  (`strategy.invariants.test.ts`) die over élke geregistreerde strategie de domeinregels afdwingt: nooit
+  een leeg scherm, geen voorstel zonder gebruikerskeuze, afgewezen concepten komen niet terug,
+  deduplicatie eerst, gesloten promptsleutelset.
+
 ### Gewijzigd — Fase 10: de AI stuurt het gesprek
 
 - **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**

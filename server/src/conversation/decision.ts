@@ -6,14 +6,11 @@ import { symbolToPublic } from '../aac/library.js';
 import type { AiConceptRef, AiRejectedConcept, AiUserContextItem } from '../ai/provider.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
 import { validateAiOptions } from '../ai/validation.js';
-import {
-  CONFIDENCE_PROPOSE,
-  CONFIDENCE_REFINE,
-  DEFAULT_INTERPRETATION_CONFIDENCE,
-} from '../ai/thresholds.js';
+import { DEFAULT_INTERPRETATION_CONFIDENCE } from '../ai/thresholds.js';
 import { collectCandidates, type CandidateSource } from './candidates.js';
 import { loadIntentSymbols } from './engine.js';
 import { updateHypothesis, type Hypothesis } from './hypothesis.js';
+import { defaultStrategy, promptRulesFor, type ConversationStrategy } from './strategy.js';
 
 /**
  * AI-beslissingslaag voor de gespreksflow (T5.2, herzien in Fase 10; DESIGN §7.2–7.6, §7.8, ADR-0012).
@@ -36,15 +33,20 @@ import { updateHypothesis, type Hypothesis } from './hypothesis.js';
  *  4. **Confidence-gestuurde fase** (§7.4), met een over beurten heen **gedempte** zekerheid uit de
  *     hypothese (T10.8) zodat één zelfverzekerd modelantwoord niet meteen een boodschap forceert.
  *  5. **Onder- én bovengrens op het aanbod** (§3.1, T9.10/T10.5). De AI ordent; haar keuzes staan
- *     vooraan en worden aangevuld tot `MIN_OFFERED_OPTIONS` zodat er altijd genoeg te kiezen is. Het
- *     aanbod is óók begrensd (`MAX_OFFERED_OPTIONS`), zodat "Geen van deze past" niet in één klap de
- *     hele kandidatenset uitsluit en de uitweg herhaalbaar blijft.
+ *     vooraan en worden aangevuld tot `minOffered` zodat er altijd genoeg te kiezen is. Het aanbod is
+ *     óók begrensd (`maxOffered`), zodat "Geen van deze past" niet in één klap de hele kandidatenset
+ *     uitsluit en de uitweg herhaalbaar blijft.
  *  6. **Nooit doodlopen** (T9.14/T10.5), in deze volgorde: (a) is er niets meer over, dan volgt een
  *     **vrije ronde** — de AI krijgt geen bestaande opties maar wél de volledige negatieve context en mag
  *     zelf begrippen aandragen (§7.6 trap 3); (b) levert ook dat niets op, dan de intentiecategorieën als
  *     laatste redmiddel; (c) pas als zelfs die leeg zijn, een boodschapvoorstel. Die volgorde is de kern
  *     van de Fase 10-fix: vroeger was (b) de éérste reactie, waardoor "geen van deze past" de gebruiker
  *     terugzette op het startscherm.
+ *
+ * **De knoppen komen uit de gespreksstrategie** (T11.2, §7.10): bronvolgorde, aanbodgrootte, drempels,
+ * demping, promptformulering en of nieuwe concepten mogen. De waarborgen hierboven staan daar bewust
+ * *buiten*: ze gelden voor élke strategie en worden afgedwongen door de gedeelde invariant-testsuite.
+ * Zonder strategie geldt de standaard (`refine`), waarvan de waarden exact die van vóór T11.2 zijn.
  *
  * De laag is bewust vrij van HTTP: de route laadt de stappen en geeft ze mee, zodat alles deterministisch
  * met de mock-provider te testen is.
@@ -138,9 +140,20 @@ export interface DecideNextQuestionInput {
   anchoredSteps?: number;
   /** De gebruiker van deze sessie; voedt de voorkeuren-bron van de kandidaten. */
   userId?: string;
-  /** Bovengrens op de kandidatenset (env `AI_MAX_CANDIDATES`). */
+  /**
+   * De actieve gespreksstrategie (T11.2, §7.10); weggelaten = de standaardstrategie. Bepaalt de
+   * **zoekwijze**, nooit de waarborgen.
+   */
+  strategy?: ConversationStrategy;
+  /**
+   * Operationele bovengrens op de kandidatenset (env `AI_MAX_CANDIDATES`). Werkt als **plafond** boven
+   * de strategie: de strikste van de twee wint, zodat een strategie de deployment nooit kan oprekken.
+   */
   maxCandidates?: number;
-  /** Of de AI een nieuw concept mag aandragen (env `AI_ALLOW_NEW_CONCEPTS`, DESIGN §7.6 trap 3). */
+  /**
+   * Of de AI een nieuw concept mag aandragen (env `AI_ALLOW_NEW_CONCEPTS`, DESIGN §7.6 trap 3). Ook dit
+   * is een **plafond**: beide moeten het toestaan. Een strategie kan het uitzetten, nooit aanzetten.
+   */
   allowNewConcepts?: boolean;
   /** Pictogrambron voor een nieuw concept (T10.6); `null`/weggelaten = placeholder-glyph. */
   icons?: OpenSymbolsClient | null;
@@ -148,28 +161,18 @@ export interface DecideNextQuestionInput {
   hypothesis?: Hypothesis | null;
 }
 
-/** Standaardgrens als de aanroeper er geen meegeeft (spiegelt de env-default). */
-const DEFAULT_MAX_CANDIDATES = 30;
-
 /**
- * Ondergrens op het aantal aangeboden opties (T9.10): de AI mag ordenen en kiezen, maar niet zó ver
- * snoeien dat er niets te kiezen valt. Ruim genoeg voor de grootste instelling van `iconsPerScreen` (8),
- * zodat het eerste scherm altijd vol staat zolang er kandidaten zijn.
- */
-export const MIN_OFFERED_OPTIONS = 8;
-
-/**
- * Bovengrens op het aantal aangeboden opties (T10.5).
+ * De grenzen op het aanbod (`minOffered`/`maxOffered`) staan sinds T11.2 in de strategie (§7.10).
  *
- * Vóór Fase 10 werden ná de AI-keuze **alle** overige kandidaten aangeplakt, zodat geen enkel pictogram
- * onbereikbaar was (T9.10). Met de bredere kandidatenset (T10.2) werkt dat tegen de gebruiker: het aanbod
- * wordt dan de halve bibliotheek, en "Geen van deze past" sluit in één klap alles uit — waarna er niets
- * meer over is en het gesprek doodloopt. Precies de bevinding uit de derde gebruikerstest.
+ * De **ondergrens** (T9.10) houdt in dat de AI mag ordenen en kiezen, maar niet zó ver snoeien dat er
+ * niets te kiezen valt. De **bovengrens** (T10.5) bestaat omdat vóór Fase 10 ná de AI-keuze álle overige
+ * kandidaten werden aangeplakt: met de bredere kandidatenset (T10.2) wordt het aanbod dan de halve
+ * bibliotheek, en sluit "Geen van deze past" in één klap alles uit — waarna het gesprek doodloopt.
+ * Een begrensd aanbod maakt de afwijzing weer betekenisvol en de uitweg herhaalbaar.
  *
- * Een begrensd aanbod maakt de afwijzing weer betekenisvol: wat de gebruiker zag valt af, en de volgende
- * ronde put uit de rest van de kandidaten. Onbereikbaar wordt daarmee niets — de uitweg is herhaalbaar.
+ * Wat een strategie er níet mee kan: het scherm leegmaken. `minOffered >= 1` is een invariant, geen
+ * instelling.
  */
-export const MAX_OFFERED_OPTIONS = 12;
 
 /**
  * Bepaalt de volgende beslissing voor een sessie uit de opgeslagen stappen en de sessiecontext. Zie de
@@ -189,16 +192,25 @@ export async function decideNextQuestion(
     questionContext = null,
     anchoredSteps = 0,
     userId = '',
-    maxCandidates = DEFAULT_MAX_CANDIDATES,
-    allowNewConcepts = false,
+    strategy = defaultStrategy(),
     icons = null,
     hypothesis = null,
   } = input;
 
+  // De strategie stelt voor, de deployment beschikt: bij beide grenzen wint de strikste. Zo kan een
+  // strategie de operationele instellingen nooit oprekken — alleen aanscherpen.
+  const maxCandidates = Math.min(
+    strategy.maxCandidates,
+    input.maxCandidates ?? strategy.maxCandidates,
+  );
+  const allowNewConcepts = (input.allowNewConcepts ?? false) && strategy.allowNewConcepts;
+
   const chosen = steps.map((step) => step.selectedConcept);
   const excluded = new Set<string>([...chosen, ...rejections.map((r) => r.concept)]);
-  // Heeft de **gebruiker** al iets gekozen? Alleen dan mag er een boodschap voorgesteld worden.
+  // Heeft de **gebruiker** genoeg zelf gekozen? Alleen dan mag er een boodschap voorgesteld worden. Het
+  // minimum komt uit de strategie, maar de ondergrens is een domeinregel: nooit nul (DESIGN §2, §7.10).
   const userChoices = Math.max(0, steps.length - anchoredSteps);
+  const mayPropose = userChoices >= Math.max(1, strategy.minUserChoicesBeforePropose);
 
   // 1. Kandidaten. Op het startscherm blijft het bij de intentiecategorieën (DESIGN §3.1): daar hoort de
   //    gebruiker de richting te kiezen, niet de AI — en er is nog geen context om op te retrieven.
@@ -212,6 +224,7 @@ export async function decideNextQuestion(
           questionContext,
           userContext,
           limit: maxCandidates,
+          sources: strategy.candidateSources,
         });
 
   const { candidates, atLeafConcept, sourceByConcept, counts } = found;
@@ -219,12 +232,12 @@ export async function decideNextQuestion(
 
   // Het laatst gekozen concept is een **eindconcept**: de route is af, dus een boodschap voorstellen
   // (§7.4). Dit verschilt wezenlijk van "alles uitgesloten" — daar valt nog wél wat te vragen.
-  if (atLeafConcept && userChoices > 0) {
+  if (atLeafConcept && mayPropose) {
     return {
       question: null,
       done: true,
       phase: 'propose',
-      confidence: hypothesis?.confidence ?? CONFIDENCE_PROPOSE,
+      confidence: hypothesis?.confidence ?? strategy.confidencePropose,
       proposed: [],
       created: [],
       hypothesis,
@@ -258,7 +271,7 @@ export async function decideNextQuestion(
         question: null,
         done: true,
         phase: 'propose',
-        confidence: hypothesis?.confidence ?? CONFIDENCE_PROPOSE,
+        confidence: hypothesis?.confidence ?? strategy.confidencePropose,
         proposed: [],
         created: [],
         hypothesis,
@@ -293,6 +306,9 @@ export async function decideNextQuestion(
     userContext,
     questionContext,
     askedQuestions,
+    // De strategie vult de **inhoud** van doel en AAC-regels; de sleutelset blijft gesloten (§7.7).
+    goal: strategy.prompt.goal,
+    aacRules: promptRulesFor(strategy),
     rejectedConcepts: rejections.map((rejection) => ({
       concept: rejection.concept,
       label: labels.get(rejection.concept) ?? rejection.concept,
@@ -327,13 +343,14 @@ export async function decideNextQuestion(
     rawConfidence,
     concepts: filtered.map((option) => option.symbol.concept),
     reason: aiDecision.reason,
+    smoothing: strategy.hypothesisSmoothing,
   });
   const confidence = nextHypothesis.confidence;
 
   // De AI is zeker genoeg (>85%) én de **gebruiker** heeft al iets gekozen: boodschap voorstellen
   // i.p.v. nog een vraag (§7.4 propose). Aan de start — en in vraagmodus met alleen het anker van de
   // begeleider — stellen we nooit voor: er valt dan niets voor te stellen dat van de gebruiker is.
-  if (confidence >= CONFIDENCE_PROPOSE && userChoices > 0) {
+  if (confidence >= strategy.confidencePropose && mayPropose) {
     return {
       question: null,
       done: true,
@@ -354,12 +371,12 @@ export async function decideNextQuestion(
   }
 
   // 7. Het aanbod samenstellen. De keuzes van de AI staan voorop — dat is wat er op het eerste scherm te
-  //    zien is — en worden aangevuld uit de kandidaten (boomkinderen eerst) tot `MIN_OFFERED_OPTIONS`,
-  //    zodat er altijd genoeg te kiezen valt (T9.10). Het totaal is begrensd op `MAX_OFFERED_OPTIONS`,
+  //    zien is — en worden aangevuld uit de kandidaten (in de bronvolgorde van de strategie) tot
+  //    `minOffered`, zodat er altijd genoeg te kiezen valt (T9.10). Het totaal is begrensd op `maxOffered`,
   //    zodat "Geen van deze past" niet in één klap de hele bibliotheek uitsluit (T10.5).
-  const offered = filtered.map((option) => option.symbol).slice(0, MAX_OFFERED_OPTIONS);
+  const offered = filtered.map((option) => option.symbol).slice(0, strategy.maxOffered);
   const seen = new Set(offered.map((symbol) => symbol.concept));
-  const target = Math.min(MAX_OFFERED_OPTIONS, Math.max(MIN_OFFERED_OPTIONS, offered.length));
+  const target = Math.min(strategy.maxOffered, Math.max(strategy.minOffered, offered.length));
   for (const candidate of available) {
     if (offered.length >= target) break;
     if (seen.has(candidate.concept)) continue;
@@ -376,7 +393,7 @@ export async function decideNextQuestion(
     const intents = await loadIntentSymbols(prisma);
     const usable = intents.filter((symbol) => !excluded.has(symbol.concept));
     if (usable.length > 0) {
-      offered.push(...usable.slice(0, MAX_OFFERED_OPTIONS));
+      offered.push(...usable.slice(0, strategy.maxOffered));
     } else {
       return {
         question: null,
@@ -404,7 +421,7 @@ export async function decideNextQuestion(
   };
   // We tonen een vraag, dus de fase is `select` (te onzeker, nieuwe vraag) of `refine` (verder
   // verfijnen). `propose` is hierboven al afgehandeld (dan is er geen vraag meer).
-  const phase = confidence >= CONFIDENCE_REFINE ? 'refine' : 'select';
+  const phase = confidence >= strategy.confidenceRefine ? 'refine' : 'select';
   return {
     question,
     done: false,

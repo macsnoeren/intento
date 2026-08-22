@@ -163,7 +163,7 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   tegen de boom. De **hypothese** houdt per beurt bij wat de AI denkt dat de gebruiker bedoelt (concepten
   + gedempte zekerheid + geschiedenis); ze levert het kantelpunt voor de correctieflow en wordt bij
   `/confirm` gewist — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6).
-- **Gespreksstrategieën** (`conversation/strategy.ts`, Fase 11) — de benoemde manier waarop de AI
+- **Gespreksstrategieën** (`conversation/strategy.ts`, T11.2) — de benoemde manier waarop de AI
   probeert te achterhalen wat de gebruiker bedoelt (DESIGN §7.10). De knoppen die de aanpak bepalen —
   bronvolgorde (`candidates.ts`), aanbodgrootte (`decision.ts`), confidence-drempels (`ai/thresholds.ts`),
   demping (`hypothesis.ts`) en de promptfragmenten (`ai/prompt.ts`) — zijn geen verspreide constanten meer
@@ -173,8 +173,10 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   "afgewezen komt niet terug", de gesloten promptsleutelset en "nooit een leeg scherm" variëren niet mee
   en worden afgedwongen met één invariant-testsuite over álle geregistreerde strategieën. Strategieën
   zijn ingebouwd (code, stabiele sleutel), niet beheerd in de database; de **selectie** loopt gesprek →
-  gebruiker → standaard en ligt vast voor de duur van het gesprek. Zie
-  [adr/0013](adr/0013-conversation-strategies.md).
+  gebruiker → standaard en ligt vast voor de duur van het gesprek. De bestaande aanpak is de strategie
+  **`refine`**; `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
+  `AI_ALLOW_NEW_CONCEPTS`) blijven als **plafond** gelden — een strategie kan ze aanscherpen, nooit
+  oprekken. Zie [adr/0013](adr/0013-conversation-strategies.md).
 - **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,
   T5.5) — bij `AI_PROVIDER=queue` zet de `QueueAiProvider` aanvragen op een DB-wachtrij (`AiJob`) i.p.v.
   ze in-process uit te voeren; externe workers (T5.6) claimen jobs via **worker-initiated** long-poll
