@@ -302,6 +302,78 @@ export const iconsPerScreenSchema = z.union([
 export type IconsPerScreen = z.infer<typeof iconsPerScreenSchema>;
 
 /**
+ * De sleutels van de ingebouwde **gespreksstrategieën** (T11.4, DESIGN §7.10). Stabiel: ze worden
+ * opgeslagen bij de gebruiker en het gesprek, en verschijnen in logs en beheerschermen.
+ *
+ * Ze staan hier — in `shared` — omdat zowel de server (die de parameters kent) als de beheer-UI (die de
+ * keuze toont) dezelfde lijst nodig heeft. De **parameters** van een strategie blijven server-intern:
+ * de client hoeft niet te weten met welke drempels er gezocht wordt, alleen wát hij kan kiezen.
+ */
+export const CONVERSATION_STRATEGY_KEYS = ['refine', 'explore', 'calm', 'context-first'] as const;
+
+/** Strategiesleutel; een onbekende waarde wordt op de API-grens geweigerd (400). */
+export const conversationStrategySchema = z.enum(CONVERSATION_STRATEGY_KEYS);
+export type ConversationStrategyKey = z.infer<typeof conversationStrategySchema>;
+
+/** De standaardstrategie: de aanpak die gold voordat er iets te kiezen viel. */
+export const DEFAULT_CONVERSATION_STRATEGY: ConversationStrategyKey = 'refine';
+
+/**
+ * Normaliseert een **opgeslagen** strategiesleutel: onbekend → de standaard.
+ *
+ * De twee kanten zijn bewust verschillend. *Invoer* wordt hard geweigerd (`conversationStrategySchema`
+ * op de API-grens, 400): een half toegepaste strategie is erger dan een geweigerde request. *Opgeslagen*
+ * data wordt gerepareerd: verdwijnt een strategie ooit uit de registry, dan mag het profiel van die
+ * gebruiker daardoor niet onleesbaar worden — hij zou zijn tablet niet meer kunnen koppelen om iets te
+ * zeggen. Dat is een veel groter kwaad dan een aanpak die stilletjes terugvalt op de standaard.
+ */
+export function toConversationStrategy(value: unknown): ConversationStrategyKey {
+  const parsed = conversationStrategySchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_CONVERSATION_STRATEGY;
+}
+
+/**
+ * De keuzelijst zoals de **begeleider** hem ziet: naam en uitleg in begrijpelijke taal, geen
+ * parameters. Eén bron voor de beheer-UI en de server-registry, zodat een strategie nooit onder twee
+ * namen rondloopt.
+ */
+export const CONVERSATION_STRATEGY_CATALOG: readonly {
+  key: ConversationStrategyKey;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'refine',
+    label: 'Stap voor stap verfijnen',
+    description:
+      'Begint bij de categorie en werkt stap voor stap naar het detail toe. De standaardaanpak: ' +
+      'geschikt voor wie categorieën herkent en het prettig vindt om in kleine stappen te kiezen.',
+  },
+  {
+    key: 'explore',
+    label: 'Breed verkennen',
+    description:
+      'Laat meteen concrete dingen zien in plaats van eerst categorieën, en toont er meer tegelijk. ' +
+      'Geschikt voor wie voorwerpen en activiteiten goed herkent maar moeite heeft met indelen.',
+  },
+  {
+    key: 'calm',
+    label: 'Rustig en bevestigend',
+    description:
+      'Toont weinig pictogrammen tegelijk, blijft dicht bij de vorige keuze en wacht langer voordat ' +
+      'er een boodschap wordt voorgesteld. Geschikt voor wie snel overprikkeld raakt of veel tijd ' +
+      'nodig heeft.',
+  },
+  {
+    key: 'context-first',
+    label: 'Context eerst',
+    description:
+      'Begint bij wat deze persoon vaak kiest en bij zijn eigen context (personen, favorieten, vaste ' +
+      'plekken) in plaats van bij de begrippenboom. Geschikt voor wie een sterk vast dagritme heeft.',
+  },
+];
+
+/**
  * Communicatie-instellingen van een gebruiker (`UserCommunicationProfile`, DESIGN §5.3).
  * Stuurt de gebruikersapp aan: aantal opties, tekst tonen, AI-leren en ondersteuningsmodus.
  */
@@ -315,6 +387,12 @@ export const communicationProfileSchema = z.object({
    * T2.4). Standaard aan; uit → de tablet toont het gekozen pad niet meer.
    */
   contextIndicator: z.boolean(),
+  /**
+   * De **gespreksstrategie** van deze gebruiker (T11.4, DESIGN §5.3, §7.10): de manier waarop de AI
+   * probeert te achterhalen wat hij bedoelt. Een instelling over de *zoekwijze*, nooit over de
+   * waarborgen — geen enkele keuze hier verandert wie eigenaar is van de boodschap.
+   */
+  conversationStrategy: conversationStrategySchema,
 });
 export type CommunicationProfile = z.infer<typeof communicationProfileSchema>;
 
@@ -512,7 +590,14 @@ export const profileExportSchema = z.object({
   version: z.literal(PROFILE_EXPORT_VERSION),
   exportedAt: z.iso.datetime(),
   user: z.object({ name: z.string() }),
-  communicationProfile: communicationProfileSchema,
+  /**
+   * Het communicatieprofiel. De **gespreksstrategie** (T11.4) heeft hier bewust een terugval: een
+   * bestand dat vóór die instelling is geëxporteerd bevat het veld niet, en dat is geen reden om een
+   * overdracht te weigeren — die gebruiker had toen de standaardaanpak.
+   */
+  communicationProfile: communicationProfileSchema.extend({
+    conversationStrategy: conversationStrategySchema.default(DEFAULT_CONVERSATION_STRATEGY),
+  }),
   personalContexts: z.array(profileExportContextSchema),
   preferences: z.array(profileExportPreferenceSchema),
 });

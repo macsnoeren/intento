@@ -252,6 +252,7 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
           aiLearningEnabled: true,
           supportMode: false,
           contextIndicator: true,
+          conversationStrategy: 'refine',
         },
       });
       expect(put.statusCode).toBe(403);
@@ -282,6 +283,7 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
           aiLearningEnabled: false,
           supportMode: true,
           contextIndicator: true,
+          conversationStrategy: 'refine',
         },
       });
       expect(put.statusCode).toBe(200);

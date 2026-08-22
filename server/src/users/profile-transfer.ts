@@ -1,4 +1,9 @@
-import { PROFILE_EXPORT_VERSION, profileExportSchema, type ProfileExport } from '@intento/shared';
+import {
+  PROFILE_EXPORT_VERSION,
+  profileExportSchema,
+  toConversationStrategy,
+  type ProfileExport,
+} from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AccountModel } from '../generated/prisma/models.js';
 import type { Encryptor } from '../crypto/encryption.js';
@@ -57,6 +62,7 @@ export async function buildProfileExport(
           aiLearningEnabled: profile.aiLearningEnabled,
           supportMode: profile.supportMode,
           contextIndicator: profile.contextIndicator,
+          conversationStrategy: toConversationStrategy(profile.conversationStrategy),
         }
       : DEFAULT_PROFILE,
     // De categorie/suggestionStatus komen als `String` uit de db; `profileExportSchema.parse` hieronder

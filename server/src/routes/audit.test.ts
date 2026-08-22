@@ -82,6 +82,7 @@ describe('audit-logging — gevoelige acties', () => {
         aiLearningEnabled: true,
         supportMode: false,
         contextIndicator: true,
+        conversationStrategy: 'refine',
       },
     });
     expect(res.statusCode).toBe(200);

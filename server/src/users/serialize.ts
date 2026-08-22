@@ -1,4 +1,10 @@
-import { userPublicSchema, type CommunicationProfile, type UserPublic } from '@intento/shared';
+import {
+  DEFAULT_CONVERSATION_STRATEGY,
+  toConversationStrategy,
+  userPublicSchema,
+  type CommunicationProfile,
+  type UserPublic,
+} from '@intento/shared';
 import type { UserModel, UserCommunicationProfileModel } from '../generated/prisma/models.js';
 
 /**
@@ -14,6 +20,7 @@ export const DEFAULT_PROFILE: CommunicationProfile = {
   aiLearningEnabled: true,
   supportMode: false,
   contextIndicator: true,
+  conversationStrategy: DEFAULT_CONVERSATION_STRATEGY,
 };
 
 export type UserWithProfile = UserModel & {
@@ -40,6 +47,10 @@ export function userToPublic(user: UserWithProfile): UserPublic {
           aiLearningEnabled: profile.aiLearningEnabled,
           supportMode: profile.supportMode,
           contextIndicator: profile.contextIndicator,
+          // De sleutel komt als `String` uit de db en wordt genormaliseerd: een waarde die niet (meer)
+          // in de registry staat valt terug op de standaard. Een verdwenen strategie mag een profiel
+          // nooit onleesbaar maken — dan zou de gebruiker zijn tablet niet meer kunnen koppelen.
+          conversationStrategy: toConversationStrategy(profile.conversationStrategy),
         }
       : DEFAULT_PROFILE,
   });

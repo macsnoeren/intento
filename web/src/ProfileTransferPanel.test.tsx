@@ -29,6 +29,7 @@ const importedUser: UserPublic = {
     aiLearningEnabled: true,
     supportMode: false,
     contextIndicator: true,
+    conversationStrategy: 'refine',
   },
 };
 

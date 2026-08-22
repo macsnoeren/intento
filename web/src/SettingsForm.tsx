@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import {
+  CONVERSATION_STRATEGY_CATALOG,
+  conversationStrategySchema,
   iconsPerScreenSchema,
   type IconsPerScreen,
   type UpdateSettingsRequest,
@@ -12,6 +14,10 @@ const ICON_OPTIONS: readonly IconsPerScreen[] = [2, 4, 6, 8];
  * Instellingenformulier voor het communicatieprofiel van één gebruiker (DESIGN §5.3).
  * Aantal opties is beperkt tot 2/4/6/8 (radioknoppen, dus ongeldige waarden zijn in de UI
  * onmogelijk); de rest zijn aan/uit-schakelaars. Opslaan roept `PUT /users/{id}/settings` aan.
+ *
+ * De **gespreksstrategie** (T11.4, DESIGN §7.10) staat er als radiokeuze bij, met per optie de uitleg
+ * erbij in plaats van erachter verstopt: de begeleider kiest hier hóe de AI naar de bedoeling van deze
+ * persoon zoekt, en dat is alleen een geïnformeerde keuze als hij ziet voor wie een aanpak bedoeld is.
  */
 export function SettingsForm({
   user,
@@ -56,6 +62,32 @@ export function SettingsForm({
                 }
               />
               <span>{value}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="field">
+        <legend className="field__label">Hoe de AI naar de bedoeling zoekt</legend>
+        <div className="choice-list">
+          {CONVERSATION_STRATEGY_CATALOG.map((strategy) => (
+            <label key={strategy.key} className="choice-block">
+              <input
+                type="radio"
+                name="conversationStrategy"
+                value={strategy.key}
+                checked={settings.conversationStrategy === strategy.key}
+                onChange={() =>
+                  setSettings((s) => ({
+                    ...s,
+                    conversationStrategy: conversationStrategySchema.parse(strategy.key),
+                  }))
+                }
+              />
+              <span>
+                <strong>{strategy.label}</strong>
+                <small className="choice-block__hint">{strategy.description}</small>
+              </span>
             </label>
           ))}
         </div>

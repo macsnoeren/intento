@@ -374,9 +374,19 @@ export async function decideNextQuestion(
   //    zien is — en worden aangevuld uit de kandidaten (in de bronvolgorde van de strategie) tot
   //    `minOffered`, zodat er altijd genoeg te kiezen valt (T9.10). Het totaal is begrensd op `maxOffered`,
   //    zodat "Geen van deze past" niet in één klap de hele bibliotheek uitsluit (T10.5).
-  const offered = filtered.map((option) => option.symbol).slice(0, strategy.maxOffered);
+  //
+  //    Op het **startscherm** geldt de bovengrens niet: daar zijn de opties de intentiecategorieën
+  //    (DESIGN §3.1) — een kleine, vaste set die de richting van het gesprek bepaalt. Zou een strategie
+  //    met een klein aanbod (`calm`) die inkorten, dan is een hele intentie ("Iets willen") in dat
+  //    gesprek onbereikbaar. Hoeveel er tegelijk op het scherm passen regelt de tablet al met
+  //    `iconsPerScreen` (T9.6); dat is een weergavekeuze, geen inperking van het aanbod.
+  const atStart = steps.length === 0;
+  const offerCap = atStart ? Math.max(strategy.maxOffered, available.length) : strategy.maxOffered;
+  const offered = filtered.map((option) => option.symbol).slice(0, offerCap);
   const seen = new Set(offered.map((symbol) => symbol.concept));
-  const target = Math.min(strategy.maxOffered, Math.max(strategy.minOffered, offered.length));
+  const target = atStart
+    ? offerCap
+    : Math.min(offerCap, Math.max(strategy.minOffered, offered.length));
   for (const candidate of available) {
     if (offered.length >= target) break;
     if (seen.has(candidate.concept)) continue;
@@ -393,7 +403,7 @@ export async function decideNextQuestion(
     const intents = await loadIntentSymbols(prisma);
     const usable = intents.filter((symbol) => !excluded.has(symbol.concept));
     if (usable.length > 0) {
-      offered.push(...usable.slice(0, strategy.maxOffered));
+      offered.push(...usable.slice(0, offerCap));
     } else {
       return {
         question: null,

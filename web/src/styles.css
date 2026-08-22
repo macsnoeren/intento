@@ -187,6 +187,38 @@ body {
   cursor: pointer;
 }
 
+/* Keuzelijst met uitleg per optie (gespreksstrategie, T11.4): de begeleider moet kunnen zien
+   vóór wie een aanpak bedoeld is, dus de uitleg staat naast de keuze en niet erachter verstopt. */
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.choice-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  cursor: pointer;
+}
+
+.choice-block input {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 0.15rem;
+  flex: none;
+}
+
+.choice-block__hint {
+  display: block;
+  font-size: 0.95rem;
+  opacity: 0.8;
+  margin-top: 0.15rem;
+}
+
 .toggle {
   display: flex;
   align-items: center;

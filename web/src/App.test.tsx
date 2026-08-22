@@ -22,6 +22,7 @@ import type {
   WorkerTokenListResponse,
   WorkerTokenPublic,
 } from '@intento/shared';
+import { CONVERSATION_STRATEGY_CATALOG } from '@intento/shared';
 import { App } from './App.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
@@ -55,6 +56,7 @@ function makeUser(id: string, name: string): UserPublic {
       aiLearningEnabled: true,
       supportMode: false,
       contextIndicator: true,
+      conversationStrategy: 'refine',
     },
   };
 }
@@ -489,9 +491,16 @@ describe('beheeromgeving-app', () => {
 
     // Aangemaakte gebruiker wordt geselecteerd → instellingenformulier verschijnt.
     const form = await screen.findByRole('form', { name: 'Instellingen voor Sanne' });
-    // Alleen 2/4/6/8 als keuze; 4 is de standaard.
-    const radios = within(form).getAllByRole('radio');
-    expect(radios).toHaveLength(4);
+    // Alleen 2/4/6/8 als keuze voor het aantal opties; 4 is de standaard.
+    const iconRadios = within(form).getAllByRole('radio', { name: /^[2468]$/ });
+    expect(iconRadios).toHaveLength(4);
+    // Daarnaast de gespreksstrategie (T11.4): één keuze per ingebouwde aanpak, mét uitleg.
+    const strategyRadios = within(form)
+      .getAllByRole('radio')
+      .filter((radio) => (radio as HTMLInputElement).name === 'conversationStrategy');
+    expect(strategyRadios).toHaveLength(CONVERSATION_STRATEGY_CATALOG.length);
+    expect(within(form).getByText('Rustig en bevestigend')).toBeTruthy();
+    expect(within(form).getByText(/snel overprikkeld raakt/)).toBeTruthy();
 
     // Wijzig naar 6 opties en sla op.
     fireEvent.click(within(form).getByRole('radio', { name: '6' }));

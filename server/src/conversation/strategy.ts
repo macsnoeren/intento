@@ -1,4 +1,9 @@
-import { z } from 'zod';
+import {
+  CONVERSATION_STRATEGY_CATALOG,
+  conversationStrategySchema,
+  DEFAULT_CONVERSATION_STRATEGY,
+  type ConversationStrategyKey,
+} from '@intento/shared';
 import { AAC_RULES, GOAL } from '../ai/prompt.js';
 import { CONFIDENCE_PROPOSE, CONFIDENCE_REFINE } from '../ai/thresholds.js';
 import { HYPOTHESIS_SMOOTHING } from './hypothesis.js';
@@ -55,7 +60,7 @@ export interface StrategyPrompt {
 /** Eén benoemde aanpak: sleutel + uitleg + de parameters van de pijplijn (DESIGN §7.10). */
 export interface ConversationStrategy {
   /** Stabiele sleutel; wordt opgeslagen bij de gebruiker/het gesprek en in de logregel getoond. */
-  key: string;
+  key: ConversationStrategyKey;
   /** Korte naam voor de begeleider ("Rustig en bevestigend"). */
   label: string;
   /** Uitleg in begrijpelijke taal: de begeleider kiest de strategie, niet een ontwikkelaar. */
@@ -83,16 +88,28 @@ export interface ConversationStrategy {
 }
 
 /**
+ * Naam en uitleg van een strategie komen uit de **gedeelde catalogus** (`@intento/shared`): de
+ * beheer-UI toont dezelfde tekst als waar de server op stuurt, zodat een strategie nooit onder twee
+ * namen rondloopt. De parameters blijven server-intern — de client hoeft niet te weten met welke
+ * drempels er gezocht wordt, alleen wát er te kiezen valt.
+ */
+function presentationOf(key: ConversationStrategyKey): {
+  key: ConversationStrategyKey;
+  label: string;
+  description: string;
+} {
+  const entry = CONVERSATION_STRATEGY_CATALOG.find((item) => item.key === key);
+  if (!entry) throw new Error(`Geen catalogusvermelding voor strategie ${key}`);
+  return { key: entry.key, label: entry.label, description: entry.description };
+}
+
+/**
  * De huidige aanpak, nu als benoemde strategie: van categorie naar detail, met de boom als ruggengraat.
  * De waarden zijn letterlijk die van vóór T11.2 — deze strategie is het bewijs dat de abstractie het
  * bestaande gedrag exact vasthoudt.
  */
 export const REFINE_STRATEGY: ConversationStrategy = {
-  key: 'refine',
-  label: 'Stap voor stap verfijnen',
-  description:
-    'Begint bij de categorie en werkt stap voor stap naar het detail toe. De standaardaanpak: ' +
-    'geschikt voor wie categorieën herkent en het prettig vindt om in kleine stappen te kiezen.',
+  ...presentationOf('refine'),
   candidateSources: ['children', 'descendants', 'retrieval', 'preference'],
   maxCandidates: 30,
   minOffered: 8,
@@ -115,11 +132,7 @@ export const REFINE_STRATEGY: ConversationStrategy = {
  * ligt lager, want deze route komt met minder tussenstappen bij de bedoeling uit.
  */
 export const EXPLORE_STRATEGY: ConversationStrategy = {
-  key: 'explore',
-  label: 'Breed verkennen',
-  description:
-    'Laat meteen concrete dingen zien in plaats van eerst categorieën, en toont er meer tegelijk. ' +
-    'Geschikt voor wie voorwerpen en activiteiten goed herkent maar moeite heeft met indelen.',
+  ...presentationOf('explore'),
   candidateSources: ['descendants', 'children', 'retrieval', 'preference'],
   maxCandidates: 30,
   minOffered: 10,
@@ -158,11 +171,7 @@ export const EXPLORE_STRATEGY: ConversationStrategy = {
  * probeert te vermijden. "Later" komt hier uit de drempel en de demping, niet uit extra stappen.
  */
 export const CALM_STRATEGY: ConversationStrategy = {
-  key: 'calm',
-  label: 'Rustig en bevestigend',
-  description:
-    'Toont weinig pictogrammen tegelijk, blijft dicht bij de vorige keuze en wacht langer voordat er ' +
-    'een boodschap wordt voorgesteld. Geschikt voor wie snel overprikkeld raakt of veel tijd nodig heeft.',
+  ...presentationOf('calm'),
   candidateSources: ['children', 'descendants', 'retrieval', 'preference'],
   maxCandidates: 12,
   minOffered: 2,
@@ -199,11 +208,7 @@ export const CALM_STRATEGY: ConversationStrategy = {
  * voorkeuren tellen alleen mee als leren aanstaat (§3.8).
  */
 export const CONTEXT_FIRST_STRATEGY: ConversationStrategy = {
-  key: 'context-first',
-  label: 'Context eerst',
-  description:
-    'Begint bij wat deze persoon vaak kiest en bij zijn eigen context (personen, favorieten, vaste ' +
-    'plekken) in plaats van bij de begrippenboom. Geschikt voor wie een sterk vast dagritme heeft.',
+  ...presentationOf('context-first'),
   candidateSources: ['preference', 'retrieval', 'children', 'descendants'],
   maxCandidates: 30,
   minOffered: 6,
@@ -237,12 +242,14 @@ export const CONVERSATION_STRATEGIES: readonly ConversationStrategy[] = [
 ];
 
 /** De sleutel van de standaardstrategie; geldt als een gebruiker/gesprek er geen gekozen heeft. */
-export const DEFAULT_STRATEGY_KEY = REFINE_STRATEGY.key;
+export const DEFAULT_STRATEGY_KEY: ConversationStrategyKey = DEFAULT_CONVERSATION_STRATEGY;
 
-const BY_KEY = new Map(CONVERSATION_STRATEGIES.map((strategy) => [strategy.key, strategy]));
+const BY_KEY = new Map<string, ConversationStrategy>(
+  CONVERSATION_STRATEGIES.map((strategy) => [strategy.key, strategy]),
+);
 
 /** Alle geldige sleutels (voor de zod-validatie op de API-grens en de keuzelijst in de UI). */
-export function strategyKeys(): string[] {
+export function strategyKeys(): ConversationStrategyKey[] {
   return CONVERSATION_STRATEGIES.map((strategy) => strategy.key);
 }
 
@@ -265,9 +272,26 @@ export function defaultStrategy(): ConversationStrategy {
 /**
  * Zod-schema voor een strategiesleutel op een API-grens (T11.4/T11.5). Een onbekende sleutel wordt
  * geweigerd in plaats van stil op de standaard terug te vallen: een half toegepaste strategie is erger
- * dan een geweigerde request.
+ * dan een geweigerde request. Het schema komt uit `@intento/shared`, zodat client en server dezelfde
+ * sleutels kennen.
  */
-export const conversationStrategyKeySchema = z.enum(strategyKeys() as [string, ...string[]]);
+export const conversationStrategyKeySchema = conversationStrategySchema;
+
+/**
+ * Lost op **welke strategie dit gesprek voert** (T11.4, DESIGN §7.10).
+ *
+ * De volgorde is gebruiker → standaard; T11.5 zet het gesprek er nog vóór. Eén plek, omdat de resolutie
+ * anders per aanroeper subtiel gaat verschillen — en dan is "welke aanpak draaide er?" niet meer te
+ * beantwoorden. Een sleutel die de registry niet (meer) kent, valt hier terug op de standaard: de
+ * *invoer* wordt op de API-grens geweigerd (`conversationStrategyKeySchema`), maar een bestaande rij in
+ * de database mag een lopend gesprek nooit laten crashen.
+ */
+export function resolveStrategy(input: {
+  /** De strategie van de gebruiker (`UserCommunicationProfile.conversationStrategy`). */
+  user?: string | null;
+}): ConversationStrategy {
+  return findStrategy(input.user) ?? defaultStrategy();
+}
 
 /**
  * De AAC-regels die met deze strategie meegaan: de harde regels uit `AAC_RULES` (DESIGN §7.6, §7.8)

@@ -426,7 +426,7 @@ bewust bij "Na de MVP".
   biedt er aantoonbaar minder aan en stelt later voor); alle strategieën halen de invariant-testsuite uit
   T11.2; de uitleg is niet leeg (test).
 
-- [ ] **T11.4 Strategie kiezen per gebruiker**
+- [x] **T11.4 Strategie kiezen per gebruiker**
   *DESIGN: §5.3, §3.7, §7.10.* De strategie hoort bij de persoon: het is een communicatie-instelling, net
   als `iconsPerScreen` en `showText`. Werk: migratie met `UserCommunicationProfile.conversationStrategy`
   (`String`, default de registry-standaard, op de grens met zod tegen de registry gevalideerd — een

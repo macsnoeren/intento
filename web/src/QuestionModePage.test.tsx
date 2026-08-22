@@ -34,6 +34,7 @@ function user(id: string, name: string): UserPublic {
       aiLearningEnabled: true,
       supportMode: false,
       contextIndicator: true,
+      conversationStrategy: 'refine',
     },
   };
 }

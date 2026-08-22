@@ -38,6 +38,21 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   begrijpelijke taal, want de begeleider kiest hem. Per strategie legt een test het **onderscheidende**
   gedrag vast op dezelfde gesprekstoestand, en alle vier halen de invariant-suite uit T11.2.
 
+- **T11.4 Strategie kiezen per gebruiker** (`UserCommunicationProfile.conversationStrategy`, migratie
+  `user_conversation_strategy`). De aanpak hoort bij de persoon, dus staat ze als communicatie-instelling
+  naast `iconsPerScreen` en `showText`: in de profiel-API, in `SettingsForm` (radiokeuze mét de uitleg per
+  aanpak zichtbaar, zodat de begeleider een geïnformeerde keuze maakt) en in profielexport/-import — een
+  strategie die een overdracht niet overleeft, zou het profiel na verhuizing stil anders laten werken. Een
+  onbekende sleutel geeft `400` en raakt de database niet; een **opgeslagen** sleutel die de registry niet
+  meer kent valt bij het lezen terug op de standaard (een verdwenen strategie mag nooit een profiel
+  onleesbaar maken — de gebruiker zou zijn tablet niet meer kunnen koppelen). Bestaande gebruikers houden
+  `refine` en daarmee exact het gedrag van vóór deze instelling.
+- **Startscherm laat zich niet inkorten door een strategie.** Ontdekt bij T11.4: met een klein aanbod
+  (`calm`, vier opties) viel er een intentiecategorie van het startscherm, waarmee "Iets willen" in dat
+  hele gesprek onbereikbaar werd. Het startscherm biedt nu altijd de volledige set intentiecategorieën
+  (DESIGN §3.1); hoeveel er tegelijk op het scherm passen regelt de tablet met `iconsPerScreen`. De
+  invariant-suite bewaakt dit voor élke strategie.
+
 ### Gewijzigd — Fase 10: de AI stuurt het gesprek
 
 - **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**

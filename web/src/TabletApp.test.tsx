@@ -70,6 +70,7 @@ function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationPr
     aiLearningEnabled: true,
     supportMode: false,
     contextIndicator: true,
+    conversationStrategy: 'refine',
     ...overrides,
   };
 }

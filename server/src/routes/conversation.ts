@@ -30,7 +30,7 @@ import { analyzeCorrection } from '../conversation/correction.js';
 import { readOfferedConcepts, readPendingOffer, type PendingOffer } from '../conversation/offer.js';
 import { readHypothesis } from '../conversation/hypothesis.js';
 import { composeMessage } from '../conversation/generate.js';
-import { defaultStrategy } from '../conversation/strategy.js';
+import { resolveStrategy } from '../conversation/strategy.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
 import { DEFAULT_INTERPRETATION_CONFIDENCE, phaseForDecision } from '../ai/thresholds.js';
 import type { ChosenConcept } from '../conversation/message.js';
@@ -246,11 +246,14 @@ async function ensureOffer(
 
   // In deze sessie afgewezen concepten (T5.4) blijven uitgesloten — nooit dezelfde foutieve route (§7.5) —
   // en reizen als **signaal** mee naar de AI (T10.4). De toegestane persoonlijke context (T6.1) gaat
-  // alleen mee met toestemming (§6.3).
-  const [rejections, userContext] = await Promise.all([
+  // alleen mee met toestemming (§6.3). Het communicatieprofiel levert de **gespreksstrategie** van deze
+  // persoon (T11.4, §5.3, §7.10): de aanpak hoort bij de gebruiker, niet bij het systeem.
+  const [rejections, userContext, profile] = await Promise.all([
     loadRejections(prisma, session.id),
     loadUserContext(prisma, encryptor, session.userId),
+    prisma.userCommunicationProfile.findUnique({ where: { userId: session.userId } }),
   ]);
+  const strategy = resolveStrategy({ user: profile?.conversationStrategy });
 
   const decision = await decideNextQuestion(prisma, orchestrator, {
     steps,
@@ -262,9 +265,9 @@ async function ensureOffer(
     questionContext: session.caregiverQuestion,
     anchoredSteps: anchoredStepsFor(session),
     userId: session.userId,
-    // De aanpak van dit gesprek (T11.2, DESIGN §7.10). De env-grenzen blijven er als plafond overheen
-    // gaan: een strategie kan ze aanscherpen, nooit oprekken.
-    strategy: defaultStrategy(),
+    // De aanpak van dit gesprek (T11.2/T11.4, DESIGN §7.10). De env-grenzen blijven er als plafond
+    // overheen gaan: een strategie kan ze aanscherpen, nooit oprekken.
+    strategy,
     maxCandidates: env.AI_MAX_CANDIDATES,
     allowNewConcepts: env.AI_ALLOW_NEW_CONCEPTS,
     icons: deps.openSymbols ?? null,

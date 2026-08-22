@@ -128,13 +128,19 @@ model PersonalContext {
 /// - `supportMode`: ondersteuningsmodus (begeleider tikt aan namens de gebruiker).
 /// - `contextIndicator`: contextindicator (broodkruimel van het afgelegde pad) in de
 ///   gebruikersapp tonen (DESIGN §5.3, standaard aan).
+/// - `conversationStrategy`: de gespreksstrategie van deze persoon (T11.4, DESIGN §7.10) — de
+///   manier waarop de AI probeert te achterhalen wat hij bedoelt. De strategieën zijn
+///   **ingebouwd** (code, stabiele sleutel); hier staat alleen de gekozen sleutel, op de
+///   API-grens met zod tegen de registry gevalideerd. Standaard `refine`: bestaande
+///   gebruikers houden daarmee exact het gedrag van vóór deze instelling.
 model UserCommunicationProfile {
-  userId            String  @id
-  iconsPerScreen    Int     @default(4)
-  showText          Boolean @default(true)
-  aiLearningEnabled Boolean @default(true)
-  supportMode       Boolean @default(false)
-  contextIndicator  Boolean @default(true)
+  userId               String  @id
+  iconsPerScreen       Int     @default(4)
+  showText             Boolean @default(true)
+  aiLearningEnabled    Boolean @default(true)
+  supportMode          Boolean @default(false)
+  contextIndicator     Boolean @default(true)
+  conversationStrategy String  @default("refine")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

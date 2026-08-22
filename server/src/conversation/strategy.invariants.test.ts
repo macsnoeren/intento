@@ -150,6 +150,29 @@ describe('invarianten in de gespreksflow (per strategie)', () => {
         }
       });
 
+      it('biedt op het startscherm álle intentiecategorieën aan (DESIGN §3.1)', async () => {
+        // Een strategie mag het aanbod klein houden, maar niet de richtingkeuze inperken: zou `calm`
+        // met zijn aanbod van vier één intentie wegsnoeien, dan is "Iets willen" in dat hele gesprek
+        // onbereikbaar. Hoeveel er tegelijk op het scherm passen regelt de tablet (`iconsPerScreen`).
+        const { orchestrator } = stub((prompt) => ({
+          question: 'Waar gaat het over?',
+          // Een AI die maar één categorie noemt, mag de andere niet doen verdwijnen.
+          options: prompt.availableSymbols.slice(0, 1).map((ref) => ({
+            symbol: ref.concept,
+            confidence: 0.5,
+          })),
+          reason: 'eerste indruk',
+          confidence: 0.3,
+        }));
+
+        const intents = await prisma.aacSymbol.findMany({ where: { category: 'intent' } });
+        const decision = await decideNextQuestion(prisma, orchestrator, {
+          steps: steps(),
+          strategy,
+        });
+        expect(conceptsOf(decision).sort()).toEqual(intents.map((s) => s.concept).sort());
+      });
+
       it('stelt geen boodschap voor zonder een keuze van de gebruiker', async () => {
         // Een provider die volstrekt zeker is: alleen de domeinregel houdt het voorstel tegen.
         const { orchestrator } = stub((prompt) => ({

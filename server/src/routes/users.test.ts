@@ -60,6 +60,8 @@ describe('gebruikersbeheer — /users', () => {
       aiLearningEnabled: true,
       supportMode: false,
       contextIndicator: true,
+      // Standaardstrategie (T11.4): bestaande gebruikers houden het gedrag van vóór de instelling.
+      conversationStrategy: 'refine',
     });
   });
 
@@ -122,6 +124,7 @@ describe('gebruikersbeheer — /users', () => {
         aiLearningEnabled: false,
         supportMode: true,
         contextIndicator: false,
+        conversationStrategy: 'calm',
       },
     });
     expect(ok.statusCode).toBe(200);
@@ -131,6 +134,7 @@ describe('gebruikersbeheer — /users', () => {
       aiLearningEnabled: false,
       supportMode: true,
       contextIndicator: false,
+      conversationStrategy: 'calm',
     });
 
     // 3 is geen geldige waarde → 400.
@@ -144,6 +148,7 @@ describe('gebruikersbeheer — /users', () => {
         aiLearningEnabled: true,
         supportMode: false,
         contextIndicator: true,
+        conversationStrategy: 'refine',
       },
     });
     expect(bad.statusCode).toBe(400);
@@ -171,6 +176,7 @@ describe('gebruikersbeheer — /users', () => {
         aiLearningEnabled: true,
         supportMode: false,
         contextIndicator: true,
+        conversationStrategy: 'refine',
       },
     });
     expect(put.statusCode).toBe(200);
