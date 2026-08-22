@@ -254,6 +254,34 @@ describe('OpenSymbols-hulpfuncties', () => {
     expect(results[0]!.imageUrl.startsWith('https://')).toBe(true);
   });
 
+  it('accepteert null-attributie uit de externe API (OpenSymbols stuurt null i.p.v. weglaten)', () => {
+    const results = mapOpenSymbolsResults([
+      {
+        id: 7,
+        symbol_key: null,
+        name: 'drinken',
+        image_url: 'https://cdn.example.org/drinken.svg',
+        extension: 'svg',
+        license: 'CC BY-SA',
+        license_url: null,
+        author: null,
+        author_url: null,
+        source_url: null,
+      },
+    ]);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      id: '7',
+      name: 'drinken',
+      imageUrl: 'https://cdn.example.org/drinken.svg',
+      license: 'CC BY-SA',
+      licenseUrl: null,
+      author: null,
+      authorUrl: null,
+      sourceUrl: null,
+    });
+  });
+
   it('assertSafeImageUrl weigert niet-https en interne hosts', () => {
     expect(() => assertSafeImageUrl('http://example.org/a.png')).toThrow(HttpError);
     expect(() => assertSafeImageUrl('https://localhost/a.png')).toThrow(HttpError);

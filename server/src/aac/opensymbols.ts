@@ -95,32 +95,34 @@ const tokenResponseSchema = z.object({ access_token: z.string().min(1) });
 
 /**
  * Eén rauw OpenSymbols-symbool. Alle velden optioneel/tolerant: we vertrouwen de externe vorm niet
- * en vullen ontbrekende attributie met `null`. Onbekende velden negeren we (`.loose()`).
+ * en vullen ontbrekende attributie met `null`. OpenSymbols laat ontbrekende attributie niet weg
+ * maar stuurt expliciet `null` (bv. `source_url`), dus elk veld is `.nullish()` — anders zou één
+ * `null` de hele zoekopdracht laten falen. Onbekende velden negeren we (`.loose()`).
  */
 const rawSymbolSchema = z
   .object({
-    id: z.union([z.string(), z.number()]).optional(),
-    symbol_key: z.string().optional(),
-    name: z.string().optional(),
-    image_url: z.string().optional(),
-    extension: z.string().optional(),
-    license: z.string().optional(),
-    license_url: z.string().optional(),
-    author: z.string().optional(),
-    author_url: z.string().optional(),
-    source_url: z.string().optional(),
+    id: z.union([z.string(), z.number()]).nullish(),
+    symbol_key: z.string().nullish(),
+    name: z.string().nullish(),
+    image_url: z.string().nullish(),
+    extension: z.string().nullish(),
+    license: z.string().nullish(),
+    license_url: z.string().nullish(),
+    author: z.string().nullish(),
+    author_url: z.string().nullish(),
+    source_url: z.string().nullish(),
   })
   .loose();
 
 const rawSearchResponseSchema = z.array(rawSymbolSchema);
 
 /** Alleen `https` is een veilige afbeeldingsbron (XSS/SSRF); al het andere valt weg. */
-function isHttpsUrl(value: string | undefined): value is string {
+function isHttpsUrl(value: string | null | undefined): value is string {
   return typeof value === 'string' && /^https:\/\//i.test(value.trim());
 }
 
 /** Zet een tolerant leeg veld om naar `null` (attributie is optioneel). */
-function orNull(value: string | undefined): string | null {
+function orNull(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }

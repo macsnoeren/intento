@@ -7,6 +7,12 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ### Gerepareerd — vierde gebruikerstest
 
+- **Zoeken in OpenSymbols mislukte met "OpenSymbols is niet bereikbaar".** De API laat ontbrekende
+  attributie niet weg maar stuurt expliciet `null` (o.a. `source_url`); het rauwe zod-schema stond
+  alleen `string | undefined` toe, dus één `null` liet de hele zoekopdracht falen (502). Alle rauwe
+  velden zijn nu `.nullish()` — `null` wordt net als een ontbrekend veld gesaneerd naar `null` in het
+  interne resultaat. De `https`-only sanering blijft ongewijzigd.
+
 - **T10.10 Het voorstel kwam te vroeg en ❌ Nee gooide de keuzes van de gebruiker weg.** Gemeld: het
   gesprek kwam uit op "Ik wil iets warms eten." — niet concreet — en ❌ Nee leidde daarna naar "Wat wil je
   drinken?" terwijl de gebruiker juist iets over het eten wilde zeggen. Nagespeeld met een draaiende
