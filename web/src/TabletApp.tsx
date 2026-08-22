@@ -451,6 +451,14 @@ function ConversationScreen({
             ✅ Dit is genoeg
           </button>
         ) : null}
+
+        {/* Helemaal opnieuw beginnen (T10.12). Stond alleen op het bevestigd-scherm, dus wie midden in
+            een gesprek vastliep had geen uitweg: "↩ Terug" gaat één stap, maar niet terug naar af. Een
+            gebruiker die merkt dat het spoor bijster is, moet niet eerst een boodschap hoeven bevestigen
+            die hij niet bedoelt. Rechts in de balk, weg van de keuzeknoppen. */}
+        <button className="button tablet__bar-end" type="button" disabled={busy} onClick={restart}>
+          🔄 Opnieuw beginnen
+        </button>
       </div>
     </main>
   );

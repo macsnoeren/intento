@@ -200,6 +200,29 @@ function matchesAtWordStart(searchText: string, terms: string[]): boolean {
 }
 
 /**
+ * Is dit concept **open**: heeft nog niemand bepaald wat eronder hoort te vallen? (T10.12)
+ *
+ * "Geen kinderen in de boom" betekent normaal dat een beheerder besloot dat het concept een eindpunt is
+ * — "soep" verfijnt niet verder. Maar een concept dat de AI tijdens een gesprek zelf aandroeg (T10.6)
+ * heeft per definitie nog geen relaties: er is nooit iemand aan te pas gekomen. Dat als eindpunt lezen
+ * loopt dood, en precies dat gebeurde in de gebruikerstest: de AI kwam met "compliment" — goed bedacht —
+ * maar wie het koos, kreeg meteen het voorstelscherm en kon niet meer zeggen *wie* hij lief vindt.
+ *
+ * Zodra een beheerder het concept heeft beoordeeld (T10.7) telt "geen kinderen" wél als beslissing: dan
+ * heeft iemand er bewust naar gekeken.
+ */
+async function isOpenEnded(
+  prisma: PrismaClient,
+  last: Pick<ConversationStepModel, 'selectedConcept'>,
+): Promise<boolean> {
+  const symbol = await prisma.aacSymbol.findUnique({
+    where: { concept: last.selectedConcept },
+    select: { origin: true, reviewStatus: true },
+  });
+  return symbol?.origin === 'ai' && symbol.reviewStatus === 'PENDING';
+}
+
+/**
  * De **kleinkinderen** van de laatste keuze: de kinderen van elk van haar kinderen. Één query over alle
  * kind-ids tegelijk, gesorteerd op label voor een stabiele volgorde.
  */
@@ -251,6 +274,11 @@ export interface CollectCandidatesInput {
   /** Bovengrens op de set (`maxCandidates` van de strategie, begrensd door env `AI_MAX_CANDIDATES`). */
   limit: number;
   /**
+   * Draait er een **verfijnronde** na ❌ Nee (T10.12)? Dan is het laatste concept geen eindpunt, ook al
+   * heeft het geen kinderen in de boom: de gebruiker vroeg juist om meer detail ("brood" → chocopasta).
+   */
+  refining?: boolean;
+  /**
    * De bronnen in prioriteitsvolgorde (T11.2, §7.10). Weggelaten = de volgorde van de
    * standaardstrategie, zodat aanroepers die geen strategie kennen (tests, scripts) ongewijzigd werken.
    */
@@ -273,7 +301,8 @@ export async function collectCandidates(
   const last = steps.length > 0 ? steps[steps.length - 1]! : null;
 
   const children = last ? await loadChildSymbols(prisma, last.selectedConcept) : [];
-  const atLeafConcept = last !== null && children.length === 0;
+  const atLeafConcept =
+    last !== null && children.length === 0 && !input.refining && !(await isOpenEnded(prisma, last));
 
   // Labels van het gekozen pad voeden de retrieval mee ("pijn" → lichaamsdelen).
   const pathSymbols =

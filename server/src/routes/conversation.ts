@@ -148,10 +148,11 @@ async function clearPendingOffer(
     // De "dit is genoeg"-vlag (T10.11) gaat hier mee weg: elke gebeurtenis die het aanbod ongeldig maakt
     // — een keuze, een correctie, een afwijzing — verandert ook de route, en dan geldt het oordeel van de
     // gebruiker over de vórige route niet meer.
-    data: { pendingOffer: Prisma.DbNull, readyToPropose: false },
+    data: { pendingOffer: Prisma.DbNull, readyToPropose: false, refinedAtStep: null },
   });
   session.pendingOffer = null;
   session.readyToPropose = false;
+  session.refinedAtStep = null;
 }
 
 /**
@@ -287,6 +288,8 @@ async function ensureOffer(
     allowNewConcepts: env.AI_ALLOW_NEW_CONCEPTS,
     icons: deps.openSymbols ?? null,
     hypothesis: readHypothesis(session.hypothesis),
+    // Verfijnronde na ❌ Nee (T10.12): hoort bij dit punt zolang de gebruiker niets nieuws koos.
+    refining: session.refinedAtStep === steps.length,
   });
 
   // Zichtbaar maken wát de AI deed (T9.15): taak, hoeveel kandidaten er waren (en waar ze vandaan
@@ -647,7 +650,9 @@ export function registerConversationRoutes(
 
   // Correctie (T5.4/T9.12, DESIGN §3.4, FR-009). Twee soorten "dit klopt niet":
   //
-  // - `wrong_guess` (❌ op een **voorstel**): gaat **niet** terug naar het begin. Er wordt precies **één
+  // - `wrong_guess` (❌ op een **voorstel**): gaat **niet** terug naar het begin. Eerst volgt een
+  //   **verfijnronde** op dezelfde route (T10.12): de AI draagt concepten aan die de laatste keuze
+  //   preciezer maken, desnoods nieuwe. Wijst de gebruiker het dáárna opnieuw af, dan wordt precies **één
   //   stap** teruggerold — de laatste — en dat concept wordt als `CorrectionEvent` vastgelegd zodat het
   //   de rest van de sessie niet meer wordt aangeboden (§7.5, via `buildState`). Nogmaals ❌ rolt de
   //   volgende stap terug; zo loopt de gebruiker zijn route in zijn eigen tempo terug. Het
@@ -711,6 +716,24 @@ export function registerConversationRoutes(
       const anchored = anchoredStepsFor(session);
       if (steps.length <= anchored) {
         throw new HttpError(400, 'NO_STEPS_TO_CORRECT', 'Er is nog geen keuze om te corrigeren.');
+      }
+
+      // ❌ betekent twee dingen die de gebruiker met één knop zegt: "nog niet precies genoeg" en "dit
+      // klopt helemaal niet". De goedkoopste verklaring gaat voor (T10.12): eerst een **verfijnronde** op
+      // dezelfde route — de AI mag concepten aandragen die de laatste keuze preciezer maken, desnoods
+      // nieuwe ("brood" → chocopasta). Gemeld in de gebruikerstest: op "Ik wil brood eten." kwamen na ❌
+      // appel en banaan, de bróértjes van brood, terwijl de gebruiker juist iets óp zijn brood wilde.
+      //
+      // Wijst hij het daarna opnieuw af, dan klopte de laatste keuze zelf niet en rolt die alsnog terug.
+      if (session.refinedAtStep !== steps.length) {
+        await prisma.conversationSession.update({
+          where: { id: session.id },
+          data: { refinedAtStep: steps.length, pendingOffer: Prisma.DbNull, readyToPropose: false },
+        });
+        session.refinedAtStep = steps.length;
+        session.pendingOffer = null;
+        session.readyToPropose = false;
+        return buildState(deps, session, steps, request.log);
       }
 
       // Eén stap terug: de laatste keuze van de gebruiker (T10.10).

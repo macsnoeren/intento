@@ -107,7 +107,26 @@ export interface AiPromptInput {
   goal?: string;
   /** De AAC-regels van de strategie (T11.2); weggelaten = `AAC_RULES`. De harde regels blijven erin. */
   aacRules?: readonly string[];
+  /**
+   * Draait er een **verfijnronde** na ❌ Nee (T10.12)? Dan krijgt het model er een expliciete opdracht bij:
+   * de route klopt, maar hij is nog niet precies genoeg. Zonder die aanwijzing zou het model de afwijzing
+   * lezen als "verkeerde richting" en van onderwerp veranderen — precies wat de gebruiker níet wil.
+   */
+  refining?: boolean;
 }
+
+/**
+ * Extra opdracht tijdens een verfijnronde (T10.12, DESIGN §3.4). Gemeld in de gebruikerstest: op
+ * "Ik wil brood eten." wilde de gebruiker zeggen dat hij er chocopasta op wil — maar ❌ leverde appel en
+ * banaan op, de bróérs van brood. De laatste keuze is dan juist het onderwerp dat verder moet.
+ */
+export const REFINE_RULES: readonly string[] = [
+  'De gebruiker wees de boodschap af omdat die nog niet precies genoeg is, niet omdat de richting fout ' +
+    'is: zijn laatste keuze klopt en moet juist verder ingevuld worden.',
+  'Draag concepten aan die de laatste keuze **preciezer** maken (bij "brood": beleg, kaas, chocopasta), ' +
+    'niet de broertjes ervan (appel, banaan) en niet een ander onderwerp.',
+  'Staan die verfijningen niet in de aangeboden opties, dan mag je ze zelf aandragen als nieuw begrip.',
+];
 
 /**
  * Vormt de beperkte context tot een gevalideerde `AiPrompt`. De laatste keuze wordt afgeleid uit de
@@ -123,7 +142,7 @@ export function buildAiPrompt(input: AiPromptInput): AiPrompt {
     task: AI_TASK_SELECT_NEXT_QUESTION,
     systemRules: [...SYSTEM_RULES],
     goal: input.goal ?? GOAL,
-    aacRules: [...(input.aacRules ?? AAC_RULES)],
+    aacRules: [...(input.aacRules ?? AAC_RULES), ...(input.refining ? REFINE_RULES : [])],
     userContext: input.userContext ?? [],
     questionContext: input.questionContext ?? null,
     conversationContext,

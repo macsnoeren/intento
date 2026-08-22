@@ -418,6 +418,18 @@ model ConversationSession {
   /// Wordt gewist zodra de gebruiker verder kiest, terug gaat of corrigeert: dan is de route veranderd en
   /// geldt zijn "genoeg" niet meer.
   readyToPropose Boolean @default(false)
+  /// Bij hoeveel stappen er al een **verfijnronde** is gedaan na ❌ Nee (T10.12, DESIGN §3.4). `null` =
+  /// nog niet op dit punt.
+  ///
+  /// ❌ betekent twee dingen die niet te onderscheiden zijn: "je zit in de goede richting maar niet
+  /// specifiek genoeg" en "dit klopt helemaal niet". De eerste is de goedkoopste verklaring, dus die
+  /// proberen we eerst: dezelfde route, maar de AI mag verfijningen aandragen ("brood" → boter, kaas,
+  /// chocopasta) — ook als de bibliotheek die nog niet kent (§7.6 trap 3). Wijst de gebruiker het
+  /// dáárna opnieuw af, dan klopte de laatste keuze zelf niet en rolt die terug.
+  ///
+  /// Vergelijken met het huidige aantal stappen maakt dit zelf-invaliderend: kiest de gebruiker een
+  /// verfijning, dan hoort een volgende ❌ weer bij een nieuw punt en begint de cyclus opnieuw.
+  refinedAtStep Int?
   /// De lopende **hypothese** van de AI over wat de gebruiker bedoelt (T10.8, DESIGN §7.1 taak 3, §7.4):
   /// `{ concepts[], confidence, reason, history[] }`, bij het lezen met zod gevalideerd
   /// (`hypothesisSchema`). Bewust **vluchtig**: bij het afronden van het gesprek (`/confirm`) wordt dit

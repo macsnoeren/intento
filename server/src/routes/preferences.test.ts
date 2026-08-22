@@ -121,14 +121,17 @@ describe('leermechanisme — voorkeuren (T6.3)', () => {
     const cookie = await deviceCookie(app, user.id);
 
     const sessionId = await walkRoute(cookie);
-    // ❌ correctie: heranalyse rolt de vermoedelijke foutstap terug — er wordt niets geleerd (§3.4 punt 4).
-    const correction = await app.inject({
-      method: 'POST',
-      url: `/conversation/${sessionId}/correction`,
-      headers: { cookie },
-      payload: {},
-    });
-    expect(correction.statusCode).toBe(200);
+    // ❌ correctie: eerst een verfijnronde, bij de tweede ❌ rolt de laatste keuze terug (T10.12) — er
+    // wordt in geen van beide gevallen iets geleerd (§3.4 punt 4).
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const correction = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie },
+        payload: {},
+      });
+      expect(correction.statusCode).toBe(200);
+    }
 
     // Zonder bevestiging bestaat er geen enkele voorkeur.
     expect(await prisma.preference.count({ where: { userId: user.id } })).toBe(0);

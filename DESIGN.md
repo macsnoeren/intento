@@ -67,11 +67,14 @@ Als de gebruiker cognitief kan kiezen maar motorisch niet kan bedienen: de gebru
 
 ### 3.4 Correctieflow (gebruiker kiest ❌ Nee)
 
-De AI gaat **niet** terug naar het begin, maar rolt precies **één stap** terug:
-1. de laatste keuze verdwijnt en dat concept wordt de rest van het gesprek niet meer aangeboden;
-2. op dat punt volgt een nieuwe vraag, binnen de route die de gebruiker verder heeft staan;
-3. nogmaals ❌ rolt de volgende stap terug — zo loopt de gebruiker zijn route in zijn eigen tempo terug;
-4. de afwijzing is een signaal, maar er worden **geen voorkeuren van geleerd**.
+❌ betekent twee dingen die de gebruiker met één knop zegt: *"je zit goed, maar het is nog niet precies genoeg"* en *"dit klopt helemaal niet"*. De goedkoopste verklaring gaat voor:
+
+1. **Eerst verfijnen.** De route blijft volledig staan; de AI draagt concepten aan die de láátste keuze preciezer maken — bij "brood" dus beleg, kaas, chocopasta, en níet appel of banaan. Staan die verfijningen nog niet in de bibliotheek, dan mag de AI ze zelf aandragen (§7.6 trap 3).
+2. **Daarna pas terug.** Wijst de gebruiker het opnieuw af, dan klopte de laatste keuze zelf niet: die ene stap rolt terug en dat concept wordt de rest van het gesprek niet meer aangeboden.
+3. Nogmaals ❌ herhaalt die cyclus op het punt daarvoor — zo loopt de gebruiker zijn route in zijn eigen tempo terug.
+4. De afwijzing is een signaal, maar er worden **geen voorkeuren van geleerd**.
+
+> **Waarom eerst verfijnen.** In de gebruikerstest leverde ❌ op "Ik wil brood eten." meteen appel en banaan op — de bróértjes van brood — terwijl de gebruiker juist wilde zeggen dat hij er chocopasta op wil. Meteen terugrollen gooit informatie weg die klopte.
 
 > **Waarom niet "bepalen waar het misging".** Tot Fase 10 probeerde Intento de verkeerde afslag te *vinden*: eerst via de laagste per-stap-zekerheid, later via het kantelpunt van de hypothese. Beide signalen wezen in de praktijk de keuze aan die de gebruiker juist het bewustst had gemaakt — in de gebruikerstest verdween na één ❌ de hele route en werd de éérste keuze permanent uitgesloten. Dat keert §2 om: de onzekerheid van de AI werd afgewenteld op de gebruiker. Eén stap tegelijk is voorspelbaar, altijd herhaalbaar, en gooit nooit meer weg dan de gebruiker op dat moment aanwijst.
 
@@ -240,9 +243,11 @@ Elke interpretatie krijgt een zekerheidsscore:
 
 De zekerheid is niet de rauwe waarde uit één modelantwoord maar de over beurten heen **gedempte** zekerheid van de hypothese, zodat één zelfverzekerd antwoord de voorsteldrempel niet in zijn eentje haalt.
 
+**De gebruiker mag zelf afronden en zelf opnieuw beginnen.** Elk keuzescherm heeft naast "↩ Terug" en "🤷 Staat er niet bij" ook **"🔄 Opnieuw beginnen"** — wie merkt dat het spoor bijster is, hoort niet eerst een boodschap te moeten bevestigen die hij niet bedoelt.
+
 **De gebruiker mag zelf afronden.** Naast "↩ Terug" en "🤷 Staat er niet bij" heeft elk keuzescherm een **"✅ Dit is genoeg"**: de route zegt al genoeg, ook al zou de AI nog willen verfijnen. Zonder die uitweg zou "Ik wil eten." — in AAC een volwaardige boodschap — onbereikbaar zijn door de regel hieronder. De knop verschijnt pas nadat de gebruiker zélf iets gekozen heeft (in vraagmodus telt het anker van de begeleider niet mee), en vervalt zodra de route verandert.
 
-**Zekerheid alleen is niet genoeg.** Een boodschap wordt pas voorgesteld als er ook niets meer te verfijnen valt: heeft de laatste keuze nog kinderen in de bibliotheek die de gebruiker niet gekozen of afgewezen heeft, dan blijft de AI vragen — hoe zeker ze ook is. Zonder die tweede voorwaarde kwam in de gebruikerstest "Ik wil iets warms eten." als voorstel op tafel, terwijl de bibliotheek onder "eten" zes concrete dingen kent. Zeker weten *dát* iemand wil eten is niet hetzelfde als weten *wát*. Een eindconcept (geen kinderen) blijft onveranderd een voorstel opleveren, en zijn alle verfijningen al gezien en afgewezen, dan valt er niets meer te vragen en geeft de zekerheid weer de doorslag.
+**Zekerheid alleen is niet genoeg.** Een boodschap wordt pas voorgesteld als er ook niets meer te verfijnen valt: heeft de laatste keuze nog kinderen in de bibliotheek die de gebruiker niet gekozen of afgewezen heeft, dan blijft de AI vragen — hoe zeker ze ook is. Zonder die tweede voorwaarde kwam in de gebruikerstest "Ik wil iets warms eten." als voorstel op tafel, terwijl de bibliotheek onder "eten" zes concrete dingen kent. Zeker weten *dát* iemand wil eten is niet hetzelfde als weten *wát*. Een eindconcept (geen kinderen) blijft onveranderd een voorstel opleveren — behalve wanneer het concept **door de AI zelf is aangedragen** en nog niemand heeft bepaald wat eronder hoort te vallen; dan is "geen kinderen" geen beslissing maar een leemte, en gaat het gesprek gewoon door, en zijn alle verfijningen al gezien en afgewezen, dan valt er niets meer te vragen en geeft de zekerheid weer de doorslag.
 
 De twee drempels en de demping zijn **parameters van de gespreksstrategie** (§7.10), niet van het systeem: de waarden in de tabel zijn die van de standaardstrategie `refine`. Een rustige strategie legt de voorsteldrempel hoger en dempt sterker; een verkennende legt hem lager. Wat níet varieert is de regel eronder: er komt nooit een boodschapvoorstel zonder dat de **gebruiker** zelf minstens één keuze heeft gemaakt (§2, §7.8).
 

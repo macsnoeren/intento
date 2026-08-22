@@ -338,8 +338,9 @@ curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/corre
   -H 'content-type: application/json' -d '{"type":"wrong_guess"}'
 ```
 
-Bij een correctie gaat de flow **niet** terug naar het begin: de server rolt precies één stap terug (de
-laatste keuze), legt het afgewezen concept vast als
+Bij een correctie gaat de flow **niet** terug naar het begin: de server doet eerst een **verfijnronde**
+(de route blijft staan, de AI draagt preciezere concepten aan) en rolt pas bij een tweede ❌ één stap
+terug (de laatste keuze). Dan legt hij het afgewezen concept vast als
 `CorrectionEvent` en biedt die route de rest van de sessie niet opnieuw aan (DESIGN §3.4, §7.5, FR-009).
 Er wordt niets geleerd of opgeslagen.
 
@@ -403,8 +404,9 @@ gedistribueerde workers — zie hieronder). Zie
 
 > **De gebruiker houdt de regie (T10.10/T10.11).** Een boodschap wordt pas voorgesteld als er ook niets
 > meer te verfijnen valt — zeker weten *dát* iemand wil eten is niet hetzelfde als weten *wát*. Wil de
-> gebruiker tóch hier stoppen, dan doet hij dat zelf met **"✅ Dit is genoeg"**; en ❌ Nee rolt precies
-> één stap terug in plaats van zijn hele route weg te gooien.
+> gebruiker tóch hier stoppen, dan doet hij dat zelf met **"✅ Dit is genoeg"**; ❌ Nee verfijnt eerst en
+> rolt daarna hooguit één stap terug in plaats van zijn hele route weg te gooien; en met
+> **"🔄 Opnieuw beginnen"** komt hij altijd terug bij af.
 
 > **Welke aanpak draait er? (Fase 11)** De knoppen die bepalen *hoe* de AI zoekt — bronvolgorde,
 > aanbodgrootte, drempels, demping en de promptformulering — zijn gebundeld tot één benoemde

@@ -511,15 +511,7 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       expect(conceptsOf(state)).toEqual(expect.arrayContaining(['soup', 'bread', 'apple']));
     });
 
-    it('❌ Nee rolt één stap terug en blijft binnen wat de gebruiker koos', async () => {
-      // De melding: na ❌ kwam "Wat wil je drinken?" terwijl de gebruiker juist iets over het eten wilde
-      // zeggen. Oorzaak was dat de correctie de héle route terugrolde en "eten" uitsloot.
-      const { cookie, sessionId } = await startFor(eagerProvider);
-      await next(cookie, sessionId, 'want');
-      await next(cookie, sessionId, 'eat');
-      const chosen = conceptsOf(await next(cookie, sessionId, 'soup'));
-      expect(chosen.length).toBeGreaterThanOrEqual(0);
-
+    async function reject(cookie: string, sessionId: string) {
       const res = await app.inject({
         method: 'POST',
         url: `/conversation/${sessionId}/correction`,
@@ -527,7 +519,35 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
         payload: { type: 'wrong_guess' },
       });
       expect(res.statusCode).toBe(200);
-      const state = parseState(res.json());
+      return parseState(res.json());
+    }
+
+    it('❌ Nee verfijnt eerst en houdt de hele route intact (T10.12)', async () => {
+      // De melding: op "Ik wil brood eten." wilde de gebruiker zeggen dat hij er chocopasta op wil, maar
+      // ❌ leverde appel en banaan op — de bróértjes van brood. De eerste ❌ betekent nu "nog niet precies
+      // genoeg" en laat de route staan.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      await next(cookie, sessionId, 'soup');
+
+      const state = await reject(cookie, sessionId);
+
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat', 'soup']);
+      expect(state.question).not.toBeNull();
+    });
+
+    it('rolt bij de tweede ❌ één stap terug en blijft binnen wat de gebruiker koos', async () => {
+      // De melding uit de derde ronde: na ❌ kwam "Wat wil je drinken?" terwijl de gebruiker juist iets
+      // over het eten wilde zeggen. Oorzaak was dat de correctie de héle route terugrolde en "eten"
+      // uitsloot.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      await next(cookie, sessionId, 'soup');
+
+      await reject(cookie, sessionId);
+      const state = await reject(cookie, sessionId);
 
       // "eten" staat er nog: de gebruiker koos dat zelf en het wordt niet weggegooid.
       expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat']);
@@ -625,7 +645,8 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       await next(cookie, sessionId, 'eat');
       expect((await enough(cookie, sessionId)).done).toBe(true);
 
-      // ❌ op het voorstel: één stap terug én het "genoeg"-oordeel vervalt, want de route is veranderd.
+      // ❌ op het voorstel: het "genoeg"-oordeel vervalt en er volgt weer een vraag (T10.12: eerst een
+      // verfijnronde, dus de route blijft nog staan).
       const res = await app.inject({
         method: 'POST',
         url: `/conversation/${sessionId}/correction`,
@@ -636,7 +657,7 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       const state = parseState(res.json());
       expect(state.done).toBe(false);
       expect(state.question).not.toBeNull();
-      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want']);
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat']);
     });
 
     it('vervalt ook na ↩ Terug', async () => {
@@ -654,6 +675,68 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       const state = parseState(back.json());
       expect(state.done).toBe(false);
       expect(state.question).not.toBeNull();
+    });
+  });
+
+  // --- T10.12: een vers AI-concept is geen eindpunt --------------------------------------------------
+
+  describe('doorpraten over een door de AI aangedragen begrip (T10.12)', () => {
+    /** Provider die na "Iets zeggen" met "compliment" komt — zoals in de gebruikerstest. */
+    const complimentProvider: AiProvider = {
+      name: 'compliment',
+      selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+        const chosen = prompt.conversationContext.map((ref) => ref.concept);
+        if (chosen.length === 1 && chosen[0] === 'say') {
+          return Promise.resolve({
+            question: 'Wil je iemand een compliment geven?',
+            options: [{ symbol: 'compliment', confidence: 0.9 }],
+            confidence: 0.6,
+            reason: 'de gebruiker wil iets aardigs zeggen',
+          });
+        }
+        return Promise.resolve({
+          question: 'Over wie gaat het?',
+          options: prompt.availableSymbols.slice(0, 3).map((ref) => ({
+            symbol: ref.concept,
+            confidence: 0.7,
+          })),
+          confidence: 0.6,
+          reason: 'wie krijgt het compliment',
+        });
+      },
+    };
+
+    it('loopt niet dood op een nieuw AI-begrip zonder relaties', async () => {
+      // Gemeld: de AI kwam terecht met "compliment", maar wie het koos kreeg meteen het voorstelscherm
+      // en kon niet meer zeggen wíe hij lief vindt. Een vers AI-concept heeft per definitie geen kinderen
+      // in de boom; dat als "eindpunt" lezen loopt dood.
+      const { cookie, sessionId } = await startFor(complimentProvider);
+      const afterSay = await next(cookie, sessionId, 'say');
+      expect(conceptsOf(afterSay)).toContain('compliment');
+
+      const afterCompliment = await next(cookie, sessionId, 'compliment');
+
+      expect(afterCompliment.done).toBe(false);
+      expect(afterCompliment.question).not.toBeNull();
+      expect(conceptsOf(afterCompliment).length).toBeGreaterThan(0);
+      expect(afterCompliment.history.map((entry) => entry.symbol.concept)).toEqual([
+        'say',
+        'compliment',
+      ]);
+    });
+
+    it('biedt daarbij echte bibliotheekconcepten aan in plaats van niets', async () => {
+      // De boom en de retrieval hebben op dat punt niets; zonder terugval op de bibliotheek zou de AI
+      // uit een lege lijst moeten kiezen en zag de gebruiker hooguit de intentiecategorieën.
+      const { cookie, sessionId } = await startFor(complimentProvider);
+      await next(cookie, sessionId, 'say');
+      const state = await next(cookie, sessionId, 'compliment');
+
+      const offered = conceptsOf(state);
+      const known = await prisma.aacSymbol.findMany({ where: { concept: { in: offered } } });
+      expect(known.length).toBe(offered.length);
+      // Er zit meer bij dan alleen de vijf intentiecategorieën.
+      expect(known.some((symbol) => symbol.category !== 'intent')).toBe(true);
     });
   });
 });

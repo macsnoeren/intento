@@ -345,14 +345,24 @@ describe('vraagmodus — /question (T7.1)', () => {
       headers: { cookie: deviceCk },
       payload: { symbolId: await symbolId('pain') },
     });
-    const corrected = await app.inject({
-      method: 'POST',
-      url: `/conversation/${sessionId}/correction`,
-      headers: { cookie: deviceCk },
-      payload: {},
+    // ❌ verfijnt eerst (T10.12); pas de tweede rolt de keuze van de gebruiker terug.
+    let after = conversationStateResponseSchema.parse({
+      sessionId,
+      status: 'ACTIVE',
+      question: null,
+      done: true,
+      history: [],
     });
-    expect(corrected.statusCode).toBe(200);
-    const after = conversationStateResponseSchema.parse(corrected.json());
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const corrected = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie: deviceCk },
+        payload: {},
+      });
+      expect(corrected.statusCode).toBe(200);
+      after = conversationStateResponseSchema.parse(corrected.json());
+    }
 
     // Er volgt een nieuwe vraag, géén boodschapvoorstel: de gebruiker had niets meer gekozen, dus er
     // valt niets van hém voor te stellen (DESIGN §2).

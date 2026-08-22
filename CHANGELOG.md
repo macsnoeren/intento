@@ -28,6 +28,23 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T10.12 Vastlopen op een AI-begrip, en ❌ Nee dat te vroeg terugrolde.** Drie meldingen die op
+  hetzelfde neerkomen — de gebruiker kan niet verder:
+  - **Een vers AI-concept was meteen het einde.** "Compliment" was een goede vondst van de AI, maar zo'n
+    concept heeft per definitie geen kinderen in de relatieboom; dat las de beslissingslaag als eindconcept
+    en sprong naar het voorstelscherm, waarna de gebruiker niet meer kon zeggen wíe hij lief vindt.
+    "Geen kinderen" telt nu alleen als beslissing wanneer een beheerder ernaar heeft gekeken. Bij een leeg
+    kandidatenpunt valt de laag bovendien terug op de **bibliotheek** in plaats van op niets, zodat de AI
+    echte concepten ziet om uit te kiezen.
+  - **❌ Nee rolde te vroeg terug.** Op "Ik wil brood eten." leverde ❌ appel en banaan op — de bróértjes
+    van brood — terwijl de gebruiker juist chocopasta erop wilde. ❌ zegt twee dingen met één knop; de
+    goedkoopste verklaring gaat nu voor: eerst een **verfijnronde** op dezelfde route, waarin de AI
+    expliciet om preciezere concepten wordt gevraagd en desnoods nieuwe aandraagt. Pas bij een tweede ❌
+    rolt de laatste stap terug.
+  - **Geen "opnieuw beginnen" tijdens het gesprek.** Die knop stond alleen op het bevestigd-scherm, dus
+    wie vastliep moest eerst een boodschap bevestigen die hij niet bedoelde. Nu staat hij in de balk van
+    elk keuzescherm.
+
 - **T10.11 "✅ Dit is genoeg".** Direct gevolg van T10.10: dat stelt pas een boodschap voor als er niets
   meer te verfijnen valt, waardoor "Ik wil eten." — in AAC een volwaardige boodschap — onbereikbaar werd.
   Nieuw `POST /conversation/{id}/enough` plus een knop in de balk van het keuzescherm (naast "↩ Terug" en

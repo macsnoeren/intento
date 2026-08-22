@@ -773,6 +773,11 @@ body {
   justify-content: flex-start;
 }
 
+/* Duwt "Opnieuw beginnen" naar het einde van de balk, weg van de keuzeknoppen (T10.12). */
+.tablet__bar-end {
+  margin-left: auto;
+}
+
 .tablet__bar .button {
   font-size: 1.25rem;
   padding: 1rem 1.75rem;

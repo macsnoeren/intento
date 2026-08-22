@@ -1,6 +1,6 @@
 import type { ConversationQuestion, ConversationPhase } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
-import type { ConversationStepModel } from '../generated/prisma/models.js';
+import type { AacSymbolModel, ConversationStepModel } from '../generated/prisma/models.js';
 import type { OpenSymbolsClient } from '../aac/opensymbols.js';
 import { symbolToPublic } from '../aac/library.js';
 import type { AiConceptRef, AiRejectedConcept, AiUserContextItem } from '../ai/provider.js';
@@ -160,6 +160,11 @@ export interface DecideNextQuestionInput {
   icons?: OpenSymbolsClient | null;
   /** De lopende hypothese van deze sessie (T10.8); `null` aan het begin. */
   hypothesis?: Hypothesis | null;
+  /**
+   * Draait er een **verfijnronde** na ❌ Nee (T10.12)? Dan is het laatste concept geen eindpunt en krijgt
+   * de AI de expliciete opdracht die keuze preciezer te maken in plaats van van onderwerp te wisselen.
+   */
+  refining?: boolean;
 }
 
 /**
@@ -196,6 +201,7 @@ export async function decideNextQuestion(
     strategy = defaultStrategy(),
     icons = null,
     hypothesis = null,
+    refining = false,
   } = input;
 
   // De strategie stelt voor, de deployment beschikt: bij beide grenzen wint de strikste. Zo kan een
@@ -226,6 +232,7 @@ export async function decideNextQuestion(
           userContext,
           limit: maxCandidates,
           sources: strategy.candidateSources,
+          refining,
         });
 
   const { candidates, atLeafConcept, sourceByConcept, counts } = found;
@@ -280,13 +287,17 @@ export async function decideNextQuestion(
   // wél de volledige negatieve context, en mag zelf begrippen aandragen. Levert dat niets op, dan is de
   // boodschap alsnog de uitkomst — maar pas dán.
   const openRound = available.length === 0;
-  if (openRound && !allowNewConcepts) {
-    // Vrije ronde staat uit: dan is de laatste uitweg de intentiecategorieën — de richting opnieuw laten
-    // kiezen. Zijn ook die op, dan valt er echt niets meer te vragen.
-    const usable = (await loadIntentSymbols(prisma)).filter(
-      (symbol) => !excluded.has(symbol.concept),
-    );
-    if (usable.length === 0) {
+  if (openRound) {
+    // De boom en de retrieval hebben hier niets meer, maar de **bibliotheek** wel: er staan nog tientallen
+    // concepten die de gebruiker niet heeft gezien of afgewezen. Die als keuzeset meegeven is beter dan
+    // de AI met een lege lijst laten raden (T10.12) — precies het punt waar het gesprek na een vers
+    // AI-concept als "compliment" strandde: de AI moest "over wie gaat het?" beantwoorden zonder ooit
+    // "mama" of "papa" te zien, terwijl die gewoon in de bibliotheek staan.
+    //
+    // De AI mag hoe dan ook elk bestaand concept noemen (§7.3: kandidaten zijn een signaal, geen grens),
+    // maar met een echte keuzeset kiest ze aantoonbaar beter dan uit het niets.
+    available = await loadLibraryFallback(prisma, excluded, maxCandidates);
+    if (available.length === 0) {
       return {
         question: null,
         done: true,
@@ -298,7 +309,6 @@ export async function decideNextQuestion(
         diagnostics: noDiagnostics(true),
       };
     }
-    available = usable;
   }
 
   // "Verbreed": de aangeboden opties komen niet (meer) uit de directe boomkinderen van de laatste keuze.
@@ -330,6 +340,7 @@ export async function decideNextQuestion(
       // De strategie vult de **inhoud** van doel en AAC-regels; de sleutelset blijft gesloten (§7.7).
       goal: strategy.prompt.goal,
       aacRules: promptRulesFor(strategy),
+      refining,
       rejectedConcepts: rejections.map((rejection) => ({
         concept: rejection.concept,
         label: labels.get(rejection.concept) ?? rejection.concept,
@@ -378,7 +389,14 @@ export async function decideNextQuestion(
   //     van de begeleider, valt er niets voor te stellen dat van de gebruiker is (T9.14);
   //  3. er valt niets meer te verfijnen. Zekerheid alleen was niet genoeg: een zeker model op een
   //     categorie als "eten" levert een boodschap op die niets zegt.
-  if (confidence >= strategy.confidencePropose && mayPropose && unexploredRefinements === 0) {
+  //  4. er draait geen verfijnronde. De gebruiker zei zojuist dat het nog niet precies genoeg is; dan is
+  //     opnieuw een boodschap voorstellen precies het antwoord dat hij net afwees (T10.12).
+  if (
+    confidence >= strategy.confidencePropose &&
+    mayPropose &&
+    unexploredRefinements === 0 &&
+    !refining
+  ) {
     return {
       question: null,
       done: true,
@@ -477,6 +495,57 @@ export async function decideNextQuestion(
       widened,
     },
   };
+}
+
+/**
+ * Terugvalset als boom én retrieval niets meer opleveren (T10.12): de bibliotheek zelf, minus wat de
+ * gebruiker al koos of afwees.
+ *
+ * De volgorde zet de **intentiecategorieën** vooraan — daarmee kan de gebruiker altijd een nieuwe richting
+ * kiezen, wat de bestaande uitweg was — en daarachter de rest van de bibliotheek op label. Zo blijft het
+ * oude gedrag beschikbaar terwijl er nu ook concrete concepten in beeld komen om de boodschap mee af te
+ * maken. De set is begrensd op `maxCandidates`; het aanbod dat de gebruiker ziet is nog kleiner
+ * (`MAX_OFFERED_OPTIONS`), met de keuzes van de AI vooraan.
+ */
+async function loadLibraryFallback(
+  prisma: PrismaClient,
+  excluded: Set<string>,
+  limit: number,
+): Promise<AacSymbolModel[]> {
+  const [intents, rest] = await Promise.all([
+    loadIntentSymbols(prisma),
+    prisma.aacSymbol.findMany({
+      where: { category: { not: 'intent' } },
+      orderBy: { label: 'asc' },
+    }),
+  ]);
+  const usable: AacSymbolModel[] = intents.filter((symbol) => !excluded.has(symbol.concept));
+
+  // De rest **gespreid over de categorieën** in plaats van alfabetisch. Zonder die spreiding vult de
+  // bovengrens zich met wat toevallig vooraan staat ("appel, arm, banaan") en halen personen als "mama"
+  // de lijst niet eens — terwijl dat na een compliment juist de opties zijn die ertoe doen. Round-robin
+  // is deterministisch en geeft elke soort begrip een plek: een persoon, een gevoel, een activiteit.
+  const byCategory = new Map<string, AacSymbolModel[]>();
+  for (const symbol of rest) {
+    if (excluded.has(symbol.concept)) continue;
+    const bucket = byCategory.get(symbol.category);
+    if (bucket) bucket.push(symbol);
+    else byCategory.set(symbol.category, [symbol]);
+  }
+
+  const buckets = [...byCategory.values()];
+  for (let round = 0; usable.length < limit; round++) {
+    const before = usable.length;
+    for (const bucket of buckets) {
+      const symbol = bucket[round];
+      if (!symbol) continue;
+      usable.push(symbol);
+      if (usable.length >= limit) break;
+    }
+    // Alle categorieën zijn uitgeput: verder tellen heeft geen zin.
+    if (usable.length === before) break;
+  }
+  return usable;
 }
 
 /** De kandidatenset van het startscherm: uitsluitend de intentiecategorieën (DESIGN §3.1). */

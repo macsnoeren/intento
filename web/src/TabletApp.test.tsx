@@ -651,4 +651,20 @@ describe('gebruikersapp op de tablet', () => {
 
     expect(await screen.findByRole('heading', { name: 'Ik wil iets doen.' })).toBeTruthy();
   });
+
+  it('kan midden in een gesprek helemaal opnieuw beginnen (T10.12)', async () => {
+    // Gemeld in de gebruikerstest: wie vastliep had geen uitweg — "Opnieuw beginnen" stond alleen op het
+    // bevestigd-scherm. "↩ Terug" gaat één stap, maar niet terug naar af.
+    const api = fakeDeviceApi({ linked: true });
+    render(<TabletApp api={api} />);
+
+    fireEvent.click(await screen.findByLabelText('Iets willen'));
+    expect(await screen.findByLabelText('Iets doen')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('🔄 Opnieuw beginnen'));
+
+    // Terug op het startscherm, met een leeg pad.
+    expect(await screen.findByLabelText('Iets willen')).toBeTruthy();
+    expect(screen.queryByLabelText('Iets doen')).toBeNull();
+  });
 });
