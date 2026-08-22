@@ -106,6 +106,10 @@ function fakeApi(initial: PreferencePublic[]): {
     listAacTopics: notImplemented,
     getAiStatus: notImplemented,
     listAiJobs: notImplemented,
+    listAiConcepts: notImplemented,
+    keepAiConcept: notImplemented,
+    mergeAiConcept: notImplemented,
+    discardAiConcept: notImplemented,
     ...prefApi,
   };
   return { api, calls };

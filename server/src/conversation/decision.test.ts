@@ -3,7 +3,7 @@ import { prisma } from '../db/prisma.js';
 import { seedAacLibrary } from '../aac/library.js';
 import { AiOrchestrator } from '../ai/orchestrator.js';
 import { MockAiProvider } from '../ai/mock-provider.js';
-import type { AiProvider, AiQuestionDecision } from '../ai/provider.js';
+import type { AiPrompt, AiProvider, AiQuestionDecision } from '../ai/provider.js';
 import { decideNextQuestion } from './decision.js';
 
 /**
@@ -45,7 +45,7 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
   });
 
   it('kiest bij de start de intentie-categorieën (fase select bij lage zekerheid)', async () => {
-    const decision = await decideNextQuestion(prisma, mockOrchestrator, steps());
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, { steps: steps() });
     expect(decision.done).toBe(false);
     expect(conceptsOf(decision)).toEqual(
       expect.arrayContaining(['want', 'feel', 'problem', 'ask', 'say']),
@@ -54,18 +54,16 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
   });
 
   it('verfijnt na een keuze (fase refine) en sluit het al gekozen concept uit', async () => {
-    const decision = await decideNextQuestion(prisma, mockOrchestrator, steps('want'));
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, { steps: steps('want') });
     expect(decision.phase).toBe('refine');
     expect(conceptsOf(decision)).toEqual(expect.arrayContaining(['do-activity', 'eat', 'drink']));
     expect(conceptsOf(decision)).not.toContain('want');
   });
 
   it('stelt bij een eindconcept een boodschap voor (propose, geen vraag)', async () => {
-    const decision = await decideNextQuestion(
-      prisma,
-      mockOrchestrator,
-      steps('want', 'do-activity', 'outside', 'walking', 'dog'),
-    );
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, {
+      steps: steps('want', 'do-activity', 'outside', 'walking', 'dog'),
+    });
     expect(decision.done).toBe(true);
     expect(decision.question).toBeNull();
     expect(decision.phase).toBe('propose');
@@ -81,7 +79,7 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
         { symbol: 'do-activity', confidence: 0.7 },
       ],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, steps('want'));
+    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps('want') });
 
     // Het onbekende concept is weggelaten; de AI-keuze staat vooraan en de overige kandidaten van dit
     // punt volgen erachter (T9.10: de AI ordent, ze snoeit de bibliotheek niet weg).
@@ -105,7 +103,7 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
         { symbol: 'do-activity', confidence: 0.6 },
       ],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, steps('want'));
+    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps('want') });
     expect(conceptsOf(decision)).not.toContain('want');
     // De door de AI gekozen optie staat vooraan; de rest van de kandidaten volgt (T9.10).
     expect(conceptsOf(decision)[0]).toBe('do-activity');
@@ -120,7 +118,7 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
       reason: 'de gebruiker wil vast iets',
       options: [{ symbol: 'want', confidence: 0.9 }],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, steps());
+    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps() });
 
     const intents = await prisma.aacSymbol.findMany({ where: { category: 'intent' } });
     expect(conceptsOf(decision)).toHaveLength(intents.length);
@@ -138,20 +136,16 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
       reason: 'heel zeker',
       options: [{ symbol: 'water', confidence: 0.99 }],
     });
-    const withAnchor = await decideNextQuestion(
-      prisma,
-      orchestrator,
-      steps('drink'),
-      [],
-      [],
-      'Wat wil je drinken?',
-      1,
-    );
+    const withAnchor = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('drink'),
+      questionContext: 'Wat wil je drinken?',
+      anchoredSteps: 1,
+    });
     expect(withAnchor.done).toBe(false);
     expect(conceptsOf(withAnchor)).toContain('water');
 
     // Zonder anker (vrij gesprek) is diezelfde zekerheid wél een voorstel: daar koos de gebruiker zelf.
-    const freeChoice = await decideNextQuestion(prisma, orchestrator, steps('drink'));
+    const freeChoice = await decideNextQuestion(prisma, orchestrator, { steps: steps('drink') });
     expect(freeChoice.done).toBe(true);
   });
 
@@ -165,12 +159,10 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
     });
     const excluded = painChildren.map((relation) => relation.child.concept);
 
-    const decision = await decideNextQuestion(
-      prisma,
-      mockOrchestrator,
-      steps('problem', 'pain'),
-      excluded,
-    );
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, {
+      steps: steps('problem', 'pain'),
+      rejections: excluded.map((concept) => ({ concept, kind: 'wrong_guess' as const })),
+    });
     expect(decision.done).toBe(false);
     expect(decision.diagnostics.widened).toBe(true);
     // De opties komen nu van een niveau hoger (de andere problemen), niet uit het uitgesloten niveau.
@@ -183,13 +175,18 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
   it('blijft bij een écht eindconcept gewoon een boodschap voorstellen', async () => {
     // Onderscheid met de test hierboven: "water" heeft in de bibliotheek géén kinderen (eindconcept),
     // dus daar is de route af — niet omhoog zoeken.
-    const decision = await decideNextQuestion(prisma, mockOrchestrator, steps('drink', 'water'));
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, {
+      steps: steps('drink', 'water'),
+    });
     expect(decision.done).toBe(true);
     expect(decision.diagnostics.widened).toBe(false);
   });
 
   it('sluit expliciet uitgesloten concepten uit (bv. afgewezen keuze bij correctie, T5.4)', async () => {
-    const decision = await decideNextQuestion(prisma, mockOrchestrator, steps('want'), ['eat']);
+    const decision = await decideNextQuestion(prisma, mockOrchestrator, {
+      steps: steps('want'),
+      rejections: [{ concept: 'eat', kind: 'wrong_guess' }],
+    });
     expect(conceptsOf(decision)).not.toContain('eat');
     expect(conceptsOf(decision)).toEqual(expect.arrayContaining(['do-activity', 'drink']));
   });
@@ -205,8 +202,11 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
         { symbol: 'drink', confidence: 0.6 },
       ],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, steps('want'));
-    expect(conceptsOf(decision)).toEqual(['eat', 'drink', 'do-activity']);
+    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps('want') });
+    // De door de AI gekozen opties staan vooraan, op zekerheid geordend; de overige kandidaten van dit
+    // punt volgen erachter (T9.10: de AI ordent, ze snoeit de bibliotheek niet weg).
+    expect(conceptsOf(decision).slice(0, 3)).toEqual(['eat', 'drink', 'do-activity']);
+    expect(conceptsOf(decision).length).toBeGreaterThan(3);
   });
 
   it('stelt vroegtijdig een boodschap voor bij hoge interpretatie-zekerheid (>85%)', async () => {
@@ -216,7 +216,7 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
       reason: 'zeer zeker',
       options: [{ symbol: 'do-activity', confidence: 0.8 }],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, steps('want'));
+    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps('want') });
     expect(decision.done).toBe(true);
     expect(decision.question).toBeNull();
     expect(decision.phase).toBe('propose');
@@ -229,8 +229,34 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
       reason: 'zeker maar geen route',
       options: [{ symbol: 'want', confidence: 0.9 }],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, steps());
+    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps() });
     expect(decision.done).toBe(false);
     expect(decision.question).not.toBeNull();
+  });
+
+  it('geeft de AI het lábel van de gekozen route mee, niet de conceptsleutel', async () => {
+    // De gekozen concepten staan per definitie niet in de kandidatenset (ze zijn uitgesloten). Zoeken we
+    // hun labels niet apart op, dan krijgt het model 'want' in plaats van 'Iets willen' — en formuleert
+    // het vragen als: Wat past het best bij "want"?
+    let seen: AiPrompt | null = null;
+    const spy: AiProvider = {
+      name: 'spy',
+      selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+        seen = prompt;
+        return Promise.resolve({
+          question: 'Wat wil je?',
+          options: [],
+          confidence: 0.5,
+          reason: 'spy',
+        });
+      },
+    };
+
+    await decideNextQuestion(prisma, new AiOrchestrator(spy), { steps: steps('want') });
+
+    const prompt = seen as AiPrompt | null;
+    expect(prompt).not.toBeNull();
+    expect(prompt!.lastChoice).toEqual({ concept: 'want', label: 'Iets willen' });
+    expect(prompt!.conversationContext).toEqual([{ concept: 'want', label: 'Iets willen' }]);
   });
 });

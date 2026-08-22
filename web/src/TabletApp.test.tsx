@@ -31,6 +31,7 @@ function sym(concept: string, label: string, glyph: string): AacSymbol {
     synonyms: [],
     imageUrl: `/aac/images/${concept}`,
     attribution: null,
+    isNew: false,
   };
 }
 
@@ -589,5 +590,31 @@ describe('gebruikersapp op de tablet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
     await screen.findByRole('heading', { name: 'Wat wil je?' });
     expect(screen.queryByRole('navigation', { name: 'Gekozen pad' })).toBeNull();
+  });
+
+  it('markeert een nieuw woord van de AI zichtbaar (T10.6)', async () => {
+    // Een begrip dat de AI aandroeg omdat het nog niet in de bibliotheek stond, hoort herkenbaar te
+    // zijn: de gebruiker mag zien dat dit een suggestie is en geen vertrouwd pictogram — hij kiest het
+    // nog steeds zelf (DESIGN §7.8).
+    const api = fakeDeviceApi({ linked: true });
+    const original = api.startConversation.bind(api);
+    api.startConversation = async () => {
+      const state = await original();
+      const nieuw: AacSymbol = {
+        ...sym('nagelknipper', 'Nagelknipper', '🆕'),
+        category: 'object',
+        isNew: true,
+      };
+      return {
+        ...state,
+        question: { prompt: 'Wat wil je?', options: [WANT, nieuw] },
+      };
+    };
+
+    render(<TabletApp api={api} />);
+
+    expect(await screen.findByLabelText('Nagelknipper (nieuw woord)')).toBeTruthy();
+    // Een gewoon bibliotheekwoord krijgt die markering niet.
+    expect(screen.getByLabelText('Iets willen')).toBeTruthy();
   });
 });

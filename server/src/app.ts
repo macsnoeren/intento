@@ -108,7 +108,7 @@ export async function buildApp({
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
   registerAacRoutes(app, { prisma, env, openSymbols });
-  registerConversationRoutes(app, { prisma, orchestrator, encryptor });
+  registerConversationRoutes(app, { prisma, orchestrator, encryptor, env, openSymbols });
   // Vraagmodus (T7.1): begeleider stelt een gebruiker een vraag; de AI beperkt de antwoorden.
   registerQuestionRoutes(app, { prisma });
   // Persoonlijke context (T6.1): begeleider/beheerder legt personen/plekken/routines vast (versleuteld).

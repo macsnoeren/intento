@@ -36,6 +36,7 @@ function makeSymbol(
     synonyms: overrides.synonyms ?? [],
     imageUrl: `/aac/images/${overrides.id}`,
     attribution: overrides.attribution ?? null,
+    isNew: overrides.isNew ?? false,
     hasImage: overrides.hasImage ?? false,
     children: overrides.children ?? [],
     parents: overrides.parents ?? [],
@@ -178,6 +179,7 @@ function fakeApi(): Api {
             category: child.category,
             glyph: child.glyph,
             synonyms: child.synonyms,
+            isNew: child.isNew,
             imageUrl: child.imageUrl,
             attribution: child.attribution,
           },
@@ -223,6 +225,10 @@ function fakeApi(): Api {
     listAacTopics: notImplemented,
     getAiStatus: notImplemented,
     listAiJobs: notImplemented,
+    listAiConcepts: notImplemented,
+    keepAiConcept: notImplemented,
+    mergeAiConcept: notImplemented,
+    discardAiConcept: notImplemented,
   };
 }
 

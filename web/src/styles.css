@@ -593,6 +593,22 @@ body {
   cursor: not-allowed;
 }
 
+/* Nieuw woord (T10.6): door de AI aangedragen omdat het begrip nog niet in de bibliotheek stond.
+   Zichtbaar anders dan een vertrouwd pictogram — een suggestie, geen bibliotheekwoord. */
+.option--new {
+  position: relative;
+  border-style: dashed;
+  border-color: var(--intento-accent);
+}
+
+.option__badge {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .option__image {
   width: 7.5rem;
   height: 7.5rem;

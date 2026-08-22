@@ -244,7 +244,7 @@ herstelt.
 | POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
 | POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. Bij een **vraagmodus**-sessie (T7.1) kan het door de begeleider gekozen topic-anker (de eerste stap) niet ongedaan worden gemaakt (`400` als alléén het anker rest), zodat het gesprek binnen de vraag blijft. |
 | GET | `/conversation/pending` | apparaat | Openstaande **begeleidersvraag** ophalen (vraagmodus, T7.1). `200` + `pendingQuestionResponseSchema` (`{ state: conversationStateResponseSchema \| null }`): de nieuwste `ACTIVE` vraagmodus-sessie van de eigen gebruiker als volledige gesprekstoestand (met `caregiverQuestion` gevuld), of `null` → geen vraag klaar (de tablet start dan een vrij gesprek). |
-| POST | `/conversation/{id}/correction` | apparaat | **Correctie** (T5.4/T9.12, DESIGN §3.4, FR-009): `conversationCorrectionRequestSchema` (`{ type }`, standaard `wrong_guess` — een lege body `{}` volstaat). Twee soorten "dit klopt niet":<br>• **`wrong_guess`** (❌ op een voorstel) — de server **heranalyseert** de route en bepaalt uit de per-stap-zekerheid (`ConversationStep.confidence`, §7.4) de vermoedelijke **foutstap** (laagste zekerheid; tie → vroegste; terugval op de laatste stap), rolt die stap en alles erna terug, legt het afgewezen concept vast als **`CorrectionEvent`** en geeft een **gerichtere hervraag** terug — **niet** terug naar het begin. In vraagmodus blijft de **ankerstap van de begeleider** staan (T9.14); is dat de enige stap → `400 NO_STEPS_TO_CORRECT`.<br>• **`no_fitting_option`** (T9.12, "Staat er niet bij") — het juiste pictogram zit niet tussen de opties. Er wordt **niets teruggerold**: alle concepten van dít punt worden als `CorrectionEvent` uitgesloten, waarna de beslissingslaag een niveau hoger verdergaat. Op het startscherm komen de intentiecategorieën gewoon terug (nooit een leeg scherm); is er niets over te slaan → `400 NO_OPTIONS_TO_SKIP`.<br>Het antwoord is in beide gevallen `conversationStateResponseSchema`; uitgesloten concepten worden de rest van de sessie **niet meer aangeboden** (§7.5). Er wordt niets geleerd/opgeslagen (sessie blijft `ACTIVE`). Zonder keuzes → `400 NO_STEPS_TO_CORRECT`; onbekend `type` → `400`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
+| POST | `/conversation/{id}/correction` | apparaat | **Correctie** (T5.4/T9.12, DESIGN §3.4, FR-009): `conversationCorrectionRequestSchema` (`{ type }`, standaard `wrong_guess` — een lege body `{}` volstaat). Twee soorten "dit klopt niet":<br>• **`wrong_guess`** (❌ op een voorstel) — de server **heranalyseert** de route en bepaalt de vermoedelijke **foutstap**: het **kantelpunt van de hypothese** (de stap waarna de gedempte zekerheid het sterkst daalde, T10.8), met terugval op de laagste per-stap-zekerheid (`ConversationStep.confidence`, §7.4; tie → vroegste) en tot slot op de laatste stap, rolt die stap en alles erna terug, legt het afgewezen concept vast als **`CorrectionEvent`** en geeft een **gerichtere hervraag** terug — **niet** terug naar het begin. In vraagmodus blijft de **ankerstap van de begeleider** staan (T9.14); is dat de enige stap → `400 NO_STEPS_TO_CORRECT`.<br>• **`no_fitting_option`** (T9.12, "Staat er niet bij") — het juiste pictogram zit niet tussen de opties. Er wordt **niets teruggerold** — de keuzes van de gebruiker blijven staan. Precies de concepten uit het **vastgelegde aanbod** (wat de gebruiker dus zag) worden als `CorrectionEvent` uitgesloten, waarna de beslissingslaag een **nieuwe ronde** doet met de afwijzing als signaal voor de AI (T10.4/T10.5): een andere invalshoek uit de resterende kandidaten, en géén terugval naar het startscherm. Levert ook dat niets op, dan mag de AI zelf een begrip aandragen (vrije ronde, §7.6 trap 3) en pas daarna komen de intentiecategorieën terug — nooit een leeg scherm. Is er niets aangeboden om over te slaan → `400 NO_OPTIONS_TO_SKIP`.<br>Het antwoord is in beide gevallen `conversationStateResponseSchema`; uitgesloten concepten worden de rest van de sessie **niet meer aangeboden** (§7.5). Er wordt niets geleerd/opgeslagen (sessie blijft `ACTIVE`). Zonder keuzes → `400 NO_STEPS_TO_CORRECT`; onbekend `type` → `400`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T5.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). De **AI-orchestrator** formuleert de zin (met `confidence`, §7.4), begrensd door de **safety-laag** die geen concept buiten de sessie doorlaat (§7.8); zonder AI-capability of bij een onveilige zin valt hij terug op de deterministische **sjabloon-zin**. **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
 | POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T5.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hervormt de zin **server-side** uit de opgeslagen keuzes via de orchestrator (nooit vrije clienttekst), met dezelfde safety-terugval, zodat de bewaarde boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Een **afwijzing** verloopt via `/correction` (gerichte hervraag, T5.4), niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). |
 
@@ -326,17 +326,37 @@ want de client kent ze niet):
   het label of een synoniem van een **niet-gekozen** concept, dan is hij onveilig (§7.8) en geldt de
   terugval. Zo bereikt een concept buiten de sessie de gebruiker (en de db) **nooit**.
 
-**Validatielaag en confidence (T5.2, `ai/validation.ts` + `ai/thresholds.ts` + `conversation/decision.ts`):**
+**Kandidaten, validatielaag en confidence (T5.2, herzien in Fase 10 — `conversation/candidates.ts` +
+`ai/validation.ts` + `ai/thresholds.ts` + `conversation/decision.ts`):**
 
-- **AAC-existentiecheck (§7.6, §7.8):** elk voorgesteld `symbol` moet bestaan in de bibliotheek. Bestaand
-  concept → houden; synoniem/label → omzetten naar het echte concept; anders → een `ConceptProposal`
-  (status `PENDING`) aanmaken en de optie **weglaten**. Een onbekend concept bereikt de gebruiker nooit.
-- **Herhaling vermijden (§7.5):** al gekozen concepten (en optioneel expliciet uitgesloten concepten, bv.
-  afgewezen keuzes bij een correctie — T5.4) vallen weg, vóór én na de AI-aanroep.
+- **Kandidatenselectie (§7.3, T10.2):** de opties die de AI voorgelegd krijgt komen niet uit één tak van
+  de begrippenboom maar uit vier bronnen, ontdubbeld en begrensd op `AI_MAX_CANDIDATES`: boomkinderen →
+  kleinkinderen → retrieval over de héle bibliotheek (zoekindex, gevoed door de begeleidersvraag, de
+  toegestane persoonlijke context en het gekozen pad) → geleerde voorkeuren. Op het **startscherm** blijft
+  het bij de intentiecategorieën (§3.1).
+- **AAC-check en nieuwe begrippen (§7.6, §7.8):** bestaand concept → houden; synoniem/label → omzetten
+  naar het echte concept (deze **deduplicatie gaat altijd voor**); aantoonbaar nieuw → met
+  `AI_ALLOW_NEW_CONCEPTS=true` een symbool aanmaken (`origin: ai`, `reviewStatus: PENDING`, met een
+  automatisch gezocht pictogram) plus een `ConceptProposal`, zodat de gebruiker het begrip **kan kiezen**,
+  zichtbaar gemarkeerd als nieuw woord (`isNew: true`). Met `AI_ALLOW_NEW_CONCEPTS=false` blijft het bij
+  het voorstel en bereikt het begrip de gebruiker nooit.
+- **Herhaling vermijden (§7.5):** al gekozen en afgewezen concepten vallen weg, vóór én na de AI-aanroep.
+  De afwijzingen reizen sinds T10.4 óók **expliciet mee in de prompt** (`rejectedConcepts` met soort
+  `wrong_guess`/`no_fitting_option`, plus `askedQuestions`), zodat "geen van deze past" een
+  richtingverandering uitlokt in plaats van alleen een kortere lijst op te leveren.
 - **Confidence-drempels (§7.4):** de interpretatie-zekerheid bepaalt de fase — `select` (<60%, nieuwe
   vraag), `refine` (60–85%, verfijnen), `propose` (>85% of een eindconcept, boodschap voorstellen). Bij
-  `propose` is er geen vraag meer (`question: null`, `done: true`). Overgebleven opties worden op zekerheid
-  geordend (meest waarschijnlijke eerst).
+  `propose` is er geen vraag meer (`question: null`, `done: true`). De zekerheid wordt sinds T10.8 over
+  beurten heen **gedempt** via de hypothese, zodat één zelfverzekerd modelantwoord geen boodschap forceert.
+  Overgebleven opties worden op zekerheid geordend (meest waarschijnlijke eerst).
+- **Aanbod met onder- én bovengrens (T9.10/T10.5):** de keuzes van de AI staan vooraan en worden aangevuld
+  tot minimaal 8 opties zolang er kandidaten zijn; het aanbod is begrensd op 12, zodat "Geen van deze past"
+  niet in één klap de hele kandidatenset uitsluit. Het aanbod wordt op de sessie **vastgelegd**
+  (`pendingOffer`), zodat `↩ Terug` exact herstelt en een keuze wordt gevalideerd tegen wat er werkelijk
+  is aangeboden (T10.3).
+- **Nooit doodlopen:** loopt een punt leeg, dan volgt eerst een **vrije ronde** (de AI krijgt geen
+  bestaande opties maar wél de negatieve context en mag zelf begrippen aandragen), daarna de
+  intentiecategorieën als laatste redmiddel, en pas dán een boodschapvoorstel.
 
 Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test), `queue` (gedistribueerde workers —
 T5.5, zie hieronder) of `ollama` (niet in-process; Ollama draait als worker achter de wachtrij — T5.6).
@@ -441,6 +461,20 @@ gekozen pictogram toegevoegd, zodat de validatielaag het voortaan herkent en de 
 | GET | `/admin/concept-proposals` | Reviewlijst (openstaande `PENDING` eerst). `200` + `conceptProposalListResponseSchema` (elk voorstel met `concept`, `reason`, `status`, `linkedSymbol`). |
 | POST | `/admin/concept-proposals/{id}/approve` | Koppel het begrip aan een bestaand pictogram (`{ symbolId }`). `200` + `conceptProposalSchema` (`status: "APPROVED"`, `linkedSymbol` gevuld). Onbekend voorstel → `404 PROPOSAL_NOT_FOUND`; onbekend pictogram → `404 SYMBOL_NOT_FOUND`; al goedgekeurd → `409 PROPOSAL_ALREADY_HANDLED`. |
 | POST | `/admin/concept-proposals/{id}/reject` | Voorstel afwijzen; het begrip blijft buiten de AAC-begrenzing. `200` + `conceptProposalSchema` (`status: "REJECTED"`). Onbekend → `404`; al goedgekeurd → `409`. |
+
+**Nieuwe woorden van de AI** (`server/src/routes/aac.ts`, T10.7, DESIGN §7.6 trap 4) — begrippen die de AI
+tijdens een gesprek aandroeg en die meteen een bruikbaar, gemarkeerd pictogram werden (§7.6 trap 3). De
+gebruiker kon ze dus al kiezen; wat blijvend in de beheerde bibliotheek terechtkomt, blijft aan de
+beheerder. Alle routes ADMIN-only (zonder auth `401`, niet-ADMIN `403`). Een symbool dat géén onbeoordeeld
+AI-concept is (`origin != ai` of `reviewStatus != PENDING`) geeft `404 NEW_CONCEPT_NOT_FOUND`, zodat dit
+pad geen sluipweg is om bibliotheeksymbolen te wijzigen.
+
+| Methode | Pad | Doel |
+|---|---|---|
+| GET | `/admin/aac/new-concepts` | De nog niet beoordeelde AI-concepten, nieuwste eerst. `200` + `aiConceptReviewListResponseSchema`: per concept het symbool (`aacSymbolAdminSchema`), `timesChosen` (hoe vaak het in gesprekken gekozen is — het signaal of een woord echt aanslaat), de `reason` van de AI en `createdAt`. |
+| POST | `/admin/aac/new-concepts/{id}/keep` | **Behouden**: het begrip hoort in de bibliotheek. `reviewStatus` → `APPROVED` (de "nieuw"-markering verdwijnt uit de gebruikersapp) en het voorstel wordt goedgekeurd. `200` + `aacSymbolAdminSchema`. Label/pictogram/relaties bewerkt de beheerder met de gewone symbool-endpoints. |
+| POST | `/admin/aac/new-concepts/{id}/merge` | **Samenvoegen** met een bestaand pictogram (`{ targetSymbolId }`): het begrip wordt daar een **synoniem** van en het losse concept wordt verwijderd — zo blijft de bibliotheek vrij van bijna-duplicaten. `200` + `aacSymbolAdminSchema` (het doelsymbool). Onbekend doel → `404 SYMBOL_NOT_FOUND`; zichzelf als doel → `400 INVALID_MERGE_TARGET`. |
+| DELETE | `/admin/aac/new-concepts/{id}` | **Verwijderen**: het begrip is onbruikbaar. Symbool weg, voorstel `REJECTED`. `204`. |
 
 ### Audit-log (T8.2, DESIGN §9.4)
 

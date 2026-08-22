@@ -377,22 +377,29 @@ samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext + gesprekscont
 **geen** chatgeschiedenis) en de provider-uitvoer opnieuw valideert, en een **deterministische
 mock-provider** voor dev en tests.
 
-Daaromheen leggen T5.2's lagen de harde waarborgen uit DESIGN §7 op (`server/src/conversation/decision.ts`):
-de **AAC-relatieboom** levert de begrensde kandidaten, **herhaling** wordt vermeden (reeds gekozen
-concepten uitgesloten, terug blijft exact), de **validatielaag** (`ai/validation.ts`) houdt onbekende
-concepten tegen (→ `ConceptProposal` voor de beheerder, T7.3) en de **interpretatie-zekerheid**
-(`ai/thresholds.ts`, §7.4) bepaalt de fase `select`/`refine`/`propose`. Een verzonnen concept bereikt de
-gebruiker **nooit**. De client praat nooit rechtstreeks met de AI (DESIGN §8.1); de AI-schema's staan
-server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `queue` voor gedistribueerde workers — zie
-hieronder). Zie [docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
-[docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md) en [docs/api.md](docs/api.md).
+Daaromheen leggen de lagen in `server/src/conversation/` de harde waarborgen uit DESIGN §7 op.
+**Kandidatenselectie** (`candidates.ts`): de opties komen uit boomkinderen + kleinkinderen + retrieval over
+de héle bibliotheek + geleerde voorkeuren, begrensd op `AI_MAX_CANDIDATES`. **Herhaling** wordt vermeden
+(gekozen én afgewezen concepten uitgesloten, terug blijft exact) en de afwijzingen reizen **mee in de
+prompt**, zodat de AI van richting kan veranderen. De **validatielaag** (`ai/validation.ts`) dedupliceert
+elk voorgesteld begrip tegen concept/label/synoniem en maakt een écht nieuw begrip aan als gemarkeerd
+nieuw woord (`AI_ALLOW_NEW_CONCEPTS`, → `ConceptProposal` + beheerlijst). De **interpretatie-zekerheid**
+(`ai/thresholds.ts`, §7.4) bepaalt de fase `select`/`refine`/`propose` en wordt over beurten heen gedempt
+via de **hypothese** (`hypothesis.ts`). De client praat nooit rechtstreeks met de AI (DESIGN §8.1); de
+AI-schema's staan server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `queue` voor
+gedistribueerde workers — zie hieronder). Zie
+[docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
+[docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md),
+[docs/adr/0012](docs/adr/0012-ai-generated-concepts.md) en [docs/api.md](docs/api.md).
 
-> **De AI ordent, ze snoeit niet (T9.10).** Binnen de AAC-kandidaten van een punt bepaalt de AI de
-> volgorde — haar beste keuzes staan vooraan — maar de overige kandidaten blijven erachter staan en zijn
-> via "Meer keuzes" bereikbaar. Een boodschap wordt pas voorgesteld als de **gebruiker** zelf iets koos
-> (in vraagmodus telt het anker van de begeleider niet mee), en loopt een tak leeg, dan zoekt de
-> beslissingslaag een niveau hoger verder in plaats van een boodschap te verzinnen (T9.14). Staat het
-> juiste pictogram er niet tussen, dan slaat "🤷 Staat er niet bij" dit punt over (T9.12).
+> **De AI stuurt het gesprek (Fase 10).** Tot dan was de kandidatenset letterlijk de kinderen van één
+> knoop in de begrippenboom: bij een smalle tak (`want` heeft er drie) had de AI geen ruimte om te
+> achterhalen wat de gebruiker bedoelt, en "geen van deze past" zette hem terug op het startscherm. Nu
+> put de AI uit de héle bibliotheek, weet ze wát er is afgewezen, en mag ze — als het woord er echt niet
+> in staat — zélf een begrip aandragen: dat wordt meteen een bruikbaar pictogram met een ✨-markering, en
+> komt in het beheer terecht onder **Nieuwe woorden**. Een boodschap wordt pas voorgesteld als de
+> **gebruiker** zelf iets koos (in vraagmodus telt het anker van de begeleider niet mee, T9.14). Loopt een
+> punt leeg, dan volgt eerst een vrije ronde, dan de intentiecategorieën, en pas dán een voorstel.
 
 > **Draait er echt een AI? (T9.4/T9.8)** Met de standaard `AI_PROVIDER=mock` denkt er **geen** AI mee: de
 > mock-provider kiest de bibliotheekvolgorde. Dat is aan de flow niet te zien, dus de server logt bij het

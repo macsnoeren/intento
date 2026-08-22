@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   aacSearchQuerySchema,
   aacSearchResponseSchema,
+  aiConceptReviewListResponseSchema,
+  mergeAiConceptRequestSchema,
   aacTopicListResponseSchema,
   aacSymbolInputSchema,
   aacSymbolListResponseSchema,
@@ -14,6 +16,7 @@ import {
   type AacSymbolAdmin,
   type AacTopicListResponse,
   type AacSymbolListResponse,
+  type AiConceptReviewListResponse,
   type OpenSymbolsSearchResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
@@ -30,6 +33,8 @@ import {
   symbolToPublic,
 } from '../aac/library.js';
 import { assertSafeImageUrl, type OpenSymbolsClient } from '../aac/opensymbols.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface AacRoutesDeps {
   prisma: PrismaClient;
@@ -385,6 +390,168 @@ export function registerAacRoutes(
     },
   );
 
+  // --- Door de AI aangedragen concepten beoordelen (T10.7, DESIGN §7.6 trap 4, ADR-0012) ---
+  //
+  // De AI mag tijdens een gesprek een begrip aandragen dat nog niet in de bibliotheek staat; dat wordt
+  // meteen een bruikbaar (gemarkeerd) pictogram, want de gebruiker moet het kúnnen kiezen. Wat blijvend
+  // in de beheerde bibliotheek terechtkomt, blijft echter aan de beheerder. Drie uitkomsten:
+  //
+  //  - **behouden** — het begrip is terecht nieuw; label/pictogram/relaties bewerkt de beheerder met de
+  //    bestaande symbool-endpoints, en deze route haalt de "nieuw"-markering weg;
+  //  - **samenvoegen** — het begrip is een ander woord voor een bestaand pictogram; het wordt daar een
+  //    synoniem van en verdwijnt als los concept (zo blijft de bibliotheek vrij van bijna-duplicaten);
+  //  - **verwijderen** — onbruikbaar; het symbool gaat weg en het voorstel wordt afgewezen.
+
+  app.get(
+    '/admin/aac/new-concepts',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (): Promise<AiConceptReviewListResponse> => {
+      const symbols = await prisma.aacSymbol.findMany({
+        where: { origin: 'ai', reviewStatus: 'PENDING' },
+        orderBy: { createdAt: 'desc' },
+        include: adminSymbolInclude,
+      });
+      if (symbols.length === 0) {
+        return aiConceptReviewListResponseSchema.parse({ concepts: [] });
+      }
+
+      const concepts = symbols.map((symbol) => symbol.concept);
+      // Hoe vaak is dit begrip echt gekozen? Dat scheidt een woord dat aanslaat van een eenmalige gok.
+      const usage = await prisma.conversationStep.groupBy({
+        by: ['selectedConcept'],
+        where: { selectedConcept: { in: concepts } },
+        _count: { selectedConcept: true },
+      });
+      const countByConcept = new Map(
+        usage.map((row) => [row.selectedConcept, row._count.selectedConcept]),
+      );
+      const proposals = await prisma.conceptProposal.findMany({
+        where: { concept: { in: concepts } },
+        select: { concept: true, reason: true },
+      });
+      const reasonByConcept = new Map(proposals.map((row) => [row.concept, row.reason]));
+
+      return aiConceptReviewListResponseSchema.parse({
+        concepts: symbols.map((symbol) => ({
+          symbol: symbolToAdmin(symbol),
+          timesChosen: countByConcept.get(symbol.concept) ?? 0,
+          reason: reasonByConcept.get(symbol.concept) ?? null,
+          createdAt: symbol.createdAt.toISOString(),
+        })),
+      });
+    },
+  );
+
+  // Behouden: het begrip hoort in de bibliotheek. De "nieuw"-markering verdwijnt uit de gebruikersapp.
+  app.post(
+    '/admin/aac/new-concepts/:id/keep',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<AacSymbolAdmin> => {
+      const { id } = idParamsSchema.parse(request.params);
+      const symbol = await loadPendingAiSymbol(prisma, id);
+
+      const updated = await prisma.aacSymbol.update({
+        where: { id },
+        data: { reviewStatus: 'APPROVED' },
+        include: adminSymbolInclude,
+      });
+      await prisma.conceptProposal.updateMany({
+        where: { concept: symbol.concept },
+        data: { status: 'APPROVED', linkedSymbolId: id },
+      });
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.AI_CONCEPT_KEEP,
+        organizationId: null,
+        targetType: 'aacSymbol',
+        targetId: id,
+        metadata: { concept: symbol.concept },
+      });
+      return symbolToAdmin(updated);
+    },
+  );
+
+  // Samenvoegen: het begrip wordt een synoniem van een bestaand pictogram en verdwijnt als los concept.
+  app.post(
+    '/admin/aac/new-concepts/:id/merge',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<AacSymbolAdmin> => {
+      const { id } = idParamsSchema.parse(request.params);
+      const { targetSymbolId } = mergeAiConceptRequestSchema.parse(request.body);
+      const symbol = await loadPendingAiSymbol(prisma, id);
+
+      if (targetSymbolId === id) {
+        throw new HttpError(400, 'INVALID_MERGE_TARGET', 'Een begrip kan niet in zichzelf opgaan.');
+      }
+      const target = await prisma.aacSymbol.findUnique({ where: { id: targetSymbolId } });
+      if (!target) throw new HttpError(404, 'SYMBOL_NOT_FOUND', 'Pictogram bestaat niet.');
+
+      // Het begrip als synoniem toevoegen (idempotent, genormaliseerd ontdubbeld), zodat de
+      // validatielaag het voortaan naar dit pictogram resolvet in plaats van opnieuw aan te maken.
+      const existing = Array.isArray(target.synonyms)
+        ? target.synonyms.filter((value): value is string => typeof value === 'string')
+        : [];
+      const already = existing.some((value) => normalizeSearch(value) === symbol.concept);
+      const synonyms = already ? existing : [...existing, symbol.concept];
+
+      const [updated] = await prisma.$transaction([
+        prisma.aacSymbol.update({
+          where: { id: targetSymbolId },
+          data: {
+            synonyms,
+            searchText: buildSearchText({
+              concept: target.concept,
+              label: target.label,
+              synonyms,
+            }),
+          },
+          include: adminSymbolInclude,
+        }),
+        prisma.conceptProposal.updateMany({
+          where: { concept: symbol.concept },
+          data: { status: 'APPROVED', linkedSymbolId: targetSymbolId },
+        }),
+        // Het losse AI-symbool verdwijnt; relaties gaan mee via de cascade op AacConceptRelation.
+        prisma.aacSymbol.delete({ where: { id } }),
+      ]);
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.AI_CONCEPT_MERGE,
+        organizationId: null,
+        targetType: 'aacSymbol',
+        targetId: targetSymbolId,
+        metadata: { concept: symbol.concept, targetConcept: target.concept },
+      });
+      return symbolToAdmin(updated);
+    },
+  );
+
+  // Verwijderen: het begrip is onbruikbaar. Symbool weg, voorstel afgewezen.
+  app.delete(
+    '/admin/aac/new-concepts/:id',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request, reply): Promise<void> => {
+      const { id } = idParamsSchema.parse(request.params);
+      const symbol = await loadPendingAiSymbol(prisma, id);
+
+      await prisma.$transaction([
+        prisma.conceptProposal.updateMany({
+          where: { concept: symbol.concept },
+          data: { status: 'REJECTED', linkedSymbolId: null },
+        }),
+        prisma.aacSymbol.delete({ where: { id } }),
+      ]);
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.AI_CONCEPT_DISCARD,
+        organizationId: null,
+        targetType: 'aacSymbol',
+        targetId: id,
+        metadata: { concept: symbol.concept },
+      });
+      reply.status(204);
+    },
+  );
+
   // Een gekozen OpenSymbols-afbeelding lokaal koppelen aan een symbool. De backend haalt de bytes
   // zelf op (https-only + SSRF-guard + content-type + groottelimiet) en legt de bron/licentie vast.
   app.post(
@@ -458,4 +625,23 @@ export function registerAacRoutes(
       return symbolToAdmin(updated);
     },
   );
+}
+
+/**
+ * Laadt een symbool dat een **nog niet beoordeeld AI-concept** is. Een gewoon bibliotheeksymbool of een
+ * al beoordeeld concept hoort niet via deze routes bewerkt te worden (daar zijn de gewone
+ * symbool-endpoints voor) — dat is een 404, zodat het beoordeelpad niet als sluipweg dient.
+ */
+async function loadPendingAiSymbol(
+  prisma: PrismaClient,
+  id: string,
+): Promise<{ id: string; concept: string }> {
+  const symbol = await prisma.aacSymbol.findUnique({
+    where: { id },
+    select: { id: true, concept: true, origin: true, reviewStatus: true },
+  });
+  if (!symbol || symbol.origin !== 'ai' || symbol.reviewStatus !== 'PENDING') {
+    throw new HttpError(404, 'NEW_CONCEPT_NOT_FOUND', 'Dit nieuwe begrip bestaat niet (meer).');
+  }
+  return { id: symbol.id, concept: symbol.concept };
 }

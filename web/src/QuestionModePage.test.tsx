@@ -48,6 +48,7 @@ function sym(concept: string, label: string, glyph: string): AacSymbol {
     synonyms: [],
     imageUrl: `/aac/images/${concept}`,
     attribution: null,
+    isNew: false,
   };
 }
 

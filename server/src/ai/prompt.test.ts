@@ -31,11 +31,13 @@ describe('buildAiPrompt — beperkte context (DESIGN §7.7)', () => {
     expect(Object.keys(prompt).sort()).toEqual(
       [
         'aacRules',
+        'askedQuestions',
         'availableSymbols',
         'conversationContext',
         'goal',
         'lastChoice',
         'questionContext',
+        'rejectedConcepts',
         'systemRules',
         'task',
         'userContext',

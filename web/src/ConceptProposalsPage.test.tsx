@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { AccountPublic, ConceptProposal } from '@intento/shared';
+import type { AccountPublic, AiConceptReview, ConceptProposal } from '@intento/shared';
 import { ConceptProposalsPage } from './ConceptProposalsPage.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
@@ -35,14 +35,30 @@ function proposal(
 }
 
 /** Stateful nep-backend: voorstellen kunnen goedgekeurd/afgewezen worden; zoeken geeft één pictogram. */
-function fakeApi(initial: ConceptProposal[]): Api {
+function fakeApi(initial: ConceptProposal[], aiConcepts: AiConceptReview[] = []): Api {
   let proposals = [...initial];
+  let concepts = [...aiConcepts];
   const notImplemented = () =>
     Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
   const base = new Proxy({}, { get: () => notImplemented }) as Api;
   return {
     ...base,
     listConceptProposals: () => Promise.resolve({ proposals: [...proposals] }),
+    listAiConcepts: () => Promise.resolve({ concepts: [...concepts] }),
+    keepAiConcept: (id) => {
+      const kept = concepts.find((entry) => entry.symbol.id === id)!.symbol;
+      concepts = concepts.filter((entry) => entry.symbol.id !== id);
+      return Promise.resolve({ ...kept, isNew: false });
+    },
+    mergeAiConcept: (id) => {
+      const merged = concepts.find((entry) => entry.symbol.id === id)!.symbol;
+      concepts = concepts.filter((entry) => entry.symbol.id !== id);
+      return Promise.resolve(merged);
+    },
+    discardAiConcept: (id) => {
+      concepts = concepts.filter((entry) => entry.symbol.id !== id);
+      return Promise.resolve();
+    },
     searchAac: (q) =>
       Promise.resolve({
         symbols: [
@@ -55,6 +71,7 @@ function fakeApi(initial: ConceptProposal[]): Api {
             imageUrl: '/aac/images/s-walking',
             synonyms: [],
             attribution: null,
+            isNew: false,
           },
         ],
       }),
@@ -73,6 +90,7 @@ function fakeApi(initial: ConceptProposal[]): Api {
                 imageUrl: '/aac/images/s-walking',
                 synonyms: [],
                 attribution: null,
+                isNew: false,
               },
             }
           : p,
@@ -141,5 +159,104 @@ describe('conceptvoorstellen — reviewlijst', () => {
     expect(await screen.findByText('Afgewezen')).toBeTruthy();
     // Geen zoek-/afwijsknoppen meer voor een afgehandeld voorstel.
     await waitFor(() => expect(screen.queryByRole('button', { name: /afwijzen/i })).toBeNull());
+  });
+
+  // --- T10.7: nieuwe woorden van de AI beoordelen ---------------------------------------------
+
+  function aiConcept(overrides: {
+    id: string;
+    label: string;
+    timesChosen?: number;
+  }): AiConceptReview {
+    return {
+      symbol: {
+        id: overrides.id,
+        concept: overrides.label.toLowerCase(),
+        label: overrides.label,
+        category: 'object',
+        glyph: '🆕',
+        imageUrl: `/aac/images/${overrides.id}`,
+        synonyms: [],
+        attribution: null,
+        isNew: true,
+        hasImage: false,
+        children: [],
+        parents: [],
+      },
+      timesChosen: overrides.timesChosen ?? 1,
+      reason: 'de gebruiker wil iets met nagels',
+      createdAt: '2026-08-22T09:00:00.000Z',
+    };
+  }
+
+  it('toont een door de AI aangedragen nieuw woord met hoe vaak het gekozen is', async () => {
+    const api = fakeApi([], [aiConcept({ id: 'sym-1', label: 'Nagelknipper', timesChosen: 3 })]);
+    render(
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    expect(await screen.findByText('Nagelknipper')).toBeTruthy();
+    expect(screen.getByText('3 keer gekozen')).toBeTruthy();
+    expect(screen.getByText('de gebruiker wil iets met nagels')).toBeTruthy();
+  });
+
+  it('behoudt een nieuw woord: het verdwijnt uit de beoordeellijst', async () => {
+    const api = fakeApi([], [aiConcept({ id: 'sym-1', label: 'Nagelknipper' })]);
+    render(
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    fireEvent.click(await screen.findByLabelText('Nagelknipper behouden in de bibliotheek'));
+    await waitFor(() =>
+      expect(screen.getByText('Geen nieuwe woorden om te beoordelen.')).toBeTruthy(),
+    );
+  });
+
+  it('voegt een nieuw woord samen met een bestaand pictogram', async () => {
+    const api = fakeApi([], [aiConcept({ id: 'sym-1', label: 'Nagelknipper' })]);
+    render(
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    const search = await screen.findByLabelText('Zoek een pictogram om mee samen te voegen');
+    fireEvent.change(search, { target: { value: 'wandelen' } });
+    fireEvent.click(within(search.closest('.review__link')!).getByText('Zoeken'));
+
+    fireEvent.click(await screen.findByLabelText(/^Samenvoegen met Wandelen/));
+    await waitFor(() =>
+      expect(screen.getByText('Geen nieuwe woorden om te beoordelen.')).toBeTruthy(),
+    );
+  });
+
+  it('verwijdert een onbruikbaar nieuw woord', async () => {
+    const api = fakeApi([], [aiConcept({ id: 'sym-1', label: 'Nagelknipper' })]);
+    render(
+      <ConceptProposalsPage
+        api={api}
+        account={adminAccount}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+
+    fireEvent.click(await screen.findByLabelText('Nagelknipper verwijderen'));
+    await waitFor(() =>
+      expect(screen.getByText('Geen nieuwe woorden om te beoordelen.')).toBeTruthy(),
+    );
   });
 });

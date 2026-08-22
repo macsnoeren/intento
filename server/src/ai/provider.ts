@@ -39,6 +39,25 @@ export type AiUserContextItem = z.infer<typeof aiUserContextItemSchema>;
 /** De volgende pictogramvraag kiezen (DESIGN §7.1 taak 2) — de kern-taak sinds T5.1. */
 export const AI_TASK_SELECT_NEXT_QUESTION = 'select_next_question' as const;
 
+/**
+ * Eén door de gebruiker **afgewezen** concept, met het soort afwijzing (T10.4, DESIGN §7.5, ADR-0012).
+ *
+ * Tot Fase 10 werden afgewezen concepten alleen lokaal weggefilterd; het model kreeg simpelweg een
+ * kortere lijst en wist niet dát er iets was afgewezen — laat staan wát of waarom. Daardoor herhaalde
+ * het zijn redenering in dezelfde richting. De twee soorten vragen om verschillend gedrag:
+ *
+ * - `wrong_guess` — de gebruiker wees een **voorstel** af (❌ Nee): de afgelegde route klopte niet.
+ * - `no_fitting_option` — het juiste pictogram stond **niet tussen de aangeboden opties**: de gebruiker
+ *   weet het beter dan de aangeboden set; de AI moet een andere invalshoek zoeken, niet dezelfde
+ *   invalshoek met minder opties.
+ */
+export const aiRejectedConceptSchema = z.object({
+  concept: z.string().min(1),
+  label: z.string(),
+  kind: z.enum(['wrong_guess', 'no_fitting_option']),
+});
+export type AiRejectedConcept = z.infer<typeof aiRejectedConceptSchema>;
+
 /** Een natuurlijke zin vormen uit de bevestigde concepten (DESIGN §7.1 taak 4) — T5.3. */
 export const AI_TASK_GENERATE_MESSAGE = 'generate_message' as const;
 
@@ -71,6 +90,18 @@ export const aiPromptSchema = z.object({
   lastChoice: aiConceptRefSchema.nullable(),
   /** De op dit moment toegestane opties (AAC-begrensd). */
   availableSymbols: z.array(aiConceptRefSchema),
+  /**
+   * De eerder in deze sessie **gestelde vragen** (T10.4, DESIGN §7.5). Geen chatgeschiedenis: dit zijn
+   * uitsluitend door het systeem geformuleerde vragen, geen gebruikersinvoer. Doel: niet dezelfde vraag
+   * in andere bewoordingen opnieuw stellen.
+   */
+  askedQuestions: z.array(z.string()),
+  /**
+   * De in deze sessie **afgewezen** concepten met het soort afwijzing (T10.4, DESIGN §7.5). Deze staan
+   * bewust *niet* meer in `availableSymbols`; ze reizen mee zodat het model weet waaróm de lijst korter
+   * is en zijn richting kan verleggen.
+   */
+  rejectedConcepts: z.array(aiRejectedConceptSchema),
 });
 export type AiPrompt = z.infer<typeof aiPromptSchema>;
 

@@ -11,10 +11,11 @@ import {
   type ConversationChoiceResponse,
   type ConversationConfirmResponse,
   type ConversationGenerateResponse,
+  type AacSymbol as AacSymbolPublic,
   type ConversationStateResponse,
   type PendingQuestionResponse,
 } from '@intento/shared';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import { Prisma, type PrismaClient } from '../generated/prisma/client.js';
 import type {
   AacSymbolModel,
   ConversationSessionModel,
@@ -23,14 +24,19 @@ import type {
 import { HttpError } from '../errors.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { forbidAccountSession } from '../auth/authorize.js';
-import { currentQuestion, resolveOption, serializeHistory } from '../conversation/engine.js';
-import { decideNextQuestion, findAvailableCandidates } from '../conversation/decision.js';
+import { loadChildSymbols, serializeHistory } from '../conversation/engine.js';
+import { decideNextQuestion, type DecisionRejection } from '../conversation/decision.js';
 import { analyzeCorrection } from '../conversation/correction.js';
+import { readOfferedConcepts, readPendingOffer, type PendingOffer } from '../conversation/offer.js';
+import { readHypothesis } from '../conversation/hypothesis.js';
 import { composeMessage } from '../conversation/generate.js';
 import type { AiOrchestrator } from '../ai/orchestrator.js';
+import { DEFAULT_INTERPRETATION_CONFIDENCE, phaseForDecision } from '../ai/thresholds.js';
 import type { ChosenConcept } from '../conversation/message.js';
 import { symbolToPublic } from '../aac/library.js';
 import type { Encryptor } from '../crypto/encryption.js';
+import type { Env } from '../env.js';
+import type { OpenSymbolsClient } from '../aac/opensymbols.js';
 import { loadAllowedUserContext } from '../users/personal-context.js';
 import { learnFromConfirmedConcepts, loadPreferenceContext } from '../users/preferences.js';
 import type { AiUserContextItem } from '../ai/provider.js';
@@ -41,6 +47,10 @@ export interface ConversationRoutesDeps {
   orchestrator: AiOrchestrator;
   /** Veldversleuteling (T6.1): ontsleutelt de toegestane persoonlijke context voor het AI-contextobject. */
   encryptor: Encryptor;
+  /** Env voor het kandidaten-/conceptbeleid (T10.2/T10.6: `AI_MAX_CANDIDATES`, `AI_ALLOW_NEW_CONCEPTS`). */
+  env: Env;
+  /** Pictogrambron voor een nieuw, door de AI aangedragen concept (T10.6); mag uitgeschakeld zijn. */
+  openSymbols?: OpenSymbolsClient;
 }
 
 /** Route-parameter: het sessie-id uit het pad. */
@@ -96,17 +106,60 @@ async function loadUserContext(
 }
 
 /**
- * De in deze sessie **afgewezen** concepten (uit eerdere correcties, T5.4). Deze worden bij elke
- * volgende beslissing uitgesloten van de aangeboden opties, zodat een afgewezen route nooit opnieuw
- * wordt aangeboden (DESIGN §3.4, §7.5). Puur afgeleid uit de opgeslagen `CorrectionEvent`s, zodat de
- * uitsluiting blijft gelden voor de rest van de sessie (ook na `/back` of `/next`).
+ * De in deze sessie **afgewezen** concepten met het soort afwijzing (uit eerdere correcties, T5.4/T10.4).
+ * Deze worden bij elke volgende beslissing uitgesloten van de aangeboden opties én **meegegeven aan de
+ * AI**, zodat een afgewezen route nooit opnieuw wordt aangeboden én het model zijn richting kan verleggen
+ * (DESIGN §3.4, §7.5). Puur afgeleid uit de opgeslagen `CorrectionEvent`s, zodat de uitsluiting blijft
+ * gelden voor de rest van de sessie (ook na `/back` of `/next`). Bij een dubbel voorkomend concept wint
+ * `no_fitting_option`: dat is het sterkste signaal ("zoek in een andere richting").
  */
-async function loadRejectedConcepts(prisma: PrismaClient, sessionId: string): Promise<string[]> {
+async function loadRejections(
+  prisma: PrismaClient,
+  sessionId: string,
+): Promise<DecisionRejection[]> {
   const events = await prisma.correctionEvent.findMany({
     where: { sessionId },
-    select: { rejectedConcept: true },
+    select: { rejectedConcept: true, type: true },
   });
-  return events.map((event) => event.rejectedConcept);
+  const byConcept = new Map<string, DecisionRejection>();
+  for (const event of events) {
+    const kind = event.type === 'no_fitting_option' ? 'no_fitting_option' : 'wrong_guess';
+    const existing = byConcept.get(event.rejectedConcept);
+    if (existing && existing.kind === 'no_fitting_option') continue;
+    byConcept.set(event.rejectedConcept, { concept: event.rejectedConcept, kind });
+  }
+  return [...byConcept.values()];
+}
+
+/**
+ * Maakt het openstaande aanbod leeg, zodat de volgende `ensureOffer` een verse beslissing neemt. Nodig
+ * na elke gebeurtenis die de stand verandert: een keuze, een correctie of een afwijzing van het aanbod.
+ */
+async function clearPendingOffer(
+  prisma: PrismaClient,
+  session: ConversationSessionModel,
+): Promise<void> {
+  await prisma.conversationSession.update({
+    where: { id: session.id },
+    // `Prisma.DbNull` is de expliciete database-NULL voor een nullable Json-kolom (een gewone `null`
+    // zou de JSON-waarde `null` betekenen — een ander ding).
+    data: { pendingOffer: Prisma.DbNull },
+  });
+  session.pendingOffer = null;
+}
+
+/**
+ * De eerder in deze sessie **gestelde vragen** (T10.4, DESIGN §7.5). Reizen mee naar de AI zodat die niet
+ * dezelfde vraag in andere bewoordingen herhaalt. Bewust alleen door het systeem geformuleerde vragen —
+ * geen gebruikersinvoer, dus geen chatgeschiedenis.
+ */
+function askedQuestionsFrom(
+  steps: ConversationStepModel[],
+  pending: PendingOffer | null,
+): string[] {
+  const questions = steps.map((step) => step.question);
+  if (pending) questions.push(pending.question);
+  return [...new Set(questions.filter((question) => question.length > 0))];
 }
 
 /** Bouwt de geserialiseerde historie: laadt de bij de stappen horende symbolen en koppelt ze. */
@@ -143,43 +196,74 @@ async function buildMessageInput(
   return { symbols, chosen };
 }
 
+/** De context die elke beslissing/aanbod-berekening nodig heeft; één plek zodat de routes smal blijven. */
+interface DecisionDeps {
+  prisma: PrismaClient;
+  orchestrator: AiOrchestrator;
+  encryptor: Encryptor;
+  env: Env;
+  openSymbols?: OpenSymbolsClient;
+}
+
 /**
- * Bouwt de volledige gesprekstoestand (AI-gekozen vraag + historie) voor `start`/`next`/`back`. De
- * volgende vraag komt vanaf T5.2 uit de AI-beslissingslaag (`decideNextQuestion`): AAC-begrensd,
- * gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence`/`phase` reizen mee (§7.4).
+ * Zorgt dat er een **geldig, vastgelegd vraagaanbod** is voor de huidige stand van het gesprek (T10.3).
+ *
+ * Hoort het bewaarde aanbod bij het huidige aantal stappen, dan wordt dat teruggegeven — zonder
+ * AI-aanroep. Zo niet, dan neemt de beslissingslaag een nieuwe beslissing en wordt die op de sessie
+ * vastgelegd. Dat is sinds Fase 10 nodig omdat de beslissing géén pure functie van de stappen meer is:
+ * de kandidaten komen uit retrieval en de AI kiest daarbinnen, dus een tweede aanroep kan andere opties
+ * geven. Zonder vastlegging zou `↩ Terug` een ánder scherm tonen dan de gebruiker net zag, en zou een
+ * geldige keuze als `INVALID_CHOICE` geweigerd kunnen worden.
+ *
+ * Geeft `null` terug als er geen vraag meer is (de fase is `propose`: klaar om een boodschap voor te
+ * stellen). Ook dán wordt de uitkomst vastgelegd, zodat het voorstelscherm niet per verversing opnieuw
+ * de AI aanroept.
  */
-async function buildState(
-  prisma: PrismaClient,
-  orchestrator: AiOrchestrator,
-  encryptor: Encryptor,
+async function ensureOffer(
+  deps: DecisionDeps,
   session: ConversationSessionModel,
   steps: ConversationStepModel[],
   log?: FastifyBaseLogger,
-): Promise<ConversationStateResponse> {
-  // In deze sessie afgewezen concepten (T5.4) blijven uitgesloten — nooit dezelfde foutieve route (§7.5).
-  // De toegestane persoonlijke context (T6.1) reist mee naar de AI — alleen `aiUsageAllowed=true` (§6.3).
-  const [excluded, userContext] = await Promise.all([
-    loadRejectedConcepts(prisma, session.id),
+): Promise<{ offer: PendingOffer | null; done: boolean; confidence: number; phase: string }> {
+  const { prisma, orchestrator, encryptor, env } = deps;
+
+  const stored = readPendingOffer(session.pendingOffer, steps.length);
+  if (stored) {
+    return {
+      offer: stored,
+      done: false,
+      confidence: stored.confidence,
+      phase: stored.phase,
+    };
+  }
+
+  // In deze sessie afgewezen concepten (T5.4) blijven uitgesloten — nooit dezelfde foutieve route (§7.5) —
+  // en reizen als **signaal** mee naar de AI (T10.4). De toegestane persoonlijke context (T6.1) gaat
+  // alleen mee met toestemming (§6.3).
+  const [rejections, userContext] = await Promise.all([
+    loadRejections(prisma, session.id),
     loadUserContext(prisma, encryptor, session.userId),
   ]);
-  const [decision, history] = await Promise.all([
-    // Bij een vraagmodus-sessie (T7.1) reist de begeleidersvraag als context mee naar de AI, zodat de
-    // antwoorden op die vraag worden afgestemd (de opties blijven AAC-begrensd, §7.6).
-    decideNextQuestion(
-      prisma,
-      orchestrator,
-      steps,
-      excluded,
-      userContext,
-      session.caregiverQuestion,
-      anchoredStepsFor(session),
-    ),
-    buildHistory(prisma, steps),
-  ]);
 
-  // Zichtbaar maken wát de AI deed (T9.15): taak, hoeveel kandidaten er waren, hoeveel opties de AI zelf
-  // aandroeg, wat er uiteindelijk wordt aangeboden en waarom. Bewust alléén AAC-concepten en tellingen —
-  // geen persoonlijke context, geen boodschapinhoud (DESIGN §9.4).
+  const decision = await decideNextQuestion(prisma, orchestrator, {
+    steps,
+    rejections,
+    askedQuestions: askedQuestionsFrom(steps, null),
+    userContext,
+    // Bij een vraagmodus-sessie (T7.1) reist de begeleidersvraag als context mee naar de AI, zodat de
+    // antwoorden op die vraag worden afgestemd.
+    questionContext: session.caregiverQuestion,
+    anchoredSteps: anchoredStepsFor(session),
+    userId: session.userId,
+    maxCandidates: env.AI_MAX_CANDIDATES,
+    allowNewConcepts: env.AI_ALLOW_NEW_CONCEPTS,
+    icons: deps.openSymbols ?? null,
+    hypothesis: readHypothesis(session.hypothesis),
+  });
+
+  // Zichtbaar maken wát de AI deed (T9.15): taak, hoeveel kandidaten er waren (en waar ze vandaan
+  // kwamen), hoeveel opties de AI zelf aandroeg, wat er uiteindelijk wordt aangeboden en waarom. Bewust
+  // alléén AAC-concepten en tellingen — geen persoonlijke context, geen boodschapinhoud (DESIGN §9.4).
   log?.info(
     {
       ai: {
@@ -187,6 +271,7 @@ async function buildState(
         sessionId: session.id,
         step: steps.length,
         candidates: decision.diagnostics.candidateCount,
+        candidateSources: decision.diagnostics.candidateSources,
         aiOptions: decision.diagnostics.aiOptionCount,
         offered: decision.diagnostics.offered,
         widened: decision.diagnostics.widened,
@@ -195,22 +280,107 @@ async function buildState(
         done: decision.done,
         reason: decision.diagnostics.reason,
         proposedUnknown: decision.proposed,
+        createdConcepts: decision.created,
+        rejected: rejections.map((rejection) => `${rejection.concept}:${rejection.kind}`),
       },
     },
     'AI-beslissing voor de volgende vraag',
   );
 
-  return conversationStateResponseSchema.parse({
-    sessionId: session.id,
-    status: session.status,
-    question: decision.question,
+  const offer: PendingOffer | null = decision.question
+    ? {
+        stepCount: steps.length,
+        question: decision.question.prompt,
+        concepts: decision.question.options.map((option) => option.concept),
+        confidence: decision.confidence,
+        phase: decision.phase,
+      }
+    : null;
+
+  await prisma.conversationSession.update({
+    where: { id: session.id },
+    data: {
+      pendingOffer: offer ?? Prisma.DbNull,
+      // De hypothese leeft door over de beurten heen (T10.8); niet aanraken als er geen AI aan te pas kwam.
+      ...(decision.hypothesis ? { hypothesis: decision.hypothesis } : {}),
+    },
+  });
+  session.pendingOffer = offer;
+
+  return {
+    offer,
     done: decision.done,
     confidence: decision.confidence,
     phase: decision.phase,
+  };
+}
+
+/**
+ * Bouwt de volledige gesprekstoestand (vraag + historie) voor `start`/`next`/`back`/`correction`. De
+ * vraag komt uit het vastgelegde aanbod (`ensureOffer`), dat op zijn beurt uit de AI-beslissingslaag
+ * komt: gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence`/`phase` reizen mee (§7.4).
+ */
+async function buildState(
+  deps: DecisionDeps,
+  session: ConversationSessionModel,
+  steps: ConversationStepModel[],
+  log?: FastifyBaseLogger,
+): Promise<ConversationStateResponse> {
+  const [{ offer, done, confidence, phase }, history] = await Promise.all([
+    ensureOffer(deps, session, steps, log),
+    buildHistory(deps.prisma, steps),
+  ]);
+
+  const question = offer ? await questionFromOffer(deps.prisma, offer) : null;
+
+  return conversationStateResponseSchema.parse({
+    sessionId: session.id,
+    status: session.status,
+    question,
+    done: question === null && done,
+    confidence,
+    phase,
     history,
     // Bij vraagmodus toont de gebruikersapp de begeleidersvraag als context; `null` bij een vrij gesprek.
     caregiverQuestion: session.caregiverQuestion,
   });
+}
+
+/**
+ * Zet een vastgelegd aanbod om naar de te tonen vraag: de symbolen worden vers uit de bibliotheek
+ * geladen (zodat een intussen bijgewerkt label/pictogram meteen klopt) maar de **volgorde en samenstelling
+ * komen uit het aanbod**. Een concept dat intussen verwijderd is, valt weg; blijft er niets over, dan is
+ * er geen vraag meer.
+ */
+async function questionFromOffer(
+  prisma: PrismaClient,
+  offer: PendingOffer,
+): Promise<ConversationStateResponse['question']> {
+  if (offer.concepts.length === 0) return null;
+  const symbols = await prisma.aacSymbol.findMany({ where: { concept: { in: offer.concepts } } });
+  const byConcept = new Map<string, AacSymbolModel>(symbols.map((s) => [s.concept, s]));
+  const options = offer.concepts
+    .map((concept) => byConcept.get(concept))
+    .filter((symbol): symbol is AacSymbolModel => symbol !== undefined)
+    .map(symbolToPublic);
+  return options.length > 0 ? { prompt: offer.question, options } : null;
+}
+
+/**
+ * Valideert dat `symbolId` één van de **daadwerkelijk aangeboden** opties is en geeft het gekozen symbool
+ * + de bijbehorende vraag terug (T10.3). Vóór Fase 10 liep deze controle tegen de AAC-boom; sinds de
+ * kandidaten uit retrieval komen zou dat elke geldige keuze buiten de boom weigeren. `null` betekent:
+ * geen geldige keuze (onbekend id, of niet aangeboden, of er staat geen vraag open).
+ */
+async function resolveOfferedOption(
+  prisma: PrismaClient,
+  offer: PendingOffer | null,
+  symbolId: string,
+): Promise<{ symbol: AacSymbolPublic; question: string } | null> {
+  if (!offer) return null;
+  const symbol = await prisma.aacSymbol.findUnique({ where: { id: symbolId } });
+  if (!symbol || !offer.concepts.includes(symbol.concept)) return null;
+  return { symbol: symbolToPublic(symbol), question: offer.question };
 }
 
 /**
@@ -233,8 +403,10 @@ async function buildState(
  */
 export function registerConversationRoutes(
   app: FastifyInstance,
-  { prisma, orchestrator, encryptor }: ConversationRoutesDeps,
+  { prisma, orchestrator, encryptor, env, openSymbols }: ConversationRoutesDeps,
 ): void {
+  const deps: DecisionDeps = { prisma, orchestrator, encryptor, env, openSymbols };
+
   // Sessie starten — apparaat-auth. Maakt een ACTIVE sessie voor de eigen gebruiker en geeft de
   // startvraag terug (nog geen stappen).
   app.post(
@@ -246,7 +418,7 @@ export function registerConversationRoutes(
         data: { userId: device.userId, status: 'ACTIVE' },
       });
       reply.status(201);
-      return buildState(prisma, orchestrator, encryptor, session, [], request.log);
+      return buildState(deps, session, [], request.log);
     },
   );
 
@@ -268,9 +440,7 @@ export function registerConversationRoutes(
         return pendingQuestionResponseSchema.parse({ state: null });
       }
       const state = await buildState(
-        prisma,
-        orchestrator,
-        encryptor,
+        deps,
         session,
         await loadSteps(prisma, session.id),
         request.log,
@@ -294,39 +464,31 @@ export function registerConversationRoutes(
       }
 
       const steps = await loadSteps(prisma, session.id);
-      const resolved = await resolveOption(prisma, steps, symbolId);
+      // Het openstaande aanbod bepaalt wat een geldige keuze is (T10.3); staat er nog geen aanbod, dan
+      // wordt het hier alsnog berekend en vastgelegd.
+      const { offer } = await ensureOffer(deps, session, steps, request.log);
+      const resolved = await resolveOfferedOption(prisma, offer, symbolId);
       if (!resolved) {
         throw new HttpError(400, 'INVALID_CHOICE', 'Deze keuze hoort niet bij de huidige vraag.');
       }
 
-      const created = await prisma.conversationStep.create({
+      // De stap legt vast wélke opties er bij deze vraag zijn aangeboden en met welke zekerheid, zodat
+      // `↩ Terug` exact herstelt en "Geen van deze past" precies uitsluit wat de gebruiker gezien heeft.
+      await prisma.conversationStep.create({
         data: {
           sessionId: session.id,
           order: steps.length,
           question: resolved.question,
           selectedConcept: resolved.symbol.concept,
           selectedSymbolId: resolved.symbol.id,
-          confidence: null,
+          confidence: offer?.confidence ?? null,
+          offeredConcepts: offer?.concepts ?? [],
         },
       });
+      // Het aanbod is beantwoord: weg ermee, zodat er een nieuwe beslissing volgt.
+      await clearPendingOffer(prisma, session);
 
-      const state = await buildState(
-        prisma,
-        orchestrator,
-        encryptor,
-        session,
-        await loadSteps(prisma, session.id),
-        request.log,
-      );
-      // De interpretatie-zekerheid van de nieuwe toestand vastleggen op de zojuist gezette stap
-      // (§7.4; `ConversationStep.confidence` was `null` in de gescripte engine).
-      if (typeof state.confidence === 'number') {
-        await prisma.conversationStep.update({
-          where: { id: created.id },
-          data: { confidence: state.confidence },
-        });
-      }
-      return state;
+      return buildState(deps, session, await loadSteps(prisma, session.id), request.log);
     },
   );
 
@@ -346,7 +508,8 @@ export function registerConversationRoutes(
       }
 
       const steps = await loadSteps(prisma, session.id);
-      const resolved = await resolveOption(prisma, steps, symbolId);
+      const { offer } = await ensureOffer(deps, session, steps, request.log);
+      const resolved = await resolveOfferedOption(prisma, offer, symbolId);
       if (!resolved) {
         throw new HttpError(400, 'INVALID_CHOICE', 'Deze keuze hoort niet bij de huidige vraag.');
       }
@@ -358,12 +521,13 @@ export function registerConversationRoutes(
           question: resolved.question,
           selectedConcept: resolved.symbol.concept,
           selectedSymbolId: resolved.symbol.id,
-          confidence: null,
+          confidence: offer?.confidence ?? null,
+          offeredConcepts: offer?.concepts ?? [],
         },
       });
+      await clearPendingOffer(prisma, session);
 
       const newSteps = await loadSteps(prisma, session.id);
-      const nextQuestion = await currentQuestion(prisma, newSteps);
       reply.status(201);
       return conversationChoiceResponseSchema.parse({
         sessionId: session.id,
@@ -373,7 +537,9 @@ export function registerConversationRoutes(
           question: created.question,
           symbol: resolved.symbol,
         },
-        canRefine: nextQuestion !== null,
+        // Save-only: geen nieuwe AI-beslissing forceren. Of er nog te verfijnen valt, leiden we af uit
+        // de bibliotheek — het laatst gekozen concept is een eindconcept of niet (§7.4).
+        canRefine: (await loadChildSymbols(prisma, resolved.symbol.concept)).length > 0,
         history: await buildHistory(prisma, newSteps),
       });
     },
@@ -402,14 +568,25 @@ export function registerConversationRoutes(
       const last = steps[steps.length - 1]!;
       await prisma.conversationStep.delete({ where: { id: last.id } });
 
-      return buildState(
-        prisma,
-        orchestrator,
-        encryptor,
-        session,
-        await loadSteps(prisma, session.id),
-        request.log,
-      );
+      // Terug herstelt de vorige vraag **exact** (T4.1/T10.3): het aanbod komt uit wat er destijds bij
+      // die stap is aangeboden, niet uit een nieuwe AI-beslissing die andere opties zou kunnen kiezen.
+      const restored: PendingOffer = {
+        stepCount: steps.length - 1,
+        question: last.question,
+        concepts: readOfferedConcepts(last.offeredConcepts),
+        confidence: last.confidence ?? DEFAULT_INTERPRETATION_CONFIDENCE,
+        phase: phaseForDecision(last.confidence ?? DEFAULT_INTERPRETATION_CONFIDENCE, false),
+      };
+      // Stappen van vóór T10.3 hebben geen vastgelegd aanbod; dan valt de laag terug op een nieuwe
+      // beslissing (`ensureOffer` ziet een leeg aanbod als afwezig).
+      const pendingOffer = restored.concepts.length > 0 ? restored : null;
+      await prisma.conversationSession.update({
+        where: { id: session.id },
+        data: { pendingOffer: pendingOffer ?? Prisma.DbNull },
+      });
+      session.pendingOffer = pendingOffer;
+
+      return buildState(deps, session, await loadSteps(prisma, session.id), request.log);
     },
   );
 
@@ -443,15 +620,11 @@ export function registerConversationRoutes(
       const steps = await loadSteps(prisma, session.id);
 
       if (type === 'no_fitting_option') {
-        // De concepten die op dit punt aangeboden (kunnen) worden, uitsluiten voor de rest van de sessie.
-        // We rekenen ze hier opnieuw uit in plaats van de client te geloven: de bibliotheek bepaalt wat er
-        // op dit punt bestaat (§7.6), en zo kan een client nooit iets uitsluiten dat hier niet hoort.
-        const excludedNow = new Set<string>([
-          ...steps.map((step) => step.selectedConcept),
-          ...(await loadRejectedConcepts(prisma, session.id)),
-        ]);
-        const { available } = await findAvailableCandidates(prisma, steps, excludedNow);
-        if (available.length === 0) {
+        // Precies de concepten uitsluiten die de gebruiker **gezien** heeft (T10.3/T10.5): die staan in
+        // het vastgelegde aanbod. We geloven de client niet — het aanbod is server-side vastgelegd, dus
+        // een client kan nooit iets uitsluiten dat hier niet is aangeboden.
+        const { offer } = await ensureOffer(deps, session, steps, request.log);
+        if (!offer || offer.concepts.length === 0) {
           throw new HttpError(
             400,
             'NO_OPTIONS_TO_SKIP',
@@ -459,15 +632,18 @@ export function registerConversationRoutes(
           );
         }
         await prisma.correctionEvent.createMany({
-          data: available.map((symbol) => ({
+          data: offer.concepts.map((concept) => ({
             sessionId: session.id,
             type,
             stepOrder: steps.length,
-            rejectedConcept: symbol.concept,
+            rejectedConcept: concept,
           })),
         });
-        // Geen stappen teruggerold: de beslissingslaag zoekt vanzelf een niveau hoger verder (T9.14).
-        return buildState(prisma, orchestrator, encryptor, session, steps, request.log);
+        // Geen stappen teruggerold: de keuzes van de gebruiker blijven staan. Het aanbod vervalt, zodat
+        // de beslissingslaag een **nieuwe retrieval-ronde** doet met de afwijzing als signaal (T10.5) —
+        // een andere invalshoek dus, en géén terugval naar het startscherm.
+        await clearPendingOffer(prisma, session);
+        return buildState(deps, session, steps, request.log);
       }
 
       if (steps.length === 0) {
@@ -480,7 +656,13 @@ export function registerConversationRoutes(
         throw new HttpError(400, 'NO_STEPS_TO_CORRECT', 'Er is nog geen keuze om te corrigeren.');
       }
 
-      const { stepOrder, rejectedConcept } = analyzeCorrection(steps, anchored);
+      // De hypothese wijst het **kantelpunt** aan (T10.8): de stap waar de zekerheid het sterkst daalde.
+      // Zonder hypothese valt de analyse terug op de laagste per-stap-zekerheid (T5.4).
+      const { stepOrder, rejectedConcept } = analyzeCorrection(
+        steps,
+        anchored,
+        readHypothesis(session.hypothesis),
+      );
 
       // Foutstap + alles erna terugrollen en de correctie vastleggen — in één transactie zodat de
       // uitsluiting en de teruggerolde stappen altijd consistent zijn.
@@ -494,14 +676,8 @@ export function registerConversationRoutes(
       ]);
 
       // Gerichtere hervraag op het teruggerolde punt; het afgewezen concept valt weg via `buildState`.
-      return buildState(
-        prisma,
-        orchestrator,
-        encryptor,
-        session,
-        await loadSteps(prisma, session.id),
-        request.log,
-      );
+      await clearPendingOffer(prisma, session);
+      return buildState(deps, session, await loadSteps(prisma, session.id), request.log);
     },
   );
 
@@ -579,7 +755,14 @@ export function registerConversationRoutes(
         }),
         prisma.conversationSession.update({
           where: { id: session.id },
-          data: { status: 'COMPLETED' },
+          // De hypothese en het openstaande aanbod zijn **vluchtig** (T10.8, DESIGN §3.6): onzekere
+          // aannames horen niet bewaard te blijven na afronding. Alleen de bevestigde boodschap en de
+          // gelopen route blijven staan.
+          data: {
+            status: 'COMPLETED',
+            hypothesis: Prisma.DbNull,
+            pendingOffer: Prisma.DbNull,
+          },
         }),
       ]);
 

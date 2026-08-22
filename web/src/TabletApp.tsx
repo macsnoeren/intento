@@ -595,14 +595,24 @@ function OptionButton({
   disabled: boolean;
   onSelect: () => void;
 }): React.JSX.Element {
+  // Een nieuw woord (T10.6, DESIGN §7.6 trap 3) is door de AI aangedragen omdat het begrip nog niet in
+  // de bibliotheek stond. Dat wordt zichtbaar gemarkeerd: de gebruiker mag zien dat dit geen vertrouwd
+  // pictogram is maar een suggestie — hij kiest het nog steeds zelf (DESIGN §7.8). De markering staat
+  // ook in het `aria-label`, zodat ze niet alleen visueel is.
+  const label = symbol.isNew ? `${symbol.label} (nieuw woord)` : symbol.label;
   return (
     <button
-      className="option"
+      className={symbol.isNew ? 'option option--new' : 'option'}
       type="button"
       disabled={disabled}
-      aria-label={symbol.label}
+      aria-label={label}
       onClick={onSelect}
     >
+      {symbol.isNew ? (
+        <span className="option__badge" aria-hidden="true" title="Nieuw woord">
+          ✨
+        </span>
+      ) : null}
       <img
         className="option__image"
         src={apiUrl(symbol.imageUrl)}

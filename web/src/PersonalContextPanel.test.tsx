@@ -110,6 +110,10 @@ function fakeApi(): Api {
     listAacTopics: notImplemented,
     getAiStatus: notImplemented,
     listAiJobs: notImplemented,
+    listAiConcepts: notImplemented,
+    keepAiConcept: notImplemented,
+    mergeAiConcept: notImplemented,
+    discardAiConcept: notImplemented,
     ...contextApi,
   };
 }

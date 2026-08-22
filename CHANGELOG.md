@@ -5,6 +5,57 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Gewijzigd — Fase 10: de AI stuurt het gesprek
+
+- **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**
+  De harde regel "de AI mag tijdens communicatie geen vrije concepten verzinnen" is losgelaten: stond het
+  woord van de gebruiker niet in de bibliotheek, dan was er géén uitweg — hij zat vast in een woordenschat
+  die iemand anders voor hem had bepaald. Het eigenaarschap blijft geborgd doordat een nieuw concept nooit
+  méér is dan een **aanbod**: de gebruiker kiest en bevestigt zelf, en de beheerder houdt het laatste
+  woord over wat blijvend in de bibliotheek komt.
+- **T10.2 Kandidaten uit retrieval in plaats van uit één boomknoop** (`conversation/candidates.ts`).
+  De kandidatenset was letterlijk `loadChildSymbols(laatste keuze)`; dat was de hele wereld die het model
+  per beurt zag. `want` heeft drie kinderen, dus na "Iets willen" kón geen enkel model iets anders
+  voorstellen — de overige ~70 bibliotheekconcepten bestonden op dat moment niet. Nu komt de set uit vier
+  bronnen (boomkinderen → kleinkinderen → retrieval over de héle bibliotheek → geleerde voorkeuren),
+  begrensd op `AI_MAX_CANDIDATES`. Het startscherm blijft bewust de intentiecategorieën (DESIGN §3.1).
+- **T10.3 Het vraagaanbod wordt vastgelegd** (`ConversationSession.pendingOffer`,
+  `ConversationStep.offeredConcepts`). Sinds de kandidaten uit retrieval komen is de beslissing géén pure
+  functie van de stappen meer: een tweede aanroep kan andere opties kiezen. Zonder vastlegging zou
+  `↩ Terug` een ánder scherm tonen dan de gebruiker net zag, en zou een geldige keuze buiten de boom als
+  `INVALID_CHOICE` geweigerd worden. De keuzevalidatie loopt nu tegen wat er werkelijk is aangeboden.
+- **T10.4 De AI hoort nu wat de gebruiker níet wil.** Afgewezen concepten werden alleen lokaal
+  weggefilterd; het model kreeg simpelweg een kortere lijst en wist niet dát er iets was afgewezen, laat
+  staan wát. De prompt draagt nu `rejectedConcepts` (met soort `wrong_guess` / `no_fitting_option`) en
+  `askedQuestions`, plus regels die bij `no_fitting_option` om een **andere invalshoek** vragen. De
+  sleutelset blijft gesloten: het zijn AAC-concepten en door het systeem gestelde vragen, geen
+  chatgeschiedenis.
+- **T10.5 "Geen van deze past" is een echte uitweg geworden.** Het sloot het hele niveau uit, waarna de
+  beslissingslaag omhoog liep en bij de intentiecategorieën eindigde — de gebruiker die aangaf het beter
+  te weten, kreeg het startscherm terug (gereproduceerd in de derde gebruikerstest). Nu blijven zijn
+  keuzes staan en volgt een nieuwe ronde uit de resterende kandidaten, met de afwijzing als signaal. Het
+  aanbod heeft daarvoor een bovengrens gekregen (12 opties), zodat één afwijzing niet de hele
+  kandidatenset wegvaagt. Loopt een punt écht leeg, dan volgt eerst een **vrije ronde** (de AI mag zelf
+  begrippen aandragen), daarna de intentiecategorieën, en pas dán een boodschapvoorstel.
+- **T10.6 De AI mag een nieuw woord aandragen** (`aac/new-concept.ts`, env `AI_ALLOW_NEW_CONCEPTS`).
+  Een onbekend begrip werd stilzwijgend weggegooid. Nu: eerst **deduplicatie** tegen concept, label en
+  synoniem (anders loopt de bibliotheek vol met bijna-duplicaten), en is het echt nieuw, dan wordt er een
+  `AacSymbol` aangemaakt met herkomst `ai`, meteen een pictogram gezocht via OpenSymbols (met de bestaande
+  `https`/SSRF-guard, placeholder als terugval), en het geheel als voorstel vastgelegd. In de tablet is
+  zo'n woord zichtbaar gemarkeerd (✨, ook in het `aria-label`). Met `AI_ALLOW_NEW_CONCEPTS=false` blijft
+  de bibliotheek hard begrenzend.
+- **T10.7 Beheer: "Nieuwe woorden"** (`GET/POST/DELETE /admin/aac/new-concepts…`). De beheerder ziet de
+  door de AI aangedragen begrippen met hun pictogram, de motivering van de AI en hoe vaak ze al gekozen
+  zijn, en kan ze **behouden**, **samenvoegen** met een bestaand pictogram (het begrip wordt dan een
+  synoniem) of **verwijderen**. Het beoordeelpad weigert gewone bibliotheeksymbolen met `404`, zodat het
+  geen sluipweg is.
+- **T10.8 Hypothese per gesprek** (`conversation/hypothesis.ts`). Er was nergens vastgelegd wát de AI
+  dacht dat de gebruiker bedoelde — alleen een losse `confidence` per stap, rauw uit één modelantwoord,
+  waardoor de voorsteldrempel (>85%) op één uitschieter kon vuren. De hypothese houdt concepten, een over
+  beurten heen **gedempte** zekerheid en de geschiedenis bij; de correctieflow wijst de misstap nu aan op
+  het **kantelpunt** (de sterkste daling) in plaats van op de laagste per-stap-zekerheid als proxy. De
+  hypothese is vluchtig: bij `/confirm` wordt ze gewist (DESIGN §3.6).
+
 ### Toegevoegd
 - **T9.11 De AAC-bibliotheek loopt niet meer dood.** "Een vraag stellen" en "Iets zeggen" hadden geen
   enkele verfijning, dus wie ze koos kreeg meteen een voorstel ("Ik wil een vraag stellen.") in plaats

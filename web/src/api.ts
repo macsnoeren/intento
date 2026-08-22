@@ -3,6 +3,7 @@ import {
   aacTopicListResponseSchema,
   accountListResponseSchema,
   aacSymbolAdminSchema,
+  aiConceptReviewListResponseSchema,
   aacSymbolListResponseSchema,
   aiJobListResponseSchema,
   aiStatusResponseSchema,
@@ -44,6 +45,7 @@ import {
   type AccountListResponse,
   type AacSearchResponse,
   type AacSymbolAdmin,
+  type AiConceptReviewListResponse,
   type AacSymbolInput,
   type AacSymbolListResponse,
   type AacTopicListResponse,
@@ -238,6 +240,14 @@ export interface Api {
   approveConceptProposal(id: string, symbolId: string): Promise<ConceptProposal>;
   /** Voorstel afwijzen: het begrip blijft buiten de AAC-begrenzing. */
   rejectConceptProposal(id: string): Promise<ConceptProposal>;
+  /** Door de AI aangedragen, nog niet beoordeelde begrippen (T10.7, DESIGN §7.6 trap 4). */
+  listAiConcepts(): Promise<AiConceptReviewListResponse>;
+  /** Behouden: het begrip hoort in de bibliotheek; de "nieuw"-markering verdwijnt. */
+  keepAiConcept(id: string): Promise<AacSymbolAdmin>;
+  /** Samenvoegen: het begrip wordt een synoniem van een bestaand pictogram en verdwijnt als concept. */
+  mergeAiConcept(id: string, targetSymbolId: string): Promise<AacSymbolAdmin>;
+  /** Verwijderen: het begrip is onbruikbaar; symbool weg en voorstel afgewezen. */
+  discardAiConcept(id: string): Promise<void>;
   /** Versleuteld profiel van een gebruiker exporteren (T8.1, FR-019). */
   exportProfile(userId: string): Promise<ProfileExportResponse>;
   /** Een eerder geëxporteerd profiel importeren als nieuwe gebruiker in de eigen organisatie (T8.1). */
@@ -594,6 +604,25 @@ export const httpApi: Api & DeviceApi = {
     return conceptProposalSchema.parse(
       await request(`/admin/concept-proposals/${id}/reject`, { method: 'POST', body: '{}' }),
     );
+  },
+  async listAiConcepts() {
+    return aiConceptReviewListResponseSchema.parse(await request('/admin/aac/new-concepts'));
+  },
+  async keepAiConcept(id) {
+    return aacSymbolAdminSchema.parse(
+      await request(`/admin/aac/new-concepts/${id}/keep`, { method: 'POST', body: '{}' }),
+    );
+  },
+  async mergeAiConcept(id, targetSymbolId) {
+    return aacSymbolAdminSchema.parse(
+      await request(`/admin/aac/new-concepts/${id}/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ targetSymbolId }),
+      }),
+    );
+  },
+  async discardAiConcept(id) {
+    await request(`/admin/aac/new-concepts/${id}`, { method: 'DELETE' });
   },
   async exportProfile(userId) {
     return profileExportResponseSchema.parse(await request(`/users/${userId}/export`));

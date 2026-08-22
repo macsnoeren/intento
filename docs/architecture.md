@@ -119,20 +119,43 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   **valideert de provider-uitvoer opnieuw** met zod. De provider zit achter de injecteerbare
   `AiProvider`-interface (mock in tests, self-hosted LLM later), net als de OpenSymbols-client. Zie
   [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
+- **Kandidatenselectie** (`conversation/candidates.ts`, T10.2) — stelt per beurt samen waaruit de AI mag
+  kiezen. Vóór Fase 10 was dat letterlijk `loadChildSymbols(laatste keuze)`: de kinderen van één knoop in
+  de relatieboom, en dus de hele wereld die het model zag. Bij een smalle tak (`want` heeft er drie) had
+  de AI geen enkele ruimte om te achterhalen wat de gebruiker bedoelt. Nu komt de set uit vier bronnen,
+  ontdubbeld en begrensd op `AI_MAX_CANDIDATES`: **boomkinderen** → **kleinkinderen** (de concrete dingen
+  achter een abstracte tak) → **retrieval** over de héle bibliotheek (op `searchText`, gevoed door de
+  begeleidersvraag, de toegestane persoonlijke context en de labels van het gekozen pad) → **geleerde
+  voorkeuren**. De boom blijft het sterkste signaal, maar is niet langer de grens. Zie
+  [adr/0012](adr/0012-ai-generated-concepts.md).
+
 - **Validatielaag + confidence** (`ai/validation.ts`, `ai/thresholds.ts`, `conversation/decision.ts`,
-  T5.2) — het harde vangnet achter de provider (DESIGN §7.4–7.6, §7.8). De beslissingslaag laadt de
-  AAC-begrensde kandidaten uit de relatieboom, sluit reeds gekozen/afgewezen concepten uit (herhaling
-  vermijden), laat de orchestrator kiezen/ordenen, en toetst **elke** voorgestelde optie tegen de
-  bibliotheek: bestaand concept → houden; synoniem/label → omzetten; anders → `ConceptProposal` +
-  weglaten. Een onbekend/verzonnen concept bereikt de gebruiker dus **nooit** — ook niet van een
-  onbetrouwbare provider of latere externe worker. De **interpretatie-zekerheid** (§7.4) bepaalt de fase
-  (`select` <60% / `refine` 60–85% / `propose` >85% of eindconcept). Sinds de gebruikerstest (T9.10/T9.14)
-  gelden er drie extra regels: de AI **ordent** de kandidaten maar snoeit ze niet weg (de rest volgt
-  erachter en blijft via "Meer keuzes" bereikbaar), voorstellen mag pas ná een keuze van de **gebruiker**
-  (het anker van de begeleider in vraagmodus telt niet mee) en een punt zonder kandidaten laat de laag een
-  **niveau hoger** verder zoeken in plaats van een boodschap te verzinnen — een echt eindconcept levert
-  onveranderd een voorstel op. Zie
-  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
+  T5.2, herzien in Fase 10) — de laag tussen provider en gebruiker (DESIGN §7.4–7.6, §7.8). De
+  beslissingslaag sluit reeds gekozen/afgewezen concepten uit (herhaling vermijden) en geeft de
+  afwijzingen **expliciet mee in de prompt** (T10.4), zodat "geen van deze past" een richtingverandering
+  uitlokt in plaats van stil te verdwijnen. Elke voorgestelde optie gaat langs de bibliotheek: bestaand
+  concept → houden; synoniem/label → omzetten; aantoonbaar nieuw → als `AI_ALLOW_NEW_CONCEPTS` aanstaat
+  een symbool aanmaken met herkomst `ai` en status `PENDING` (inclusief pictogramzoekopdracht) plus een
+  `ConceptProposal`, anders alleen het voorstel en weglaten (T10.6). De deduplicatie op trap 1/2 gaat
+  altijd voor — zonder die volgorde loopt de bibliotheek vol met bijna-duplicaten.
+  De **interpretatie-zekerheid** (§7.4) bepaalt de fase (`select` <60% / `refine` 60–85% / `propose` >85%
+  of eindconcept) en wordt sinds T10.8 over beurten heen **gedempt** via de hypothese, zodat één
+  zelfverzekerd modelantwoord geen boodschap forceert. Verder gelden: voorstellen mag pas ná een keuze van
+  de **gebruiker** (het anker van de begeleider in vraagmodus telt niet mee, T9.14); het aanbod heeft een
+  onder- én bovengrens (T9.10/T10.5) zodat er altijd genoeg te kiezen is én "Geen van deze past" niet in
+  één klap alles uitsluit; en loopt een punt leeg, dan volgt eerst een **vrije ronde** (de AI mag zelf
+  begrippen aandragen), daarna de intentiecategorieën, en pas als laatste een boodschapvoorstel. Zie
+  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md) en
+  [adr/0012](adr/0012-ai-generated-concepts.md).
+
+- **Vastgelegd vraagaanbod en hypothese** (`conversation/offer.ts`, `conversation/hypothesis.ts`, T10.3/
+  T10.8) — de sessie bewaart het nog onbeantwoorde aanbod (`ConversationSession.pendingOffer`) en elke
+  stap bewaart wat er bij die vraag is aangeboden (`ConversationStep.offeredConcepts`). Nodig omdat de
+  beslissing sinds Fase 10 géén pure functie van de stappen meer is: `↩ Terug` herstelt daardoor exact
+  wat de gebruiker zag, en een keuze wordt gevalideerd tegen wat er werkelijk is aangeboden in plaats van
+  tegen de boom. De **hypothese** houdt per beurt bij wat de AI denkt dat de gebruiker bedoelt (concepten
+  + gedempte zekerheid + geschiedenis); ze levert het kantelpunt voor de correctieflow en wordt bij
+  `/confirm` gewist — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6).
 - **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,
   T5.5) — bij `AI_PROVIDER=queue` zet de `QueueAiProvider` aanvragen op een DB-wachtrij (`AiJob`) i.p.v.
   ze in-process uit te voeren; externe workers (T5.6) claimen jobs via **worker-initiated** long-poll

@@ -37,7 +37,7 @@ describe('gespreksflow met AI-provider — /conversation (T5.2)', () => {
 
   /**
    * Provider die één verzonnen concept ("teleporteren") plus één bestaand kandidaat-concept teruggeeft.
-   * Zo bewijzen we dat de validatielaag het verzonnen concept tegenhoudt, ongeacht wat de provider zegt.
+   * Zo bewijzen we wat de validatielaag met een niet-bestaand begrip doet, ongeacht wat de provider zegt.
    */
   const rogueProvider: AiProvider = {
     name: 'rogue',
@@ -57,9 +57,10 @@ describe('gespreksflow met AI-provider — /conversation (T5.2)', () => {
 
   async function startFor(
     orchestrator: AiOrchestrator,
+    envOverrides: Record<string, string> = {},
   ): Promise<{ cookie: string; sessionId: string }> {
     app = await buildApp({
-      env: testEnv({ DEVICE_LINK_RATE_LIMIT_MAX: '100' }),
+      env: testEnv({ DEVICE_LINK_RATE_LIMIT_MAX: '100', ...envOverrides }),
       orchestrator,
     });
     const user = await seedUser('Sanne');
@@ -79,8 +80,14 @@ describe('gespreksflow met AI-provider — /conversation (T5.2)', () => {
     return symbol.id;
   }
 
-  it('houdt een verzonnen concept van de provider tegen en legt het vast als ConceptProposal', async () => {
-    const { cookie, sessionId } = await startFor(new AiOrchestrator(rogueProvider));
+  it('houdt een verzonnen concept tegen met AI_ALLOW_NEW_CONCEPTS=false en legt het vast', async () => {
+    // De harde AAC-begrenzing bestaat nog steeds als **keuze** (env-schakelaar): staat ze aan, dan
+    // bereikt een verzonnen begrip de gebruiker nooit. Standaard staat ze uit — dan is een nieuw begrip
+    // juist de uitweg voor de gebruiker (T10.6, DESIGN §7.6 trap 3); dat pad staat in
+    // `conversation-fase10.test.ts`.
+    const { cookie, sessionId } = await startFor(new AiOrchestrator(rogueProvider), {
+      AI_ALLOW_NEW_CONCEPTS: 'false',
+    });
 
     const res = await app.inject({
       method: 'POST',
@@ -126,11 +133,20 @@ describe('gespreksflow met AI-provider — /conversation (T5.2)', () => {
     expect(typeof state.confidence).toBe('number');
     expect(state.phase).toBe('refine');
 
-    // De zekerheid is ook op de opgeslagen stap vastgelegd (was `null` in de gescripte engine).
+    // De zekerheid is ook op de opgeslagen stap vastgelegd (was `null` in de gescripte engine). Sinds
+    // T10.3 is dat de zekerheid waarmee de beantwoorde vraag werd **aangeboden**, niet die van de
+    // toestand erna: de stap legt vast wat de gebruiker te zien kreeg. De toestand erna is per definitie
+    // een nieuwe beslissing, met een over beurten heen gedempte zekerheid (T10.8).
     const step = await prisma.conversationStep.findFirst({
       where: { sessionId },
       orderBy: { order: 'desc' },
     });
-    expect(step!.confidence).toBeCloseTo(state.confidence!, 5);
+    expect(typeof step!.confidence).toBe('number');
+    expect(step!.confidence).toBeGreaterThan(0);
+    expect(step!.confidence).not.toBeCloseTo(state.confidence!, 5);
+
+    // De opgeslagen stap legt óók vast welke opties er bij die vraag zijn aangeboden (T10.3), zodat
+    // `↩ Terug` exact herstelt en "Geen van deze past" precies uitsluit wat de gebruiker zag.
+    expect(step!.offeredConcepts).toEqual(expect.arrayContaining(['want']));
   });
 });

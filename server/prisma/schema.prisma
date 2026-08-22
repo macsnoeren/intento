@@ -327,6 +327,15 @@ model AacSymbol {
   synonyms      Json
   /// Genormaliseerde zoekindex (lowercase); afgeleid, nooit rechtstreeks aan de client getoond.
   searchText    String
+  /// Herkomst van het symbool (T10.6, DESIGN §7.6 trap 3): "library" (seed of door een beheerder
+  /// toegevoegd) of "ai" (tijdens een gesprek door de AI aangedragen omdat het begrip nog niet bestond).
+  /// Op de API-grens gevalideerd; geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit.
+  origin        String   @default("library")
+  /// Beoordelingsstatus van een AI-gegenereerd symbool: "APPROVED" (bibliotheek, standaard) of
+  /// "PENDING" (nieuw, nog niet door een beheerder bekeken). Een PENDING-symbool doet gewoon mee in het
+  /// gesprek — dat is de hele bedoeling — maar wordt in de UI **zichtbaar gemarkeerd** als nieuw woord
+  /// en staat in de beheerlijst (T10.7). De gebruiker blijft eigenaar: hij kiest het zelf (DESIGN §7.8).
+  reviewStatus  String   @default("APPROVED")
   createdAt     DateTime @default(now())
 
   /// Relaties waarin dit symbool de ouder is (bv. "buiten" bevat "wandelen").
@@ -335,6 +344,7 @@ model AacSymbol {
   childLinks  AacConceptRelation[] @relation("child")
 
   @@index([category])
+  @@index([reviewStatus])
 }
 
 /// Een begripsrelatie tussen twee AAC-symbolen (DESIGN §6.2, FR-015, T3.1). Vormt de boom waarlangs
@@ -383,6 +393,23 @@ model ConversationSession {
   /// herkomst/diagnose — de eigenaar van de communicatie blijft de gebruiker (DESIGN §2, §3.3).
   startedByAccountId  String?
   startedAt DateTime @default(now())
+  /// Het nog **onbeantwoorde** vraagaanbod van deze sessie (T10.3, DESIGN §7.5): de getoonde vraag en
+  /// de aangeboden concepten in de getoonde volgorde, plus de fase/zekerheid van die beslissing.
+  /// Vorm: `{ stepCount, question, concepts[], confidence, phase, done }`, bij het lezen met zod
+  /// gevalideerd (`pendingOfferSchema`). `stepCount` maakt het aanbod zelf-invaliderend: hoort het niet
+  /// bij het huidige aantal stappen, dan wordt er een nieuwe beslissing genomen.
+  ///
+  /// Waarom opslaan en niet herleiden: sinds de kandidaten uit **retrieval** komen (T10.2) en niet meer
+  /// uit één boomknoop, is de beslissing geen pure functie meer van de stappen — een tweede AI-aanroep
+  /// zou andere opties kunnen kiezen. Zonder vastlegging zou `↩ Terug` dus niet exact herstellen en zou
+  /// een geldige keuze als `INVALID_CHOICE` geweigerd kunnen worden. `null` = geen openstaand aanbod.
+  pendingOffer Json?
+  /// De lopende **hypothese** van de AI over wat de gebruiker bedoelt (T10.8, DESIGN §7.1 taak 3, §7.4):
+  /// `{ concepts[], confidence, reason, history[] }`, bij het lezen met zod gevalideerd
+  /// (`hypothesisSchema`). Bewust **vluchtig**: bij het afronden van het gesprek (`/confirm`) wordt dit
+  /// leeggemaakt — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6). Bevat uitsluitend
+  /// AAC-concepten en getallen, nooit persoonlijke context (DESIGN §9.4).
+  hypothesis Json?
 
   user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   steps    ConversationStep[]
@@ -435,8 +462,17 @@ model ConversationStep {
   /// Het gekozen `AacSymbol`-id; `null` als het symbool later verwijderd is (geen harde FK i.v.m.
   /// de gedeelde, muteerbare bibliotheek). Zo blijft de historie leesbaar via `selectedConcept`.
   selectedSymbolId String?
-  /// Voorbereidend op de AI-fase; `null` in de gescripte engine (nog geen AI-zekerheid).
+  /// De interpretatie-zekerheid waarmee de vraag van déze stap werd **aangeboden** (§7.4); `null` als er
+  /// geen AI-zekerheid bekend was. Bewust de zekerheid op het aanbiedmoment en niet die van de toestand
+  /// erna: de stap legt vast wat de gebruiker te zien kreeg. De correctie-analyse gebruikt dit als
+  /// terugval; haar primaire signaal is het kantelpunt van de hypothese (T10.8).
   confidence       Float?
+  /// De concepten die bij déze vraag zijn **aangeboden**, in de getoonde volgorde (T10.3, DESIGN §7.5).
+  /// Twee doelen: (1) `↩ Terug` herstelt de vorige vraag met exact dezelfde opties in plaats van met een
+  /// nieuwe AI-beslissing, en (2) "Geen van deze past" sluit precies uit wat de gebruiker gezien heeft.
+  /// Vorm: `string[]` (conceptsleutels), bij het lezen met zod gevalideerd. Lege lijst voor stappen van
+  /// vóór T10.3.
+  offeredConcepts  Json     @default("[]")
   createdAt        DateTime @default(now())
 
   session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

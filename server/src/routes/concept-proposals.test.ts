@@ -106,11 +106,13 @@ describe('AI-conceptvoorstellen — /admin/concept-proposals (T7.3)', () => {
     const proposal = await seedProposal('teleporteren');
 
     // Vóór goedkeuring: de validatielaag houdt het onbekende concept tegen (bereikt de gebruiker niet).
-    const before = await validateAiOptions(
-      prisma,
-      [{ symbol: 'teleporteren', confidence: 0.95 }],
-      'test',
-    );
+    const before = await validateAiOptions(prisma, {
+      options: [{ symbol: 'teleporteren', confidence: 0.95 }],
+      reason: 'test',
+      // Bewust uit: deze test gaat over het **beheerpad** (goedkeuren koppelt het begrip aan een
+      // bestaand pictogram). Met trap 3 aan zou het begrip meteen een eigen nieuw symbool krijgen.
+      allowNewConcepts: false,
+    });
     expect(before.valid).toHaveLength(0);
     expect(before.proposed).toContain('teleporteren');
 
@@ -131,11 +133,11 @@ describe('AI-conceptvoorstellen — /admin/concept-proposals (T7.3)', () => {
 
     // Ná goedkeuring: de validatielaag resolvet het begrip naar het gekoppelde pictogram → het bereikt
     // de gebruiker (bruikbaar in een gesprek).
-    const after = await validateAiOptions(
-      prisma,
-      [{ symbol: 'teleporteren', confidence: 0.95 }],
-      'test',
-    );
+    const after = await validateAiOptions(prisma, {
+      options: [{ symbol: 'teleporteren', confidence: 0.95 }],
+      reason: 'test',
+      allowNewConcepts: false,
+    });
     expect(after.proposed).toHaveLength(0);
     expect(after.valid).toHaveLength(1);
     expect(after.valid[0]?.symbol.id).toBe(symbol.id);
@@ -154,11 +156,11 @@ describe('AI-conceptvoorstellen — /admin/concept-proposals (T7.3)', () => {
     expect(conceptProposalSchema.parse(res.json()).status).toBe('REJECTED');
 
     // Het begrip blijft onbekend voor de validatielaag: het bereikt de gebruiker nooit.
-    const result = await validateAiOptions(
-      prisma,
-      [{ symbol: 'teleporteren', confidence: 0.95 }],
-      'test',
-    );
+    const result = await validateAiOptions(prisma, {
+      options: [{ symbol: 'teleporteren', confidence: 0.95 }],
+      reason: 'test',
+      allowNewConcepts: false,
+    });
     expect(result.valid).toHaveLength(0);
     expect(result.proposed).toContain('teleporteren');
     // De upsert in de validatielaag reset een afgewezen voorstel niet terug naar PENDING.

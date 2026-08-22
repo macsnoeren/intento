@@ -43,6 +43,10 @@ export const AUDIT_ACTIONS = {
   // AI-conceptvoorstellen (T7.3)
   CONCEPT_PROPOSAL_APPROVE: 'concept_proposal.approve',
   CONCEPT_PROPOSAL_REJECT: 'concept_proposal.reject',
+  // Door de AI aangedragen concepten beoordelen (T10.7, DESIGN §7.6 trap 4)
+  AI_CONCEPT_KEEP: 'ai_concept.keep',
+  AI_CONCEPT_MERGE: 'ai_concept.merge',
+  AI_CONCEPT_DISCARD: 'ai_concept.discard',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

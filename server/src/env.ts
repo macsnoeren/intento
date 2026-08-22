@@ -169,6 +169,16 @@ const envSchema = z
     // want een worker die long-pollt doet weinig requests per minuut.
     AI_WORKER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(100_000).default(600),
     AI_WORKER_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
+    // --- Kandidatenselectie (T10.2, DESIGN §7.3, ADR-0012) ---
+    // Maximum aantal AAC-kandidaten dat per beurt aan de AI wordt voorgelegd. De kandidaten komen niet
+    // meer uit één tak van de begrippenboom maar uit retrieval over de héle bibliotheek; zonder bovengrens
+    // zou de prompt met de bibliotheek meegroeien. Ruim genoeg om de AI echt te laten kiezen, klein genoeg
+    // om de prompt (en dus latency/kosten) beheersbaar te houden.
+    AI_MAX_CANDIDATES: z.coerce.number().int().positive().max(200).default(30),
+    // Of de AI een concept mag aandragen dat nog niet in de bibliotheek bestaat (DESIGN §7.6 trap 3).
+    // Staat standaard aan: zonder deze uitweg zit de gebruiker vast in andermans woordenschat. Uitzetten
+    // maakt de bibliotheek weer hard begrenzend (onbekende concepten worden dan alleen een voorstel).
+    AI_ALLOW_NEW_CONCEPTS: booleanFromString.default(true),
   })
   .superRefine((value, ctx) => {
     // Een directe (in-process) LLM-provider heeft een verbindings-URL en model nodig; anders zou de

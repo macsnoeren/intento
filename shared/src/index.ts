@@ -690,6 +690,13 @@ export const aacSymbolSchema = z.object({
   synonyms: z.array(z.string()),
   imageUrl: z.string(),
   attribution: aacAttributionSchema.nullable(),
+  /**
+   * Of dit een **nieuw woord** is dat de AI tijdens een gesprek aandroeg en dat nog niet door een
+   * beheerder is bekeken (T10.6, DESIGN §7.6 trap 3). De gebruikersapp markeert zo'n pictogram
+   * zichtbaar, zodat de gebruiker ziet dat dit geen vertrouwd bibliotheekwoord is maar een suggestie —
+   * hij kiest het nog steeds zelf (DESIGN §7.8). `false` voor alles uit de beheerde bibliotheek.
+   */
+  isNew: z.boolean().default(false),
 });
 export type AacSymbol = z.infer<typeof aacSymbolSchema>;
 
@@ -1255,6 +1262,40 @@ export const approveConceptProposalRequestSchema = z.object({
   symbolId: z.string().min(1),
 });
 export type ApproveConceptProposalRequest = z.infer<typeof approveConceptProposalRequestSchema>;
+
+// --- Door de AI aangedragen concepten beoordelen (T10.7, DESIGN §7.6 trap 4, ADR-0012) ---
+
+/**
+ * Eén door de AI tijdens een gesprek aangemaakt symbool, zoals de beheerder het te zien krijgt
+ * (`GET /admin/aac/new-concepts`). Naast het pictogram zelf telt vooral hoe vaak het al gekozen is:
+ * een begrip dat mensen echt gebruiken verdient een goed pictogram, een eenmalige uitschieter niet.
+ */
+export const aiConceptReviewSchema = z.object({
+  symbol: aacSymbolAdminSchema,
+  /** Hoe vaak dit concept in bevestigde én lopende gesprekken is gekozen. */
+  timesChosen: z.number().int().min(0),
+  /** De onderbouwing van de AI bij het aandragen (uit het `ConceptProposal`), of `null`. */
+  reason: z.string().nullable(),
+  /** Wanneer het concept is aangemaakt. */
+  createdAt: z.iso.datetime(),
+});
+export type AiConceptReview = z.infer<typeof aiConceptReviewSchema>;
+
+/** Antwoord op `GET /admin/aac/new-concepts`: de nog niet beoordeelde AI-concepten, nieuwste eerst. */
+export const aiConceptReviewListResponseSchema = z.object({
+  concepts: z.array(aiConceptReviewSchema),
+});
+export type AiConceptReviewListResponse = z.infer<typeof aiConceptReviewListResponseSchema>;
+
+/**
+ * Samenvoegverzoek (`POST /admin/aac/new-concepts/:id/merge`): het bestaande pictogram waarin dit
+ * AI-concept opgaat. Het begrip wordt een **synoniem** van dat pictogram en verdwijnt als los concept,
+ * zodat de bibliotheek niet volloopt met bijna-duplicaten (DESIGN §7.6).
+ */
+export const mergeAiConceptRequestSchema = z.object({
+  targetSymbolId: z.string().min(1),
+});
+export type MergeAiConceptRequest = z.infer<typeof mergeAiConceptRequestSchema>;
 
 // --- Audit-log (T8.2, DESIGN §9.4) ---
 

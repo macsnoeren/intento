@@ -70,23 +70,25 @@ class ProcessJobTests(unittest.TestCase):
 
         self.assertEqual(backend.results["m1"]["message"], "Ik wil een appel.")
 
-    def test_unknown_concept_is_filtered_before_submit(self) -> None:
-        # Verzint de worker (Ollama) een concept buiten de bibliotheek, dan mag het het resultaat niet halen.
+    def test_new_concept_reaches_the_backend_behind_the_known_ones(self) -> None:
+        # Sinds DESIGN §7.6 trap 3 mag Ollama een begrip aandragen dat nog niet in de bibliotheek staat;
+        # de worker geeft het door en de **backend** beslist (eerst deduplicatie, dan eventueel een nieuw
+        # symbool + voorstel voor de beheerder). Bekende concepten gaan wel vóór in de volgorde.
         backend = FakeBackend()
-        bad = {
+        raw = {
             "question": "Wat wil je?",
             "options": [
-                {"symbol": "appel", "confidence": 0.9},
                 {"symbol": "ruimteschip", "confidence": 0.8},
+                {"symbol": "appel", "confidence": 0.9},
             ],
             "reason": "",
         }
-        ollama = FakeOllama(lambda *_: dict(bad))
+        ollama = FakeOllama(lambda *_: dict(raw))
         worker = Worker(make_config(), backend, ollama)  # type: ignore[arg-type]
 
         worker.process_job(Job(id="j1", task="select_next_question", payload=QUESTION_PAYLOAD))
         symbols = [opt["symbol"] for opt in backend.results["j1"]["options"]]
-        self.assertEqual(symbols, ["appel"])
+        self.assertEqual(symbols, ["appel", "ruimteschip"])
 
     def test_ollama_error_fails_job_without_crashing(self) -> None:
         backend = FakeBackend()

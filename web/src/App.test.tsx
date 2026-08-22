@@ -402,6 +402,18 @@ function fakeApi(
     listAiJobs() {
       return Promise.resolve({ jobs: [] });
     },
+    listAiConcepts() {
+      return Promise.resolve({ concepts: [] });
+    },
+    keepAiConcept() {
+      return Promise.reject(new Error('niet in deze test'));
+    },
+    mergeAiConcept() {
+      return Promise.reject(new Error('niet in deze test'));
+    },
+    discardAiConcept() {
+      return Promise.reject(new Error('niet in deze test'));
+    },
     getAiStatus() {
       return Promise.resolve({
         mode: 'mock' as const,

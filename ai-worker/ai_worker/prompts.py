@@ -40,6 +40,20 @@ def _concept_ref(item: Any) -> tuple[str, str] | None:
     return concept, (label if isinstance(label, str) else concept)
 
 
+def _rejected_refs(value: Any) -> list[tuple[str, str, str]]:
+    """Leest de afgewezen concepten ({concept,label,kind}) uit de payload; slaat foute vormen over."""
+    if not isinstance(value, list):
+        return []
+    refs: list[tuple[str, str, str]] = []
+    for item in value:
+        ref = _concept_ref(item)
+        if ref is None:
+            continue
+        kind = item.get("kind") if isinstance(item, dict) else None
+        refs.append((ref[0], ref[1], kind if isinstance(kind, str) else "wrong_guess"))
+    return refs
+
+
 def _clamp_confidence(value: Any) -> float | None:
     """Klemt een confidence naar [0, 1]; geeft None als het geen getal is (dan blijft het veld weg)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -66,9 +80,12 @@ _QUESTION_OUTPUT_SPEC = (
     'Antwoord met UITSLUITEND één JSON-object, geen extra tekst, exact in deze vorm:\n'
     '{"question": "<de volgende vraag aan de gebruiker>", '
     '"options": [{"symbol": "<een conceptsleutel uit de TOEGESTANE OPTIES>", "confidence": <getal 0..1>}], '
-    '"reason": "<korte onderbouwing>"}\n'
-    '- Gebruik voor "symbol" uitsluitend een van de aangeboden conceptsleutels (niet het label, niet een '
-    "nieuw woord).\n"
+    '"reason": "<korte onderbouwing>", "confidence": <getal 0..1>}\n'
+    '- Gebruik voor "symbol" bij voorkeur een van de aangeboden conceptsleutels (de sleutel, niet het '
+    "label).\n"
+    "- Past er aantoonbaar geen enkele aangeboden optie, dan mag ÉÉN van de opties een nieuw begrip zijn: "
+    'een kort Nederlands woord als conceptsleutel (bv. "nagelknipper"). Doe dit alleen als het echt '
+    "ontbreekt; de backend controleert of het begrip niet al onder een ander woord bestaat.\n"
     "- Vul alle velden; laat geen veld weg en verzin geen andere veldnamen."
 )
 
@@ -82,8 +99,9 @@ _MESSAGE_OUTPUT_SPEC = (
 def build_select_next_question(payload: dict[str, Any]) -> tuple[str, str, dict[str, Any], list[str]]:
     """Bouwt (system, prompt, schema, allowed_concepts) voor de vraagselectie-taak.
 
-    `allowed_concepts` zijn de conceptsleutels uit `availableSymbols`; de worker gebruikt ze zowel om
-    Ollama via een `enum` te beperken als om de uitvoer achteraf op te schonen.
+    `allowed_concepts` zijn de conceptsleutels uit `availableSymbols`. Sinds DESIGN §7.6 trap 3 begrenzen
+    ze de uitvoer **niet** meer hard (het model mag een nieuw begrip aandragen als niets past); ze blijven
+    beschikbaar voor diagnose en voor het opschonen van evident onbruikbare sleutels.
     """
     system_rules = _as_str_list(payload.get("systemRules"))
     aac_rules = _as_str_list(payload.get("aacRules"))
@@ -93,6 +111,8 @@ def build_select_next_question(payload: dict[str, Any]) -> tuple[str, str, dict[
     conversation = [ref for ref in map(_concept_ref, payload.get("conversationContext") or []) if ref]
     user_context = payload.get("userContext") or []
     last = _concept_ref(payload.get("lastChoice"))
+    asked_questions = _as_str_list(payload.get("askedQuestions"))
+    rejected = _rejected_refs(payload.get("rejectedConcepts"))
 
     allowed_concepts = [concept for concept, _ in available]
 
@@ -103,8 +123,14 @@ def build_select_next_question(payload: dict[str, Any]) -> tuple[str, str, dict[
     prompt_lines += ["", "GESPREKSCONTEXT (reeds gekozen concepten):"]
     prompt_lines += [f"- {concept} ({label})" for concept, label in conversation]
     prompt_lines += ["", f"LAATSTE KEUZE: {last[0] if last else '(geen)'}"]
-    prompt_lines += ["", "TOEGESTANE OPTIES (kies uitsluitend hieruit):"]
+    prompt_lines += ["", "TOEGESTANE OPTIES (kies hier bij voorkeur uit):"]
     prompt_lines += [f"- {concept} ({label})" for concept, label in available]
+    prompt_lines += ["", "AL GESTELDE VRAGEN (niet herhalen):"]
+    prompt_lines += [f"- {question}" for question in asked_questions] or ["- (geen)"]
+    prompt_lines += ["", "AFGEWEZEN DOOR DE GEBRUIKER (niet opnieuw aanbieden):"]
+    prompt_lines += [f"- {concept} ({label}) — {kind}" for concept, label, kind in rejected] or [
+        "- (geen)"
+    ]
 
     schema: dict[str, Any] = {
         "type": "object",
@@ -115,11 +141,11 @@ def build_select_next_question(payload: dict[str, Any]) -> tuple[str, str, dict[
                 "items": {
                     "type": "object",
                     "properties": {
-                        "symbol": (
-                            {"type": "string", "enum": allowed_concepts}
-                            if allowed_concepts
-                            else {"type": "string"}
-                        ),
+                        # Bewust GEEN `enum` meer: sinds DESIGN §7.6 trap 3 mag het model een nieuw
+                        # begrip aandragen als geen enkele bestaande optie past. Een enum zou dat hard
+                        # onmogelijk maken. De backend valideert elke sleutel alsnog tegen de
+                        # bibliotheek (deduplicatie eerst) — de vrijheid hier is geen vertrouwensbasis.
+                        "symbol": {"type": "string"},
                         "confidence": {"type": "number"},
                     },
                     "required": ["symbol", "confidence"],
@@ -167,28 +193,34 @@ def build_generate_message(payload: dict[str, Any]) -> tuple[str, str, dict[str,
 def shape_question_result(raw: dict[str, Any], allowed_concepts: list[str]) -> dict[str, Any]:
     """Vormt de Ollama-uitvoer tot een geldig vraagbesluit-resultaat voor de backend.
 
-    Opties met een onbekend concept worden weggelaten (de backend zou ze anders alsnog weigeren/als
-    ConceptProposal afhandelen); confidences worden naar [0, 1] geklemd. Gooit `PromptError` als er geen
-    bruikbare vraag/opties overblijven.
+    Onbekende concepten worden **niet** meer weggegooid: sinds DESIGN §7.6 trap 3 mag het model een nieuw
+    begrip aandragen, en de backend beslist wat ermee gebeurt (eerst deduplicatie tegen de bibliotheek,
+    dan eventueel een nieuw symbool + voorstel voor de beheerder). Wat hier wél gebeurt: sleutels
+    normaliseren, lege/onbruikbare vormen overslaan en confidences naar [0, 1] klemmen. `allowed_concepts`
+    dient alleen nog om te bepalen of een sleutel bekend is (voor de volgorde: bekende opties eerst).
+    Gooit `PromptError` als er geen bruikbare vraag overblijft.
     """
     question = raw.get("question")
     if not isinstance(question, str) or not question.strip():
         raise PromptError("Ollama-uitvoer mist een geldige 'question'.")
 
     allowed = set(allowed_concepts)
-    options: list[dict[str, Any]] = []
+    known: list[dict[str, Any]] = []
+    novel: list[dict[str, Any]] = []
     for item in raw.get("options") or []:
         if not isinstance(item, dict):
             continue
         symbol = item.get("symbol")
-        if not isinstance(symbol, str) or not symbol:
+        if not isinstance(symbol, str) or not symbol.strip():
             continue
-        if allowed and symbol not in allowed:
-            continue  # onbekend concept: weglaten (nooit vertrouwen)
         confidence = _clamp_confidence(item.get("confidence"))
         if confidence is None:
             confidence = 0.5
-        options.append({"symbol": symbol, "confidence": confidence})
+        option = {"symbol": symbol.strip(), "confidence": confidence}
+        # Bekende sleutels eerst: als het model zowel bestaande als nieuwe begrippen aandraagt, krijgt de
+        # beheerde bibliotheek voorrang (DESIGN §7.6: trap 1/2 gaan vóór trap 3).
+        (known if option["symbol"] in allowed else novel).append(option)
+    options = known + novel
 
     result: dict[str, Any] = {
         "question": question.strip(),

@@ -6,6 +6,7 @@ import {
   type AiConceptRef,
   type AiMessagePrompt,
   type AiPrompt,
+  type AiRejectedConcept,
   type AiUserContextItem,
 } from './provider.js';
 
@@ -14,10 +15,16 @@ import {
  *
  * Dit is de enige plek die een `AiPrompt` vormt. Elke aanroep krijgt uitsluitend:
  * `systeemregels + doel + AAC-regels + gebruikerscontext + gesprekscontext + laatste keuze +
- * toegestane opties`. Er is **geen** veld voor chatgeschiedenis of vrije invoer — de sleutelset is
- * gesloten (afgedwongen door `aiPromptSchema`), zodat aantoonbaar alléén toegestane context de provider
- * bereikt. De gesprekscontext zijn puur de gekozen AAC-concepten (geen tekstlog), en de opties zijn
- * AAC-begrensd (DESIGN §7.6).
+ * toegestane opties + gestelde vragen + afgewezen concepten`. Er is **geen** veld voor chatgeschiedenis
+ * of vrije gebruikersinvoer — de sleutelset is gesloten (afgedwongen door `aiPromptSchema`), zodat
+ * aantoonbaar alléén toegestane context de provider bereikt. De gesprekscontext zijn puur de gekozen
+ * AAC-concepten (geen tekstlog), en de aangeboden opties komen uit de beheerde bibliotheek.
+ *
+ * Sinds T10.4 reist ook de **negatieve** context mee (`askedQuestions`, `rejectedConcepts`, DESIGN §7.5):
+ * zonder die velden zag het model alleen een kortere optielijst en herhaalde het zijn redenering, waardoor
+ * "geen van deze past" geen enkel effect had op de richting van het gesprek. Ook dit blijft gesloten en
+ * afgeleid: het zijn AAC-concepten en door het systeem geformuleerde vragen, geen vrije tekst van de
+ * gebruiker.
  */
 
 /**
@@ -30,21 +37,29 @@ export const SYSTEM_RULES: readonly string[] = [
   'Je verzint nooit een boodschap zonder basis in de keuzes van de gebruiker.',
   'Je voegt nooit persoonlijke informatie toe die niet expliciet in de context staat.',
   'Je spreekt nooit namens de gebruiker; de gebruiker blijft eigenaar van de boodschap.',
-  'Je kiest uitsluitend uit de aangeboden AAC-concepten; je verzint geen nieuwe concepten.',
+  'Je biedt alleen keuzes aan; de gebruiker kiest zelf en bevestigt zelf.',
   'Je krijgt per beurt verse, beperkte context — geen chatgeschiedenis; baseer je alleen hierop.',
 ];
 
 /** Het doel van Intento zoals het model het per aanroep meekrijgt (DESIGN §1, §7.1). */
 export const GOAL =
-  'Bepaal de meest waardevolle volgende pictogramvraag: verminder onzekerheid, overlaad de ' +
-  'gebruiker niet, en kies de snelste route naar de bedoelde betekenis. Formuleer de vraag in het ' +
-  'Nederlands, kort en eenvoudig, en richt je rechtstreeks tot de gebruiker.';
+  'Achterhaal wat de gebruiker wil zeggen. Bepaal de meest waardevolle volgende pictogramvraag: ' +
+  'verminder onzekerheid, overlaad de gebruiker niet, en kies de snelste route naar de bedoelde ' +
+  'betekenis. Kijk daarbij naar wat de gebruiker al koos én naar wat hij afwees — een afwijzing is een ' +
+  'aanwijzing dat je in de verkeerde richting zoekt. Formuleer de vraag in het Nederlands, kort en ' +
+  'eenvoudig, en richt je rechtstreeks tot de gebruiker.';
 
 /** AAC-begrenzingsregels (DESIGN §7.6). */
 export const AAC_RULES: readonly string[] = [
-  'Elk voorgesteld symbool moet een bestaand concept uit de aangeboden opties zijn.',
-  'Bied geen concepten aan buiten de meegegeven "availableSymbols".',
+  'Kies bij voorkeur uit de aangeboden "availableSymbols"; dat zijn bestaande, beheerde pictogrammen.',
+  'Staat het begrip dat de gebruiker nodig heeft er aantoonbaar niet bij, dan mag je één nieuw, kort ' +
+    'Nederlands begrip voorstellen — controleer eerst of het niet al als optie bestaat, ook niet onder ' +
+    'een ander woord. Verzin nooit een nieuw begrip als er een passende bestaande optie is.',
   'Herhaal geen vraag of optie die al eerder in de gesprekscontext is gekozen.',
+  'Bied geen concept aan dat in "rejectedConcepts" staat.',
+  'Staat er een concept met soort "no_fitting_option" bij de afwijzingen, dan zocht je in de verkeerde ' +
+    'richting: verleg de invalshoek in plaats van dezelfde richting met minder opties aan te bieden.',
+  'Stel geen vraag die al in "askedQuestions" staat, ook niet in andere bewoordingen.',
 ];
 
 /** Het doel bij boodschapgeneratie (T5.3, DESIGN §7.1 taak 4, §7.8). */
@@ -73,10 +88,13 @@ export interface AiPromptInput {
   userContext?: AiUserContextItem[];
   /**
    * De begeleidersvraag bij de **vraagmodus** (T7.1, DESIGN §3.2). Optioneel; `null`/weggelaten bij een
-   * vrij gesprek. Reist als context mee zodat de AI de antwoorden op de vraag afstemt (de opties blijven
-   * hoe dan ook AAC-begrensd tot `availableSymbols`).
+   * vrij gesprek. Reist als context mee zodat de AI de antwoorden op de vraag afstemt.
    */
   questionContext?: string | null;
+  /** De eerder gestelde vragen in deze sessie (T10.4, §7.5); leeg aan het begin. */
+  askedQuestions?: string[];
+  /** De afgewezen concepten met hun soort afwijzing (T10.4, §7.5); leeg als er niets is afgewezen. */
+  rejectedConcepts?: AiRejectedConcept[];
 }
 
 /**
@@ -99,6 +117,8 @@ export function buildAiPrompt(input: AiPromptInput): AiPrompt {
     conversationContext,
     lastChoice,
     availableSymbols: input.availableSymbols,
+    askedQuestions: input.askedQuestions ?? [],
+    rejectedConcepts: input.rejectedConcepts ?? [],
   });
 }
 
@@ -124,6 +144,12 @@ export function renderPromptText(prompt: AiPrompt): string {
   lines.push('', `LAATSTE KEUZE: ${prompt.lastChoice ? prompt.lastChoice.concept : '(geen)'}`);
   lines.push('', 'TOEGESTANE OPTIES:');
   for (const ref of prompt.availableSymbols) lines.push(`- ${ref.concept} (${ref.label})`);
+  lines.push('', 'AL GESTELDE VRAGEN (niet herhalen):');
+  for (const question of prompt.askedQuestions) lines.push(`- ${question}`);
+  lines.push('', 'AFGEWEZEN DOOR DE GEBRUIKER (niet opnieuw aanbieden):');
+  for (const rejected of prompt.rejectedConcepts) {
+    lines.push(`- ${rejected.concept} (${rejected.label}) — ${rejected.kind}`);
+  }
   return lines.join('\n');
 }
 

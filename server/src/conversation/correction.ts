@@ -1,4 +1,5 @@
 import type { ConversationStepModel } from '../generated/prisma/models.js';
+import { tippingPoint, type Hypothesis } from './hypothesis.js';
 
 /**
  * Correctie-heranalyse voor de gespreksflow (T5.4, DESIGN §3.4, §7.6, FR-009).
@@ -8,9 +9,15 @@ import type { ConversationStepModel } from '../generated/prisma/models.js';
  * vraag. De heranalyse is bewust een **pure functie van de opgeslagen stappen**, zodat ze deterministisch
  * met de mock-provider te testen is en geen extra AI-aanroep nodig heeft.
  *
- * Signaal voor de foutstap: de per-stap vastgelegde **interpretatie-zekerheid** (`ConversationStep.
- * confidence`, §7.4), die tijdens `/next` uit de AI-beslissing komt. De stap met de **laagste** zekerheid
- * is het punt waar het model het minst zeker was over de intentie — de meest waarschijnlijke misstap.
+ * Signaal voor de foutstap, in volgorde van sterkte:
+ *
+ *  1. **Het kantelpunt van de hypothese** (T10.8): de stap waarna de gedempte zekerheid het sterkst
+ *     daalde. Dat is het punt waar de AI het meest van gedachten veranderde — een direct signaal dat het
+ *     daar misging, in plaats van een proxy.
+ *  2. **De laagste per-stap-zekerheid** (T5.4): de terugval als er (nog) geen hypothesegeschiedenis is,
+ *     bijvoorbeeld bij een sessie van vóór Fase 10 of na één enkele beurt.
+ *  3. **De laatste stap**, als er van geen enkele stap zekerheid bekend is.
+ *
  * Deze materialiseert de "heranalyse van eerdere keuzes" uit DESIGN §3.4 zonder een aparte AI-call.
  */
 
@@ -38,11 +45,21 @@ export function analyzeCorrection(
    * uit de gestelde vraag, precies zoals `/back` het anker al beschermt.
    */
   anchoredSteps = 0,
+  /** De lopende hypothese (T10.8); levert het kantelpunt. `null` → terugval op de per-stap-zekerheid. */
+  hypothesis: Hypothesis | null = null,
 ): CorrectionAnalysis {
   const correctable = steps.filter((step) => step.order >= anchoredSteps);
   // Alleen het anker over: er valt niets van de gebruiker terug te rollen. De aanroeper heeft dit al
   // afgevangen; als terugval wijzen we de laatste stap aan zonder hem te beschermen.
   const scope = correctable.length > 0 ? correctable : steps;
+
+  // 1. Het kantelpunt van de hypothese, mits het binnen de corrigeerbare stappen valt (het anker van de
+  //    begeleider blijft beschermd, T9.14).
+  const tipping = tippingPoint(hypothesis);
+  if (tipping !== null) {
+    const step = scope.find((candidate) => candidate.order === tipping);
+    if (step) return { stepOrder: step.order, rejectedConcept: step.selectedConcept };
+  }
 
   const withConfidence = scope.filter(
     (step): step is (typeof scope)[number] & { confidence: number } =>

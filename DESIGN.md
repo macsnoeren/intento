@@ -214,6 +214,15 @@ Profielexport bevat: communicatieprofiel, persoonlijke context, voorkeuren, inst
 
 Factoren: wat is al gekozen (context), wat past bij deze gebruiker (persoon), wat is waarschijnlijk bedoeld (waarschijnlijkheid), welke vraag geeft de meeste duidelijkheid (informatiewaarde). Niet "alle activiteiten tonen", maar gepersonaliseerd op basis van profiel en historie.
 
+**De kandidatenset is niet één tak van de begrippenboom.** De AAC-relatieboom is een sterk *signaal* (de kinderen van de laatste keuze zijn meestal de meest relevante verfijning), maar niet de grens van wat de AI mag voorstellen. Per beurt wordt de kandidatenset samengesteld uit vier bronnen, ontdubbeld en begrensd op een maximum:
+
+1. **Boomkinderen** — de verfijningen van de laatste keuze; het sterkste signaal.
+2. **Retrieval over de hele bibliotheek** — concepten die tekstueel/semantisch aansluiten bij de begeleidersvraag, de toegestane persoonlijke context en het reeds gekozen pad.
+3. **Geleerde voorkeuren** — de concepten die deze gebruiker vaker bevestigde (alleen als leren aanstaat).
+4. **Intentiecategorieën** — als bodem, zodat er altijd een begin is.
+
+Zonder stap 2 is de AI machteloos zodra een tak smal is: een intentie met drie kinderen laat het model geen enkele ruimte om te achterhalen wat de gebruiker bedoelt, hoe goed het model ook is. Dat was de oorzaak van de bevinding uit de derde gebruikerstest (Fase 10).
+
 ### 7.4 Confidence-model
 
 Elke interpretatie krijgt een zekerheidsscore:
@@ -228,9 +237,30 @@ Elke interpretatie krijgt een zekerheidsscore:
 
 De AI houdt bij: eerdere vragen, getoonde opties, afgewezen keuzes. Nooit dezelfde vraag opnieuw, nooit dezelfde foutieve route, geen irrelevante opties.
 
+Dat bijhouden is meer dan een filter: de **negatieve context reist expliciet mee in de prompt**. Het model krijgt per aanroep:
+
+- **`askedQuestions`** — de eerder in deze sessie gestelde vragen, zodat het niet dezelfde vraag anders formuleert.
+- **`rejectedConcepts`** — de afgewezen concepten met hun soort afwijzing:
+  - `wrong_guess` — de gebruiker wees een *voorstel* af (❌ Nee); de route klopte niet.
+  - `no_fitting_option` — het juiste pictogram stond niet tussen de aangeboden opties; de gebruiker weet het beter dan de aangeboden set.
+
+Een afwijzing wegfilteren zonder het te vertellen maakt de AI blind: ze ziet alleen een kleinere lijst en herhaalt haar redenering. `no_fitting_option` moet juist een **richtingverandering** uitlokken — andere invalshoek, niet dezelfde invalshoek met minder opties. Het gesprek valt daarbij nooit terug naar het startscherm: de gemaakte keuzes van de gebruiker blijven staan.
+
 ### 7.6 AAC-begrenzing en validatielaag
 
-Prioriteit bij conceptkeuze: 1) bestaand AAC-concept → 2) synoniem van bestaand concept → 3) door beheerder goedgekeurd nieuw concept → 4) suggestie voor beheerder. Alle AI-output gaat door een **validatielaag**: bestaat het concept in de AAC-bibliotheek? Zo nee: alternatief zoeken of voorstel voor beheer maken. De AI mag tijdens communicatie geen vrije concepten verzinnen.
+Prioriteit bij conceptkeuze — alle AI-output gaat door een **validatielaag** die deze trappen in volgorde afloopt:
+
+1. **Bestaand AAC-concept** — exacte conceptsleutel; gebruiken.
+2. **Synoniem of label van een bestaand concept** — omzetten naar dat concept; gebruiken.
+3. **Nieuw concept** — het begrip bestaat aantoonbaar nog niet in de bibliotheek (niet als concept, niet als label, niet als synoniem). Dan mag de AI het **wel** aanbieden, onder harde voorwaarden:
+   - er wordt meteen een pictogram bij gezocht (externe pictogrambron; een neutrale placeholder als er niets bruikbaars is);
+   - het symbool is voor de gebruiker **zichtbaar gemarkeerd** als nieuw woord;
+   - het wordt vastgelegd als voorstel voor de beheerder, met herkomst "AI-gegenereerd" en de onderbouwing van de AI.
+4. **Beheer** — de beheerder ziet welke concepten nieuw zijn en kan het pictogram vervangen, het label bijstellen, het in de relatieboom hangen, of het samenvoegen met een bestaand symbool (dan wordt het begrip een synoniem en verdwijnt het als los concept).
+
+Trap 1 en 2 zijn **niet optioneel en gaan altijd voor**: zonder die deduplicatie loopt de bibliotheek vol met bijna-duplicaten die op elkaar lijken, wat het kiezen voor de gebruiker juist moeilijker maakt.
+
+> **Ontwerpwijziging (Fase 10).** Tot dan gold: *"de AI mag tijdens communicatie geen vrije concepten verzinnen"* — een onbekend concept werd stilzwijgend weggelaten. Dat is losgelaten. De reden: als het woord van de gebruiker niet in de bibliotheek staat, was er géén uitweg — de gebruiker zat vast in een woordenschat die iemand anders voor hem had bepaald. Het eigenaarschap (§2, §7.8) blijft geborgd doordat een nieuw concept nooit méér is dan een **voorstel**: de gebruiker kiest het zelf en bevestigt de boodschap zelf. Zie [ADR-0012](docs/adr/0012-ai-generated-concepts.md).
 
 ### 7.7 Promptingmodel
 
@@ -242,7 +272,9 @@ AI-output (voorbeeld): `{ "question": "...", "options": [{ "symbol": "walking", 
 
 ### 7.8 Veiligheidsregels (hard)
 
-De AI mag **nooit**: een boodschap verzinnen zonder basis · persoonlijke informatie toevoegen zonder toestemming · namens de gebruiker spreken · buiten AAC-concepten communiceren zonder beheer.
+De AI mag **nooit**: een boodschap verzinnen zonder basis · persoonlijke informatie toevoegen zonder toestemming · namens de gebruiker spreken · een concept in een boodschap gebruiken dat de gebruiker niet zelf gekozen heeft.
+
+Over nieuwe concepten (§7.6 trap 3) gelden dezelfde harde regels: een AI-gegenereerd concept is een **aanbod**, geen boodschap. Het bereikt de gebruiker uitsluitend als keuzeoptie, zichtbaar gemarkeerd, en komt pas in een boodschap als de gebruiker het zelf heeft aangetikt én de boodschap heeft bevestigd. De boodschapgeneratie blijft strikt begrensd tot de gekozen concepten; de beheerder houdt het laatste woord over wat blijvend in de bibliotheek terechtkomt.
 
 ### 7.9 Behoefte- en emotiedetectie
 

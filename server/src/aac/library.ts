@@ -75,6 +75,8 @@ export function symbolToPublic(symbol: AacSymbolModel): AacSymbolPublic {
     synonyms: synonymsSchema.parse(symbol.synonyms),
     imageUrl: imageUrlFor(symbol.id, symbol.imageVersion),
     attribution: attributionOf(symbol),
+    // Nieuw, nog niet beoordeeld AI-woord (T10.6): de UI markeert het zichtbaar als suggestie.
+    isNew: symbol.origin === 'ai' && symbol.reviewStatus === 'PENDING',
   });
 }
 

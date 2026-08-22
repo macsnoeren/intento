@@ -20,14 +20,19 @@ const CONFIDENCE_STEP = 0.15;
 const MIN_CONFIDENCE = 0.3;
 
 /**
- * Bovengrens voor de **interpretatie-zekerheid** van de mock: bewust onder de voorsteldrempel (0.85,
- * DESIGN §7.4). Zo forceert de deterministische mock nooit vanzelf een boodschapvoorstel midden in een
- * route — het voorstel-moment blijft in de gescripte flow bij een eindconcept (geen opties meer). Meer
- * aangeboden opties = minder zekerheid over de intentie, zodat de mock toch de band-variatie
- * (select/refine) uit §7.4 laat zien zonder de voorbeeldroute te breken.
+ * De **interpretatie-zekerheid** van de mock loopt op met de diepte van het gesprek: hoe meer de
+ * gebruiker gekozen heeft, hoe scherper de intentie. De bovengrens ligt bewust onder de voorsteldrempel
+ * (0.85, DESIGN §7.4), zodat de deterministische mock nooit vanzelf een boodschapvoorstel forceert
+ * midden in een route — dat moment blijft bij een eindconcept (geen opties meer).
+ *
+ * Vóór Fase 10 hing deze waarde af van het **aantal aangeboden opties**. Dat werkte zolang de kandidaten
+ * de kinderen van één boomknoop waren (drie tot acht stuks), maar sinds de kandidaten uit retrieval komen
+ * (T10.2) schommelt dat aantal met de vorm van de bibliotheek — een implementatiedetail, geen signaal
+ * over de intentie van de gebruiker. De diepte van de route is dat wél.
  */
 const MAX_INTERPRETATION_CONFIDENCE = 0.8;
-const INTERPRETATION_PENALTY_PER_OPTION = 0.06;
+const BASE_INTERPRETATION_CONFIDENCE = 0.5;
+const INTERPRETATION_GAIN_PER_STEP = 0.2;
 
 /** Rondt af op 2 decimalen zodat de uitvoer stabiel en leesbaar is (geen drijvende-komma-ruis). */
 function round2(value: number): number {
@@ -40,12 +45,12 @@ function confidenceForIndex(index: number): number {
 }
 
 /**
- * Interpretatie-zekerheid (DESIGN §7.4) als deterministische functie van het aantal opties: hoe meer
- * opties nog openstaan, hoe onzekerder de intentie. Geklemd op [`MIN_CONFIDENCE`,
- * `MAX_INTERPRETATION_CONFIDENCE`] zodat de mock nooit boven de voorsteldrempel komt.
+ * Interpretatie-zekerheid (DESIGN §7.4) als deterministische functie van de gespreksdiepte: bij de start
+ * (nog niets gekozen) `select`, daarna `refine`, en nooit boven de voorsteldrempel. Geklemd op
+ * [`MIN_CONFIDENCE`, `MAX_INTERPRETATION_CONFIDENCE`].
  */
-function interpretationConfidence(optionCount: number): number {
-  const raw = MAX_INTERPRETATION_CONFIDENCE - INTERPRETATION_PENALTY_PER_OPTION * (optionCount - 1);
+function interpretationConfidence(depth: number): number {
+  const raw = BASE_INTERPRETATION_CONFIDENCE + INTERPRETATION_GAIN_PER_STEP * depth;
   return round2(Math.min(MAX_INTERPRETATION_CONFIDENCE, Math.max(MIN_CONFIDENCE, raw)));
 }
 
@@ -67,7 +72,7 @@ export class MockAiProvider implements AiProvider {
     return Promise.resolve({
       question,
       options,
-      confidence: interpretationConfidence(options.length),
+      confidence: interpretationConfidence(prompt.conversationContext.length),
       reason: `mock: ${options.length} optie(s) in bibliotheekvolgorde, aflopende zekerheid`,
     });
   }
