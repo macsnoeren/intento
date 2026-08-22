@@ -152,8 +152,12 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   zelfverzekerd modelantwoord geen boodschap forceert. Verder gelden: voorstellen mag pas ná een keuze van
   de **gebruiker** (het anker van de begeleider in vraagmodus telt niet mee, T9.14); het aanbod heeft een
   onder- én bovengrens (T9.10/T10.5) zodat er altijd genoeg te kiezen is én "Geen van deze past" niet in
-  één klap alles uitsluit; en loopt een punt leeg, dan volgt eerst een **vrije ronde** (de AI mag zelf
-  begrippen aandragen), daarna de intentiecategorieën, en pas als laatste een boodschapvoorstel. Zie
+  één klap alles uitsluit; en loopt een punt leeg, dan volgt eerst een **vrije ronde**, daarna de
+  intentiecategorieën, en pas als laatste een boodschapvoorstel. In die vrije ronde krijgt de AI
+  bewust **geen optielijst** (T10.13): een greep uit de bibliotheek maakt van "verzin een verfijning"
+  ongemerkt "kies iets uit deze lijst", en dan verschijnen er onverwante pictogrammen op het scherm.
+  Het aanbod bestaat daar dus alleen uit wat de AI zelf aandroeg — bestaande concepten die ze bij naam
+  noemt, komen via trap 1/2 van de validatielaag alsnog binnen. Zie
   [adr/0009](adr/0009-validation-layer-and-confidence-policy.md) en
   [adr/0012](adr/0012-ai-generated-concepts.md).
 

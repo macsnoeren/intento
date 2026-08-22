@@ -678,10 +678,14 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
     });
   });
 
-  // --- T10.12: een vers AI-concept is geen eindpunt --------------------------------------------------
+  // --- T10.12/T10.13: een vers AI-concept is geen eindpunt, en de vrije ronde is écht vrij -----------
 
-  describe('doorpraten over een door de AI aangedragen begrip (T10.12)', () => {
-    /** Provider die na "Iets zeggen" met "compliment" komt — zoals in de gebruikerstest. */
+  describe('doorpraten over een door de AI aangedragen begrip (T10.12/T10.13)', () => {
+    /**
+     * Provider die zich gedraagt als een echt model: na "Iets zeggen" komt "compliment", en op een punt
+     * zonder bestaande opties (`availableSymbols` leeg) draagt hij zélf begrippen aan — hier bewust onder
+     * een ándere naam dan de conceptsleutel ("mama"), zodat de validatielaag die moet omzetten.
+     */
     const complimentProvider: AiProvider = {
       name: 'compliment',
       selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
@@ -692,6 +696,17 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
             options: [{ symbol: 'compliment', confidence: 0.9 }],
             confidence: 0.6,
             reason: 'de gebruiker wil iets aardigs zeggen',
+          });
+        }
+        if (prompt.availableSymbols.length === 0) {
+          return Promise.resolve({
+            question: 'Over wie gaat het?',
+            options: [
+              { symbol: 'mama', confidence: 0.8 },
+              { symbol: 'papa', confidence: 0.7 },
+            ],
+            confidence: 0.6,
+            reason: 'wie krijgt het compliment',
           });
         }
         return Promise.resolve({
@@ -706,7 +721,7 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       },
     };
 
-    it('loopt niet dood op een nieuw AI-begrip zonder relaties', async () => {
+    it('loopt niet dood op een nieuw AI-begrip zonder relaties (T10.12)', async () => {
       // Gemeld: de AI kwam terecht met "compliment", maar wie het koos kreeg meteen het voorstelscherm
       // en kon niet meer zeggen wíe hij lief vindt. Een vers AI-concept heeft per definitie geen kinderen
       // in de boom; dat als "eindpunt" lezen loopt dood.
@@ -725,18 +740,134 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       ]);
     });
 
-    it('biedt daarbij echte bibliotheekconcepten aan in plaats van niets', async () => {
-      // De boom en de retrieval hebben op dat punt niets; zonder terugval op de bibliotheek zou de AI
-      // uit een lege lijst moeten kiezen en zag de gebruiker hooguit de intentiecategorieën.
+    it('geeft de AI géén optielijst als de bibliotheek niets specifiekers kent (T10.13)', async () => {
+      // De kern van T10.13: op zo'n punt kreeg het model een greep uit de bibliotheek, en omdat de
+      // AAC-regels zeggen "kies bij voorkeur uit de aangeboden opties" koos het braaf iets willekeurigs.
+      // Nu is de lijst leeg en staat de opdracht in de regels.
+      let seen: AiPrompt | null = null;
+      const spy: AiProvider = {
+        name: 'spy',
+        selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+          seen = prompt;
+          return complimentProvider.selectNextQuestion(prompt);
+        },
+      };
+      const { cookie, sessionId } = await startFor(spy);
+      await next(cookie, sessionId, 'say');
+      await next(cookie, sessionId, 'compliment');
+
+      const prompt = seen as AiPrompt | null;
+      expect(prompt).not.toBeNull();
+      expect(prompt!.availableSymbols).toEqual([]);
+      expect(prompt!.aacRules.join(' ')).toContain('availableSymbols');
+      expect(prompt!.aacRules.some((rule) => rule.includes('Draag twee tot vijf'))).toBe(true);
+    });
+
+    it('zet de zelf aangedragen begrippen om naar bestaande symbolen (T10.13)', async () => {
+      // Zonder optielijst blijft de bibliotheek gewoon bereikbaar: de AI noemt "mama", de validatielaag
+      // herkent het synoniem en de gebruiker krijgt het beheerde pictogram `mom` te zien — geen tweede,
+      // bijna-identiek nieuw woord.
       const { cookie, sessionId } = await startFor(complimentProvider);
       await next(cookie, sessionId, 'say');
       const state = await next(cookie, sessionId, 'compliment');
 
-      const offered = conceptsOf(state);
-      const known = await prisma.aacSymbol.findMany({ where: { concept: { in: offered } } });
-      expect(known.length).toBe(offered.length);
-      // Er zit meer bij dan alleen de vijf intentiecategorieën.
-      expect(known.some((symbol) => symbol.category !== 'intent')).toBe(true);
+      expect(conceptsOf(state)).toEqual(['mom', 'dad']);
+      const created = await prisma.aacSymbol.findMany({ where: { origin: 'ai' } });
+      expect(created.map((symbol) => symbol.concept)).toEqual(['compliment']);
+    });
+
+    it('vult het scherm niet aan met onverwante bibliotheekconcepten (T10.13)', async () => {
+      // De gebruikerstest: op "Iets willen → Eten → Brood" leverde ❌ Nee een verfijnronde op met "beleg"
+      // (goed) — maar er stonden ook "pijn", "nagel" en "er is iets aan de hand" bij, en de vraag sloeg om
+      // naar "Wat wil je drinken?". Die opties kwamen uit de aanvulling, niet uit de AI.
+      const { cookie, sessionId } = await startFor(complimentProvider);
+      await next(cookie, sessionId, 'say');
+      const state = await next(cookie, sessionId, 'compliment');
+
+      // Precies wat de AI aandroeg, niets erbij: geen lichaamsdelen, geen intentiecategorieën.
+      expect(conceptsOf(state)).toEqual(['mom', 'dad']);
+    });
+  });
+
+  // --- T10.13: het gemelde brood/beleg-scenario, van begin tot eind --------------------------------
+
+  describe('doorpraten over beleg (T10.13)', () => {
+    /**
+     * Provider die zich gedraagt als een model dat de opdracht leest: tijdens de verfijnronde draagt hij
+     * "beleg" aan, en op het punt daarna — waar de bibliotheek niets specifiekers kent — komt hij met wat
+     * er logisch op brood gaat. Precies wat de gebruiker verwachtte: "drinken, bang, appel" hoort daar
+     * niet bij.
+     */
+    const belegProvider: AiProvider = {
+      name: 'beleg',
+      selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+        const chosen = prompt.conversationContext.map((ref) => ref.concept);
+        if (chosen.includes('beleg')) {
+          return Promise.resolve({
+            question: 'Wat wil je op je brood?',
+            options: [
+              { symbol: 'chocopasta', confidence: 0.9 },
+              { symbol: 'kaas', confidence: 0.8 },
+            ],
+            confidence: 0.6,
+            reason: 'wat gaat er op het brood',
+          });
+        }
+        if (chosen.includes('bread')) {
+          return Promise.resolve({
+            question: 'Wil je er iets op?',
+            options: [{ symbol: 'beleg', confidence: 0.9 }],
+            confidence: 0.6,
+            reason: 'brood is nog niet precies genoeg',
+          });
+        }
+        return Promise.resolve({
+          question: 'Wat wil je?',
+          options: prompt.availableSymbols.slice(0, 4).map((ref) => ({
+            symbol: ref.concept,
+            confidence: 0.7,
+          })),
+          confidence: 0.4,
+          reason: 'richting bepalen',
+        });
+      },
+    };
+
+    async function wrongGuess(cookie: string, sessionId: string) {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie },
+        payload: { type: 'wrong_guess' },
+      });
+      expect(res.statusCode).toBe(200);
+      return parseState(res.json());
+    }
+
+    it('blijft na "beleg" bij het brood in plaats van bij pijn en nagels', async () => {
+      // Het gemelde verloop: "Ik wil brood eten." → ❌ Nee → verfijnronde met "beleg" (goed) → beleg
+      // gekozen → en dan stonden er "pijn", "nagel" en "er is iets aan de hand" op het scherm, met de
+      // vraag "Wat wil je drinken?".
+      const { cookie, sessionId } = await startFor(belegProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      const afterBread = await next(cookie, sessionId, 'bread');
+      expect(afterBread.done).toBe(true);
+
+      const refine = await wrongGuess(cookie, sessionId);
+      expect(conceptsOf(refine)).toContain('beleg');
+      // De route blijft staan: ❌ verfijnt eerst (T10.12).
+      expect(refine.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat', 'bread']);
+
+      const afterBeleg = await next(cookie, sessionId, 'beleg');
+
+      expect(afterBeleg.done).toBe(false);
+      expect(conceptsOf(afterBeleg)).toEqual(['chocopasta', 'kaas']);
+      expect(afterBeleg.question?.prompt).toBe('Wat wil je op je brood?');
+      // De kern van de melding: geen greep uit de bibliotheek meer op het scherm.
+      for (const vreemd of ['pain', 'hand', 'nail', 'problem', 'drink']) {
+        expect(conceptsOf(afterBeleg)).not.toContain(vreemd);
+      }
     });
   });
 });

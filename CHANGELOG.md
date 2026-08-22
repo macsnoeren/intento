@@ -34,6 +34,20 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T10.13 De vrije ronde is weer echt vrij.** Vervolg op T10.12, gemeld in de vijfde gebruikerstest.
+  Op het pad "Iets willen → Eten → Brood" leverde ❌ Nee terecht "beleg" op, maar daarnaast stonden
+  "pijn", "nagel" en "er is iets aan de hand" op het scherm, en na de keuze "beleg" sloeg de vraag om
+  naar "Wat wil je drinken?" — terwijl elk model bij dat pad moeiteloos kaas of chocopasta bedenkt.
+  De oorzaak zat niet in het model maar in wat wij het gaven: T10.12 vulde een leeg kandidatenpunt met
+  een greep uit de bibliotheek, verdeeld over alle categorieën, en de AAC-regels zeggen "kies bij
+  voorkeur uit de aangeboden opties". Zo werd van "verzin een verfijning" ongemerkt "kies iets uit deze
+  lijst" — en werd het scherm daarna ook nog tot `minOffered` aangevuld uit diezelfde greep.
+  Nu krijgt de AI op zo'n punt **géén optielijst** en wél een expliciete opdracht: draag zelf twee tot
+  vijf concrete begrippen aan die de laatste keuze preciezer maken, en blijf bij het onderwerp van het
+  pad. Het scherm toont dan uitsluitend wat de AI aandroeg. De bibliotheek blijft bereikbaar zonder die
+  lijst: noemt het model "mama", dan zet de validatielaag dat om naar het bestaande symbool (§7.6 trap
+  1/2), dus er ontstaat geen tweede, bijna-identiek woord.
+
 - **T10.12 Vastlopen op een AI-begrip, en ❌ Nee dat te vroeg terugrolde.** Drie meldingen die op
   hetzelfde neerkomen — de gebruiker kan niet verder:
   - **Een vers AI-concept was meteen het einde.** "Compliment" was een goede vondst van de AI, maar zo'n

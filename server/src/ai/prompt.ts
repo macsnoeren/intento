@@ -113,6 +113,12 @@ export interface AiPromptInput {
    * lezen als "verkeerde richting" en van onderwerp veranderen — precies wat de gebruiker níet wil.
    */
   refining?: boolean;
+  /**
+   * Is dit een **vrije ronde** (T10.13, §7.6 trap 3)? Dan is `availableSymbols` leeg omdat de bibliotheek
+   * niets specifiekers onder de laatste keuze kent, en moet het model zélf begrippen aandragen. Zonder
+   * die aanwijzing leest een leeg optieveld als "er is niets" in plaats van als "verzin het zelf".
+   */
+  freeRound?: boolean;
 }
 
 /**
@@ -129,6 +135,25 @@ export const REFINE_RULES: readonly string[] = [
 ];
 
 /**
+ * Extra opdracht tijdens een vrije ronde (T10.13, DESIGN §7.6 trap 3). Op dit punt is `availableSymbols`
+ * leeg: boom én retrieval kennen niets specifiekers onder de laatste keuze.
+ *
+ * Aanleiding is de gebruikerstest op het pad "Iets willen → Eten → Brood → Beleg". Tot T10.13 kreeg het
+ * model daar een greep uit de bibliotheek als optielijst, en omdat de AAC-regels zeggen "kies bij voorkeur
+ * uit de aangeboden opties" koos het braaf: "pijn", "nagel", "er is iets aan de hand" — en de vraag sloeg
+ * om naar "Wat wil je drinken?". Een lege lijst plus een expliciete opdracht is eerlijker: het pad staat
+ * er, en daar is prima een verfijning bij te bedenken.
+ */
+export const FREE_ROUND_RULES: readonly string[] = [
+  'Er staan geen bestaande opties in "availableSymbols": de bibliotheek kent nog niets specifiekers ' +
+    'onder de laatste keuze van de gebruiker. Dat is geen fout — het is jouw beurt om aan te dragen.',
+  'Draag twee tot vijf concrete begrippen aan die de laatste keuze preciezer maken en die logisch bij ' +
+    'het gekozen pad passen (bij "Iets willen > Eten > Brood > Beleg": kaas, chocopasta, hagelslag).',
+  'Blijf bij het onderwerp van het pad: wissel niet van onderwerp omdat je geen bestaande opties ziet, ' +
+    'en stel je vraag over de laatste keuze.',
+];
+
+/**
  * Vormt de beperkte context tot een gevalideerde `AiPrompt`. De laatste keuze wordt afgeleid uit de
  * gesprekscontext (de laatst gekozen concept), zodat er nooit een losse, afwijkende "laatste keuze"
  * ingeslopen kan zijn. Het resultaat wordt door `aiPromptSchema` geparseerd: de gesloten sleutelset is
@@ -142,7 +167,11 @@ export function buildAiPrompt(input: AiPromptInput): AiPrompt {
     task: AI_TASK_SELECT_NEXT_QUESTION,
     systemRules: [...SYSTEM_RULES],
     goal: input.goal ?? GOAL,
-    aacRules: [...(input.aacRules ?? AAC_RULES), ...(input.refining ? REFINE_RULES : [])],
+    aacRules: [
+      ...(input.aacRules ?? AAC_RULES),
+      ...(input.refining ? REFINE_RULES : []),
+      ...(input.freeRound ? FREE_ROUND_RULES : []),
+    ],
     userContext: input.userContext ?? [],
     questionContext: input.questionContext ?? null,
     conversationContext,
