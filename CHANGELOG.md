@@ -49,6 +49,17 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   zijn, en kan ze **behouden**, **samenvoegen** met een bestaand pictogram (het begrip wordt dan een
   synoniem) of **verwijderen**. Het beoordeelpad weigert gewone bibliotheeksymbolen met `404`, zodat het
   geen sluipweg is.
+- **T10.9 De boodschapzin loopt mee met de vrijere route** (`conversation/message.ts`,
+  `conversation/generate.ts`). Sinds de AI ook op het startscherm een concept mag aandragen kan een route
+  beginnen zónder intentie — en dan leverde de sjabloon één los woord op ("Nagelknipper.") omdat er alleen
+  zinsframes per intentie waren. Er is nu een neutraal **onderwerp-frame** ("Ik wil iets zeggen over …")
+  waarin álle gekozen concepten inhoud zijn; de categorie van het eerste symbool bepaalt welke van de twee
+  het wordt. Daarnaast keek de safety-laag naar élk label en synoniem, waardoor "Ik wil de nagelknipper."
+  werd afgekeurd op "wil" — een synoniem van het niet-gekozen `want`, maar bovenal gewone Nederlandse
+  zinsbouw. De scan telt nu alleen **betekenisdragende** termen: functiewoorden (lidwoorden,
+  voornaamwoorden, voorzetsels, hulp-/modale werkwoorden) zijn geen bewijs van een concept. Bewust een
+  gesloten woordklasse en geen lengteregel, zodat korte contentwoorden ("sap", "mam") blijven meetellen en
+  de harde regel — geen concept in de zin dat de gebruiker niet koos — overeind blijft.
 - **T10.8 Hypothese per gesprek** (`conversation/hypothesis.ts`). Er was nergens vastgelegd wát de AI
   dacht dat de gebruiker bedoelde — alleen een losse `confidence` per stap, rauw uit één modelantwoord,
   waardoor de voorsteldrempel (>85%) op één uitschieter kon vuren. De hypothese houdt concepten, een over

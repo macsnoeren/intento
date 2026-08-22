@@ -63,7 +63,14 @@ server niet uit elkaar lopen.
   toetst die met een **safety-laag** tegen de AAC-bibliotheek — een zin met een concept **buiten de
   sessie** (§7.8) wordt verworpen ten gunste van de deterministische sjabloon-zin (`message.ts`), die per
   constructie binnen de gekozen concepten blijft. Zo bereikt een verzonnen/buiten-de-sessie begrip de
-  gebruiker (en de db) nooit — ook niet bij een onbetrouwbare provider.
+  gebruiker (en de db) nooit — ook niet bij een onbetrouwbare provider. De scan telt sinds T10.9 alleen
+  **betekenisdragende** termen: functiewoorden (lidwoorden, voornaamwoorden, voorzetsels, hulp- en modale
+  werkwoorden) komen in elke Nederlandse zin voor en bewijzen niets over een concept — "wil" is zinsbouw,
+  geen smokkelroute voor `want`.
+- `server/src/conversation/message.ts` — de **deterministische sjabloon-zin**: begint de route met een
+  intentiecategorie, dan draagt die het zinsframe ("Ik wil …", "Ik voel me …") en verfijnt de rest;
+  begint ze met een gewoon begrip — mogelijk sinds de AI ook op het startscherm een concept mag aandragen
+  (T10.6) — dan geldt het neutrale **onderwerp-frame** en is elk gekozen concept inhoud (T10.9).
 - `server/src/conversation/correction.ts` — de **correctie-heranalyse** (T5.4) achter `/correction`:
   `analyzeCorrection` kiest puur uit de opgeslagen stappen de vermoedelijke foutstap (laagste
   `ConversationStep.confidence`, §7.4) die wordt teruggerold. Het afgewezen concept wordt als

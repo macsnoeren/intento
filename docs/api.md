@@ -323,8 +323,10 @@ want de client kent ze niet):
   **optioneel** op een provider; ontbreekt ze (of levert ze een lege/onveilige zin), dan valt de
   conversatie-laag terug op de deterministische **sjabloon-zin** (`conversation/message.ts`). De
   **safety-laag** (`conversation/generate.ts`) toetst elke AI-zin tegen de AAC-bibliotheek: bevat de zin
-  het label of een synoniem van een **niet-gekozen** concept, dan is hij onveilig (§7.8) en geldt de
-  terugval. Zo bereikt een concept buiten de sessie de gebruiker (en de db) **nooit**.
+  een **betekenisdragend** label of synoniem van een **niet-gekozen** concept, dan is hij onveilig (§7.8)
+  en geldt de terugval. Zo bereikt een concept buiten de sessie de gebruiker (en de db) **nooit**.
+  Functiewoorden tellen niet mee (T10.9): "wil" is een synoniem van `want`, maar bovenal gewone
+  Nederlandse zinsbouw — daarop afkeuren maakte elke zin over een AI-aangedragen concept onmogelijk.
 
 **Kandidaten, validatielaag en confidence (T5.2, herzien in Fase 10 — `conversation/candidates.ts` +
 `ai/validation.ts` + `ai/thresholds.ts` + `conversation/decision.ts`):**

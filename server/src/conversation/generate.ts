@@ -22,7 +22,9 @@ import { generateMessage, SCRIPTED_CONFIDENCE, type ChosenConcept } from './mess
  *     `messageIntroducesForeignConcept` scant de zin tegen de hele AAC-bibliotheek: duikt het label of een
  *     synoniem van een níet-gekozen symbool op, dan is de zin onveilig en valt hij terug op de sjabloon.
  *     Zo bereikt een verzonnen/buiten-de-sessie begrip de gebruiker **nooit** — ook niet bij een
- *     onbetrouwbare provider.
+ *     onbetrouwbare provider. De scan kijkt daarbij alleen naar **betekenisdragende** woorden (T10.9): een
+ *     functiewoord als "wil" is gewone Nederlandse zinsbouw en geen bewijs dat het concept `want` de zin
+ *     is binnengeslopen.
  *
  * De laag is bewust vrij van HTTP: de route levert de gekozen concepten aan en gebruikt het resultaat,
  * zodat alles deterministisch met de mock (of een test-provider) te testen is.
@@ -51,10 +53,147 @@ function normalizedHaystack(text: string): string {
 }
 
 /**
+ * Nederlandse **functiewoorden**: lidwoorden, voornaamwoorden, voorzetsels, voegwoorden en hulp-/koppel-
+ * werkwoorden. Ze dragen geen AAC-betekenis maar zijn wel het cement van elke Nederlandse zin — inclusief
+ * de zinsframes van `message.ts` zelf ("**Ik wil** buiten wandelen").
+ *
+ * Waarom deze lijst bestaat (T10.9): verschillende AAC-symbolen dragen zo'n woord als synoniem. `want`
+ * ("Iets willen") heeft "wil" en "willen"; daardoor keurde de safety-laag de volstrekt onschuldige zin
+ * "Ik wil de nagelknipper." af zodra `want` niet in de route zat, en viel elke zin over een AI-aangedragen
+ * concept terug op het sjabloon. De fail-safe was daar te grof: hij bewees niet dat er een *begrip* was
+ * binnengeslopen, alleen dat er Nederlands werd gesproken.
+ *
+ * De lijst is bewust een **gesloten woordklasse** en geen lengteregel: korte contentwoorden ("sap",
+ * "mam") blijven gewoon meetellen als bewijs, en de harde regel — geen concept in de zin dat de gebruiker
+ * niet koos — blijft daarmee volledig overeind.
+ */
+const FUNCTION_WORDS = new Set([
+  // Lidwoorden en aanwijzende/onbepaalde woorden.
+  'de',
+  'het',
+  'een',
+  'deze',
+  'die',
+  'dat',
+  'dit',
+  'er',
+  'daar',
+  'wat',
+  'welke',
+  // Persoonlijke en bezittelijke voornaamwoorden.
+  'ik',
+  'je',
+  'jij',
+  'jou',
+  'jouw',
+  'u',
+  'uw',
+  'hij',
+  'zij',
+  'ze',
+  'we',
+  'wij',
+  'me',
+  'mij',
+  'mijn',
+  'zijn',
+  'haar',
+  'ons',
+  'onze',
+  'hem',
+  'hen',
+  'hun',
+  'zich',
+  // Voorzetsels en voegwoorden.
+  'aan',
+  'als',
+  'bij',
+  'door',
+  'en',
+  'in',
+  'maar',
+  'met',
+  'naar',
+  'of',
+  'om',
+  'op',
+  'over',
+  'te',
+  'tot',
+  'uit',
+  'van',
+  'voor',
+  'want',
+  'dus',
+  // Hulp-, koppel- en modale werkwoorden (de vormen die in gegenereerde zinnen voorkomen).
+  'ben',
+  'bent',
+  'is',
+  'was',
+  'waren',
+  'heb',
+  'hebt',
+  'heeft',
+  'hebben',
+  'had',
+  'hadden',
+  'word',
+  'wordt',
+  'worden',
+  'werd',
+  'zal',
+  'zult',
+  'zullen',
+  'zou',
+  'zouden',
+  'kan',
+  'kun',
+  'kunt',
+  'kunnen',
+  'mag',
+  'mogen',
+  'moet',
+  'moeten',
+  'wil',
+  'wilt',
+  'willen',
+  'wou',
+  'ga',
+  'gaat',
+  'gaan',
+  'doe',
+  'doet',
+  'doen',
+  // Bijwoorden van graad/ontkenning die niets over een concept zeggen.
+  'niet',
+  'geen',
+  'nog',
+  'wel',
+  'ook',
+  'heel',
+  'erg',
+  'graag',
+  'even',
+  'meer',
+  'iets',
+]);
+
+/**
+ * Is deze zoekterm betekenisdragend genoeg om als bewijs van een concept te gelden (T10.9)? Een term
+ * telt mee zodra er **één** woord in staat dat geen functiewoord is; "naar buiten" blijft dus bewijs voor
+ * `outside`, terwijl "wil" dat voor `want` niet is.
+ */
+export function isMeaningBearingTerm(term: string): boolean {
+  const words = term.split(' ').filter((word) => word.length > 0);
+  return words.some((word) => !FUNCTION_WORDS.has(word));
+}
+
+/**
  * Bepaalt of een geformuleerde zin een concept bevat dat **niet** in de sessie is gekozen (§7.8). Loopt
- * de AAC-bibliotheek langs; voor elk symbool waarvan het concept niet gekozen is, checkt het of het label
- * of een synoniem als heel woord/frase in de zin voorkomt. Bewust conservatief (fail-safe): een twijfel-
- * geval leidt tot de veilige sjabloon-terugval, niet tot een mogelijk buiten-de-sessie begrip.
+ * de AAC-bibliotheek langs; voor elk symbool waarvan het concept niet gekozen is, checkt het of een
+ * **betekenisdragend** label of synoniem als heel woord/frase in de zin voorkomt. Bewust conservatief
+ * (fail-safe): een twijfelgeval leidt tot de veilige sjabloon-terugval, niet tot een mogelijk
+ * buiten-de-sessie begrip.
  */
 async function messageIntroducesForeignConcept(
   prisma: PrismaClient,
@@ -74,6 +213,7 @@ async function messageIntroducesForeignConcept(
     for (const term of terms) {
       const needle = normalizeSearch(term).replace(/\s+/g, ' ').trim();
       if (needle.length === 0) continue;
+      if (!isMeaningBearingTerm(needle)) continue;
       if (haystack.includes(` ${needle} `)) return true;
     }
   }

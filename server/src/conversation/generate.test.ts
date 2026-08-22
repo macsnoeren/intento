@@ -5,7 +5,7 @@ import { AiOrchestrator } from '../ai/orchestrator.js';
 import { MockAiProvider } from '../ai/mock-provider.js';
 import type { AiMessagePrompt, AiMessageResult, AiProvider } from '../ai/provider.js';
 import { SCRIPTED_CONFIDENCE, type ChosenConcept } from './message.js';
-import { composeMessage } from './generate.js';
+import { composeMessage, isMeaningBearingTerm } from './generate.js';
 
 /**
  * AI-boodschapgeneratie met safety-vangnet (T5.3, DESIGN §7.4, §7.8). Toetst los van HTTP: de zin komt
@@ -101,5 +101,73 @@ describe('composeMessage — AI-zin met AAC-begrenzing', () => {
     const result = await composeMessage(prisma, orchestrator, dogRoute);
     expect(result.source).toBe('ai');
     expect(result.confidence).toBeGreaterThan(0.85);
+  });
+
+  // --- T10.9: functiewoorden zijn geen bewijs van een concept ----------------------------------------
+
+  describe('betekenisdragende concepten (T10.9)', () => {
+    /** Route zonder intentie: één AI-aangedragen concept, precies zoals in de rooktest van T10.6. */
+    const clipperRoute: ChosenConcept[] = [{ concept: 'nagelknipper', label: 'Nagelknipper' }];
+
+    beforeAll(async () => {
+      await prisma.aacSymbol.create({
+        data: {
+          concept: 'nagelknipper',
+          label: 'Nagelknipper',
+          category: 'object',
+          glyph: '✂️',
+          synonyms: ['nagelschaartje'],
+          searchText: 'nagelknipper nagelschaartje',
+          origin: 'ai',
+          reviewStatus: 'PENDING',
+        },
+      });
+    });
+
+    it('keurt "Ik wil de nagelknipper." goed: "wil" is zinsbouw, geen smokkelroute voor `want`', async () => {
+      const aiSentence = 'Ik wil de nagelknipper.';
+      const orchestrator = stubOrchestrator(() => ({ message: aiSentence, confidence: 0.9 }));
+
+      const result = await composeMessage(prisma, orchestrator, clipperRoute);
+      expect(result.source).toBe('ai');
+      expect(result.message).toBe(aiSentence);
+    });
+
+    it('weigert nog steeds een zin met een écht niet-gekozen begrip', async () => {
+      const orchestrator = stubOrchestrator(() => ({
+        message: 'Ik wil buiten wandelen.',
+        confidence: 0.99,
+      }));
+
+      const result = await composeMessage(prisma, orchestrator, clipperRoute);
+      expect(result.source).toBe('scripted');
+      expect(result.message).toBe('Ik wil iets zeggen over nagelknipper.');
+    });
+
+    it('weigert een zin met een kort contentwoord van een niet-gekozen concept', async () => {
+      // Geen lengteregel maar een woordklasse: "sap" (synoniem/fragment van `juice`) telt gewoon mee.
+      const orchestrator = stubOrchestrator(() => ({
+        message: 'Ik wil de nagelknipper en sap.',
+        confidence: 0.99,
+      }));
+
+      const result = await composeMessage(prisma, orchestrator, clipperRoute);
+      expect(result.source).toBe('scripted');
+    });
+  });
+});
+
+/** De woordklasse-regel zelf, los van de bibliotheek en de database. */
+describe('isMeaningBearingTerm', () => {
+  it('rekent losse functiewoorden niet als bewijs van een concept', () => {
+    for (const term of ['wil', 'willen', 'ik', 'de', 'met', 'iets willen']) {
+      expect(isMeaningBearingTerm(term)).toBe(false);
+    }
+  });
+
+  it('houdt contentwoorden en frases met een contentwoord overeind', () => {
+    for (const term of ['buiten', 'naar buiten', 'mama', 'mam', 'sap', 'met hond']) {
+      expect(isMeaningBearingTerm(term)).toBe(true);
+    }
   });
 });

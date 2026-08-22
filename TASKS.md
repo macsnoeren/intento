@@ -337,12 +337,134 @@ met pictogram (T10.5/T10.6), en tot slot de hypothese-state die het confidence-m
   *Acceptatie:* de hypothese is per beurt zichtbaar in het AI-activiteitscherm (test); de zekerheid springt niet meer op één modelantwoord (test met een provider die wisselende waarden geeft); ❌ Nee rolt terug naar de stap waar de hypothese kantelde (test); na `/confirm` is de hypothese verwijderd (test).
 
 
-- [ ] **T10.9 De boodschapzin loopt achter op de vrijere route** *(ontdekt bij de rooktest van T10.6)*
+- [x] **T10.9 De boodschapzin loopt achter op de vrijere route** *(ontdekt bij de rooktest van T10.6)*
   *DESIGN: §7.1 taak 4, §7.8.* Sinds de AI ook op het **startscherm** een concept mag aandragen (T10.6), kan een route beginnen met iets anders dan een intentie — en daar zijn zowel de sjabloon-zin als de safety-laag niet op gebouwd. Gereproduceerd met een echte worker: route `nagelknipper` (één concept, geen intentie) leverde de bevestigde boodschap **"Nagelknipper."** op. Twee oorzaken: (a) `generateMessage` (`conversation/message.ts`) kent alleen zinsframes per **intentie** en valt anders terug op `${intent.label}.`, wat bij een niet-intentie een los woord oplevert; (b) de AI-zin "Ik wil de nagelknipper." werd door de safety-laag (`conversation/generate.ts`) afgekeurd omdat "wil" een **synoniem van het niet-gekozen concept `want`** is — de fail-safe is hier te grof, want "ik wil" is gewone Nederlandse zinsbouw en geen smokkelroute voor een vreemd concept. Werk: een zinsframe voor een route zonder intentie, en de safety-laag laten kijken naar **betekenisdragende** concepten in plaats van naar elk label/synoniem (bv. functiewoorden en zeer korte synoniemen uitsluiten, of alleen matchen op het label van een concept en niet op zijn synoniemen). De harde regel blijft: geen concept in de zin dat de gebruiker niet koos.
   *Acceptatie:* een route die met een AI-aangedragen concept begint levert een lopende Nederlandse zin op (test); de safety-laag keurt "Ik wil de nagelknipper." goed bij route `nagelknipper` maar blijft een zin met een écht niet-gekozen begrip ("Ik wil buiten wandelen") weigeren (tests); bestaande T5.3-tests blijven groen.
 
 ---
 
+## Fase 11 — Meerdere gespreksstrategieën, selecteerbaar per gebruiker of gesprek
+
+**Aanleiding.** De manier waarop de AI probeert te achterhalen wat de gebruiker wil zeggen, is nu één
+vaste aanpak. Ze is bovendien niet als aanpak *herkenbaar*: de knoppen liggen verspreid over
+`candidates.ts` (bronvolgorde), `decision.ts` (`MIN_OFFERED_OPTIONS`/`MAX_OFFERED_OPTIONS`),
+`ai/thresholds.ts` (`CONFIDENCE_REFINE`/`CONFIDENCE_PROPOSE`), `hypothesis.ts` (`HYPOTHESIS_SMOOTHING`)
+en `ai/prompt.ts` (`GOAL` + `AAC_RULES`). Wie de aanpak wil wijzigen, moet vijf modules aanraken.
+
+Die knoppen zijn niet neutraal: ze coderen een aanname over de persoon. De huidige set gaat uit van
+iemand die categorieën begrijpt en stapsgewijs verfijnt. Voor iemand die snel overprikkeld raakt zijn
+twaalf opties te veel; voor iemand die concrete dingen wél herkent maar niet kan categoriseren is "eerst
+kiezen tussen eten/drinken/iets doen" een omweg; voor iemand met een sterk vast dagritme is de
+persoonlijke context een beter startpunt dan de begrippenboom. Eén aanpak voor iedereen botst met DESIGN
+§5.3 (instellingen per gebruiker) en §7.3 ("gepersonaliseerd op basis van profiel en historie").
+
+**Wat een strategie mag variëren:** kandidatenbronnen en hun volgorde/gewicht · aanbodgrootte ·
+confidence-drempels en demping · de promptformulering (`goal` + `aacRules`) · of nieuwe concepten mogen ·
+hoeveel stappen er minimaal voor een voorstel nodig zijn.
+
+**Wat een strategie NOOIT mag variëren** — dit zijn domeinregels, geen instellingen (DESIGN §2, §7.5,
+§7.6, §7.8): de gebruiker is eigenaar en bevestigt zelf · deduplicatie tegen bestaande concepten gaat
+altijd voor · afgewezen concepten komen nooit terug · geen boodschapvoorstel zonder een keuze van de
+**gebruiker** · de gesloten promptsleutelset (een strategie vult de *inhoud* van `goal`/`aacRules`, nooit
+de *vorm* van de prompt) · nooit een leeg scherm. Een strategie verandert de **zoekwijze**, niet de
+**garanties**. Zonder die scheiding wordt elke nieuwe strategie een plek waar een waarborg stilletjes
+wegvalt; T11.2 dwingt dat af met een gedeelde invariant-testsuite over álle geregistreerde strategieën.
+
+**Aanpak: configuratie-gedreven, met een naad voor code.** Alle strategieën uit T11.3 zijn uit te drukken
+als **parameterset** binnen dezelfde pijplijn — dat is veiliger en testbaarder dan vier losse
+implementaties. Het type laat ruimte voor een latere strategie met eigen kandidaat-logica, zonder dat de
+aanroepplekken veranderen. Strategieën zijn **ingebouwd** (in code, met een stabiele sleutel), niet in de
+database: dat houdt multi-tenant-isolatie buiten beeld. Per organisatie bewerkbare strategieën staan
+bewust bij "Na de MVP".
+
+- [ ] **T11.1 Ontwerp: gespreksstrategieën als expliciet begrip**
+  *DESIGN: §5.3, §7.2, §7.3, §7.4, ADR.* Het ontwerp kent nu geen notie van "aanpak": §7.3 beschrijft één
+  vraagselectie en §5.3 somt de instellingen per gebruiker op zonder deze. Werk: een nieuwe subsectie
+  §7.10 "Gespreksstrategieën" die beschrijft wat een strategie is, welke parameters ze bevat, welke
+  domeinregels er **buiten** vallen (de lijst hierboven) en hoe de selectie werkt (gesprek → gebruiker →
+  standaard); §5.3 uitbreiden met de strategiekeuze als instelling per gebruiker; §7.3/§7.4 laten
+  verwijzen naar de strategie in plaats van naar vaste waarden. Plus een ADR (context → beslissing →
+  gevolgen) die motiveert waarom het configuratie-gedreven is en niet vier code-implementaties, en die
+  het risico benoemt: meer strategieën = meer manieren waarop de kwaliteit stil kan verslechteren. Geen
+  code in deze taak.
+  *Acceptatie:* DESIGN §5.3 en §7.3/§7.4/§7.10 beschrijven strategieën eenduidig inclusief de harde
+  scheiding tussen zoekwijze en garanties; er is een ADR in `docs/adr/`; `docs/architecture.md` verwijst
+  ernaar.
+
+- [ ] **T11.2 De huidige aanpak wordt een expliciete, benoemde strategie**
+  *DESIGN: §7.10 (na T11.1), §7.3.* Introduceer `conversation/strategy.ts` met een `ConversationStrategy`
+  (sleutel, label, uitleg voor de begeleider, en de parameters: kandidatenbronnen + volgorde,
+  `maxCandidates`, `minOffered`/`maxOffered`, `confidenceRefine`/`confidencePropose`,
+  `hypothesisSmoothing`, `allowNewConcepts`, `minUserChoicesBeforePropose`, en de promptfragmenten `goal`
+  + extra `aacRules`) plus een registry met opzoeken op sleutel en een expliciete standaard. De bestaande
+  waarden worden de strategie **`refine`** ("Stap voor stap verfijnen"). `decision.ts`, `candidates.ts`,
+  `hypothesis.ts` en `prompt.ts` lezen voortaan uit de strategie in plaats van uit module-constanten; de
+  constanten blijven bestaan als de *waarden van `refine`*, niet als verspreide waarheid. Het gedrag
+  verandert in deze taak **niet** — dat is precies de acceptatie. Bouw hier ook de gedeelde
+  **invariant-testsuite** die over élke geregistreerde strategie draait en de domeinregels afdwingt.
+  *Acceptatie:* alle bestaande gespreks- en beslissingstests blijven ongewijzigd groen (bewijs dat
+  `refine` de huidige aanpak exact is); een test dwingt af dat de registry een geldige standaard heeft en
+  dat elke strategie de invarianten haalt (geen leeg scherm, geen voorstel zonder gebruikerskeuze,
+  afgewezen concepten komen niet terug, deduplicatie eerst, gesloten promptsleutelset); `npm run lint`
+  meldt geen ongebruikte constanten.
+
+- [ ] **T11.3 Drie strategieën die aantoonbaar ander gedrag geven**
+  *DESIGN: §7.3, §7.10, §5.3.* Een abstractie met één implementatie bewijst niets. Voeg toe:
+  • **`explore` — "Breed verkennen"**: kleinkinderen vóór kinderen, groter aanbod, lagere
+  voorsteldrempel. Voor wie concrete dingen herkent maar moeilijk categoriseert; slaat abstracte
+  tussenstappen over.
+  • **`calm` — "Rustig en bevestigend"**: klein aanbod (aansluitend op een lage `iconsPerScreen`), hoge
+  voorsteldrempel, sterke demping, promptregels die om één duidelijke vraag per keer vragen. Voor wie snel
+  overprikkeld raakt.
+  • **`context-first` — "Context eerst"**: voorkeuren en toegestane persoonlijke context vóór de
+  boomkinderen, promptregels die om het dagritme van deze persoon vragen. Voor wie een sterk vast patroon
+  heeft.
+  Elke strategie krijgt een korte uitleg in begrijpelijke taal (de begeleider kiest hem, niet een
+  ontwikkelaar).
+  *Acceptatie:* per strategie een test die het **onderscheidende** gedrag vastlegt op dezelfde
+  gesprekstoestand (bv. `explore` biedt op hetzelfde punt concretere concepten aan dan `refine`; `calm`
+  biedt er aantoonbaar minder aan en stelt later voor); alle strategieën halen de invariant-testsuite uit
+  T11.2; de uitleg is niet leeg (test).
+
+- [ ] **T11.4 Strategie kiezen per gebruiker**
+  *DESIGN: §5.3, §3.7, §7.10.* De strategie hoort bij de persoon: het is een communicatie-instelling, net
+  als `iconsPerScreen` en `showText`. Werk: migratie met `UserCommunicationProfile.conversationStrategy`
+  (`String`, default de registry-standaard, op de grens met zod tegen de registry gevalideerd — een
+  onbekende sleutel mag nooit tot een halve strategie leiden), de instelling meenemen in de bestaande
+  profiel-API en in `SettingsForm` in de beheeromgeving, met per keuze de uitleg uit T11.3 zichtbaar zodat
+  de begeleider een geïnformeerde keuze maakt. Meenemen in profielexport/-import (T8.1), anders valt de
+  instelling stilletijd terug op de standaard bij overdracht.
+  *Acceptatie:* de gespreksflow van een gebruiker met `calm` gedraagt zich aantoonbaar anders dan die van
+  een gebruiker met `refine` (test via HTTP, twee gebruikers naast elkaar); een onbekende sleutel geeft
+  `400` en raakt de database niet; de instelling overleeft export → import (test); migratie draait schoon
+  op een lege db en bestaande gebruikers houden het huidige gedrag.
+
+- [ ] **T11.5 Strategie kiezen per gesprek**
+  *DESIGN: §3.2, §7.10.* Eén persoon kan per situatie een andere aanpak nodig hebben: een vraag over pijn
+  vraagt om een andere benadering dan "wat wil je doen vanmiddag". Werk: migratie met
+  `ConversationSession.strategy` (nullable — `null` = volg de gebruikersinstelling), de resolutieorde
+  **gesprek → gebruiker → standaard** op één plek (`resolveStrategy`), en de begeleider kan bij het
+  stellen van een vraag (vraagmodus, `POST /question/start`) optioneel een strategie meegeven. De
+  strategie ligt vast voor de duur van het gesprek: hem halverwege wisselen zou het vastgelegde aanbod
+  (T10.3) en de hypothese (T10.8) inconsistent maken — dat is een expliciete keuze, geen omissie.
+  *Acceptatie:* een vraagmodus-sessie met een expliciete strategie volgt die en niet de
+  gebruikersinstelling (test); zonder keuze valt het gesprek terug op de gebruiker, en zonder
+  gebruikersinstelling op de standaard (tests voor alle drie de niveaus); een onbekende sleutel geeft
+  `400`; een lopend gesprek houdt zijn strategie.
+
+- [ ] **T11.6 Zichtbaar maken wélke aanpak draaide**
+  *DESIGN: §7.10, §9.4; sluit aan op T9.15.* Met meerdere strategieën is "waarom deed de AI dit?" niet te
+  beantwoorden zonder te weten wélke aanpak actief was — en dat is precies de vraag die de vorige
+  gebruikerstests opriepen. Werk: de strategiesleutel opnemen in de bestaande AI-beslissings-logregel en
+  in het beheerscherm **AI-activiteit**, en in de gesprekstoestand meesturen zodat de begeleider die
+  meekijkt ziet welke aanpak loopt. Alleen de sleutel en het label — geen promptinhoud, geen persoonlijke
+  context (§9.4).
+  *Acceptatie:* de logregel en het AI-activiteitscherm tonen de actieve strategie (tests); de
+  meekijk-weergave van de begeleider toont het label; de prompt lekt nergens in een respons (bestaande
+  T9.15-test blijft groen).
+
+---
+
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
-Spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.
+Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.

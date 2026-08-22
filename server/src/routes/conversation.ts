@@ -191,7 +191,13 @@ async function buildMessageInput(
   for (const step of steps) {
     const model = step.selectedSymbolId ? byId.get(step.selectedSymbolId) : undefined;
     if (model) symbols.push(symbolToPublic(model));
-    chosen.push({ concept: step.selectedConcept, label: model?.label ?? step.selectedConcept });
+    // De categorie reist mee zodat de zinsgenerator weet of de route met een **intentie** begint (T10.9);
+    // sinds de AI ook op het startscherm een concept mag aandragen is dat niet meer vanzelfsprekend.
+    chosen.push({
+      concept: step.selectedConcept,
+      label: model?.label ?? step.selectedConcept,
+      ...(model ? { category: model.category } : {}),
+    });
   }
   return { symbols, chosen };
 }

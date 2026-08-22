@@ -417,4 +417,64 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
     expect(completed.hypothesis).toBeNull();
     expect(completed.pendingOffer).toBeNull();
   });
+
+  // --- T10.9: de boodschapzin loopt mee met de vrijere route ----------------------------------------
+
+  describe('een route die met een AI-aangedragen concept begint (T10.9)', () => {
+    /**
+     * Provider die meteen op het **startscherm** een begrip aandraagt dat niet in de bibliotheek staat —
+     * de rooktest van T10.6. De route begint dan met `nagelknipper` in plaats van met een intentie.
+     */
+    function clipperProvider(message?: string): AiProvider {
+      return {
+        name: 'clipper',
+        selectNextQuestion(): Promise<AiQuestionDecision> {
+          return Promise.resolve({
+            question: 'Bedoel je dit?',
+            options: [{ symbol: 'nagelknipper', confidence: 0.9 }],
+            confidence: 0.5,
+            reason: 'de gebruiker wil iets met nagels',
+          });
+        },
+        ...(message
+          ? { generateMessage: () => Promise.resolve({ message, confidence: 0.9 }) }
+          : {}),
+      };
+    }
+
+    /** Kiest het nieuwe woord als eerste stap en levert het boodschapvoorstel op. */
+    async function proposeAfterClipper(provider: AiProvider): Promise<string> {
+      const { cookie, sessionId, state } = await startFor(provider);
+      // De AI draagt het nieuwe woord al op het startscherm aan; de gebruiker kiest het zelf.
+      expect(conceptsOf(state)).toContain('nagelknipper');
+
+      const chosen = await next(cookie, sessionId, 'nagelknipper');
+      expect(chosen.history.map((entry) => entry.symbol.concept)).toEqual(['nagelknipper']);
+
+      const generated = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/generate`,
+        headers: { cookie },
+      });
+      expect(generated.statusCode).toBe(200);
+      return generated.json().message as string;
+    }
+
+    it('levert een lopende zin in plaats van één los woord', async () => {
+      // Vóór T10.9 was dit letterlijk "Nagelknipper." — de sjabloon kende alleen intentie-frames.
+      const message = await proposeAfterClipper(clipperProvider());
+      expect(message).toBe('Ik wil iets zeggen over nagelknipper.');
+    });
+
+    it('laat de AI-zin "Ik wil de nagelknipper." door de safety-laag', async () => {
+      // "wil" is een synoniem van het niet-gekozen concept `want`, maar bovenal gewone zinsbouw.
+      const message = await proposeAfterClipper(clipperProvider('Ik wil de nagelknipper.'));
+      expect(message).toBe('Ik wil de nagelknipper.');
+    });
+
+    it('weigert een AI-zin met een begrip dat de gebruiker niet koos', async () => {
+      const message = await proposeAfterClipper(clipperProvider('Ik wil buiten wandelen.'));
+      expect(message).toBe('Ik wil iets zeggen over nagelknipper.');
+    });
+  });
 });

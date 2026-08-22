@@ -7,15 +7,22 @@
  * dat de route-laag verandert.
  *
  * Veiligheidsregel (DESIGN §7.8): de zin blijft **binnen de gekozen concepten** — er komen geen vrije
- * begrippen bij. De functie is een pure functie van de gekozen concepten (de eerste is de intentie), zodat
- * `/generate` en `/confirm` deterministisch dezelfde zin opleveren en de server nooit vrije clienttekst
- * hoeft te vertrouwen.
+ * begrippen bij. De functie is een pure functie van de gekozen concepten — begint de route met een
+ * intentiecategorie, dan draagt die het zinsframe; begint ze met een gewoon begrip (T10.9), dan is het
+ * onderwerp-frame de basis. Zo leveren `/generate` en `/confirm` deterministisch dezelfde zin op en hoeft
+ * de server nooit vrije clienttekst te vertrouwen.
  */
 
 /** Eén gekozen stap zoals de generator hem nodig heeft: het canonieke concept en de weergavetekst. */
 export interface ChosenConcept {
   concept: string;
   label: string;
+  /**
+   * De categorie van het symbool (`intent`, `activity`, `object`, …). Bepaalt of de route met een
+   * **intentie** begint (T10.9). Weggelaten = onbekend; dan valt de generator terug op "kennen we een
+   * zinsframe voor dit concept?", zodat oudere aanroepers hetzelfde gedrag houden.
+   */
+  category?: string;
 }
 
 /**
@@ -96,6 +103,29 @@ function phraseFor(step: ChosenConcept): string {
   return mapped !== undefined ? mapped : step.label.toLowerCase();
 }
 
+/**
+ * Zinsframe voor een route die **niet** met een intentie begint (T10.9).
+ *
+ * Sinds T10.6 mag de AI ook op het startscherm een concept aandragen, dus kan een route beginnen met een
+ * gewoon begrip ("Nagelknipper") in plaats van met een intentiecategorie. De oude terugval maakte daar
+ * `${intent.label}.` van — één los woord, geen zin. Er is dan geen intentie bekend, dus kiezen we het
+ * neutraalste frame dat er is: de gebruiker wil iets over dit onderwerp zeggen. Alle gekozen concepten
+ * zijn hier **inhoud**; er wordt er geen als frame opgesoupeerd.
+ */
+const TOPIC_FRAME: IntentFrame = {
+  withRest: (rest) => `Ik wil iets zeggen over ${rest}.`,
+  withoutRest: 'Ik wil iets duidelijk maken.',
+};
+
+/**
+ * Begint deze route met een intentiecategorie? De categorie is de bron van waarheid; ontbreekt ze (oudere
+ * aanroepers, tests), dan geldt "we kennen een zinsframe voor dit concept" als benadering.
+ */
+function isIntentStart(first: ChosenConcept): boolean {
+  if (first.category !== undefined) return first.category === 'intent';
+  return first.concept in INTENT_FRAMES;
+}
+
 /** Het frame van een intentie, met een generieke terugval voor onbekende intenties. */
 function frameFor(intent: ChosenConcept): IntentFrame {
   return (
@@ -106,21 +136,31 @@ function frameFor(intent: ChosenConcept): IntentFrame {
   );
 }
 
+/** Rijgt de zinsfragmenten van een reeks concepten aaneen; lege (structurele) fragmenten vallen weg. */
+function phrasesOf(steps: ChosenConcept[]): string {
+  return steps
+    .map(phraseFor)
+    .filter((fragment) => fragment.length > 0)
+    .join(' ');
+}
+
 /**
- * Vormt de boodschap uit de gekozen concepten (de eerste is de intentie, de rest verfijnt). Blijft
- * strikt binnen de aangeleverde concepten (DESIGN §7.8). Gooit bij een lege route — er valt dan niets
- * voor te stellen (de route-laag weigert dat met een 400).
+ * Vormt de boodschap uit de gekozen concepten. Begint de route met een intentie, dan draagt die het frame
+ * en verfijnt de rest; begint ze met een gewoon begrip (T10.9), dan zijn álle concepten inhoud binnen het
+ * neutrale onderwerp-frame. Blijft strikt binnen de aangeleverde concepten (DESIGN §7.8). Gooit bij een
+ * lege route — er valt dan niets voor te stellen (de route-laag weigert dat met een 400).
  */
 export function generateMessage(chosen: ChosenConcept[]): string {
   if (chosen.length === 0) {
     throw new Error('Kan geen boodschap vormen zonder gekozen concepten.');
   }
-  const [intent, ...refinements] = chosen;
-  const frame = frameFor(intent!);
-  const rest = refinements
-    .map(phraseFor)
-    .filter((fragment) => fragment.length > 0)
-    .join(' ');
+  const [first, ...refinements] = chosen;
+  if (!isIntentStart(first!)) {
+    const topic = phrasesOf(chosen);
+    return topic.length > 0 ? TOPIC_FRAME.withRest(topic) : TOPIC_FRAME.withoutRest;
+  }
+  const frame = frameFor(first!);
+  const rest = phrasesOf(refinements);
   return rest.length > 0 ? frame.withRest(rest) : frame.withoutRest;
 }
 
