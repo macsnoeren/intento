@@ -172,6 +172,138 @@ describe('gespreksstrategie per gebruiker', () => {
     expect(profile.conversationStrategy).toBe('explore');
   });
 
+  // --- T11.5: de strategie van dít gesprek ----------------------------------------------------------
+
+  describe('per gesprek (vraagmodus)', () => {
+    /** Zet een begeleider + gekoppelde gebruiker klaar en levert de cookie van de begeleider. */
+    async function caregiverFor(
+      userStrategy: string,
+    ): Promise<{ cookie: string; userId: string; deviceCookie: string }> {
+      const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
+      const cookie = await loginCookie(app, admin.email, admin.password);
+      const user = await seedUser('Sanne', admin.organizationId);
+      await prisma.userCommunicationProfile.update({
+        where: { userId: user.id },
+        data: { conversationStrategy: userStrategy },
+      });
+      return { cookie, userId: user.id, deviceCookie: await deviceCookie(app, user.id) };
+    }
+
+    /** Stelt een vraag via de vraagmodus, eventueel met een expliciete strategie. */
+    async function askQuestion(
+      cookie: string,
+      userId: string,
+      strategy?: string,
+    ): Promise<{ statusCode: number; sessionId?: string }> {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/question/start',
+        headers: { cookie },
+        payload: {
+          userId,
+          question: 'Wat wil je drinken?',
+          anchorConcept: 'drink',
+          ...(strategy ? { strategy } : {}),
+        },
+      });
+      return {
+        statusCode: res.statusCode,
+        ...(res.statusCode === 201 ? { sessionId: res.json().sessionId as string } : {}),
+      };
+    }
+
+    it('volgt de strategie van het gesprek, niet die van de gebruiker', async () => {
+      const { cookie, userId } = await caregiverFor('refine');
+      const { statusCode, sessionId } = await askQuestion(cookie, userId, 'calm');
+      expect(statusCode).toBe(201);
+
+      const session = await prisma.conversationSession.findUniqueOrThrow({
+        where: { id: sessionId! },
+      });
+      expect(session.strategy).toBe('calm');
+    });
+
+    it('valt zonder keuze terug op de gebruiker, en zonder gebruikersinstelling op de standaard', async () => {
+      // Niveau 2: geen strategie bij de vraag → de instelling van de gebruiker.
+      const withUser = await caregiverFor('explore');
+      const asked = await askQuestion(withUser.cookie, withUser.userId);
+      expect(asked.statusCode).toBe(201);
+      const session = await prisma.conversationSession.findUniqueOrThrow({
+        where: { id: asked.sessionId! },
+      });
+      expect(session.strategy).toBe('explore');
+
+      // Niveau 3: een gebruiker zonder eigen keuze houdt de standaard.
+      await resetAuthData();
+      const withDefault = await caregiverFor('refine');
+      const asked2 = await askQuestion(withDefault.cookie, withDefault.userId);
+      const session2 = await prisma.conversationSession.findUniqueOrThrow({
+        where: { id: asked2.sessionId! },
+      });
+      expect(session2.strategy).toBe('refine');
+    });
+
+    it('weigert een onbekende strategie bij het stellen van een vraag met 400', async () => {
+      const { cookie, userId } = await caregiverFor('refine');
+      const { statusCode } = await askQuestion(cookie, userId, 'verzonnen-aanpak');
+      expect(statusCode).toBe(400);
+      expect(await prisma.conversationSession.count({ where: { userId } })).toBe(0);
+    });
+
+    it('houdt een lopend gesprek bij zijn strategie, ook als de instelling verandert', async () => {
+      const { cookie, userId, deviceCookie: device } = await caregiverFor('refine');
+      const { sessionId } = await askQuestion(cookie, userId, 'calm');
+
+      // De tablet pakt de vraag op en de gebruiker kiest een van de aangeboden antwoorden.
+      const pending = await app.inject({
+        method: 'GET',
+        url: '/conversation/pending',
+        headers: { cookie: device },
+      });
+      expect(pending.statusCode).toBe(200);
+      const offered = parseState(pending.json().state).question?.options ?? [];
+      // `calm` houdt het aanbod klein: dat is precies de aanpak waarmee dit gesprek begon.
+      expect(offered.length).toBeGreaterThan(0);
+      expect(offered.length).toBeLessThanOrEqual(4);
+      const answer = offered[0]!;
+
+      // Halverwege verandert de begeleider de instelling van de gebruiker…
+      await prisma.userCommunicationProfile.update({
+        where: { userId },
+        data: { conversationStrategy: 'explore' },
+      });
+
+      const next = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId!}/next`,
+        headers: { cookie: device },
+        payload: { symbolId: answer.id },
+      });
+      expect(next.statusCode).toBe(200);
+
+      // …maar het lopende gesprek houdt de aanpak waarmee het begon. Halverwege wisselen zou het
+      // vastgelegde aanbod en de lopende hypothese inconsistent maken.
+      const session = await prisma.conversationSession.findUniqueOrThrow({
+        where: { id: sessionId! },
+      });
+      expect(session.strategy).toBe('calm');
+    });
+
+    it('legt de strategie ook vast bij een vrij gesprek van de tablet', async () => {
+      const { deviceCookie: device } = await caregiverFor('context-first');
+      const start = await app.inject({
+        method: 'POST',
+        url: '/conversation/start',
+        headers: { cookie: device },
+      });
+      expect(start.statusCode).toBe(201);
+      const session = await prisma.conversationSession.findUniqueOrThrow({
+        where: { id: parseState(start.json()).sessionId },
+      });
+      expect(session.strategy).toBe('context-first');
+    });
+  });
+
   it('laat een strategie die de registry niet kent een lopend gesprek niet breken', async () => {
     // Een rij die ooit met een sindsdien verwijderde strategie is opgeslagen: de invoer wordt op de
     // API-grens geweigerd, maar bestaande data mag nooit een gesprek laten crashen (§7.10).

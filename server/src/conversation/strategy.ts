@@ -278,19 +278,23 @@ export function defaultStrategy(): ConversationStrategy {
 export const conversationStrategyKeySchema = conversationStrategySchema;
 
 /**
- * Lost op **welke strategie dit gesprek voert** (T11.4, DESIGN §7.10).
+ * Lost op **welke strategie dit gesprek voert** (T11.4/T11.5, DESIGN §7.10).
  *
- * De volgorde is gebruiker → standaard; T11.5 zet het gesprek er nog vóór. Eén plek, omdat de resolutie
- * anders per aanroeper subtiel gaat verschillen — en dan is "welke aanpak draaide er?" niet meer te
- * beantwoorden. Een sleutel die de registry niet (meer) kent, valt hier terug op de standaard: de
- * *invoer* wordt op de API-grens geweigerd (`conversationStrategyKeySchema`), maar een bestaande rij in
- * de database mag een lopend gesprek nooit laten crashen.
+ * De volgorde is **gesprek → gebruiker → standaard**, op één plek — anders gaat de resolutie per
+ * aanroeper subtiel verschillen en is "welke aanpak draaide er?" niet meer te beantwoorden.
+ *
+ * Een sleutel die de registry niet (meer) kent valt door naar het volgende niveau in plaats van te
+ * falen: de *invoer* wordt op de API-grens geweigerd (`conversationStrategyKeySchema`), maar een
+ * bestaande rij in de database mag een lopend gesprek nooit laten crashen — dan zou de gebruiker
+ * midden in een zin stil komen te staan.
  */
 export function resolveStrategy(input: {
+  /** De strategie van dit gesprek (`ConversationSession.strategy`); `null` = volg de gebruiker. */
+  session?: string | null;
   /** De strategie van de gebruiker (`UserCommunicationProfile.conversationStrategy`). */
   user?: string | null;
 }): ConversationStrategy {
-  return findStrategy(input.user) ?? defaultStrategy();
+  return findStrategy(input.session) ?? findStrategy(input.user) ?? defaultStrategy();
 }
 
 /**

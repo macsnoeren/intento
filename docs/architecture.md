@@ -176,7 +176,9 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   gebruiker → standaard en ligt vast voor de duur van het gesprek. De registry kent **`refine`** (stap
   voor stap verfijnen, de standaard), **`explore`** (concreet vóór abstract, groter aanbod, lagere
   voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping) en **`context-first`**
-  (voorkeuren en persoonlijke context vóór de boom); `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
+  (voorkeuren en persoonlijke context vóór de boom); de gekozen sleutel wordt bij het starten van een
+  gesprek vastgelegd op de sessie (`ConversationSession.strategy`), zodat een instelling die halverwege
+  wijzigt een lopend gesprek niet van aanpak laat wisselen; `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
   `AI_ALLOW_NEW_CONCEPTS`) blijven als **plafond** gelden — een strategie kan ze aanscherpen, nooit
   oprekken. Zie [adr/0013](adr/0013-conversation-strategies.md).
 - **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,

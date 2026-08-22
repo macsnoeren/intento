@@ -416,6 +416,16 @@ model ConversationSession {
   /// leeggemaakt — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6). Bevat uitsluitend
   /// AAC-concepten en getallen, nooit persoonlijke context (DESIGN §9.4).
   hypothesis Json?
+  /// De **gespreksstrategie** van dit gesprek (T11.5, DESIGN §7.10): de sleutel van een ingebouwde
+  /// aanpak, of `null` = volg de instelling van de gebruiker. Een begeleider kan hem meegeven bij het
+  /// stellen van een vraag (§3.2): een vraag over pijn vraagt om een andere benadering dan "wat wil je
+  /// doen vanmiddag". De resolutieorde is **gesprek → gebruiker → standaard** (`resolveStrategy`).
+  ///
+  /// De strategie ligt vast voor de duur van het gesprek: halverwege wisselen zou het vastgelegde
+  /// aanbod (`pendingOffer`) en de lopende hypothese inconsistent maken. Op de API-grens tegen de
+  /// registry gevalideerd; een opgeslagen sleutel die de registry niet meer kent valt bij het lezen
+  /// terug op de gebruikersinstelling.
+  strategy   String?
 
   user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   steps    ConversationStep[]

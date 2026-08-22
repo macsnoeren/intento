@@ -439,7 +439,7 @@ bewust bij "Na de MVP".
   `400` en raakt de database niet; de instelling overleeft export → import (test); migratie draait schoon
   op een lege db en bestaande gebruikers houden het huidige gedrag.
 
-- [ ] **T11.5 Strategie kiezen per gesprek**
+- [x] **T11.5 Strategie kiezen per gesprek**
   *DESIGN: §3.2, §7.10.* Eén persoon kan per situatie een andere aanpak nodig hebben: een vraag over pijn
   vraagt om een andere benadering dan "wat wil je doen vanmiddag". Werk: migratie met
   `ConversationSession.strategy` (nullable — `null` = volg de gebruikersinstelling), de resolutieorde

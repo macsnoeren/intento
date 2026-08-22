@@ -1143,6 +1143,13 @@ export const questionStartRequestSchema = z.object({
   userId: z.string().min(1),
   question: z.string().trim().min(1).max(300),
   anchorConcept: aacConceptKeySchema,
+  /**
+   * Optionele **gespreksstrategie** voor dít gesprek (T11.5, DESIGN §7.10). Eén persoon kan per
+   * situatie een andere aanpak nodig hebben: een vraag over pijn vraagt om een andere benadering dan
+   * "wat wil je doen vanmiddag". Weggelaten = de instelling van de gebruiker (§5.3). Een onbekende
+   * sleutel wordt geweigerd (400) — nooit een half toegepaste strategie.
+   */
+  strategy: conversationStrategySchema.optional(),
 });
 export type QuestionStartRequest = z.infer<typeof questionStartRequestSchema>;
 

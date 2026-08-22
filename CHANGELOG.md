@@ -53,6 +53,15 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   (DESIGN §3.1); hoeveel er tegelijk op het scherm passen regelt de tablet met `iconsPerScreen`. De
   invariant-suite bewaakt dit voor élke strategie.
 
+- **T11.5 Strategie kiezen per gesprek** (`ConversationSession.strategy`, migratie
+  `conversation_strategy`). Eén persoon kan per situatie een andere aanpak nodig hebben: een vraag over
+  pijn vraagt om een andere benadering dan "wat wil je doen vanmiddag". De begeleider kan bij
+  `POST /question/start` optioneel een strategie meegeven; de resolutieorde **gesprek → gebruiker →
+  standaard** staat op één plek (`resolveStrategy`). De gekozen aanpak wordt bij het starten van elk
+  gesprek **vastgelegd** — ook bij een vrij gesprek vanaf de tablet — en ligt daarmee vast voor de duur
+  van het gesprek: halverwege wisselen zou het vastgelegde aanbod (T10.3) en de lopende hypothese (T10.8)
+  inconsistent maken. Een onbekende sleutel geeft `400` en er wordt geen sessie aangemaakt.
+
 ### Gewijzigd — Fase 10: de AI stuurt het gesprek
 
 - **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**

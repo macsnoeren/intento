@@ -16,6 +16,7 @@ import { assertSameTenant, tenantScope } from '../auth/tenant.js';
 import { assertCaregiverAccess } from '../auth/caregivers.js';
 import { userToPublic as toPublic } from '../users/serialize.js';
 import { loadChildSymbols, serializeHistory } from '../conversation/engine.js';
+import { resolveStrategy } from '../conversation/strategy.js';
 import { HttpError } from '../errors.js';
 
 export interface QuestionRoutesDeps {
@@ -72,7 +73,9 @@ export function registerQuestionRoutes(app: FastifyInstance, { prisma }: Questio
     { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) },
     async (request, reply): Promise<QuestionStartResponse> => {
       const account = requireAccount(request);
-      const { userId, question, anchorConcept } = questionStartRequestSchema.parse(request.body);
+      const { userId, question, anchorConcept, strategy } = questionStartRequestSchema.parse(
+        request.body,
+      );
 
       // Tenant-grens + begeleider-koppeling bewaken vóór er iets wordt aangemaakt.
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -94,6 +97,17 @@ export function registerQuestionRoutes(app: FastifyInstance, { prisma }: Questio
         );
       }
 
+      // De aanpak van dít gesprek (T11.5, DESIGN §7.10): de begeleider mag er een meegeven, want een
+      // vraag over pijn vraagt om een andere benadering dan "wat wil je doen vanmiddag". Geeft hij niets
+      // mee, dan geldt de instelling van de gebruiker. De keuze wordt hier vastgelegd en ligt daarmee
+      // vast voor de duur van het gesprek — halverwege wisselen zou het vastgelegde aanbod en de
+      // lopende hypothese inconsistent maken.
+      const profile = await prisma.userCommunicationProfile.findUnique({ where: { userId } });
+      const resolved = resolveStrategy({
+        session: strategy ?? null,
+        user: profile?.conversationStrategy,
+      });
+
       // Sessie + vast anker-stap (order 0) in één transactie: de eerste vraag die de gebruiker ziet zijn
       // de kinderen van het anker (bv. de dranken), met de begeleidersvraag als context erboven.
       const session = await prisma.$transaction(async (tx) => {
@@ -104,6 +118,7 @@ export function registerQuestionRoutes(app: FastifyInstance, { prisma }: Questio
             mode: 'question',
             caregiverQuestion: question,
             startedByAccountId: account.id,
+            strategy: resolved.key,
           },
         });
         await tx.conversationStep.create({

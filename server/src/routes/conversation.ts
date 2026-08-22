@@ -253,7 +253,10 @@ async function ensureOffer(
     loadUserContext(prisma, encryptor, session.userId),
     prisma.userCommunicationProfile.findUnique({ where: { userId: session.userId } }),
   ]);
-  const strategy = resolveStrategy({ user: profile?.conversationStrategy });
+  const strategy = resolveStrategy({
+    session: session.strategy,
+    user: profile?.conversationStrategy,
+  });
 
   const decision = await decideNextQuestion(prisma, orchestrator, {
     steps,
@@ -427,8 +430,19 @@ export function registerConversationRoutes(
     { preHandler: deviceAuthorize(prisma) },
     async (request, reply): Promise<ConversationStateResponse> => {
       const device = requireDevice(request);
+      // De strategie wordt bij de start **vastgelegd** op het gesprek (T11.5, DESIGN §7.10). Zou ze per
+      // beurt opnieuw uit het profiel volgen, dan zou een begeleider die de instelling halverwege
+      // wijzigt het vastgelegde aanbod (T10.3) en de lopende hypothese (T10.8) inconsistent maken —
+      // midden in een zin van aanpak wisselen. Dat is een expliciete keuze, geen omissie.
+      const profile = await prisma.userCommunicationProfile.findUnique({
+        where: { userId: device.userId },
+      });
       const session = await prisma.conversationSession.create({
-        data: { userId: device.userId, status: 'ACTIVE' },
+        data: {
+          userId: device.userId,
+          status: 'ACTIVE',
+          strategy: resolveStrategy({ user: profile?.conversationStrategy }).key,
+        },
       });
       reply.status(201);
       return buildState(deps, session, [], request.log);
