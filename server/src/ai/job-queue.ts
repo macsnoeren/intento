@@ -158,6 +158,8 @@ export async function enqueueJob(
   config: QueueConfig,
   task: JobTask,
   payload: unknown,
+  /** De actieve gespreksstrategie (T11.6); puur administratie voor het AI-activiteitscherm. */
+  strategy: string | null = null,
 ): Promise<Admission> {
   const now = new Date();
   await sweepQueue(prisma, config, now);
@@ -171,6 +173,7 @@ export async function enqueueJob(
       task,
       status: admitted ? JOB_STATUS.QUEUED : JOB_STATUS.WAITING_FOR_WORKER,
       payloadJson: JSON.stringify(payload),
+      strategy,
       expiresAt,
     },
   });

@@ -452,7 +452,7 @@ bewust bij "Na de MVP".
   gebruikersinstelling op de standaard (tests voor alle drie de niveaus); een onbekende sleutel geeft
   `400`; een lopend gesprek houdt zijn strategie.
 
-- [ ] **T11.6 Zichtbaar maken wélke aanpak draaide**
+- [x] **T11.6 Zichtbaar maken wélke aanpak draaide**
   *DESIGN: §7.10, §9.4; sluit aan op T9.15.* Met meerdere strategieën is "waarom deed de AI dit?" niet te
   beantwoorden zonder te weten wélke aanpak actief was — en dat is precies de vraag die de vorige
   gebruikerstests opriepen. Werk: de strategiesleutel opnemen in de bestaande AI-beslissings-logregel en

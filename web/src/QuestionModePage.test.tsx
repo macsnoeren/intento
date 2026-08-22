@@ -146,6 +146,7 @@ describe('begeleiderinterface — vraagmodus', () => {
             status: 'ACTIVE',
             mode: 'question',
             caregiverQuestion: 'Wat wil je drinken?',
+            strategy: { key: 'calm' as const, label: 'Rustig en bevestigend' },
             history: [
               { order: 0, question: 'Wat wil je drinken?', symbol: sym('drink', 'Drinken', '🥤') },
             ],
@@ -161,6 +162,8 @@ describe('begeleiderinterface — vraagmodus', () => {
     const watch = screen.getByRole('region', { name: 'Meekijken met het gesprek' });
     expect(within(watch).getByText(/Wat wil je drinken\?/)).toBeTruthy();
     expect(within(watch).getByRole('navigation', { name: 'Gekozen pad' })).toBeTruthy();
+    // De begeleider ziet wélke aanpak er draait (T11.6) — het label, niet de parameters.
+    expect(within(watch).getByText(/Rustig en bevestigend/)).toBeTruthy();
     // Geen keuze-/bevestigknoppen in de meekijkweergave.
     expect(within(watch).queryByRole('button', { name: /Bevestigen/ })).toBeNull();
   });
@@ -230,6 +233,7 @@ describe('begeleiderinterface — vraagmodus', () => {
                   status: 'ACTIVE' as const,
                   mode: 'free' as const,
                   caregiverQuestion: null,
+                  strategy: { key: 'refine' as const, label: 'Stap voor stap verfijnen' },
                   history: [],
                 }
               : {
@@ -237,6 +241,7 @@ describe('begeleiderinterface — vraagmodus', () => {
                   status: 'ACTIVE' as const,
                   mode: 'free' as const,
                   caregiverQuestion: null,
+                  strategy: { key: 'refine' as const, label: 'Stap voor stap verfijnen' },
                   history: [
                     {
                       order: 0,

@@ -418,6 +418,13 @@ function ConversationWatch({
                 </p>
               ) : null}
 
+              {/* Wélke aanpak draait er (T11.6, DESIGN §7.10)? Met meerdere strategieën is "waarom
+                  doet de AI dit?" niet te beantwoorden zonder dat te weten. Alleen het label — de
+                  parameters en de prompt horen niet op het scherm van de begeleider. */}
+              <p className="muted">
+                Aanpak: <strong>{view.session.strategy.label}</strong>
+              </p>
+
               {view.session.history.length > 0 ? (
                 <nav className="breadcrumb" aria-label="Gekozen pad">
                   {view.session.history.map((step) => (

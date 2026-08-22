@@ -704,6 +704,11 @@ model AiJob {
   leaseExpiresAt DateTime?
   /// Uiterste moment waarop de job nog opgepakt mag worden; daarna → EXPIRED (nette wachtrij-timeout).
   expiresAt      DateTime
+  /// De **gespreksstrategie** die deze aanvraag voortbracht (T11.6, DESIGN §7.10): puur de sleutel, als
+  /// administratie voor het beheerscherm AI-activiteit — met meerdere aanpakken is "waarom deed de AI
+  /// dit?" niet te beantwoorden zonder te weten wélke draaide. Bewust géén promptinhoud en geen
+  /// persoonlijke context (DESIGN §9.4); `null` bij een boodschap-job of een oudere rij.
+  strategy       String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

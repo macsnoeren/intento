@@ -8,6 +8,7 @@ import {
   aiMessageResultSchema,
   aiQuestionDecisionSchema,
   type AiMessagePrompt,
+  type AiCallMeta,
   type AiMessageResult,
   type AiPrompt,
   type AiProvider,
@@ -38,10 +39,14 @@ export class AiOrchestrator {
   /**
    * Stelt de beperkte prompt samen, laat de provider de volgende vraag kiezen en valideert de uitvoer.
    * Gooit als de provider een ongeldige vorm teruggeeft (zod-fout) — die bereikt de gebruiker nooit.
+   *
+   * `meta` is **administratie over de aanroep** (T11.6, bv. de actieve strategie): het gaat buiten de
+   * prompt om mee, blijft daarmee weg bij het model, en dient alleen om achteraf te kunnen zien welke
+   * aanpak draaide.
    */
-  async selectNextQuestion(input: AiPromptInput): Promise<AiQuestionDecision> {
+  async selectNextQuestion(input: AiPromptInput, meta?: AiCallMeta): Promise<AiQuestionDecision> {
     const prompt: AiPrompt = buildAiPrompt(input);
-    const raw = await this.provider.selectNextQuestion(prompt);
+    const raw = await this.provider.selectNextQuestion(prompt, meta);
     return aiQuestionDecisionSchema.parse(raw);
   }
 

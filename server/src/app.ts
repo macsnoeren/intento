@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
@@ -36,8 +36,12 @@ export interface BuildAppOptions {
   env: Env;
   /** Prisma-client; standaard de gedeelde singleton, injecteerbaar in tests. */
   prisma?: PrismaClient;
-  /** Fastify-logger; standaard uit in tests, aan bij de echte server. */
-  logger?: boolean;
+  /**
+   * Fastify-logger; standaard uit in tests, aan bij de echte server. Accepteert ook de volledige
+   * logger-opties, zodat een test de logregels kan opvangen (T11.6: staat de actieve strategie erin?)
+   * in plaats van ze naar stdout te laten verdwijnen.
+   */
+  logger?: FastifyServerOptions['logger'];
   /** OpenSymbols-proxy (T3.3); standaard uit de env, injecteerbaar zodat tests een mock meegeven. */
   openSymbols?: OpenSymbolsClient;
   /** Mail-transport (T1.4); standaard uit de env (log/SMTP), injecteerbaar zodat tests de mail opvangen. */

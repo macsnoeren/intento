@@ -284,6 +284,9 @@ async function ensureOffer(
     {
       ai: {
         provider: orchestrator.providerName,
+        // Wélke aanpak draaide (T11.6, DESIGN §7.10) — zonder dat is "waarom deed de AI dit?" met
+        // meerdere strategieën niet meer te beantwoorden. Alleen de sleutel; nooit promptinhoud.
+        strategy: strategy.key,
         sessionId: session.id,
         step: steps.length,
         candidates: decision.diagnostics.candidateCount,

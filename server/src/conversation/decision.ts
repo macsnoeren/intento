@@ -300,21 +300,26 @@ export async function decideNextQuestion(
   }
 
   // 2 + 3. AI kiest/ordent binnen de kandidaten, mét de negatieve context (T10.4).
-  const aiDecision = await orchestrator.selectNextQuestion({
-    conversationContext: toConceptRefs(steps, labels),
-    availableSymbols: available.map((s) => ({ concept: s.concept, label: s.label })),
-    userContext,
-    questionContext,
-    askedQuestions,
-    // De strategie vult de **inhoud** van doel en AAC-regels; de sleutelset blijft gesloten (§7.7).
-    goal: strategy.prompt.goal,
-    aacRules: promptRulesFor(strategy),
-    rejectedConcepts: rejections.map((rejection) => ({
-      concept: rejection.concept,
-      label: labels.get(rejection.concept) ?? rejection.concept,
-      kind: rejection.kind,
-    })),
-  });
+  const aiDecision = await orchestrator.selectNextQuestion(
+    {
+      conversationContext: toConceptRefs(steps, labels),
+      availableSymbols: available.map((s) => ({ concept: s.concept, label: s.label })),
+      userContext,
+      questionContext,
+      askedQuestions,
+      // De strategie vult de **inhoud** van doel en AAC-regels; de sleutelset blijft gesloten (§7.7).
+      goal: strategy.prompt.goal,
+      aacRules: promptRulesFor(strategy),
+      rejectedConcepts: rejections.map((rejection) => ({
+        concept: rejection.concept,
+        label: labels.get(rejection.concept) ?? rejection.concept,
+        kind: rejection.kind,
+      })),
+    },
+    // Administratie over de aanroep (T11.6): de strategie reist **buiten de prompt om** mee zodat het
+    // AI-activiteitscherm kan tonen welke aanpak draaide, zonder de gesloten sleutelset aan te raken.
+    { strategy: strategy.key },
+  );
 
   // 4. Validatielaag: bestaand → houden, synoniem → omzetten, nieuw → aanmaken (of alleen voorstellen).
   const { valid, proposed, created } = await validateAiOptions(prisma, {

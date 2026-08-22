@@ -137,6 +137,9 @@ describe('AI-status — GET /ai/status (T9.4)', () => {
         }),
         attempts: 1,
         claimedById: record.id,
+        // Wélke aanpak deze aanvraag voortbracht (T11.6): zonder dat is "waarom deed de AI dit?" met
+        // meerdere strategieën niet te beantwoorden.
+        strategy: 'calm',
         expiresAt: new Date(Date.now() + 60_000),
       },
     });
@@ -152,6 +155,7 @@ describe('AI-status — GET /ai/status (T9.4)', () => {
       question: 'Wat wil je drinken?',
       reason: 'water past bij het pad',
       confidence: 0.72,
+      strategy: 'calm',
     });
     expect(jobs[0]!.options.map((option) => option.concept)).toEqual(['water', 'tea']);
     // De prompt (met persoonlijke context) mag nergens in de respons zitten.

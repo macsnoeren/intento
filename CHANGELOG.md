@@ -62,6 +62,14 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   van het gesprek: halverwege wisselen zou het vastgelegde aanbod (T10.3) en de lopende hypothese (T10.8)
   inconsistent maken. Een onbekende sleutel geeft `400` en er wordt geen sessie aangemaakt.
 
+- **T11.6 Zichtbaar maken wélke aanpak draaide** (`AiJob.strategy`, migratie `ai_job_strategy`). Met
+  meerdere strategieën is "waarom deed de AI dit?" — de vraag die de gebruikerstests opriepen — niet meer
+  te beantwoorden zonder te weten welke aanpak actief was. De sleutel staat nu in de
+  AI-beslissingslogregel en in het beheerscherm **AI-activiteit**, en de meekijkende begeleider ziet het
+  **label** in de gesprekstoestand. De strategie reist daarvoor **buiten de prompt om** mee (`AiCallMeta`
+  op de provider-interface): de gesloten promptsleutelset blijft ongemoeid en het model ziet er niets van.
+  Alleen sleutel en label — geen promptinhoud, geen parameters, geen persoonlijke context (DESIGN §9.4).
+
 ### Gewijzigd — Fase 10: de AI stuurt het gesprek
 
 - **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**

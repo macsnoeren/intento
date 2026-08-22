@@ -6,6 +6,7 @@ import {
   AI_TASK_SELECT_NEXT_QUESTION,
   aiMessageResultSchema,
   aiQuestionDecisionSchema,
+  type AiCallMeta,
   type AiMessagePrompt,
   type AiMessageResult,
   type AiPrompt,
@@ -36,8 +37,10 @@ export class QueueAiProvider implements AiProvider {
     private readonly config: QueueConfig,
   ) {}
 
-  async selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
-    const raw = await this.runJob(AI_TASK_SELECT_NEXT_QUESTION, prompt);
+  async selectNextQuestion(prompt: AiPrompt, meta?: AiCallMeta): Promise<AiQuestionDecision> {
+    // De strategiesleutel gaat mee de wachtrij in (T11.6) — niet de prompt in. Zo kan het beheerscherm
+    // AI-activiteit tonen wélke aanpak draaide zonder dat er promptinhoud in beeld komt.
+    const raw = await this.runJob(AI_TASK_SELECT_NEXT_QUESTION, prompt, meta?.strategy ?? null);
     return aiQuestionDecisionSchema.parse(raw);
   }
 
@@ -52,8 +55,12 @@ export class QueueAiProvider implements AiProvider {
    * mislukking of onleesbaar resultaat. Geeft de **rauwe** (JSON-geparste) worker-uitvoer terug; de
    * aanroeper valideert de vorm nogmaals met zod.
    */
-  private async runJob(task: JobTask, payload: AiPrompt | AiMessagePrompt): Promise<unknown> {
-    const admission = await enqueueJob(this.prisma, this.config, task, payload);
+  private async runJob(
+    task: JobTask,
+    payload: AiPrompt | AiMessagePrompt,
+    strategy: string | null = null,
+  ): Promise<unknown> {
+    const admission = await enqueueJob(this.prisma, this.config, task, payload, strategy);
     if (admission.status === 'WAITING_FOR_WORKER') {
       throw new AiWorkerBusyError(admission.position, this.config.pollIntervalMs * 4);
     }

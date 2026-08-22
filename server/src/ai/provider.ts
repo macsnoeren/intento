@@ -173,11 +173,28 @@ export type AiMessageResult = z.infer<typeof aiMessageResultSchema>;
  * wachtrij-worker) implementeert dit. De implementatie levert **ruwe** gestructureerde uitvoer terug;
  * de orchestrator valideert die opnieuw met de zod-schema's (nooit vertrouwen).
  */
+/**
+ * **Metadata over de aanroep** (T11.6, DESIGN §7.10, §9.4) — nadrukkelijk geen promptinhoud.
+ *
+ * De gespreksstrategie bepaalt *hoe* er gezocht wordt en hoort daarom bij het antwoord op "waarom deed
+ * de AI dit?", maar ze is geen context voor het model: ze reist buiten de prompt om mee, zodat de
+ * gesloten sleutelset van `aiPromptSchema` ongemoeid blijft. Alleen de wachtrij-administratie gebruikt
+ * dit (`AiJob.strategy`), zodat het beheerscherm AI-activiteit kan tonen welke aanpak draaide. Bewust
+ * uitsluitend de sleutel: geen promptinhoud, geen persoonlijke context.
+ */
+export interface AiCallMeta {
+  /** De sleutel van de actieve gespreksstrategie, of weggelaten als de aanroeper er geen kent. */
+  strategy?: string;
+}
+
 export interface AiProvider {
   /** Naam van de provider (voor logging/diagnose). */
   readonly name: string;
-  /** Kiest de volgende pictogramvraag op basis van de beperkte context. */
-  selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision>;
+  /**
+   * Kiest de volgende pictogramvraag op basis van de beperkte context. `meta` is optionele
+   * administratie over de aanroep (T11.6) en bereikt het model nooit; een provider mag hem negeren.
+   */
+  selectNextQuestion(prompt: AiPrompt, meta?: AiCallMeta): Promise<AiQuestionDecision>;
   /**
    * Vormt een natuurlijke zin uit de bevestigde concepten (T5.3, §7.1 taak 4). **Optioneel**: een
    * provider die deze taak niet kan (bv. een pure vraagselector), laat de methode weg — de

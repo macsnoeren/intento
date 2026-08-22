@@ -1200,6 +1200,12 @@ export const caregiverConversationViewSchema = z.object({
       mode: z.string(),
       caregiverQuestion: z.string().nullable(),
       history: z.array(conversationStepSchema),
+      /**
+       * De **actieve gespreksstrategie** van dit gesprek (T11.6, DESIGN §7.10): sleutel en label, zodat
+       * de meekijkende begeleider ziet wélke aanpak loopt. Bewust niet méér — geen promptinhoud, geen
+       * parameters en geen persoonlijke context (DESIGN §9.4).
+       */
+      strategy: z.object({ key: conversationStrategySchema, label: z.string() }),
     })
     .nullable(),
 });
@@ -1558,6 +1564,12 @@ export const aiJobSummarySchema = z.object({
   reason: z.string().nullable(),
   /** De interpretatie-zekerheid uit het resultaat, of `null`. */
   confidence: z.number().nullable(),
+  /**
+   * De **gespreksstrategie** die deze aanvraag voortbracht (T11.6, DESIGN §7.10): alleen de sleutel.
+   * Met meerdere aanpakken is "waarom deed de AI dit?" niet te beantwoorden zonder te weten wélke
+   * draaide. `null` bij een boodschap-job of een oudere rij.
+   */
+  strategy: z.string().nullable(),
 });
 export type AiJobSummary = z.infer<typeof aiJobSummarySchema>;
 

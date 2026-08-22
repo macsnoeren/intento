@@ -32,6 +32,7 @@ function job(overrides: Partial<AiJobSummary> = {}): AiJobSummary {
     durationMs: 1450,
     worker: 'gpu-node-1',
     error: null,
+    strategy: 'refine',
     question: 'Waar heb je pijn?',
     options: [
       { concept: 'nail', confidence: 0.82 },
@@ -80,6 +81,8 @@ describe('AI-activiteit (T9.15)', () => {
     expect(within(panel).getByText(/nail \(82%\)/)).toBeTruthy();
     expect(within(panel).getByText(/nagels knippen/)).toBeTruthy();
     expect(within(panel).getByText(/gpu-node-1/)).toBeTruthy();
+    // Wélke aanpak deze aanvraag voortbracht (T11.6), met het label uit de gedeelde catalogus.
+    expect(within(panel).getByText(/aanpak: Stap voor stap verfijnen/)).toBeTruthy();
   });
 
   it('meldt dat er niets in de wachtrij komt zolang de mock draait', async () => {

@@ -186,12 +186,21 @@ export function registerQuestionRoutes(app: FastifyInstance, { prisma }: Questio
             ? await prisma.aacSymbol.findMany({ where: { id: { in: symbolIds } } })
             : [];
         const byId = new Map<string, AacSymbolModel>(symbols.map((symbol) => [symbol.id, symbol]));
+        // Wélke aanpak draait er (T11.6, DESIGN §7.10)? Met meerdere strategieën is "waarom doet de AI
+        // dit?" niet te beantwoorden zonder dat te weten — en dat is precies de vraag die de
+        // gebruikerstests opriepen. Alleen sleutel en label: geen promptinhoud, geen parameters.
+        const profile = await prisma.userCommunicationProfile.findUnique({ where: { userId: id } });
+        const strategy = resolveStrategy({
+          session: session.strategy,
+          user: profile?.conversationStrategy,
+        });
         sessionView = {
           sessionId: session.id,
           status: session.status,
           mode: session.mode,
           caregiverQuestion: session.caregiverQuestion,
           history: serializeHistory(steps, byId),
+          strategy: { key: strategy.key, label: strategy.label },
         };
       }
 

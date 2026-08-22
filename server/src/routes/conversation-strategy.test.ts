@@ -304,6 +304,49 @@ describe('gespreksstrategie per gebruiker', () => {
     });
   });
 
+  // --- T11.6: zichtbaar maken wélke aanpak draaide ---------------------------------------------------
+
+  it('noemt de actieve strategie in de AI-beslissingslogregel (T11.6)', async () => {
+    // De logregel is het antwoord op "waarom deed de AI dit?" (T9.15). Met meerdere aanpakken is die
+    // vraag niet te beantwoorden zonder te weten wélke draaide.
+    const lines: Record<string, unknown>[] = [];
+    await app.close();
+    app = await buildApp({
+      env: testEnv({ DEVICE_LINK_RATE_LIMIT_MAX: '100', LOGIN_RATE_LIMIT_MAX: '100' }),
+      orchestrator: new AiOrchestrator(confident),
+      logger: {
+        level: 'info',
+        // De logregels opvangen in plaats van ze naar stdout te schrijven.
+        stream: {
+          write: (line: string) => {
+            lines.push(JSON.parse(line) as Record<string, unknown>);
+          },
+        },
+      },
+    });
+
+    const user = await seedUser('Sanne');
+    await prisma.userCommunicationProfile.update({
+      where: { userId: user.id },
+      data: { conversationStrategy: 'explore' },
+    });
+    const cookie = await deviceCookie(app, user.id);
+    const start = await app.inject({
+      method: 'POST',
+      url: '/conversation/start',
+      headers: { cookie },
+    });
+    expect(start.statusCode).toBe(201);
+
+    const decisionLines = lines.filter((line) => typeof line.ai === 'object' && line.ai !== null);
+    expect(decisionLines.length).toBeGreaterThan(0);
+    const ai = decisionLines[decisionLines.length - 1]!.ai as Record<string, unknown>;
+    expect(ai.strategy).toBe('explore');
+    // Alleen de sleutel: geen promptinhoud en geen persoonlijke context (DESIGN §9.4).
+    expect(JSON.stringify(ai)).not.toContain('aacRules');
+    expect(JSON.stringify(ai)).not.toContain('goal');
+  });
+
   it('laat een strategie die de registry niet kent een lopend gesprek niet breken', async () => {
     // Een rij die ooit met een sindsdien verwijderde strategie is opgeslagen: de invoer wordt op de
     // API-grens geweigerd, maar bestaande data mag nooit een gesprek laten crashen (§7.10).

@@ -156,6 +156,9 @@ export function registerAiStatusRoutes(
           durationMs: Math.max(0, job.updatedAt.getTime() - job.createdAt.getTime()),
           worker: job.claimedBy?.name ?? null,
           error: job.errorMessage,
+          // Welke aanpak deze aanvraag voortbracht (T11.6): alleen de sleutel — de prompt blijft buiten
+          // beeld, daar zit persoonlijke context in.
+          strategy: job.strategy,
           ...summarizeResult(job),
         })),
       });

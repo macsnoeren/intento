@@ -226,7 +226,13 @@ describe('vraagmodus — /question (T7.1)', () => {
       method: 'POST',
       url: '/question/start',
       headers: { cookie: cgCookie },
-      payload: { userId: user.id, question: 'Wat wil je drinken?', anchorConcept: 'drink' },
+      payload: {
+        userId: user.id,
+        question: 'Wat wil je drinken?',
+        anchorConcept: 'drink',
+        // De begeleider kiest de aanpak voor dít gesprek (T11.5) en moet hem straks terugzien (T11.6).
+        strategy: 'explore',
+      },
     });
     const deviceCk = await deviceCookie(app, user.id);
     const pending = await app.inject({
@@ -256,6 +262,11 @@ describe('vraagmodus — /question (T7.1)', () => {
     expect(view.session!.caregiverQuestion).toBe('Wat wil je drinken?');
     // Het anker (drink) + de keuze (water) staan in de broodkruimel.
     expect(view.session!.history.map((h) => h.symbol.concept)).toEqual(['drink', 'water']);
+    // En de begeleider ziet wélke aanpak er draait (T11.6) — sleutel én leesbaar label.
+    expect(view.session!.strategy).toEqual({ key: 'explore', label: 'Breed verkennen' });
+    // Nooit de prompt of de parameters van de strategie (DESIGN §9.4).
+    expect(res.body).not.toContain('aacRules');
+    expect(res.body).not.toContain('confidencePropose');
   });
 
   it('geeft session=null als er geen gesprek loopt, en supportMode uit standaard', async () => {

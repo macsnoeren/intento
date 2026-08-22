@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AccountPublic, AiJobSummary } from '@intento/shared';
+import {
+  CONVERSATION_STRATEGY_CATALOG,
+  type AccountPublic,
+  type AiJobSummary,
+} from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 import { AdminNav, type AdminView } from './AdminNav.tsx';
 import { AiStatusBadge } from './AiStatusBadge.tsx';
@@ -23,6 +27,14 @@ const STATUS_LABELS: Record<AiJobSummary['status'], string> = {
   EXPIRED: 'Verlopen',
 };
 
+/**
+ * Naam van een gespreksstrategie bij haar sleutel (T11.6). Een sleutel die de catalogus niet kent tonen
+ * we onvertaald: eerlijker dan een verzonnen naam, en het is meteen zichtbaar dat er iets scheef staat.
+ */
+function strategyLabel(key: string): string {
+  return CONVERSATION_STRATEGY_CATALOG.find((entry) => entry.key === key)?.label ?? key;
+}
+
 function formatDuration(ms: number): string {
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
@@ -33,7 +45,9 @@ function formatDuration(ms: number): string {
  * Antwoord op de vraag uit de gebruikerstest: "doet de AI wel opties bedenken, en kan ik zien wat er op
  * de achtergrond gebeurt?" Deze pagina toont de recentste AI-jobs uit de wachtrij: welke taak, hoe het
  * afliep, hoe lang het duurde, welke worker het deed en — bij een geslaagde vraagselectie — de vraag die
- * de AI formuleerde, de concepten die zij aandroeg met hun zekerheid, en haar motivering.
+ * de AI formuleerde, de concepten die zij aandroeg met hun zekerheid, en haar motivering. Sinds T11.6
+ * staat er ook bij **welke aanpak** (gespreksstrategie) de aanvraag voortbracht: met meerdere aanpakken
+ * is "waarom deed de AI dit?" niet te beantwoorden zonder te weten welke er draaide.
  *
  * Bewust **read-only** en zonder de prompt: in de prompt zit persoonlijke context (T6.1), die hoort niet
  * in een beheerscherm. De server geeft hem dan ook niet terug. De pagina staat achter dezelfde grens als
@@ -145,6 +159,7 @@ export function AiActivityPage({
                   · {formatDuration(job.durationMs)}
                   {job.attempts > 1 ? ` · ${job.attempts} pogingen` : ''}
                   {job.worker ? ` · ${job.worker}` : ''}
+                  {job.strategy ? ` · aanpak: ${strategyLabel(job.strategy)}` : ''}
                 </p>
                 <p className="muted">{new Date(job.createdAt).toLocaleString('nl-NL')}</p>
 

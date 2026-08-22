@@ -178,7 +178,9 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping) en **`context-first`**
   (voorkeuren en persoonlijke context vóór de boom); de gekozen sleutel wordt bij het starten van een
   gesprek vastgelegd op de sessie (`ConversationSession.strategy`), zodat een instelling die halverwege
-  wijzigt een lopend gesprek niet van aanpak laat wisselen; `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
+  wijzigt een lopend gesprek niet van aanpak laat wisselen; de actieve sleutel staat in de
+  AI-beslissingslogregel en op de AI-job (`AiJob.strategy`, buiten de prompt om meegereisd via
+  `AiCallMeta`) en het label in de meekijkweergave van de begeleider; `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
   `AI_ALLOW_NEW_CONCEPTS`) blijven als **plafond** gelden — een strategie kan ze aanscherpen, nooit
   oprekken. Zie [adr/0013](adr/0013-conversation-strategies.md).
 - **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,
