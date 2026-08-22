@@ -28,6 +28,16 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   een leeg scherm, geen voorstel zonder gebruikerskeuze, afgewezen concepten komen niet terug,
   deduplicatie eerst, gesloten promptsleutelset.
 
+- **T11.3 Drie strategieën die aantoonbaar ander gedrag geven.** Een abstractie met één implementatie
+  bewijst niets, dus staan er nu vier aanpakken in de registry: **`explore`** ("Breed verkennen":
+  kleinkinderen vóór kinderen, groter aanbod, lagere voorsteldrempel — voor wie concrete dingen herkent
+  maar moeilijk categoriseert), **`calm`** ("Rustig en bevestigend": klein aanbod, hoge voorsteldrempel,
+  sterke demping, één duidelijke vraag per keer — voor wie snel overprikkeld raakt) en
+  **`context-first`** ("Context eerst": voorkeuren en toegestane persoonlijke context vóór de
+  boomkinderen — voor wie een sterk vast dagritme heeft). Elke strategie draagt een uitleg in
+  begrijpelijke taal, want de begeleider kiest hem. Per strategie legt een test het **onderscheidende**
+  gedrag vast op dezelfde gesprekstoestand, en alle vier halen de invariant-suite uit T11.2.
+
 ### Gewijzigd — Fase 10: de AI stuurt het gesprek
 
 - **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**

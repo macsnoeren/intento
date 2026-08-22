@@ -173,8 +173,10 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   "afgewezen komt niet terug", de gesloten promptsleutelset en "nooit een leeg scherm" variëren niet mee
   en worden afgedwongen met één invariant-testsuite over álle geregistreerde strategieën. Strategieën
   zijn ingebouwd (code, stabiele sleutel), niet beheerd in de database; de **selectie** loopt gesprek →
-  gebruiker → standaard en ligt vast voor de duur van het gesprek. De bestaande aanpak is de strategie
-  **`refine`**; `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
+  gebruiker → standaard en ligt vast voor de duur van het gesprek. De registry kent **`refine`** (stap
+  voor stap verfijnen, de standaard), **`explore`** (concreet vóór abstract, groter aanbod, lagere
+  voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping) en **`context-first`**
+  (voorkeuren en persoonlijke context vóór de boom); `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
   `AI_ALLOW_NEW_CONCEPTS`) blijven als **plafond** gelden — een strategie kan ze aanscherpen, nooit
   oprekken. Zie [adr/0013](adr/0013-conversation-strategies.md).
 - **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,

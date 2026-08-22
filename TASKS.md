@@ -408,7 +408,7 @@ bewust bij "Na de MVP".
   afgewezen concepten komen niet terug, deduplicatie eerst, gesloten promptsleutelset); `npm run lint`
   meldt geen ongebruikte constanten.
 
-- [ ] **T11.3 Drie strategieën die aantoonbaar ander gedrag geven**
+- [x] **T11.3 Drie strategieën die aantoonbaar ander gedrag geven**
   *DESIGN: §7.3, §7.10, §5.3.* Een abstractie met één implementatie bewijst niets. Voeg toe:
   • **`explore` — "Breed verkennen"**: kleinkinderen vóór kinderen, groter aanbod, lagere
   voorsteldrempel. Voor wie concrete dingen herkent maar moeilijk categoriseert; slaat abstracte

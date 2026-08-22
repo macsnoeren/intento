@@ -105,8 +105,136 @@ export const REFINE_STRATEGY: ConversationStrategy = {
   prompt: { goal: GOAL, extraAacRules: [] },
 };
 
+/**
+ * **Breed verkennen** — voor wie concrete dingen wél herkent maar moeilijk categoriseert.
+ *
+ * De abstracte tussenstap is voor deze persoon de horde: "eerst kiezen tussen eten / drinken / iets
+ * doen" vraagt precies het vermogen dat ontbreekt, terwijl "water", "koffie" en "buiten" meteen
+ * herkenbaar zijn. Daarom staan de **kleinkinderen vóór de kinderen**: het concrete niveau komt eerst in
+ * beeld. Het aanbod is groter (meer kans dat het juiste ding er meteen bij staat) en de voorsteldrempel
+ * ligt lager, want deze route komt met minder tussenstappen bij de bedoeling uit.
+ */
+export const EXPLORE_STRATEGY: ConversationStrategy = {
+  key: 'explore',
+  label: 'Breed verkennen',
+  description:
+    'Laat meteen concrete dingen zien in plaats van eerst categorieën, en toont er meer tegelijk. ' +
+    'Geschikt voor wie voorwerpen en activiteiten goed herkent maar moeite heeft met indelen.',
+  candidateSources: ['descendants', 'children', 'retrieval', 'preference'],
+  maxCandidates: 30,
+  minOffered: 10,
+  maxOffered: 16,
+  confidenceRefine: 0.55,
+  confidencePropose: 0.75,
+  hypothesisSmoothing: 0.7,
+  allowNewConcepts: true,
+  minUserChoicesBeforePropose: 1,
+  prompt: {
+    goal:
+      'Achterhaal wat de gebruiker wil zeggen en kies daarvoor zo snel mogelijk **concrete** ' +
+      'pictogrammen: voorwerpen, activiteiten, plekken en personen die je kunt aanwijzen. Sla abstracte ' +
+      'tussenstappen over als een concreet begrip de bedoeling al kan vangen. Kijk naar wat de gebruiker ' +
+      'al koos én naar wat hij afwees — een afwijzing wijst je een andere kant op. Formuleer de vraag in ' +
+      'het Nederlands, kort en eenvoudig, en richt je rechtstreeks tot de gebruiker.',
+    extraAacRules: [
+      'Geef de voorkeur aan concrete, aanwijsbare begrippen boven verzamelnamen of categorieën.',
+      'Bied liever een paar opties meer aan dan te weinig: de gebruiker herkent het juiste ding sneller ' +
+        'dan dat hij het kan omschrijven.',
+    ],
+  },
+};
+
+/**
+ * **Rustig en bevestigend** — voor wie snel overprikkeld raakt.
+ *
+ * Twaalf pictogrammen tegelijk zijn hier geen rijkdom maar ruis. Het aanbod is klein (sluit aan op een
+ * lage `iconsPerScreen`), de kandidatenset blijft dicht bij de laatste keuze, en er wordt **later**
+ * voorgesteld: de voorsteldrempel ligt hoog en de demping is sterk, zodat één zelfverzekerd
+ * modelantwoord niet meteen tot een boodschap leidt. Liever één stap extra dan een voorstel dat de
+ * gebruiker moet afwijzen — een afwijzing kost deze persoon het meest.
+ *
+ * Het minimum aantal gebruikerskeuzes blijft bewust 1: nóg later voorstellen zou bij een korte route
+ * (een eindconcept na één keuze) juist extra vragen opleveren, en dat is precies wat deze strategie
+ * probeert te vermijden. "Later" komt hier uit de drempel en de demping, niet uit extra stappen.
+ */
+export const CALM_STRATEGY: ConversationStrategy = {
+  key: 'calm',
+  label: 'Rustig en bevestigend',
+  description:
+    'Toont weinig pictogrammen tegelijk, blijft dicht bij de vorige keuze en wacht langer voordat er ' +
+    'een boodschap wordt voorgesteld. Geschikt voor wie snel overprikkeld raakt of veel tijd nodig heeft.',
+  candidateSources: ['children', 'descendants', 'retrieval', 'preference'],
+  maxCandidates: 12,
+  minOffered: 2,
+  maxOffered: 4,
+  confidenceRefine: 0.6,
+  confidencePropose: 0.92,
+  hypothesisSmoothing: 0.35,
+  allowNewConcepts: true,
+  minUserChoicesBeforePropose: 1,
+  prompt: {
+    goal:
+      'Achterhaal rustig wat de gebruiker wil zeggen. Stel één duidelijke vraag tegelijk en bied maar ' +
+      'een paar goed onderscheidende opties aan — liever een stap extra dan de gebruiker overvragen. ' +
+      'Kijk naar wat de gebruiker al koos én naar wat hij afwees. Formuleer de vraag in het Nederlands, ' +
+      'kort, in eenvoudige woorden, en richt je rechtstreeks tot de gebruiker.',
+    extraAacRules: [
+      'Stel precies één vraag per beurt; combineer nooit twee vragen in één zin.',
+      'Bied weinig, duidelijk verschillende opties aan; opties die op elkaar lijken maken kiezen ' +
+        'moeilijker in plaats van makkelijker.',
+      'Blijf dicht bij wat de gebruiker net koos; maak geen onverwachte sprong naar een ander onderwerp.',
+    ],
+  },
+};
+
+/**
+ * **Context eerst** — voor wie een sterk vast dagritme heeft.
+ *
+ * Bij deze persoon is de begrippenboom niet het beste startpunt: wat hij bedoelt hangt vooral samen met
+ * zijn eigen patroon (de koffie 's ochtends, de hond, de vaste wandeling). Daarom staan de **geleerde
+ * voorkeuren en de retrieval over de toegestane persoonlijke context vóór de boomkinderen**. De boom
+ * blijft er als ruggengraat achter staan — hij verdwijnt niet, hij komt later.
+ *
+ * Privacy verandert er niets aan: er gaat alleen context mee waarvoor toestemming is gegeven (§6.3), en
+ * voorkeuren tellen alleen mee als leren aanstaat (§3.8).
+ */
+export const CONTEXT_FIRST_STRATEGY: ConversationStrategy = {
+  key: 'context-first',
+  label: 'Context eerst',
+  description:
+    'Begint bij wat deze persoon vaak kiest en bij zijn eigen context (personen, favorieten, vaste ' +
+    'plekken) in plaats van bij de begrippenboom. Geschikt voor wie een sterk vast dagritme heeft.',
+  candidateSources: ['preference', 'retrieval', 'children', 'descendants'],
+  maxCandidates: 30,
+  minOffered: 6,
+  maxOffered: 10,
+  confidenceRefine: CONFIDENCE_REFINE,
+  confidencePropose: CONFIDENCE_PROPOSE,
+  hypothesisSmoothing: HYPOTHESIS_SMOOTHING,
+  allowNewConcepts: true,
+  minUserChoicesBeforePropose: 1,
+  prompt: {
+    goal:
+      'Achterhaal wat de gebruiker wil zeggen en vertrek daarbij vanuit zijn eigen dagritme: de mensen, ' +
+      'plekken en gewoonten die in de context staan, en de dingen die hij vaker kiest. Sluit de volgende ' +
+      'vraag daarop aan in plaats van op een algemene indeling. Kijk naar wat de gebruiker al koos én ' +
+      'naar wat hij afwees. Formuleer de vraag in het Nederlands, kort en eenvoudig, en richt je ' +
+      'rechtstreeks tot de gebruiker.',
+    extraAacRules: [
+      'Gebruik de gebruikerscontext actief: sluit aan bij de personen, plekken en gewoonten die erin ' +
+        'staan, in plaats van bij een algemene categorie-indeling.',
+      'Voeg nooit context toe die niet is meegegeven; wat er niet staat, weet je niet.',
+    ],
+  },
+};
+
 /** Alle ingebouwde strategieën. Volgorde = weergavevolgorde voor de begeleider. */
-export const CONVERSATION_STRATEGIES: readonly ConversationStrategy[] = [REFINE_STRATEGY];
+export const CONVERSATION_STRATEGIES: readonly ConversationStrategy[] = [
+  REFINE_STRATEGY,
+  EXPLORE_STRATEGY,
+  CALM_STRATEGY,
+  CONTEXT_FIRST_STRATEGY,
+];
 
 /** De sleutel van de standaardstrategie; geldt als een gebruiker/gesprek er geen gekozen heeft. */
 export const DEFAULT_STRATEGY_KEY = REFINE_STRATEGY.key;
