@@ -179,14 +179,15 @@ function DeviceLinkScreen({
  * Gespreksscherm: startscherm (intentie-categorieën) en keuzescherm (vraag + N pictogramopties),
  * één keuze per scherm. Toont per scherm hooguit `iconsPerScreen` opties uit het communicatieprofiel —
  * de rest blijft bereikbaar via "Meer keuzes" (T9.6) — en de tekstlabels alleen als `showText`
- * aanstaat. `↩ Terug` maakt de laatste keuze ongedaan; de contextindicator (broodkruimel van het
- * afgelegde pad) verschijnt alleen als `contextIndicator` in het profiel aanstaat (T2.4).
+ * aanstaat. `↩ Terug` maakt de laatste keuze ongedaan, "🤷 Staat er niet bij" slaat dit punt over (T9.12)
+ * en "✅ Dit is genoeg" rondt af met de route zoals hij is (T10.11); de contextindicator (broodkruimel van
+ * het afgelegde pad) verschijnt alleen als `contextIndicator` in het profiel aanstaat (T2.4).
  *
  * Wanneer de route een eindconcept bereikt (`done`), toont de app het **voorstelscherm** (T4.3):
  * de gekozen pictogramreeks + de gegenereerde zin met ✅ Bevestigen / ❌ Nee. Bevestigen rondt de
- * sessie af en slaat de boodschap op; ❌ start de **correctieflow** (T5.4): de server heranalyseert de
- * route, rolt de vermoedelijke foutstap terug en toont een gerichtere hervraag — niet terug naar het
- * begin, en het afgewezen concept wordt niet opnieuw aangeboden (er wordt niets opgeslagen).
+ * sessie af en slaat de boodschap op; ❌ start de **correctieflow** (T5.4/T10.10): de server rolt precies
+ * één stap terug en toont een nieuwe vraag op dat punt — niet terug naar het begin, en het afgewezen
+ * concept wordt niet opnieuw aangeboden (er wordt niets opgeslagen).
  */
 function ConversationScreen({
   api,
@@ -431,6 +432,23 @@ function ConversationScreen({
             }
           >
             🤷 Staat er niet bij
+          </button>
+        ) : null}
+
+        {/* "Dit is genoeg" (T10.11): de route zegt al genoeg, ook al zou de AI nog willen verfijnen.
+            Sinds T10.10 stelt de server pas een boodschap voor als er niets meer te verfijnen valt —
+            zonder deze knop zou "Ik wil eten." onbereikbaar zijn, terwijl dat in AAC een volwaardige
+            boodschap is. De server bepaalt wanneer de knop mag verschijnen (`canFinish`): pas na een
+            eigen keuze van de gebruiker, want een boodschap uit alleen het anker van de begeleider is
+            niet van hem (DESIGN §2). */}
+        {state.canFinish ? (
+          <button
+            className="button button--primary"
+            type="button"
+            disabled={busy}
+            onClick={() => void run(() => api.conversationEnough(state.sessionId))}
+          >
+            ✅ Dit is genoeg
           </button>
         ) : null}
       </div>

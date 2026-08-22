@@ -67,4 +67,33 @@ describe('generateMessage — zinsframes', () => {
   it('weigert een lege route', () => {
     expect(() => generateMessage([])).toThrow();
   });
+
+  it('laat een structureel tussenconcept aan het eind wél meetellen (T10.11)', () => {
+    // Middenin valt "eten" weg ("Ik wil soep."), maar sluit de route erop af — de gebruiker rondde zelf
+    // af met "Dit is genoeg" — dan is het de hele boodschap. Zonder deze regel bleef er "Ik wil iets
+    // duidelijk maken." over, wat precies niets zegt.
+    expect(
+      generateMessage([
+        { concept: 'want', label: 'Iets willen', category: 'intent' },
+        { concept: 'eat', label: 'Eten' },
+      ]),
+    ).toBe('Ik wil eten.');
+
+    expect(
+      generateMessage([
+        { concept: 'want', label: 'Iets willen', category: 'intent' },
+        { concept: 'do-activity', label: 'Iets doen' },
+      ]),
+    ).toBe('Ik wil iets doen.');
+  });
+
+  it('laat het tussenconcept nog steeds weg als er een verfijning op volgt', () => {
+    expect(
+      generateMessage([
+        { concept: 'want', label: 'Iets willen', category: 'intent' },
+        { concept: 'eat', label: 'Eten' },
+        { concept: 'soup', label: 'Soep' },
+      ]),
+    ).toBe('Ik wil soep.');
+  });
 });

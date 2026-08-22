@@ -144,9 +144,14 @@ async function clearPendingOffer(
     where: { id: session.id },
     // `Prisma.DbNull` is de expliciete database-NULL voor een nullable Json-kolom (een gewone `null`
     // zou de JSON-waarde `null` betekenen — een ander ding).
-    data: { pendingOffer: Prisma.DbNull },
+    //
+    // De "dit is genoeg"-vlag (T10.11) gaat hier mee weg: elke gebeurtenis die het aanbod ongeldig maakt
+    // — een keuze, een correctie, een afwijzing — verandert ook de route, en dan geldt het oordeel van de
+    // gebruiker over de vórige route niet meer.
+    data: { pendingOffer: Prisma.DbNull, readyToPropose: false },
   });
   session.pendingOffer = null;
+  session.readyToPropose = false;
 }
 
 /**
@@ -233,6 +238,13 @@ async function ensureOffer(
   log?: FastifyBaseLogger,
 ): Promise<{ offer: PendingOffer | null; done: boolean; confidence: number; phase: string }> {
   const { prisma, orchestrator, encryptor, env } = deps;
+
+  // De gebruiker heeft zelf gezegd dat het genoeg is (T10.11): dan is er geen vraag meer, ongeacht wat
+  // de beslissingslaag zou willen. Bewust vóór elke AI-aanroep — zijn oordeel gaat voor dat van het
+  // model, en het scheelt een onnodige beurt.
+  if (session.readyToPropose) {
+    return { offer: null, done: true, confidence: 1, phase: 'propose' };
+  }
 
   const stored = readPendingOffer(session.pendingOffer, steps.length);
   if (stored) {
@@ -362,7 +374,18 @@ async function buildState(
     history,
     // Bij vraagmodus toont de gebruikersapp de begeleidersvraag als context; `null` bij een vrij gesprek.
     caregiverQuestion: session.caregiverQuestion,
+    // "Dit is genoeg" mag pas als de gebruiker zélf iets gekozen heeft (T10.11): anders zou hij een
+    // boodschap kunnen bevestigen die alleen uit het anker van de begeleider bestaat (§2, T9.14).
+    canFinish: question !== null && userChoiceCount(session, steps) > 0,
   });
+}
+
+/** Het aantal keuzes dat van de **gebruiker** zelf komt (het begeleiders-anker telt niet mee, T9.14). */
+function userChoiceCount(
+  session: Pick<ConversationSessionModel, 'mode'>,
+  steps: ConversationStepModel[],
+): number {
+  return Math.max(0, steps.length - anchoredStepsFor(session));
 }
 
 /**
@@ -612,9 +635,11 @@ export function registerConversationRoutes(
       const pendingOffer = restored.concepts.length > 0 ? restored : null;
       await prisma.conversationSession.update({
         where: { id: session.id },
-        data: { pendingOffer: pendingOffer ?? Prisma.DbNull },
+        // Terug verandert de route, dus een eerder "dit is genoeg" geldt niet meer (T10.11).
+        data: { pendingOffer: pendingOffer ?? Prisma.DbNull, readyToPropose: false },
       });
       session.pendingOffer = pendingOffer;
+      session.readyToPropose = false;
 
       return buildState(deps, session, await loadSteps(prisma, session.id), request.log);
     },
@@ -705,6 +730,46 @@ export function registerConversationRoutes(
       // Gerichtere hervraag op het teruggerolde punt; het afgewezen concept valt weg via `buildState`.
       await clearPendingOffer(prisma, session);
       return buildState(deps, session, await loadSteps(prisma, session.id), request.log);
+    },
+  );
+
+  // "✅ Dit is genoeg" (T10.11, DESIGN §3.1, §5.1). De gebruiker geeft aan dat de route zoals hij nu is
+  // genoeg zegt; het gesprek gaat naar het voorstelscherm zonder nog een verfijnvraag.
+  //
+  // Waarom dit bestaat: sinds T10.10 stelt Intento pas een boodschap voor als er niets meer te verfijnen
+  // valt. Dat voorkomt vage voorstellen als "Ik wil iets warms eten.", maar zou een categorie als
+  // eindpunt onbereikbaar maken — terwijl "Ik wil eten." in AAC een volwaardige boodschap is. Deze route
+  // geeft dat oordeel terug aan de gebruiker, bij wie het hoort (DESIGN §2).
+  //
+  // Bewust geen extra pictogram in het keuzeraster (zoals bij T9.12): dat raster bevat uitsluitend
+  // AAC-concepten die samen de boodschap vormen; een bedieningsknop hoort in de balk.
+  app.post(
+    '/conversation/:id/enough',
+    { preHandler: deviceAuthorize(prisma) },
+    async (request): Promise<ConversationStateResponse> => {
+      const device = requireDevice(request);
+      const { id } = sessionParamsSchema.parse(request.params);
+
+      const session = await loadOwnedSession(prisma, device.userId, id);
+      if (session.status !== 'ACTIVE') {
+        throw new HttpError(409, 'SESSION_NOT_ACTIVE', 'Dit gesprek is al afgerond.');
+      }
+
+      const steps = await loadSteps(prisma, session.id);
+      // Alleen na een echte keuze van de gebruiker: anders zou hij een "boodschap" kunnen bevestigen die
+      // uitsluitend uit het anker van de begeleider bestaat (§2, T9.14).
+      if (userChoiceCount(session, steps) === 0) {
+        throw new HttpError(400, 'NO_STEPS_TO_GENERATE', 'Maak eerst een keuze.');
+      }
+
+      await prisma.conversationSession.update({
+        where: { id: session.id },
+        data: { readyToPropose: true, pendingOffer: Prisma.DbNull },
+      });
+      session.readyToPropose = true;
+      session.pendingOffer = null;
+
+      return buildState(deps, session, steps, request.log);
     },
   );
 

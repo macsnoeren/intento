@@ -1049,6 +1049,17 @@ export const conversationStateResponseSchema = z.object({
    * antwoord samenstelt. `null`/afwezig bij een vrij gesprek — dan verschijnt geen vraagbanner.
    */
   caregiverQuestion: z.string().nullable().optional(),
+  /**
+   * Of de gebruiker het gesprek **hier** mag afronden (T10.11, DESIGN §3.1): dan verschijnt naast
+   * "↩ Terug" de knop "✅ Dit is genoeg", die naar het voorstelscherm gaat met de route zoals hij is.
+   *
+   * Nodig sinds T10.10, dat pas een boodschap voorstelt als er niets meer te verfijnen valt. Dat lost
+   * het vage "Ik wil iets warms eten." op, maar maakt een categorie als eindpunt onbereikbaar — terwijl
+   * "Ik wil eten." in AAC een volwaardige boodschap is. De server bepaalt dit, niet de tablet: alleen hij
+   * weet of de gebruiker zélf al iets koos (in vraagmodus telt het anker van de begeleider niet mee,
+   * §2/T9.14). `false` zolang er niets van de gebruiker is om voor te stellen.
+   */
+  canFinish: z.boolean().default(false),
 });
 export type ConversationStateResponse = z.infer<typeof conversationStateResponseSchema>;
 

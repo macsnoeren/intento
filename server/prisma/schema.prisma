@@ -410,6 +410,14 @@ model ConversationSession {
   /// zou andere opties kunnen kiezen. Zonder vastlegging zou `↩ Terug` dus niet exact herstellen en zou
   /// een geldige keuze als `INVALID_CHOICE` geweigerd kunnen worden. `null` = geen openstaand aanbod.
   pendingOffer Json?
+  /// Heeft de gebruiker zelf aangegeven dat de route **goed genoeg** is (T10.11, DESIGN §3.1)? Dan gaat
+  /// het gesprek naar het voorstelscherm met de route zoals hij is, ook al zou de beslissingslaag nog
+  /// willen verfijnen (§7.4). Nodig sinds T10.10: dat stelt pas voor als er niets meer te verfijnen valt,
+  /// waardoor "Ik wil eten." — in AAC een volwaardige boodschap — anders onbereikbaar zou zijn.
+  ///
+  /// Wordt gewist zodra de gebruiker verder kiest, terug gaat of corrigeert: dan is de route veranderd en
+  /// geldt zijn "genoeg" niet meer.
+  readyToPropose Boolean @default(false)
   /// De lopende **hypothese** van de AI over wat de gebruiker bedoelt (T10.8, DESIGN §7.1 taak 3, §7.4):
   /// `{ concepts[], confidence, reason, history[] }`, bij het lezen met zod gevalideerd
   /// (`hypothesisSchema`). Bewust **vluchtig**: bij het afronden van het gesprek (`/confirm`) wordt dit

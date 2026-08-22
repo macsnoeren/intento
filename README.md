@@ -401,6 +401,11 @@ gedistribueerde workers — zie hieronder). Zie
 > **gebruiker** zelf iets koos (in vraagmodus telt het anker van de begeleider niet mee, T9.14). Loopt een
 > punt leeg, dan volgt eerst een vrije ronde, dan de intentiecategorieën, en pas dán een voorstel.
 
+> **De gebruiker houdt de regie (T10.10/T10.11).** Een boodschap wordt pas voorgesteld als er ook niets
+> meer te verfijnen valt — zeker weten *dát* iemand wil eten is niet hetzelfde als weten *wát*. Wil de
+> gebruiker tóch hier stoppen, dan doet hij dat zelf met **"✅ Dit is genoeg"**; en ❌ Nee rolt precies
+> één stap terug in plaats van zijn hele route weg te gooien.
+
 > **Welke aanpak draait er? (Fase 11)** De knoppen die bepalen *hoe* de AI zoekt — bronvolgorde,
 > aanbodgrootte, drempels, demping en de promptformulering — zijn gebundeld tot één benoemde
 > **gespreksstrategie** (`conversation/strategy.ts`, DESIGN §7.10). De bestaande aanpak heet `refine`

@@ -97,10 +97,19 @@ const CONCEPT_PHRASES: Record<string, string> = {
   dad: 'met papa',
 };
 
-/** Het zinsfragment van een concept: de map, anders de label-terugval (nooit een vrij begrip). */
-function phraseFor(step: ChosenConcept): string {
+/**
+ * Het zinsfragment van een concept: de map, anders de label-terugval (nooit een vrij begrip).
+ *
+ * `isLast` maakt het verschil voor de **structurele tussenconcepten** (`eat`, `drink`, `do-activity`).
+ * Middenin een route vallen ze weg — "willen → iets doen → buiten" wordt "Ik wil buiten…", niet "Ik wil
+ * iets doen buiten…". Maar sluit de route erop áf, dan zijn ze de hele boodschap: sinds de gebruiker zelf
+ * kan afronden (T10.11) is "Ik wil eten." een geldig eindpunt, en dan mag "eten" niet wegvallen — anders
+ * blijft er "Ik wil iets duidelijk maken." over, wat precies niets zegt.
+ */
+function phraseFor(step: ChosenConcept, isLast: boolean): string {
   const mapped = CONCEPT_PHRASES[step.concept];
-  return mapped !== undefined ? mapped : step.label.toLowerCase();
+  if (mapped === undefined) return step.label.toLowerCase();
+  return mapped.length > 0 || !isLast ? mapped : step.label.toLowerCase();
 }
 
 /**
@@ -139,7 +148,7 @@ function frameFor(intent: ChosenConcept): IntentFrame {
 /** Rijgt de zinsfragmenten van een reeks concepten aaneen; lege (structurele) fragmenten vallen weg. */
 function phrasesOf(steps: ChosenConcept[]): string {
   return steps
-    .map(phraseFor)
+    .map((step, index) => phraseFor(step, index === steps.length - 1))
     .filter((fragment) => fragment.length > 0)
     .join(' ');
 }

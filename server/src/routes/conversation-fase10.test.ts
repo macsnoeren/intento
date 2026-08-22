@@ -556,4 +556,104 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       expect(message.toLowerCase()).toContain('soep');
     });
   });
+
+  // --- T10.11: "Dit is genoeg" ----------------------------------------------------------------------
+
+  describe('de gebruiker rondt zelf af (T10.11)', () => {
+    async function enough(cookie: string, sessionId: string) {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/enough`,
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      return parseState(res.json());
+    }
+
+    it('gaat naar het voorstelscherm met de route zoals hij is', async () => {
+      // "Ik wil eten." is in AAC een volwaardige boodschap; sinds T10.10 blijft de AI op "eten" juist
+      // doorvragen. Deze uitweg geeft dat oordeel terug aan de gebruiker (DESIGN §2).
+      const { cookie, sessionId } = await startFor();
+      await next(cookie, sessionId, 'want');
+      const refining = await next(cookie, sessionId, 'eat');
+      expect(refining.done).toBe(false);
+      expect(refining.canFinish).toBe(true);
+
+      const state = await enough(cookie, sessionId);
+      expect(state.done).toBe(true);
+      expect(state.question).toBeNull();
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat']);
+
+      const generated = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/generate`,
+        headers: { cookie },
+      });
+      expect(generated.statusCode).toBe(200);
+      expect(String(generated.json().message).toLowerCase()).toContain('eten');
+    });
+
+    it('mag niet vóór de eerste keuze van de gebruiker', async () => {
+      const { cookie, sessionId } = await startFor();
+      const start = await app.inject({
+        method: 'GET',
+        url: '/conversation/pending',
+        headers: { cookie },
+      });
+      expect(start.statusCode).toBe(200);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/enough`,
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe('NO_STEPS_TO_GENERATE');
+    });
+
+    it('meldt canFinish pas zodra de gebruiker zelf iets koos', async () => {
+      const { cookie, sessionId, state } = await startFor();
+      expect(state.canFinish).toBe(false);
+
+      const afterChoice = await next(cookie, sessionId, 'want');
+      expect(afterChoice.canFinish).toBe(true);
+    });
+
+    it('vervalt zodra de route verandert (❌ Nee)', async () => {
+      const { cookie, sessionId } = await startFor();
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      expect((await enough(cookie, sessionId)).done).toBe(true);
+
+      // ❌ op het voorstel: één stap terug én het "genoeg"-oordeel vervalt, want de route is veranderd.
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie },
+        payload: { type: 'wrong_guess' },
+      });
+      expect(res.statusCode).toBe(200);
+      const state = parseState(res.json());
+      expect(state.done).toBe(false);
+      expect(state.question).not.toBeNull();
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want']);
+    });
+
+    it('vervalt ook na ↩ Terug', async () => {
+      const { cookie, sessionId } = await startFor();
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      await enough(cookie, sessionId);
+
+      const back = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/back`,
+        headers: { cookie },
+      });
+      expect(back.statusCode).toBe(200);
+      const state = parseState(back.json());
+      expect(state.done).toBe(false);
+      expect(state.question).not.toBeNull();
+    });
+  });
 });

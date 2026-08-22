@@ -127,6 +127,8 @@ function fakeDeviceApi(
   let busyGenerate = options.busyGenerate ?? 0;
   // Door een correctie afgewezen concepten (T5.4): worden niet opnieuw als optie aangeboden (§7.5).
   const excluded = new Set<string>();
+  // "Dit is genoeg" (T10.11): de gebruiker rondt af met de route zoals hij is.
+  let readyToPropose = false;
 
   function currentKey(): string {
     const last = history[history.length - 1];
@@ -155,13 +157,17 @@ function fakeDeviceApi(
         prompt = higher.prompt;
       }
     }
-    const question = available.length > 0 ? { prompt, options: available } : null;
+    // "Dit is genoeg" (T10.11): zoals de server valt de vraag dan weg en volgt het voorstelscherm.
+    const question =
+      readyToPropose || available.length === 0 ? null : { prompt, options: available };
     return {
       sessionId: 's-1',
       status: 'ACTIVE',
       question,
       done: question === null,
       history: [...history],
+      // Zoals de server: afronden mag pas na een eigen keuze van de gebruiker.
+      canFinish: question !== null && history.length > 0,
     };
   }
 
@@ -233,11 +239,16 @@ function fakeDeviceApi(
         for (const option of TREE[currentKey()]!.options) excluded.add(option.concept);
         return Promise.resolve(buildState());
       }
-      // Vereenvoudigde heranalyse: rol de laatste keuze terug en sluit dat concept uit (§7.5). De echte
-      // min-confidence-heranalyse is server-side gedekt; hier gaat het om de UI-flow (❌ → hervraag).
+      // Zoals de server sinds T10.10: precies één stap terug en dat concept uitsluiten (§7.5).
+      readyToPropose = false;
       const last = history[history.length - 1];
       if (last) excluded.add(last.symbol.concept);
       history = history.slice(0, -1);
+      return Promise.resolve(buildState());
+    },
+    conversationEnough(): Promise<ConversationStateResponse> {
+      // "Dit is genoeg" (T10.11): geen vraag meer, de route zoals hij is gaat naar het voorstelscherm.
+      readyToPropose = true;
       return Promise.resolve(buildState());
     },
     conversationGenerate(): Promise<ConversationGenerateResponse> {
@@ -449,6 +460,8 @@ describe('gebruikersapp op de tablet', () => {
       done: false,
       history: [{ order: 0, question: 'Wat wil je drinken?', symbol: DRINK }],
       caregiverQuestion: 'Wat wil je drinken?',
+      // Alleen het anker van de begeleider staat er: de gebruiker koos nog niets (T9.14/T10.11).
+      canFinish: false,
     };
     render(<TabletApp api={fakeDeviceApi({ linked: true, pendingQuestion: DRINK_Q })} />);
 
@@ -617,5 +630,25 @@ describe('gebruikersapp op de tablet', () => {
     expect(await screen.findByLabelText('Nagelknipper (nieuw woord)')).toBeTruthy();
     // Een gewoon bibliotheekwoord krijgt die markering niet.
     expect(screen.getByLabelText('Iets willen')).toBeTruthy();
+  });
+
+  it('rondt af met "Dit is genoeg" en toont het voorstel met de route zoals hij is (T10.11)', async () => {
+    // Sinds T10.10 stelt de server pas een boodschap voor als er niets meer te verfijnen valt. Zonder
+    // deze uitweg zou "Ik wil iets doen." onbereikbaar zijn, terwijl dat een volwaardige boodschap is.
+    const api = fakeDeviceApi({ linked: true });
+    render(<TabletApp api={api} />);
+
+    // Startscherm: nog geen eigen keuze, dus geen afrond-knop.
+    expect(await screen.findByLabelText('Iets willen')).toBeTruthy();
+    expect(screen.queryByText('✅ Dit is genoeg')).toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Iets willen'));
+    fireEvent.click(await screen.findByLabelText('Iets doen'));
+
+    // Nu er een eigen keuze staat, mag de gebruiker afronden.
+    const finish = await screen.findByText('✅ Dit is genoeg');
+    fireEvent.click(finish);
+
+    expect(await screen.findByRole('heading', { name: 'Ik wil iets doen.' })).toBeTruthy();
   });
 });

@@ -28,9 +28,15 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
-  Opvolging: "Ik wil eten." is op zichzelf een geldige boodschap en is met deze regel niet meer te
-  bereiken zonder door te verfijnen. Dat staat als T10.11 in `TASKS.md` (een expliciete
-  "Dit is genoeg"-knop), niet stilzwijgend weggeredeneerd.
+- **T10.11 "✅ Dit is genoeg".** Direct gevolg van T10.10: dat stelt pas een boodschap voor als er niets
+  meer te verfijnen valt, waardoor "Ik wil eten." — in AAC een volwaardige boodschap — onbereikbaar werd.
+  Nieuw `POST /conversation/{id}/enough` plus een knop in de balk van het keuzescherm (naast "↩ Terug" en
+  "🤷 Staat er niet bij" — geen extra pictogram in het raster, want dat bevat alleen concepten die de
+  boodschap vormen). De server bepaalt met `canFinish` wanneer de knop mag verschijnen: pas ná een eigen
+  keuze van de gebruiker, want een boodschap uit alleen het anker van de begeleider is niet van hem. Het
+  oordeel vervalt zodra de route verandert. Daarbij telt een structureel tussenconcept (`eat`, `drink`,
+  `do-activity`) nu wél mee als het de route **afsluit**: "Ik wil eten." in plaats van het nietszeggende
+  "Ik wil iets duidelijk maken."; middenin een route valt het nog steeds weg ("Ik wil soep.").
 
 ### Toegevoegd — Fase 11: meerdere gespreksstrategieën
 

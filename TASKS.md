@@ -473,9 +473,9 @@ bewust bij "Na de MVP".
   T9.15-test blijft groen).
 
 
-- [ ] **T10.11 "Ik wil eten." moet ook een complete boodschap kunnen zijn** *(ontdekt bij T10.10)*
+- [x] **T10.11 "Ik wil eten." moet ook een complete boodschap kunnen zijn** *(ontdekt bij T10.10)*
   *DESIGN: §3.1, §7.4, §5.1.* Sinds T10.10 stelt Intento pas een boodschap voor als er niets meer te verfijnen valt. Dat lost het "Ik wil iets warms eten."-probleem op, maar maakt een categorie-concept onbereikbaar als eindpunt: "Ik wil eten." is in AAC een volwaardige, bruikbare boodschap — soms wil iemand precies dát zeggen en niet kiezen tussen brood en soep. Nu moet hij zich door een verfijnvraag heen werken of de omweg via "Staat er niet bij" nemen, die de opties uitsluit in plaats van ze over te slaan. Werk: een expliciete "✅ Dit is genoeg"-uitweg op het keuzescherm die het gesprek naar het voorstelscherm brengt met de route zoals hij is. Bewust een bedieningsknop in de balk en geen pictogram in het raster (zoals bij T9.12), en alleen zichtbaar zodra de gebruiker minstens één eigen keuze heeft gemaakt — anders zou hij een lege boodschap kunnen bevestigen.
-  *Acceptatie:* op het verfijnscherm van "eten" leidt "Dit is genoeg" tot het voorstel "Ik wil eten." (end-to-end test); de knop is er niet vóór de eerste keuze van de gebruiker (test); de bestaande T10.10-tests blijven groen (zonder die knop blijft de AI doorvragen).
+  *Acceptatie:* op het verfijnscherm van "eten" leidt "Dit is genoeg" tot het voorstel "Ik wil eten." (end-to-end test); de knop is er niet vóór de eerste keuze van de gebruiker (test); het oordeel vervalt na ❌ Nee en ↩ Terug (tests); een structureel tussenconcept dat de route afsluit telt mee in de zin, middenin nog steeds niet (tests); de bestaande T10.10-tests blijven groen.
 
 ---
 

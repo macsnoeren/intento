@@ -272,8 +272,8 @@ export interface DeviceApi {
   /** Laatste keuze ongedaan maken; herstelt de vorige vraag/opties exact. */
   conversationBack(sessionId: string): Promise<ConversationStateResponse>;
   /**
-   * "Dit klopt niet" (T5.4/T9.12). `wrong_guess` (standaard) wijst het **voorstel** af: heranalyse →
-   * gerichtere hervraag op de vermoedelijke foutstap. `no_fitting_option` betekent dat het juiste
+   * "Dit klopt niet" (T5.4/T9.12). `wrong_guess` (standaard) wijst het **voorstel** af: precies één stap
+   * terug (de laatste keuze) en een nieuwe vraag op dat punt. `no_fitting_option` betekent dat het juiste
    * pictogram niet tussen de aangeboden opties staat: dit punt wordt overgeslagen en het gesprek gaat
    * met andere opties verder, zonder een gemaakte keuze terug te rollen.
    */
@@ -281,6 +281,11 @@ export interface DeviceApi {
     sessionId: string,
     type?: ConversationCorrectionType,
   ): Promise<ConversationStateResponse>;
+  /**
+   * "Dit is genoeg" (T10.11): de route zegt al genoeg — ga naar het voorstelscherm zonder nog een
+   * verfijnvraag. Alleen zinvol wanneer de toestand `canFinish` meldt.
+   */
+  conversationEnough(sessionId: string): Promise<ConversationStateResponse>;
   /** Boodschap laten voorstellen uit de gekozen concepten (sjabloon-zin + confidence; slaat niets op). */
   conversationGenerate(sessionId: string): Promise<ConversationGenerateResponse>;
   /** Boodschap bevestigen → sessie afronden en de boodschap opslaan. */
@@ -664,6 +669,11 @@ export const httpApi: Api & DeviceApi = {
         method: 'POST',
         body: JSON.stringify({ type }),
       }),
+    );
+  },
+  async conversationEnough(sessionId) {
+    return conversationStateResponseSchema.parse(
+      await request(`/conversation/${sessionId}/enough`, { method: 'POST', body: '{}' }),
     );
   },
   async conversationGenerate(sessionId) {

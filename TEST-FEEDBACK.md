@@ -29,5 +29,5 @@
 
 ## Vierde testronde (22-08-2026)
 
-- [x] Het gaat niet altijd goed. Ik kom bijvoorbeeld uit op "Ik wil iets warms eten." Dat is niet heel concreet — dan mag de AI door om te ontdekken wat iemand wil eten. Als ik dan Nee zeg, zegt hij "Wat wil je drinken?", terwijl ik juist iets wil zeggen over wat ik wil eten. *(opgelost in T10.10: voorstellen vereist nu ook concreetheid, ❌ Nee rolt één stap terug in plaats van de hele route, en de safety-laag herkent buigingsvormen zoals "warms")*
+- [x] Het gaat niet altijd goed. Ik kom bijvoorbeeld uit op "Ik wil iets warms eten." Dat is niet heel concreet — dan mag de AI door om te ontdekken wat iemand wil eten. Als ik dan Nee zeg, zegt hij "Wat wil je drinken?", terwijl ik juist iets wil zeggen over wat ik wil eten. *(opgelost in T10.10: voorstellen vereist nu ook concreetheid, ❌ Nee rolt één stap terug in plaats van de hele route, retrieval matcht niet meer midden in een woord, en de safety-laag herkent buigingsvormen zoals "warms". T10.11 voegde "✅ Dit is genoeg" toe zodat je wél op "eten" kunt afronden als je dat wilt.)*
 - [ ] De aanpak van de AI — de manier waarop hij probeert te achterhalen wat de gebruiker wil zeggen — moet aanpasbaar zijn: meerdere aanpakken die te selecteren zijn per gebruiker of per gesprek. *(uitgewerkt als Fase 11 in `TASKS.md`, T11.1 t/m T11.6)*
