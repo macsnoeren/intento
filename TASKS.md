@@ -377,7 +377,7 @@ aanroepplekken veranderen. Strategieën zijn **ingebouwd** (in code, met een sta
 database: dat houdt multi-tenant-isolatie buiten beeld. Per organisatie bewerkbare strategieën staan
 bewust bij "Na de MVP".
 
-- [ ] **T11.1 Ontwerp: gespreksstrategieën als expliciet begrip**
+- [x] **T11.1 Ontwerp: gespreksstrategieën als expliciet begrip**
   *DESIGN: §5.3, §7.2, §7.3, §7.4, ADR.* Het ontwerp kent nu geen notie van "aanpak": §7.3 beschrijft één
   vraagselectie en §5.3 somt de instellingen per gebruiker op zonder deze. Werk: een nieuwe subsectie
   §7.10 "Gespreksstrategieën" die beschrijft wat een strategie is, welke parameters ze bevat, welke

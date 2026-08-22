@@ -146,6 +146,7 @@ Als de AI merkt dat een gebruiker vaak hetzelfde concept kiest, krijgt de begele
 - Contextindicator: aan/uit.
 - AI-leren: aan/uit.
 - Ondersteuningsmodus: aan/uit.
+- **Gespreksstrategie** — de manier waarop de AI probeert te achterhalen wat de gebruiker bedoelt (§7.10). Een keuze uit de ingebouwde strategieën, standaard **"Stap voor stap verfijnen"**. De begeleider kiest hem, dus elke strategie draagt een korte uitleg in begrijpelijke taal ("Voor wie snel overprikkeld raakt"). Dit is een instelling over de **zoekwijze**, nooit over de waarborgen: geen enkele keuze hier verandert wie eigenaar is van de boodschap of wat de AI mag.
 
 ### 5.4 Foutpreventie en toegankelijkheid
 
@@ -223,6 +224,8 @@ Factoren: wat is al gekozen (context), wat past bij deze gebruiker (persoon), wa
 
 Zonder stap 2 is de AI machteloos zodra een tak smal is: een intentie met drie kinderen laat het model geen enkele ruimte om te achterhalen wat de gebruiker bedoelt, hoe goed het model ook is. Dat was de oorzaak van de bevinding uit de derde gebruikerstest (Fase 10).
 
+**Welke bronnen meedoen, in welke volgorde en hoeveel er aangeboden wordt, ligt niet vast maar volgt uit de gespreksstrategie van dit gesprek (§7.10).** De vier bronnen hierboven zijn de bronnen die er *zijn*; de strategie bepaalt hun volgorde en gewicht, het maximum van de kandidatenset en de onder- en bovengrens van het aanbod. De hierboven beschreven volgorde is die van de standaardstrategie `refine`.
+
 ### 7.4 Confidence-model
 
 Elke interpretatie krijgt een zekerheidsscore:
@@ -232,6 +235,10 @@ Elke interpretatie krijgt een zekerheidsscore:
 | < 60% | Nieuwe pictogramvraag stellen |
 | 60–85% | Verder verfijnen |
 | > 85% | Boodschap voorstellen (JA/NEE) |
+
+De zekerheid is niet de rauwe waarde uit één modelantwoord maar de over beurten heen **gedempte** zekerheid van de hypothese, zodat één zelfverzekerd antwoord de voorsteldrempel niet in zijn eentje haalt.
+
+De twee drempels en de demping zijn **parameters van de gespreksstrategie** (§7.10), niet van het systeem: de waarden in de tabel zijn die van de standaardstrategie `refine`. Een rustige strategie legt de voorsteldrempel hoger en dempt sterker; een verkennende legt hem lager. Wat níet varieert is de regel eronder: er komt nooit een boodschapvoorstel zonder dat de **gebruiker** zelf minstens één keuze heeft gemaakt (§2, §7.8).
 
 ### 7.5 Herhaling vermijden
 
@@ -279,6 +286,51 @@ Over nieuwe concepten (§7.6 trap 3) gelden dezelfde harde regels: een AI-gegene
 ### 7.9 Behoefte- en emotiedetectie
 
 Naast activiteiten ondersteunt de AI: lichamelijke behoeften (pijn, honger, dorst, vermoeidheid), emoties (blij, verdrietig, boos, bang), sociale behoeften (iemand zien, hulp vragen, contact).
+
+### 7.10 Gespreksstrategieën
+
+Een **gespreksstrategie** is de benoemde manier waarop de AI probeert te achterhalen wat de gebruiker bedoelt. Ze bundelt de knoppen die tot nu toe verspreid in de code stonden tot één keuze met een naam, een uitleg en een stabiele sleutel.
+
+Dat is geen opruimactie maar een ontwerpkeuze: die knoppen coderen een **aanname over de persoon**. De huidige set gaat uit van iemand die categorieën begrijpt en stapsgewijs verfijnt. Voor iemand die snel overprikkeld raakt zijn twaalf opties te veel; voor iemand die concrete dingen wél herkent maar niet kan categoriseren is "eerst kiezen tussen eten/drinken/iets doen" een omweg; voor iemand met een sterk vast dagritme is de persoonlijke context een beter startpunt dan de begrippenboom. Eén aanpak voor iedereen botst met §5.3 (instellingen per gebruiker) en met de belofte van §7.3 ("gepersonaliseerd op basis van profiel en historie").
+
+**Parameters van een strategie:**
+
+| Parameter | Wat het regelt |
+|---|---|
+| Kandidatenbronnen + volgorde/gewicht | Welke van de vier bronnen uit §7.3 meedoen en wat er vooraan staat |
+| Maximum kandidatenset | Hoeveel kandidaten er maximaal aan het model worden voorgelegd |
+| Onder- en bovengrens aanbod | Hoeveel opties de gebruiker minimaal en maximaal per scherm ziet |
+| Verfijn- en voorsteldrempel | De twee grenzen uit het confidence-model (§7.4) |
+| Demping van de zekerheid | Hoe zwaar één modelantwoord meeweegt in de hypothese |
+| Promptformulering | De **inhoud** van het Intento-doel en de extra AAC-regels (§7.7) |
+| Nieuwe concepten toegestaan | Of §7.6 trap 3 openstaat in dit gesprek |
+| Minimum aantal gebruikerskeuzes vóór een voorstel | Hoeveel de gebruiker zelf gekozen moet hebben voordat er iets voorgesteld wordt |
+
+**Wat een strategie NOOIT varieert.** Dit zijn domeinregels, geen instellingen (§2, §7.5, §7.6, §7.8):
+
+- de gebruiker is eigenaar en bevestigt zelf;
+- deduplicatie tegen bestaande concepten gaat altijd voor (§7.6 trap 1 en 2);
+- afgewezen concepten komen nooit terug (§7.5);
+- geen boodschapvoorstel zonder een keuze van de **gebruiker** — een strategie mag het minimum verhogen, nooit tot nul verlagen;
+- de **gesloten promptsleutelset** (§7.7): een strategie vult de *inhoud* van het doel en de AAC-regels, nooit de *vorm* van de prompt;
+- nooit een leeg scherm.
+
+Een strategie verandert de **zoekwijze**, niet de **garanties**. Zonder die scheiding wordt elke nieuwe strategie een plek waar een waarborg stilletjes wegvalt; daarom draaien de domeinregels als één gedeelde invariant-testsuite over álle geregistreerde strategieën.
+
+**De strategieën (MVP).** Elke strategie heeft een sleutel, een label en een uitleg in begrijpelijke taal, want de begeleider kiest hem — niet een ontwikkelaar.
+
+| Sleutel | Label | Voor wie |
+|---|---|---|
+| `refine` (standaard) | Stap voor stap verfijnen | De huidige aanpak: van categorie naar detail |
+| `explore` | Breed verkennen | Wie concrete dingen herkent maar moeilijk categoriseert; slaat abstracte tussenstappen over |
+| `calm` | Rustig en bevestigend | Wie snel overprikkeld raakt: klein aanbod, één duidelijke vraag, later voorstellen |
+| `context-first` | Context eerst | Wie een sterk vast dagritme heeft: voorkeuren en persoonlijke context vóór de begrippenboom |
+
+**Selectie: gesprek → gebruiker → standaard.** Een gesprek kan een expliciete strategie meekrijgen (de begeleider die een vraag stelt, §3.2, weet welke situatie dit is); heeft het die niet, dan geldt de instelling van de gebruiker (§5.3); heeft die er geen, dan de standaard uit de registry. De strategie **ligt vast voor de duur van het gesprek**: halverwege wisselen zou het vastgelegde aanbod en de lopende hypothese inconsistent maken. Dat is een expliciete keuze, geen omissie.
+
+**Zichtbaarheid.** De actieve strategie (sleutel + label) hoort bij het antwoord op "waarom deed de AI dit?": ze staat in de AI-beslissingslogregel, in het beheerscherm AI-activiteit en in de meekijk-weergave van de begeleider. Alleen sleutel en label — geen promptinhoud en geen persoonlijke context (§9.4).
+
+Strategieën zijn **ingebouwd** (in code, met een stabiele sleutel), niet beheerd in de database; per organisatie bewerkbare strategieën staan bewust bij de post-MVP. Zie [ADR-0013](docs/adr/0013-conversation-strategies.md).
 
 ---
 

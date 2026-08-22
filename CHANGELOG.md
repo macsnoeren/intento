@@ -5,6 +5,17 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Toegevoegd — Fase 11: meerdere gespreksstrategieën
+
+- **T11.1 Ontwerp: gespreksstrategieën als expliciet begrip** (DESIGN §5.3, §7.3, §7.4, nieuwe §7.10 +
+  [ADR-0013](docs/adr/0013-conversation-strategies.md)). De manier waarop de AI achterhaalt wat de
+  gebruiker bedoelt lag als vijf losse constanten verspreid over evenzoveel modules — en die waarden zijn
+  niet neutraal: ze veronderstellen iemand die categorieën begrijpt en stapsgewijs verfijnt. Het ontwerp
+  kent nu het begrip **gespreksstrategie**: een parameterset met een sleutel, een label en een uitleg voor
+  de begeleider, te kiezen per gebruiker of per gesprek (selectie: gesprek → gebruiker → standaard). De
+  domeinregels vallen er expliciet buiten — een strategie verandert de **zoekwijze**, nooit de
+  **garanties**. Geen code in deze taak.
+
 ### Gewijzigd — Fase 10: de AI stuurt het gesprek
 
 - **T10.1 Ontwerp bijgesteld (DESIGN §7.3/§7.5/§7.6/§7.8 + [ADR-0012](docs/adr/0012-ai-generated-concepts.md)).**
