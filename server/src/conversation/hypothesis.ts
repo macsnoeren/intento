@@ -14,9 +14,13 @@ import { z } from 'zod';
  *
  * **Wat de hypothese doet.** Ze houdt per beurt bij welke concepten de AI als bedoeling ziet, met een
  * zekerheid die over beurten heen wordt **gedempt** in plaats van overschreven, plus de geschiedenis
- * daarvan. Daarmee wordt de voorsteldrempel stabiel en kan de correctie het punt aanwijzen waar de
- * hypothese **kantelde** (de sterkste daling), in plaats van het punt waar het model toevallig het
- * laagst scoorde.
+ * daarvan. Daarmee wordt de voorsteldrempel stabiel: één zelfverzekerd modelantwoord kan niet in zijn
+ * eentje een boodschap forceren.
+ *
+ * **Wat ze bewust níet meer doet** (T10.10): de correctieflow aansturen. De hypothese leverde daarvoor
+ * het "kantelpunt" — de stap met de sterkste daling — maar elke poging om de foutstap te *bepalen* wees
+ * in de praktijk de keuze aan die de gebruiker zelf het bewustst had gemaakt. ❌ Nee rolt nu simpelweg
+ * één stap terug; zie `correction.ts`.
  *
  * **Privacy.** Uitsluitend AAC-concepten, getallen en de onderbouwing van de AI — nooit persoonlijke
  * context (DESIGN §9.4). En bewust **vluchtig**: bij `/confirm` wordt de hypothese gewist, want een
@@ -108,29 +112,4 @@ export function updateHypothesis(
     .slice(-HYPOTHESIS_HISTORY_LIMIT);
 
   return { concepts: next.concepts, confidence, reason: next.reason, history };
-}
-
-/**
- * Zoekt het **kantelpunt** in de hypothese: de stapstand waar de zekerheid het sterkst daalde. Dat is
- * het punt waar de AI het meest van gedachten veranderde en dus de meest waarschijnlijke misstap
- * (DESIGN §3.4). Geeft `null` als er geen daling in de geschiedenis zit — dan valt de correctie terug op
- * de bestaande per-stap-analyse.
- */
-export function tippingPoint(hypothesis: Hypothesis | null): number | null {
-  const history = hypothesis?.history ?? [];
-  if (history.length < 2) return null;
-
-  let worstDrop = 0;
-  let atStepCount: number | null = null;
-  for (let index = 1; index < history.length; index++) {
-    const drop = history[index - 1]!.confidence - history[index]!.confidence;
-    // Strikt groter → de vroegste van twee gelijke dalingen wint (dichter bij de wortel van het
-    // misverstand, net als in `analyzeCorrection`).
-    if (drop > worstDrop) {
-      worstDrop = drop;
-      atStepCount = history[index]!.stepCount;
-    }
-  }
-  // De meting bij `stepCount` hoort bij de keuze die er dáárvoor gezet is: stap `stepCount - 1`.
-  return atStepCount === null ? null : Math.max(0, atStepCount - 1);
 }

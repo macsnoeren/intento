@@ -100,8 +100,7 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
     return conversationStateResponseSchema.parse(res.json());
   }
 
-  it('herstelt de vermoedelijke foutstap gericht en biedt de afgewezen route niet opnieuw aan', async () => {
-    // `do-activity` is de onzekere stap → de heranalyse moet die als foutstap kiezen.
+  it('rolt één stap terug en biedt de afgewezen keuze niet opnieuw aan', async () => {
     const { cookie, sessionId } = await startFor(new AiOrchestrator(tunedProvider('do-activity')));
 
     await next(cookie, sessionId, 'want');
@@ -117,27 +116,57 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
     expect(res.statusCode).toBe(200);
     const state = conversationStateResponseSchema.parse(res.json());
 
-    // Gerichte hervraag op het teruggerolde punt: alleen "want" resteert in de historie (stap 0), de
-    // foutstap "do-activity" en alles erna is teruggerold — niet terug naar het begin.
-    expect(state.history.map((step) => step.symbol.concept)).toEqual(['want']);
+    // Precies één stap terug (T10.10): "outside" verdwijnt, de rest van de route blijft staan — de
+    // gebruiker koos "want" en "do-activity" zelf en die worden niet weggegooid omdat de AI onzeker was.
+    expect(state.history.map((step) => step.symbol.concept)).toEqual(['want', 'do-activity']);
     expect(state.question).not.toBeNull();
 
-    // De afgewezen route ("do-activity") wordt niet opnieuw aangeboden (§7.5).
+    // De afgewezen keuze wordt niet opnieuw aangeboden (§7.5).
     const shown = (state.question?.options ?? []).map((o) => o.concept);
-    expect(shown).not.toContain('do-activity');
+    expect(shown).not.toContain('outside');
     expect(shown.length).toBeGreaterThan(0);
 
     // De correctie is vastgelegd als signaal (maar er wordt niet van geleerd).
     const events = await prisma.correctionEvent.findMany({ where: { sessionId } });
     expect(events).toHaveLength(1);
     expect(events[0]!.type).toBe('wrong_guess');
-    expect(events[0]!.rejectedConcept).toBe('do-activity');
-    expect(events[0]!.stepOrder).toBe(1);
+    expect(events[0]!.rejectedConcept).toBe('outside');
+    expect(events[0]!.stepOrder).toBe(2);
 
     // Niets geleerd/opgeslagen: geen boodschap bewaard, sessie nog actief.
     expect(await prisma.generatedMessage.count({ where: { sessionId } })).toBe(0);
     const session = await prisma.conversationSession.findUnique({ where: { id: sessionId } });
     expect(session!.status).toBe('ACTIVE');
+  });
+
+  it('rolt bij herhaald ❌ de route stap voor stap terug (T10.10)', async () => {
+    // Dit is de bevinding uit de gebruikerstest: ❌ bracht de gebruiker in één klap terug naar het
+    // startscherm, met zijn eigen eerste keuze permanent uitgesloten. Nu loopt hij zijn route terug in
+    // zijn eigen tempo, en blijft elke keuze staan tot híj hem afwijst.
+    const { cookie, sessionId } = await startFor(new AiOrchestrator(tunedProvider('do-activity')));
+
+    await next(cookie, sessionId, 'want');
+    await next(cookie, sessionId, 'do-activity');
+
+    const reject = async () => {
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie },
+        payload: {},
+      });
+      expect(res.statusCode).toBe(200);
+      return conversationStateResponseSchema.parse(res.json());
+    };
+
+    const first = await reject();
+    expect(first.history.map((step) => step.symbol.concept)).toEqual(['want']);
+
+    const second = await reject();
+    expect(second.history).toEqual([]);
+    // Pas na de tweede afwijzing is "want" weg — omdat de gebruiker dat zelf twee keer aangaf.
+    expect(second.question).not.toBeNull();
+    expect((second.question?.options ?? []).map((o) => o.concept)).not.toContain('want');
   });
 
   it('blijft de afgewezen route uitsluiten bij vervolgkeuzes in dezelfde sessie', async () => {
@@ -154,9 +183,14 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
       payload: {},
     });
 
-    // Kies een alternatief ("drink") en ga daarna terug: "do-activity" blijft weg uit de opties.
-    const afterDrink = await next(cookie, sessionId, 'drink');
-    expect(afterDrink.history.map((s) => s.symbol.concept)).toEqual(['want', 'drink']);
+    // Na de correctie staat de route op `want > do-activity` en is "outside" uitgesloten. Kies een
+    // alternatief en ga daarna terug: "outside" blijft weg uit de opties.
+    const afterCycling = await next(cookie, sessionId, 'cycling');
+    expect(afterCycling.history.map((s) => s.symbol.concept)).toEqual([
+      'want',
+      'do-activity',
+      'cycling',
+    ]);
 
     const back = await app.inject({
       method: 'POST',
@@ -165,7 +199,7 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
       payload: {},
     });
     const state = conversationStateResponseSchema.parse(back.json());
-    expect((state.question?.options ?? []).map((o) => o.concept)).not.toContain('do-activity');
+    expect((state.question?.options ?? []).map((o) => o.concept)).not.toContain('outside');
   });
 
   it('weigert een correctie zonder keuzes (400)', async () => {

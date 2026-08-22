@@ -99,6 +99,20 @@ describe('gespreksstrategieën — onderscheidend gedrag', () => {
     expect(grandchildConcepts.length).toBeGreaterThan(0);
   });
 
+  /**
+   * Een gesprekstoestand waarin er **niets meer te verfijnen** valt: alle kinderen van "want" zijn al
+   * gezien en afgewezen. Sinds T10.10 is dat de voorwaarde waaronder de zekerheidsdrempel de doorslag
+   * geeft — met openstaande verfijningen stelt geen enkele strategie een boodschap voor.
+   */
+  const exhaustedRoute = {
+    steps: steps('want'),
+    rejections: ['eat', 'drink', 'do-activity'].map((concept) => ({
+      concept,
+      kind: 'no_fitting_option' as const,
+    })),
+    allowNewConcepts: false,
+  };
+
   // --- explore: concreet vóór abstract ---------------------------------------------------------------
 
   it('explore zet het concrete niveau vooraan waar refine bij de categorieën begint', async () => {
@@ -146,11 +160,11 @@ describe('gespreksstrategieën — onderscheidend gedrag', () => {
     });
 
     const withRefine = await decideNextQuestion(prisma, lukewarm, {
-      steps: steps('want'),
+      ...exhaustedRoute,
       strategy: REFINE_STRATEGY,
     });
     const withExplore = await decideNextQuestion(prisma, lukewarm, {
-      steps: steps('want'),
+      ...exhaustedRoute,
       strategy: EXPLORE_STRATEGY,
     });
 
@@ -176,11 +190,11 @@ describe('gespreksstrategieën — onderscheidend gedrag', () => {
 
   it('calm stelt later voor: dezelfde zekere AI levert bij refine een voorstel en bij calm nog een vraag', async () => {
     const withRefine = await decideNextQuestion(prisma, confidentOrchestrator, {
-      steps: steps('want'),
+      ...exhaustedRoute,
       strategy: REFINE_STRATEGY,
     });
     const withCalm = await decideNextQuestion(prisma, confidentOrchestrator, {
-      steps: steps('want'),
+      ...exhaustedRoute,
       strategy: CALM_STRATEGY,
     });
 

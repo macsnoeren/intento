@@ -175,11 +175,28 @@ async function retrieveByTerms(
   limit: number,
 ): Promise<AacSymbolModel[]> {
   if (terms.length === 0 || limit <= 0) return [];
-  return prisma.aacSymbol.findMany({
+  // De `contains`-query is een goedkope voorfilter in de database; hij matcht op een **ruwe** substring.
+  const rough = await prisma.aacSymbol.findMany({
     where: { OR: terms.map((term) => ({ searchText: { contains: term } })) },
     orderBy: [{ label: 'asc' }],
-    take: limit,
   });
+  return rough.filter((symbol) => matchesAtWordStart(symbol.searchText, terms)).slice(0, limit);
+}
+
+/**
+ * Komt één van de termen vóór aan het begin van een woord in de zoekindex?
+ *
+ * Zonder deze controle matcht een ruwe substring midden in een woord, en dat levert onzin op: in de
+ * rooktest van T10.10 verscheen bij "Wat wil je eten?" een **voet** tussen de opties, omdat "eten" in
+ * "vo*eten*" zit — en "warm", omdat het synoniem "zw*eten*" is. Dat is precies het soort optie dat een
+ * gebruiker doet twijfelen aan het hele scherm.
+ *
+ * Bewust een **woordbegin** en geen exacte match: zo blijft "hand" wél "handen" vinden, wat de retrieval
+ * juist bruikbaar maakt.
+ */
+function matchesAtWordStart(searchText: string, terms: string[]): boolean {
+  const words = searchText.split(' ');
+  return terms.some((term) => words.some((word) => word.startsWith(term)));
 }
 
 /**

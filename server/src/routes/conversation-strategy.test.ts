@@ -100,13 +100,16 @@ describe('gespreksstrategie per gebruiker', () => {
     const withRefine = await conversationFor('Sanne', 'refine');
     const withCalm = await conversationFor('Tim', 'calm');
 
-    // Dezelfde AI, dezelfde bibliotheek, dezelfde keuze — en toch een ander gesprek:
-    // `refine` is zeker genoeg (0,9 > 0,85) en stelt een boodschap voor…
-    expect(withRefine.done).toBe(true);
-    // …terwijl `calm` pas vanaf 0,92 voorstelt en dus nog een vraag stelt, met een klein aanbod.
+    // Dezelfde AI, dezelfde bibliotheek, dezelfde keuze — en toch een ander gesprek. Beide stellen nog
+    // een vraag (op "Iets willen" valt nog van alles te verfijnen, T10.10), maar het scherm verschilt:
+    // `calm` houdt het klein en overzichtelijk…
     expect(withCalm.done).toBe(false);
     expect(conceptsOf(withCalm).length).toBeGreaterThan(0);
     expect(conceptsOf(withCalm).length).toBeLessThanOrEqual(4);
+
+    // …terwijl `refine` er ruim meer aanbiedt.
+    expect(withRefine.done).toBe(false);
+    expect(conceptsOf(withRefine).length).toBeGreaterThan(conceptsOf(withCalm).length);
   });
 
   it('valt zonder expliciete keuze terug op de standaardstrategie', async () => {
@@ -351,7 +354,9 @@ describe('gespreksstrategie per gebruiker', () => {
     // Een rij die ooit met een sindsdien verwijderde strategie is opgeslagen: de invoer wordt op de
     // API-grens geweigerd, maar bestaande data mag nooit een gesprek laten crashen (§7.10).
     const state = await conversationFor('Iris', 'ooit-bestaan-hebbende-aanpak');
-    // De standaardstrategie neemt het over: hetzelfde gedrag als `refine`.
-    expect(state.done).toBe(true);
+    // De standaardstrategie neemt het over: hetzelfde gedrag als `refine`, geen crash.
+    const withRefine = await conversationFor('Iris-refine', 'refine');
+    expect(state.done).toBe(withRefine.done);
+    expect(conceptsOf(state).length).toBe(conceptsOf(withRefine).length);
   });
 });

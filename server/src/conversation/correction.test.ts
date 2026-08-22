@@ -2,32 +2,45 @@ import { describe, expect, it } from 'vitest';
 import { analyzeCorrection } from './correction.js';
 
 /**
- * Unit-tests voor de correctie-heranalyse (T5.4, DESIGN §3.4, FR-009). De heranalyse is een pure
- * functie van de stappen: ze kiest de stap met de laagste interpretatie-zekerheid als vermoedelijke
- * foutstap (§7.4-signaal), met deterministische tie-break.
+ * Unit-tests voor de correctie op een voorstel (T5.4, herzien in T10.10; DESIGN §3.4, FR-009).
+ *
+ * ❌ Nee rolt precies **één** stap terug: de laatste keuze van de gebruiker. Nogmaals ❌ rolt de volgende
+ * terug. Tot T10.10 probeerde deze laag de foutstap te *bepalen* uit de per-stap-zekerheid, maar die
+ * wees systematisch de eerste — en meest bewuste — keuze van de gebruiker aan; zie `correction.ts`.
  */
-describe('analyzeCorrection (T5.4)', () => {
-  function step(order: number, selectedConcept: string, confidence: number | null) {
-    return { order, selectedConcept, confidence };
+describe('analyzeCorrection (T5.4/T10.10)', () => {
+  function step(order: number, selectedConcept: string) {
+    return { order, selectedConcept };
   }
 
-  it('kiest de stap met de laagste zekerheid als vermoedelijke foutstap', () => {
-    const steps = [step(0, 'want', 0.7), step(1, 'do-activity', 0.2), step(2, 'outside', 0.6)];
-    expect(analyzeCorrection(steps)).toEqual({ stepOrder: 1, rejectedConcept: 'do-activity' });
+  it('rolt de laatste keuze terug', () => {
+    const steps = [step(0, 'want'), step(1, 'eat'), step(2, 'soup')];
+    expect(analyzeCorrection(steps)).toEqual({ stepOrder: 2, rejectedConcept: 'soup' });
   });
 
-  it('kiest bij gelijke zekerheid de vroegste stap (wortel van het misverstand)', () => {
-    const steps = [step(0, 'want', 0.5), step(1, 'do-activity', 0.5), step(2, 'outside', 0.9)];
-    expect(analyzeCorrection(steps)).toEqual({ stepOrder: 0, rejectedConcept: 'want' });
+  it('rolt herhaald aangeroepen de route stap voor stap terug', () => {
+    const steps = [step(0, 'want'), step(1, 'eat'), step(2, 'soup')];
+    const first = analyzeCorrection(steps);
+    const remaining = steps.filter((s) => s.order < first.stepOrder);
+    expect(analyzeCorrection(remaining)).toEqual({ stepOrder: 1, rejectedConcept: 'eat' });
   });
 
-  it('negeert stappen zonder zekerheid zolang er wél zekerheid bekend is', () => {
-    const steps = [step(0, 'want', null), step(1, 'do-activity', 0.4), step(2, 'outside', null)];
-    expect(analyzeCorrection(steps)).toEqual({ stepOrder: 1, rejectedConcept: 'do-activity' });
+  it('raakt een eerdere keuze van de gebruiker nooit in één keer aan', () => {
+    // De kern van de T10.10-fix: `want` is de bewuste eerste keuze en mag niet verdwijnen omdat de AI
+    // toevallig onzeker was over een latere stap.
+    const steps = [step(0, 'want'), step(1, 'eat')];
+    expect(analyzeCorrection(steps).rejectedConcept).not.toBe('want');
   });
 
-  it('valt terug op de laatste stap als geen enkele stap zekerheid heeft', () => {
-    const steps = [step(0, 'want', null), step(1, 'do-activity', null)];
-    expect(analyzeCorrection(steps)).toEqual({ stepOrder: 1, rejectedConcept: 'do-activity' });
+  it('beschermt het begeleiders-anker in vraagmodus (T9.14)', () => {
+    // Stap 0 is het topic-anker van de begeleider; alleen wat de gebruiker zelf koos is corrigeerbaar.
+    const steps = [step(0, 'drink'), step(1, 'water')];
+    expect(analyzeCorrection(steps, 1)).toEqual({ stepOrder: 1, rejectedConcept: 'water' });
+  });
+
+  it('valt terug op de laatste stap als alleen het anker er is', () => {
+    // De route-laag vangt dit af met een 400; als terugval wijzen we de laatste stap aan.
+    const steps = [step(0, 'drink')];
+    expect(analyzeCorrection(steps, 1)).toEqual({ stepOrder: 0, rejectedConcept: 'drink' });
   });
 });

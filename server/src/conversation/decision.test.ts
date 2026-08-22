@@ -144,8 +144,11 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
     expect(withAnchor.done).toBe(false);
     expect(conceptsOf(withAnchor)).toContain('water');
 
-    // Zonder anker (vrij gesprek) is diezelfde zekerheid wél een voorstel: daar koos de gebruiker zelf.
-    const freeChoice = await decideNextQuestion(prisma, orchestrator, { steps: steps('drink') });
+    // Zonder anker (vrij gesprek) levert een afgemaakte route wél een voorstel: daar koos de gebruiker
+    // zelf. "water" is een eindconcept, dus er valt niets meer te verfijnen (T10.10).
+    const freeChoice = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('drink', 'water'),
+    });
     expect(freeChoice.done).toBe(true);
   });
 
@@ -216,10 +219,39 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
       reason: 'zeer zeker',
       options: [{ symbol: 'do-activity', confidence: 0.8 }],
     });
-    const decision = await decideNextQuestion(prisma, orchestrator, { steps: steps('want') });
+    // Alle verfijningen van "want" zijn al gezien en afgewezen, dus er valt niets meer te vragen
+    // (T10.10): dán mag de hoge zekerheid de doorslag geven.
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('want'),
+      rejections: ['eat', 'drink', 'do-activity'].map((concept) => ({
+        concept,
+        kind: 'no_fitting_option' as const,
+      })),
+      allowNewConcepts: false,
+    });
     expect(decision.done).toBe(true);
     expect(decision.question).toBeNull();
     expect(decision.phase).toBe('propose');
+  });
+
+  it('stelt NIET voor zolang er nog te verfijnen valt, hoe zeker de AI ook is (T10.10)', async () => {
+    // De bevinding uit de gebruikerstest: op "eten" kwam de boodschap "Ik wil iets warms eten." terwijl
+    // de bibliotheek onder "eten" zes concrete dingen kent. Zeker weten dát iemand wil eten is niet
+    // hetzelfde als weten wát; dan hoort de AI door te vragen.
+    const orchestrator = stubOrchestrator({
+      question: 'Wat wil je eten?',
+      confidence: 0.99,
+      reason: 'heel zeker dat het om eten gaat',
+      options: [{ symbol: 'soup', confidence: 0.9 }],
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('want', 'eat'),
+    });
+
+    expect(decision.done).toBe(false);
+    expect(decision.question).not.toBeNull();
+    // En de vraag gaat over wat er te eten valt, niet over iets anders.
+    expect(conceptsOf(decision)).toEqual(expect.arrayContaining(['soup', 'bread', 'apple']));
   });
 
   it('stelt aan de start nooit voor, ook niet bij hoge zekerheid (er is nog niets gekozen)', async () => {

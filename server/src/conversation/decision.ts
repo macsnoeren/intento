@@ -30,7 +30,8 @@ import { defaultStrategy, promptRulesFor, type ConversationStrategy } from './st
  *  3. **Validatielaag** (§7.6, §7.8). Elke voorgestelde optie gaat langs de bibliotheek: bestaand
  *     concept → houden, synoniem → omzetten, aantoonbaar nieuw → aanmaken als gemarkeerd nieuw woord +
  *     voorstel voor de beheerder (T10.6). Deduplicatie gaat altijd voor.
- *  4. **Confidence-gestuurde fase** (§7.4), met een over beurten heen **gedempte** zekerheid uit de
+ *  4. **Confidence- én concreetheids-gestuurde fase** (§7.4, T10.10): voorstellen mag pas als de AI zeker
+ *     genoeg is **en** er niets meer te verfijnen valt, met een over beurten heen **gedempte** zekerheid uit de
  *     hypothese (T10.8) zodat één zelfverzekerd modelantwoord niet meteen een boodschap forceert.
  *  5. **Onder- én bovengrens op het aanbod** (§3.1, T9.10/T10.5). De AI ordent; haar keuzes staan
  *     vooraan en worden aangevuld tot `minOffered` zodat er altijd genoeg te kiezen is. Het aanbod is
@@ -230,6 +231,25 @@ export async function decideNextQuestion(
   const { candidates, atLeafConcept, sourceByConcept, counts } = found;
   let available = found.available;
 
+  /**
+   * Heeft de laatste keuze nog **onverkende verfijningen**: kinderen in de AAC-boom die de gebruiker
+   * nog niet gekozen of afgewezen heeft? Zo ja, dan weten we nog niet wát hij bedoelt, hoe zeker het
+   * model ook is (T10.10).
+   *
+   * Dit is de concreetheids-kant van de voorsteldrempel. Zonder deze check keek §7.4 alleen naar een
+   * getal, en kon een gesprek op `eat` blijven staan met de boodschap "Ik wil iets warms eten." — terwijl
+   * de bibliotheek onder "eten" zes concrete dingen kent en de zinsgenerator `eat` zelf al als een
+   * **structurele tussenstap** behandelt die uit de zin wegvalt (`message.ts`). Zeker weten dát iemand
+   * wil eten is niet hetzelfde als weten wát; dan hoort de AI door te vragen.
+   *
+   * Bewust géén vaste lijst met "categorie-concepten": of een concept nog iets te verfijnen heeft, is
+   * een eigenschap van de bibliotheek op dít moment en van wat deze gebruiker al gezien heeft. Zijn alle
+   * kinderen afgewezen, dan valt er niets meer te verfijnen en mag er wél voorgesteld worden.
+   */
+  const unexploredRefinements = available.filter(
+    (symbol) => sourceByConcept.get(symbol.concept) === 'children',
+  ).length;
+
   // Het laatst gekozen concept is een **eindconcept**: de route is af, dus een boodschap voorstellen
   // (§7.4). Dit verschilt wezenlijk van "alles uitgesloten" — daar valt nog wél wat te vragen.
   if (atLeafConcept && mayPropose) {
@@ -352,10 +372,13 @@ export async function decideNextQuestion(
   });
   const confidence = nextHypothesis.confidence;
 
-  // De AI is zeker genoeg (>85%) én de **gebruiker** heeft al iets gekozen: boodschap voorstellen
-  // i.p.v. nog een vraag (§7.4 propose). Aan de start — en in vraagmodus met alleen het anker van de
-  // begeleider — stellen we nooit voor: er valt dan niets voor te stellen dat van de gebruiker is.
-  if (confidence >= strategy.confidencePropose && mayPropose) {
+  // Voorstellen mag pas als aan **drie** voorwaarden is voldaan (§7.4, T10.10):
+  //  1. de AI is zeker genoeg (de drempel van de strategie);
+  //  2. de **gebruiker** heeft zelf genoeg gekozen — aan de start, en in vraagmodus met alleen het anker
+  //     van de begeleider, valt er niets voor te stellen dat van de gebruiker is (T9.14);
+  //  3. er valt niets meer te verfijnen. Zekerheid alleen was niet genoeg: een zeker model op een
+  //     categorie als "eten" levert een boodschap op die niets zegt.
+  if (confidence >= strategy.confidencePropose && mayPropose && unexploredRefinements === 0) {
     return {
       question: null,
       done: true,

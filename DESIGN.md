@@ -67,11 +67,13 @@ Als de gebruiker cognitief kan kiezen maar motorisch niet kan bedienen: de gebru
 
 ### 3.4 Correctieflow (gebruiker kiest ❌ Nee)
 
-De AI gaat **niet** terug naar het begin, maar:
-1. analyseert eerdere keuzes en bepaalt waar waarschijnlijk de verkeerde afslag zat;
-2. stelt een gerichtere vraag over die stap ("Wat wilde je buiten doen?" met alternatieven);
-3. volgt niet opnieuw dezelfde foutieve route;
-4. gebruikt de afwijzing als signaal, maar **leert er geen voorkeuren van**.
+De AI gaat **niet** terug naar het begin, maar rolt precies **één stap** terug:
+1. de laatste keuze verdwijnt en dat concept wordt de rest van het gesprek niet meer aangeboden;
+2. op dat punt volgt een nieuwe vraag, binnen de route die de gebruiker verder heeft staan;
+3. nogmaals ❌ rolt de volgende stap terug — zo loopt de gebruiker zijn route in zijn eigen tempo terug;
+4. de afwijzing is een signaal, maar er worden **geen voorkeuren van geleerd**.
+
+> **Waarom niet "bepalen waar het misging".** Tot Fase 10 probeerde Intento de verkeerde afslag te *vinden*: eerst via de laagste per-stap-zekerheid, later via het kantelpunt van de hypothese. Beide signalen wezen in de praktijk de keuze aan die de gebruiker juist het bewustst had gemaakt — in de gebruikerstest verdween na één ❌ de hele route en werd de éérste keuze permanent uitgesloten. Dat keert §2 om: de onzekerheid van de AI werd afgewenteld op de gebruiker. Eén stap tegelijk is voorspelbaar, altijd herhaalbaar, en gooit nooit meer weg dan de gebruiker op dat moment aanwijst.
 
 ### 3.5 Vorige keuze herstellen
 
@@ -238,6 +240,8 @@ Elke interpretatie krijgt een zekerheidsscore:
 
 De zekerheid is niet de rauwe waarde uit één modelantwoord maar de over beurten heen **gedempte** zekerheid van de hypothese, zodat één zelfverzekerd antwoord de voorsteldrempel niet in zijn eentje haalt.
 
+**Zekerheid alleen is niet genoeg.** Een boodschap wordt pas voorgesteld als er ook niets meer te verfijnen valt: heeft de laatste keuze nog kinderen in de bibliotheek die de gebruiker niet gekozen of afgewezen heeft, dan blijft de AI vragen — hoe zeker ze ook is. Zonder die tweede voorwaarde kwam in de gebruikerstest "Ik wil iets warms eten." als voorstel op tafel, terwijl de bibliotheek onder "eten" zes concrete dingen kent. Zeker weten *dát* iemand wil eten is niet hetzelfde als weten *wát*. Een eindconcept (geen kinderen) blijft onveranderd een voorstel opleveren, en zijn alle verfijningen al gezien en afgewezen, dan valt er niets meer te vragen en geeft de zekerheid weer de doorslag.
+
 De twee drempels en de demping zijn **parameters van de gespreksstrategie** (§7.10), niet van het systeem: de waarden in de tabel zijn die van de standaardstrategie `refine`. Een rustige strategie legt de voorsteldrempel hoger en dempt sterker; een verkennende legt hem lager. Wat níet varieert is de regel eronder: er komt nooit een boodschapvoorstel zonder dat de **gebruiker** zelf minstens één keuze heeft gemaakt (§2, §7.8).
 
 ### 7.5 Herhaling vermijden
@@ -279,7 +283,7 @@ AI-output (voorbeeld): `{ "question": "...", "options": [{ "symbol": "walking", 
 
 ### 7.8 Veiligheidsregels (hard)
 
-De AI mag **nooit**: een boodschap verzinnen zonder basis · persoonlijke informatie toevoegen zonder toestemming · namens de gebruiker spreken · een concept in een boodschap gebruiken dat de gebruiker niet zelf gekozen heeft.
+De AI mag **nooit**: een boodschap verzinnen zonder basis · persoonlijke informatie toevoegen zonder toestemming · namens de gebruiker spreken · een concept in een boodschap gebruiken dat de gebruiker niet zelf gekozen heeft — ook niet in een **verbogen vorm** ("warms" voor het concept `hot`).
 
 Over nieuwe concepten (§7.6 trap 3) gelden dezelfde harde regels: een AI-gegenereerd concept is een **aanbod**, geen boodschap. Het bereikt de gebruiker uitsluitend als keuzeoptie, zichtbaar gemarkeerd, en komt pas in een boodschap als de gebruiker het zelf heeft aangetikt én de boodschap heeft bevestigd. De boodschapgeneratie blijft strikt begrensd tot de gekozen concepten; de beheerder houdt het laatste woord over wat blijvend in de bibliotheek terechtkomt.
 

@@ -26,3 +26,8 @@
 ## Derde testronde (22-08-2026)
 
 - [x] Ik koos "Iets willen", kreeg antwoorden, gaf aan dat het er niet bij stond — en kreeg vervolgens weer de eerste opties. De eerste vijf opties zijn prima om mee te starten, maar daarna moet de AI proberen te achterhalen wát de persoon wil zeggen: opties voorleggen uit de bibliotheek, en als het er niet bij staat zelf een optie verzinnen. De AI moet daarbij context bijhouden van wat de persoon wél heeft geantwoord en wat hij níet wil. Dat lijkt niet geïmplementeerd. *(opgelost in Fase 10, T10.1 t/m T10.8 — zie TASKS.md en ADR-0012)*
+
+## Vierde testronde (22-08-2026)
+
+- [x] Het gaat niet altijd goed. Ik kom bijvoorbeeld uit op "Ik wil iets warms eten." Dat is niet heel concreet — dan mag de AI door om te ontdekken wat iemand wil eten. Als ik dan Nee zeg, zegt hij "Wat wil je drinken?", terwijl ik juist iets wil zeggen over wat ik wil eten. *(opgelost in T10.10: voorstellen vereist nu ook concreetheid, ❌ Nee rolt één stap terug in plaats van de hele route, en de safety-laag herkent buigingsvormen zoals "warms")*
+- [ ] De aanpak van de AI — de manier waarop hij probeert te achterhalen wat de gebruiker wil zeggen — moet aanpasbaar zijn: meerdere aanpakken die te selecteren zijn per gebruiker of per gesprek. *(uitgewerkt als Fase 11 in `TASKS.md`, T11.1 t/m T11.6)*

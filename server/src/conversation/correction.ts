@@ -1,81 +1,55 @@
 import type { ConversationStepModel } from '../generated/prisma/models.js';
-import { tippingPoint, type Hypothesis } from './hypothesis.js';
 
 /**
- * Correctie-heranalyse voor de gespreksflow (T5.4, DESIGN §3.4, §7.6, FR-009).
+ * Correctie op een voorstel (❌ Nee) voor de gespreksflow (T5.4, herzien in T10.10; DESIGN §3.4, FR-009).
  *
- * Wanneer de gebruiker een voorstel afwijst (❌), gaat Intento **niet** terug naar het begin. In plaats
- * daarvan bepaalt de orchestrator waar de vermoedelijk verkeerde afslag zat en stelt daar een gerichtere
- * vraag. De heranalyse is bewust een **pure functie van de opgeslagen stappen**, zodat ze deterministisch
- * met de mock-provider te testen is en geen extra AI-aanroep nodig heeft.
+ * Wanneer de gebruiker een voorstel afwijst, gaat Intento **niet** terug naar het begin: er wordt precies
+ * **één stap** teruggerold — de laatste — en het daar gekozen concept wordt de rest van de sessie
+ * uitgesloten (§7.5). Nogmaals ❌ rolt de volgende stap terug. Zo loopt de gebruiker zijn eigen route
+ * stap voor stap terug, in zijn eigen tempo.
  *
- * Signaal voor de foutstap, in volgorde van sterkte:
+ * **Waarom niet slimmer?** Tot T10.10 probeerde deze laag te *bepalen* waar de verkeerde afslag zat: het
+ * kantelpunt van de hypothese (T10.8), anders de stap met de laagste per-stap-zekerheid (T5.4). Dat pakte
+ * in de praktijk verkeerd uit. Sinds T10.3 is `ConversationStep.confidence` de zekerheid waarmee de vraag
+ * werd **aangeboden**, en die stijgt gaandeweg een gesprek — dus was de eerste stap vrijwel altijd de
+ * "laagste", en bij gelijkspel won de vroegste stap sowieso. Gereproduceerd: route `want > eat`, ❌ Nee →
+ * beide keuzes weg, `want` permanent uitgesloten, gebruiker terug op het startscherm.
  *
- *  1. **Het kantelpunt van de hypothese** (T10.8): de stap waarna de gedempte zekerheid het sterkst
- *     daalde. Dat is het punt waar de AI het meest van gedachten veranderde — een direct signaal dat het
- *     daar misging, in plaats van een proxy.
- *  2. **De laagste per-stap-zekerheid** (T5.4): de terugval als er (nog) geen hypothesegeschiedenis is,
- *     bijvoorbeeld bij een sessie van vóór Fase 10 of na één enkele beurt.
- *  3. **De laatste stap**, als er van geen enkele stap zekerheid bekend is.
+ * Dat is de omkering van DESIGN §2: de onzekerheid van de AI werd afgewenteld op de keuzes die de
+ * gebruiker juist zelf en bewust had aangetikt. Eén stap tegelijk terugrollen is voorspelbaar, altijd
+ * herhaalbaar, en gooit nooit meer weg dan de gebruiker op dat moment aanwijst. Voor iemand die met moeite
+ * communiceert weegt voorspelbaarheid zwaarder dan een slimme gok.
  *
- * Deze materialiseert de "heranalyse van eerdere keuzes" uit DESIGN §3.4 zonder een aparte AI-call.
+ * De functie blijft een **pure functie van de opgeslagen stappen**: deterministisch te testen, geen
+ * AI-aanroep.
  */
 
-/** De uitkomst van de heranalyse: welke stap wordt teruggerold en welk concept wordt afgewezen. */
+/** De uitkomst van de correctie: welke stap wordt teruggerold en welk concept wordt afgewezen. */
 export interface CorrectionAnalysis {
-  /** De `order`-index van de als foutstap aangemerkte stap; deze en alles erna wordt teruggerold. */
+  /** De `order`-index van de terug te rollen stap; deze en alles erna verdwijnt. */
   stepOrder: number;
   /** Het op die stap gekozen (en nu afgewezen) AAC-concept; blijft de rest van de sessie uitgesloten. */
   rejectedConcept: string;
 }
 
 /**
- * Bepaalt de vermoedelijke foutstap uit de afgelegde stappen. Kiest de stap met de **laagste**
- * `confidence`; bij gelijke zekerheid wint de **vroegste** stap (dichter bij de wortel van het
- * misverstand). Stappen zonder vastgelegde zekerheid (`null`, bv. via de save-only `/choice`) tellen
- * als "onbekend" en worden alleen gekozen als er geen enkele stap zekerheid heeft — dan valt de analyse
- * terug op de **laatste** stap (de meest recente keuze). `steps` moet op `order` oplopend gesorteerd zijn
- * en niet leeg (de aanroeper garandeert dat er iets terug te rollen valt).
+ * Wijst de terug te rollen stap aan: de **laatste** keuze van de gebruiker. `steps` moet op `order`
+ * oplopend gesorteerd zijn en niet leeg (de aanroeper garandeert dat er iets terug te rollen valt).
  */
 export function analyzeCorrection(
-  steps: Pick<ConversationStepModel, 'order' | 'selectedConcept' | 'confidence'>[],
+  steps: Pick<ConversationStepModel, 'order' | 'selectedConcept'>[],
   /**
    * Aantal begin-stappen dat niet van de gebruiker komt (T9.14): in vraagmodus zet de begeleider het
    * topic-anker als stap 0. Dat anker mag een correctie nooit terugrollen — anders ontsnapt het gesprek
    * uit de gestelde vraag, precies zoals `/back` het anker al beschermt.
    */
   anchoredSteps = 0,
-  /** De lopende hypothese (T10.8); levert het kantelpunt. `null` → terugval op de per-stap-zekerheid. */
-  hypothesis: Hypothesis | null = null,
 ): CorrectionAnalysis {
   const correctable = steps.filter((step) => step.order >= anchoredSteps);
   // Alleen het anker over: er valt niets van de gebruiker terug te rollen. De aanroeper heeft dit al
   // afgevangen; als terugval wijzen we de laatste stap aan zonder hem te beschermen.
   const scope = correctable.length > 0 ? correctable : steps;
 
-  // 1. Het kantelpunt van de hypothese, mits het binnen de corrigeerbare stappen valt (het anker van de
-  //    begeleider blijft beschermd, T9.14).
-  const tipping = tippingPoint(hypothesis);
-  if (tipping !== null) {
-    const step = scope.find((candidate) => candidate.order === tipping);
-    if (step) return { stepOrder: step.order, rejectedConcept: step.selectedConcept };
-  }
-
-  const withConfidence = scope.filter(
-    (step): step is (typeof scope)[number] & { confidence: number } =>
-      typeof step.confidence === 'number',
-  );
-
-  // Geen enkele zekerheid bekend → val terug op de laatste keuze.
-  if (withConfidence.length === 0) {
-    const last = scope[scope.length - 1]!;
-    return { stepOrder: last.order, rejectedConcept: last.selectedConcept };
-  }
-
-  let worst = withConfidence[0]!;
-  for (const step of withConfidence) {
-    // Strikt kleiner → nieuwe laagste; bij gelijkspel houden we de vroegste (steps staat oplopend).
-    if (step.confidence < worst.confidence) worst = step;
-  }
-  return { stepOrder: worst.order, rejectedConcept: worst.selectedConcept };
+  const last = scope[scope.length - 1]!;
+  return { stepOrder: last.order, rejectedConcept: last.selectedConcept };
 }

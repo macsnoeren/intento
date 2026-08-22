@@ -71,12 +71,14 @@ server niet uit elkaar lopen.
   intentiecategorie, dan draagt die het zinsframe ("Ik wil …", "Ik voel me …") en verfijnt de rest;
   begint ze met een gewoon begrip — mogelijk sinds de AI ook op het startscherm een concept mag aandragen
   (T10.6) — dan geldt het neutrale **onderwerp-frame** en is elk gekozen concept inhoud (T10.9).
-- `server/src/conversation/correction.ts` — de **correctie-heranalyse** (T5.4) achter `/correction`:
-  `analyzeCorrection` kiest puur uit de opgeslagen stappen de vermoedelijke foutstap (laagste
-  `ConversationStep.confidence`, §7.4) die wordt teruggerold. Het afgewezen concept wordt als
-  `CorrectionEvent` vastgelegd en blijft de rest van de sessie uitgesloten (via `decideNextQuestion`'s
-  `excludeConcepts`), zodat dezelfde foutieve route nooit terugkomt (§7.5). De flow gaat **niet** terug
-  naar het begin en er wordt **niet** van geleerd (correctie-signaal, geen `Preference`-mutatie).
+- `server/src/conversation/correction.ts` — de **correctie** (T5.4, herzien in T10.10) achter
+  `/correction`: `analyzeCorrection` rolt precies **één** stap terug — de laatste keuze. Het afgewezen
+  concept wordt als `CorrectionEvent` vastgelegd en blijft de rest van de sessie uitgesloten, zodat
+  dezelfde route nooit terugkomt (§7.5); nogmaals ❌ rolt de volgende stap terug. De flow gaat **niet**
+  terug naar het begin en er wordt **niet** van geleerd (correctie-signaal, geen `Preference`-mutatie).
+  Eerdere versies probeerden de foutstap te *bepalen* uit de per-stap-zekerheid of het kantelpunt van de
+  hypothese; beide signalen wezen systematisch de eerste — en meest bewuste — keuze van de gebruiker aan,
+  waarna zijn hele route verdween (DESIGN §3.4).
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`
@@ -161,7 +163,7 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   beslissing sinds Fase 10 géén pure functie van de stappen meer is: `↩ Terug` herstelt daardoor exact
   wat de gebruiker zag, en een keuze wordt gevalideerd tegen wat er werkelijk is aangeboden in plaats van
   tegen de boom. De **hypothese** houdt per beurt bij wat de AI denkt dat de gebruiker bedoelt (concepten
-  + gedempte zekerheid + geschiedenis); ze levert het kantelpunt voor de correctieflow en wordt bij
+  + gedempte zekerheid + geschiedenis); ze houdt de voorsteldrempel stabiel (sinds T10.10 stuurt ze de correctieflow niet meer aan) en wordt bij
   `/confirm` gewist — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6).
 - **Gespreksstrategieën** (`conversation/strategy.ts`, T11.2) — de benoemde manier waarop de AI
   probeert te achterhalen wat de gebruiker bedoelt (DESIGN §7.10). De knoppen die de aanpak bepalen —

@@ -622,11 +622,13 @@ export function registerConversationRoutes(
 
   // Correctie (T5.4/T9.12, DESIGN §3.4, FR-009). Twee soorten "dit klopt niet":
   //
-  // - `wrong_guess` (❌ op een **voorstel**): gaat **niet** terug naar het begin. De heranalyse
-  //   (`analyzeCorrection`) bepaalt uit de per-stap-zekerheid (§7.4) de vermoedelijke foutstap, die stap
-  //   en alles erna worden teruggerold, en het afgewezen concept wordt als `CorrectionEvent` vastgelegd
-  //   zodat het de rest van de sessie niet meer wordt aangeboden (§7.5, via `buildState`). Het
-  //   begeleiders-anker van een vraagmodus-sessie blijft daarbij staan (T9.14).
+  // - `wrong_guess` (❌ op een **voorstel**): gaat **niet** terug naar het begin. Er wordt precies **één
+  //   stap** teruggerold — de laatste — en dat concept wordt als `CorrectionEvent` vastgelegd zodat het
+  //   de rest van de sessie niet meer wordt aangeboden (§7.5, via `buildState`). Nogmaals ❌ rolt de
+  //   volgende stap terug; zo loopt de gebruiker zijn route in zijn eigen tempo terug. Het
+  //   begeleiders-anker van een vraagmodus-sessie blijft daarbij staan (T9.14). Vóór T10.10 probeerde de
+  //   laag de foutstap te *bepalen* uit de per-stap-zekerheid; dat wees systematisch de eerste keuze van
+  //   de gebruiker aan — zie `conversation/correction.ts` voor het waarom.
   // - `no_fitting_option` (T9.12, "Geen van deze past"): het juiste pictogram staat niet tussen de
   //   aangeboden opties. Er wordt **niets teruggerold** — de gemaakte keuzes blijven staan — maar alle
   //   concepten van dit punt worden uitgesloten, waarna de beslissingslaag een niveau hoger verdergaat.
@@ -686,16 +688,11 @@ export function registerConversationRoutes(
         throw new HttpError(400, 'NO_STEPS_TO_CORRECT', 'Er is nog geen keuze om te corrigeren.');
       }
 
-      // De hypothese wijst het **kantelpunt** aan (T10.8): de stap waar de zekerheid het sterkst daalde.
-      // Zonder hypothese valt de analyse terug op de laagste per-stap-zekerheid (T5.4).
-      const { stepOrder, rejectedConcept } = analyzeCorrection(
-        steps,
-        anchored,
-        readHypothesis(session.hypothesis),
-      );
+      // Eén stap terug: de laatste keuze van de gebruiker (T10.10).
+      const { stepOrder, rejectedConcept } = analyzeCorrection(steps, anchored);
 
-      // Foutstap + alles erna terugrollen en de correctie vastleggen — in één transactie zodat de
-      // uitsluiting en de teruggerolde stappen altijd consistent zijn.
+      // Die stap terugrollen en de correctie vastleggen — in één transactie zodat de uitsluiting en de
+      // teruggerolde stap altijd consistent zijn.
       await prisma.$transaction([
         prisma.correctionEvent.create({
           data: { sessionId: session.id, type, stepOrder, rejectedConcept },

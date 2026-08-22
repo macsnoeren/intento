@@ -24,7 +24,8 @@ import { generateMessage, SCRIPTED_CONFIDENCE, type ChosenConcept } from './mess
  *     Zo bereikt een verzonnen/buiten-de-sessie begrip de gebruiker **nooit** — ook niet bij een
  *     onbetrouwbare provider. De scan kijkt daarbij alleen naar **betekenisdragende** woorden (T10.9): een
  *     functiewoord als "wil" is gewone Nederlandse zinsbouw en geen bewijs dat het concept `want` de zin
- *     is binnengeslopen.
+ *     is binnengeslopen. De scan herkent daarbij ook korte **buigingsvormen** (T10.10): "warms" telt als
+ *     bewijs voor het concept `hot` ("Warm").
  *
  * De laag is bewust vrij van HTTP: de route levert de gekozen concepten aan en gebruikt het resultaat,
  * zodat alles deterministisch met de mock (of een test-provider) te testen is.
@@ -189,11 +190,49 @@ export function isMeaningBearingTerm(term: string): boolean {
 }
 
 /**
+ * Maximale lengte van een Nederlandse buigingsuitgang die we nog als hetzelfde woord tellen (T10.10):
+ * "warm" → "warms"/"warme"/"warmte", "hand" → "handen". Twee tekens dekt de gangbare uitgangen
+ * (-s/-e/-en/-te/-de) zonder hele woordfamilies aan elkaar te knopen.
+ */
+const MAX_INFLECTION_SUFFIX = 2;
+
+/**
+ * Minimale lengte van een term voordat we buigingsvormen meenemen. Bij korte woorden ("bed", "oog")
+ * levert een prefix-match te veel valse treffers op ("bedoeling"), en die kosten elke keer een
+ * onnodige sjabloon-terugval.
+ */
+const MIN_STEM_LENGTH = 4;
+
+/**
+ * Komt `needle` als heel woord in de zin voor, of als datzelfde woord met een korte Nederlandse
+ * buigingsuitgang (T10.10)?
+ *
+ * Waarom dit nodig is: de check matchte op hele woorden, dus de zin "Ik wil iets **warms** eten."
+ * ontsnapte terwijl `hot` het label "Warm" en het synoniem "warm" draagt. Zo kwam een concept dat de
+ * gebruiker nooit gekozen had tóch in zijn boodschap — precies wat §7.8 hoort te verhinderen, en meteen
+ * de reden dat zo'n zin vaag aanvoelt.
+ *
+ * Meerwoordige termen ("met hond") blijven exact matchen: daar is de frase zelf al het bewijs, en
+ * buiging aan het eind van een frase komt in de bibliotheek niet voor.
+ */
+export function containsTerm(haystack: string, needle: string): boolean {
+  if (haystack.includes(` ${needle} `)) return true;
+  if (needle.includes(' ') || needle.length < MIN_STEM_LENGTH) return false;
+
+  for (const word of haystack.split(' ')) {
+    if (word.length <= needle.length) continue;
+    if (word.length - needle.length > MAX_INFLECTION_SUFFIX) continue;
+    if (word.startsWith(needle)) return true;
+  }
+  return false;
+}
+
+/**
  * Bepaalt of een geformuleerde zin een concept bevat dat **niet** in de sessie is gekozen (§7.8). Loopt
  * de AAC-bibliotheek langs; voor elk symbool waarvan het concept niet gekozen is, checkt het of een
- * **betekenisdragend** label of synoniem als heel woord/frase in de zin voorkomt. Bewust conservatief
- * (fail-safe): een twijfelgeval leidt tot de veilige sjabloon-terugval, niet tot een mogelijk
- * buiten-de-sessie begrip.
+ * **betekenisdragend** label of synoniem in de zin voorkomt — als heel woord of in een korte
+ * buigingsvorm (T10.10). Bewust conservatief (fail-safe): een twijfelgeval leidt tot de veilige
+ * sjabloon-terugval, niet tot een mogelijk buiten-de-sessie begrip.
  */
 async function messageIntroducesForeignConcept(
   prisma: PrismaClient,
@@ -214,7 +253,7 @@ async function messageIntroducesForeignConcept(
       const needle = normalizeSearch(term).replace(/\s+/g, ' ').trim();
       if (needle.length === 0) continue;
       if (!isMeaningBearingTerm(needle)) continue;
-      if (haystack.includes(` ${needle} `)) return true;
+      if (containsTerm(haystack, needle)) return true;
     }
   }
   return false;

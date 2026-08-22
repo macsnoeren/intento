@@ -477,4 +477,83 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       expect(message).toBe('Ik wil iets zeggen over nagelknipper.');
     });
   });
+
+  // --- T10.10: het scenario uit de derde gebruikerstest ----------------------------------------------
+
+  describe('doorvragen in plaats van vaag voorstellen (T10.10)', () => {
+    /** Provider die al na "eten" zeer zeker is — precies het gemelde gedrag van een echte AI. */
+    const eagerProvider: AiProvider = {
+      name: 'eager',
+      selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+        const chosen = prompt.conversationContext.map((ref) => ref.concept);
+        return Promise.resolve({
+          question: 'Wat wil je?',
+          options: prompt.availableSymbols.slice(0, 3).map((ref) => ({
+            symbol: ref.concept,
+            confidence: 0.9,
+          })),
+          confidence: chosen.includes('eat') ? 0.99 : 0.5,
+          reason: 'heel zeker dat het om eten gaat',
+        });
+      },
+      generateMessage: () =>
+        Promise.resolve({ message: 'Ik wil iets warms eten.', confidence: 0.9 }),
+    };
+
+    it('blijft doorvragen op "eten" in plaats van een vage boodschap voor te stellen', async () => {
+      // De melding: "Ik wil iets warms eten." kwam als voorstel, terwijl de bibliotheek onder "eten"
+      // zes concrete dingen kent. Zeker weten dát iemand wil eten is niet hetzelfde als weten wát.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      const state = await next(cookie, sessionId, 'eat');
+
+      expect(state.done).toBe(false);
+      expect(conceptsOf(state)).toEqual(expect.arrayContaining(['soup', 'bread', 'apple']));
+    });
+
+    it('❌ Nee rolt één stap terug en blijft binnen wat de gebruiker koos', async () => {
+      // De melding: na ❌ kwam "Wat wil je drinken?" terwijl de gebruiker juist iets over het eten wilde
+      // zeggen. Oorzaak was dat de correctie de héle route terugrolde en "eten" uitsloot.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      const chosen = conceptsOf(await next(cookie, sessionId, 'soup'));
+      expect(chosen.length).toBeGreaterThanOrEqual(0);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie },
+        payload: { type: 'wrong_guess' },
+      });
+      expect(res.statusCode).toBe(200);
+      const state = parseState(res.json());
+
+      // "eten" staat er nog: de gebruiker koos dat zelf en het wordt niet weggegooid.
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat']);
+      // En de vervolgvraag gaat over eten, niet over drinken.
+      expect(state.question).not.toBeNull();
+      expect(conceptsOf(state)).not.toContain('soup');
+      expect(conceptsOf(state)).toEqual(expect.arrayContaining(['bread', 'apple']));
+      expect(conceptsOf(state)).not.toContain('drink');
+    });
+
+    it('laat geen concept in de boodschap dat de gebruiker niet koos (§7.8)', async () => {
+      // "warms" glipte langs de hele-woord-check terwijl `hot` het label "Warm" draagt.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      await next(cookie, sessionId, 'soup');
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/generate`,
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const message = String(res.json().message);
+      expect(message).not.toContain('warm');
+      expect(message.toLowerCase()).toContain('soep');
+    });
+  });
 });

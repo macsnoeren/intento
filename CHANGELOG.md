@@ -5,6 +5,33 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Gerepareerd — vierde gebruikerstest
+
+- **T10.10 Het voorstel kwam te vroeg en ❌ Nee gooide de keuzes van de gebruiker weg.** Gemeld: het
+  gesprek kwam uit op "Ik wil iets warms eten." — niet concreet — en ❌ Nee leidde daarna naar "Wat wil je
+  drinken?" terwijl de gebruiker juist iets over het eten wilde zeggen. Nagespeeld met een draaiende
+  server; het bleken drie losse defecten:
+  - **De voorsteldrempel keek alleen naar een getal.** Voorstellen mag nu pas als de laatste keuze géén
+    onverkende verfijningen meer heeft. Zeker weten dát iemand wil eten is niet hetzelfde als weten wát;
+    de zinsgenerator behandelde `eat`/`drink`/`do-activity` al als structurele tussenstappen die uit de
+    zin wegvallen. Een eindconcept levert onveranderd een voorstel op.
+  - **❌ Nee beschuldigde systematisch de eerste keuze.** Regressie uit T10.3: `ConversationStep.
+    confidence` werd daar de zekerheid waarmee de vraag werd *aangeboden*, en die stijgt gaandeweg — dus
+    was de eerste stap vrijwel altijd de "laagste". Gereproduceerd: route `want > eat`, ❌ → beide keuzes
+    weg en `want` permanent uitgesloten. ❌ rolt nu precies één stap terug; nogmaals ❌ rolt de volgende
+    terug. De heranalyse-op-zekerheid en het kantelpunt uit T10.8 vervallen daarmee: elke poging de
+    foutstap te *bepalen* wees de keuze aan die de gebruiker juist het bewustst had gemaakt (DESIGN §3.4).
+  - **Retrieval matchte midden in een woord.** Bij "Wat wil je eten?" stond er een **voet** tussen de
+    opties, want "eten" zit in "voeten" — en "warm", via het synoniem "zweten". Retrieval matcht nu op een
+    woordbegin, zodat "hand" nog steeds "handen" vindt maar "eten" geen "voeten" meer.
+  - **De safety-laag miste een buigingsvorm.** `hot` draagt label "Warm" en synoniem `warm`, maar de
+    check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
+    koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
+
+  Opvolging: "Ik wil eten." is op zichzelf een geldige boodschap en is met deze regel niet meer te
+  bereiken zonder door te verfijnen. Dat staat als T10.11 in `TASKS.md` (een expliciete
+  "Dit is genoeg"-knop), niet stilzwijgend weggeredeneerd.
+
 ### Toegevoegd — Fase 11: meerdere gespreksstrategieën
 
 - **T11.1 Ontwerp: gespreksstrategieën als expliciet begrip** (DESIGN §5.3, §7.3, §7.4, nieuwe §7.10 +
