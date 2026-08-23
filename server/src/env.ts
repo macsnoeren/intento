@@ -118,6 +118,13 @@ const envSchema = z
     // Basis-URL waarnaar de verificatielink in de mail wijst; de server hangt er `?token=…` achter.
     // Wijst naar de web-app, die het token inwisselt via de API. Buiten test moet dit https zijn.
     EMAIL_VERIFICATION_URL_BASE: z.url().default('http://localhost:5173/verify-email'),
+    // Basis-URL van de web-app, voor de link in een meldingsmail (T13.2). Bewust géén pad: de
+    // begeleider komt na inloggen zelf op zijn scherm terecht. Buiten test moet dit https zijn.
+    APP_BASE_URL: z.url().default('http://localhost:5173'),
+    // Krijgt een gekoppelde begeleider een mail als "zijn" gebruiker een boodschap bevestigt (T13.2)?
+    // Standaard aan; een organisatie die niet per zin gemaild wil worden, zet hem uit zonder code te
+    // wijzigen. De mail bevat nooit de boodschap zelf (DESIGN §9.4).
+    NOTIFY_CAREGIVERS_BY_EMAIL: booleanFromString.default(true),
     // Levensduur van een verificatietoken in uren — kort genoeg om lekkage te beperken, lang
     // genoeg om op je gemak op de link te klikken.
     EMAIL_VERIFICATION_TTL_HOURS: z.coerce
@@ -239,6 +246,13 @@ const envSchema = z
         code: 'custom',
         path: ['EMAIL_VERIFICATION_URL_BASE'],
         message: 'EMAIL_VERIFICATION_URL_BASE moet https zijn in productie.',
+      });
+    }
+    if (!/^https:\/\//i.test(value.APP_BASE_URL)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['APP_BASE_URL'],
+        message: 'APP_BASE_URL moet https zijn in productie.',
       });
     }
   });

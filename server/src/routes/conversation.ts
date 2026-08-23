@@ -22,6 +22,8 @@ import type {
   ConversationStepModel,
 } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
+import type { MailTransport } from '../mail/transport.js';
+import { notifyCaregiversOfMessage } from '../mail/caregiver-notification.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import { forbidAccountSession } from '../auth/authorize.js';
 import { loadChildSymbols, serializeHistory } from '../conversation/engine.js';
@@ -52,6 +54,12 @@ export interface ConversationRoutesDeps {
   env: Env;
   /** Pictogrambron voor een nieuw, door de AI aangedragen concept (T10.6); mag uitgeschakeld zijn. */
   openSymbols?: OpenSymbolsClient;
+  /**
+   * Mail-transport (T13.2): bij het bevestigen van een boodschap krijgen de gekoppelde begeleiders een
+   * seintje. Optioneel, zodat aanroepers die geen mail nodig hebben (tests over de gespreksflow zelf)
+   * ongewijzigd blijven werken — zonder transport gaat er simpelweg niets uit.
+   */
+  mail?: MailTransport;
 }
 
 /** Route-parameter: het sessie-id uit het pad. */
@@ -450,7 +458,7 @@ async function resolveOfferedOption(
  */
 export function registerConversationRoutes(
   app: FastifyInstance,
-  { prisma, orchestrator, encryptor, env, openSymbols }: ConversationRoutesDeps,
+  { prisma, orchestrator, encryptor, env, openSymbols, mail }: ConversationRoutesDeps,
 ): void {
   const deps: DecisionDeps = { prisma, orchestrator, encryptor, env, openSymbols };
 
@@ -897,6 +905,20 @@ export function registerConversationRoutes(
         session.userId,
         chosen.map((c) => c.concept),
       );
+
+      // Seintje aan de gekoppelde begeleiders (T13.2, DESIGN §3.3): er is iets nieuws om te zien.
+      // Bewust ná het opslaan en bewust niet-blokkerend — de gebruiker heeft zijn boodschap al gegeven;
+      // een onbereikbare mailserver mag dat nooit ongedaan maken. De mail bevat de naam en het tijdstip,
+      // niet de zin zelf (§9.4).
+      if (mail) {
+        await notifyCaregiversOfMessage(
+          prisma,
+          mail,
+          env,
+          { userId: session.userId, at: new Date() },
+          request.log,
+        );
+      }
 
       return conversationConfirmResponseSchema.parse({
         sessionId: session.id,

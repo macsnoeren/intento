@@ -136,6 +136,21 @@ describe('loadEnv prod-guards', () => {
     ).toThrow(/EMAIL_VERIFICATION_URL_BASE/);
   });
 
+  it('eist een https-app-URL in productie (T13.2)', () => {
+    // De meldingsmail aan de begeleider bevat een link naar de app; die mag niet over plain HTTP.
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SIGNING_SECRET: 'een-echte-secret',
+        ENCRYPTION_KEY: 'een-echte-sleutel',
+        COOKIE_SECURE: 'true',
+        SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
+        EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+        APP_BASE_URL: 'http://app.intento.test',
+      }),
+    ).toThrow(/APP_BASE_URL/);
+  });
+
   it('accepteert een geldige productie-configuratie', () => {
     const env = loadEnv({
       NODE_ENV: 'production',
@@ -144,6 +159,7 @@ describe('loadEnv prod-guards', () => {
       COOKIE_SECURE: 'true',
       SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
       EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+      APP_BASE_URL: 'https://app.intento.test',
     });
     expect(env.NODE_ENV).toBe('production');
     expect(env.COOKIE_SECURE).toBe(true);

@@ -576,7 +576,7 @@ een weergave en een seintje.
   dezelfde organisatie (isolatietest); een account uit een andere organisatie ziet niets (tenant-test);
   de pagina Begeleiden toont de lijst (component-test).
 
-- [ ] **T13.2 De begeleider krijgt een seintje per e-mail** *(gebruikerswens)*
+- [x] **T13.2 De begeleider krijgt een seintje per e-mail** *(gebruikerswens)*
   *DESIGN: §3.6, §9.4, §10.1.* Bij het bevestigen van een boodschap krijgen de **gekoppelde** begeleiders
   een mail dat er iets nieuws is. Werk: bij `POST /conversation/{id}/confirm` een mail naar elke
   gekoppelde begeleider, via de bestaande `MailTransport` (T1.4). Drie harde keuzes:

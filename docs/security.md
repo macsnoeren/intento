@@ -290,6 +290,20 @@
       de AI nooit. Getest in `crypto/encryption.test.ts` (roundtrip, unieke IV, tamper/verkeerde sleutel) en
       `routes/personal-context.test.ts` (rauwe-db-test: geen plaintext; toestemmingsfilter: niet-toegestane
       context nergens in de prompt; tenant-/caregiver-403; ongeldige categorie → 400).
+- [x] **Meldingsmail aan de begeleider — geen communicatie-inhoud naar buiten (T13.2)** — bij het
+      bevestigen van een boodschap krijgen de **gekoppelde** begeleiders een mail dát er iets nieuws is.
+      De boodschap zelf gaat er **niet** in mee. Dat is een bewuste grens: e-mail loopt over servers die
+      niet van ons zijn, blijft onbeperkt in postvakken staan en wordt vaak geïndexeerd — precies de
+      eigenschappen die je niet wilt voor de zin die iemand met moeite heeft samengesteld (DESIGN §9.4).
+      Wat er wél in staat: de naam van de gebruiker, het tijdstip en een link naar de app; genoeg om te
+      weten dat je moet gaan kijken, en de inhoud blijft achter authenticatie. Ontvangers zijn uitsluitend
+      accounts met een expliciete `CaregiverAssignment` — een beheerder zonder koppeling krijgt niets, en
+      dus ook geen mail over gebruikers die niet van hem zijn. De verzending is **niet blokkerend**: een
+      mailfout wordt gelogd en het bevestigen slaagt gewoon, zodat een mailserver nooit een boodschap van
+      een gebruiker kan stukmaken. Uit te zetten met `NOTIFY_CAREGIVERS_BY_EMAIL=false`; `APP_BASE_URL`
+      moet in productie https zijn (env-guard). Getest in `mail/caregiver-notification.test.ts`
+      (gekoppeld wél/niet-gekoppeld niet, zin komt niet in tekst of HTML voor, mailfout → `/confirm`
+      blijft `200` en de boodschap staat vast, uitgeschakeld → niets verstuurd).
 - [x] **Profielexport/-import — versleuteld bestand + strikte toegang (T8.1)** — de export
       (`GET /users/{id}/export`) bundelt alléén het **profiel** (communicatie-instellingen, persoonlijke
       context, voorkeuren, weergavenaam) en **nooit** account-/organisatiegegevens, id's of tokens (DESIGN

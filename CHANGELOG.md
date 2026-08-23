@@ -45,6 +45,15 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T13.2 Een seintje per e-mail.** De berichtenlijst helpt alleen als de begeleider kijkt; bij het
+  bevestigen gaat er nu een mail naar elke **gekoppelde** begeleider dat er iets nieuws is. Drie bewuste
+  keuzes: de **boodschap staat niet in de mail** (e-mail is een extern kanaal — andermans servers,
+  postvakken, indexering — en de zin hoort achter authenticatie, §9.4; er staat alleen wie er iets zei en
+  wanneer), de verzending is **nooit blokkerend** (faalt de mailserver, dan slaagt het bevestigen gewoon
+  en wordt de fout gelogd — de gebruiker heeft zijn boodschap al gegeven), en het is **uit te zetten** met
+  `NOTIFY_CAREGIVERS_BY_EMAIL=false`. Een beheerder zonder koppeling krijgt niets. Nieuwe env
+  `APP_BASE_URL` voor de link in de mail (https verplicht in productie).
+
 - **T13.1 De begeleider ziet wat de gebruiker zei.** Een gebruiker kwam tot een zin, bevestigde hem — en
   dan gebeurde er niets: de boodschap bleef staan in de database en op zijn eigen tablet, en wie hem
   moest horen, moest toevallig meekijken. Daarmee stopte de communicatie precies op het punt waar ze zou
