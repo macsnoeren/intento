@@ -1222,6 +1222,94 @@ export const caregiverConversationViewSchema = z.object({
 });
 export type CaregiverConversationView = z.infer<typeof caregiverConversationViewSchema>;
 
+// --- Gespreksverloop terugzien (T12.1, DESIGN §3.1, §3.6, §9.1, §9.4) ---
+
+/**
+ * Eén aangeboden pictogram in een teruggelezen gesprek, met de markering of de gebruiker het koos.
+ *
+ * Bewust een **lichtere vorm** dan `aacSymbolSchema`: dit is een terugblik, geen keuzescherm. Wat een
+ * begeleider hier moet zien is *wat er stond* en *wat er is aangetikt* — label, pictogram en de keuze.
+ *
+ * `missing` vangt de enige echt lastige situatie af: de bibliotheek is muteerbaar, dus een concept dat
+ * ooit is aangeboden kan intussen verwijderd of samengevoegd zijn (T10.7). De historie mag daar niet op
+ * breken en al helemaal niet stilletjes een optie verzwijgen — dan klopt de terugblik niet meer met wat
+ * de gebruiker zag. In dat geval blijft de conceptsleutel over, zichtbaar gemarkeerd.
+ */
+export const conversationTranscriptOptionSchema = z.object({
+  concept: z.string(),
+  label: z.string(),
+  glyph: z.string(),
+  /** Pad naar het pictogram, of `null` als het symbool geen afbeelding (meer) heeft. */
+  imageUrl: z.string().nullable(),
+  /** Was dit een door de AI aangedragen nieuw woord (T10.6)? */
+  isNew: z.boolean().default(false),
+  /** Heeft de gebruiker déze optie gekozen? Precies één optie per stap is `true`. */
+  chosen: z.boolean().default(false),
+  /** Staat het concept niet meer in de bibliotheek? Dan is alleen de sleutel bekend. */
+  missing: z.boolean().default(false),
+});
+export type ConversationTranscriptOption = z.infer<typeof conversationTranscriptOptionSchema>;
+
+/**
+ * Eén stap in het verloop: de gestelde vraag, wat er werd aangeboden en wat de gebruiker koos. Precies
+ * de drie dingen die samen verklaren waarom een gesprek liep zoals het liep.
+ *
+ * `options` is leeg voor stappen van vóór T10.3 — toen werd het aanbod nog niet vastgelegd. Dan blijft
+ * `chosenConcept` over; dat is eerlijker dan het aanbod achteraf reconstrueren uit de boom, want dat zou
+ * een aanbod tonen dat de gebruiker nooit heeft gezien.
+ */
+export const conversationTranscriptStepSchema = z.object({
+  order: z.number().int().nonnegative(),
+  question: z.string(),
+  options: z.array(conversationTranscriptOptionSchema),
+  /** Het gekozen concept; blijft leesbaar ook als het symbool verwijderd is. */
+  chosenConcept: z.string(),
+  /** De interpretatie-zekerheid waarmee deze vraag werd aangeboden (§7.4); `null` als onbekend. */
+  confidence: z.number().min(0).max(1).nullable(),
+  at: z.string(),
+});
+export type ConversationTranscriptStep = z.infer<typeof conversationTranscriptStepSchema>;
+
+/** Een correctie van de gebruiker in het verloop (❌ Nee of "Staat er niet bij", T5.4/T9.12). */
+export const conversationTranscriptCorrectionSchema = z.object({
+  type: conversationCorrectionTypeSchema,
+  stepOrder: z.number().int().nonnegative(),
+  rejectedConcept: z.string(),
+  at: z.string(),
+});
+export type ConversationTranscriptCorrection = z.infer<
+  typeof conversationTranscriptCorrectionSchema
+>;
+
+/** Regel in de gesprekslijst van één gebruiker: genoeg om het juiste gesprek te herkennen. */
+export const conversationSummarySchema = z.object({
+  id: z.string(),
+  status: conversationStatusSchema,
+  /** `free` (de gebruiker begon zelf) of `question` (vraagmodus van een begeleider, §3.2). */
+  mode: z.string(),
+  caregiverQuestion: z.string().nullable(),
+  /** De gespreksstrategie die draaide (T11.5/T11.6); `null` voor gesprekken van vóór Fase 11. */
+  strategy: z.object({ key: conversationStrategySchema, label: z.string() }).nullable(),
+  startedAt: z.string(),
+  stepCount: z.number().int().nonnegative(),
+  correctionCount: z.number().int().nonnegative(),
+  /** De bevestigde boodschap, of `null` als het gesprek daar niet is uitgekomen. */
+  message: z.string().nullable(),
+});
+export type ConversationSummary = z.infer<typeof conversationSummarySchema>;
+
+export const conversationListResponseSchema = z.object({
+  conversations: z.array(conversationSummarySchema),
+});
+export type ConversationListResponse = z.infer<typeof conversationListResponseSchema>;
+
+/** Het volledige verloop van één gesprek: de samenvatting plus de stappen en correcties. */
+export const conversationTranscriptResponseSchema = conversationSummarySchema.extend({
+  steps: z.array(conversationTranscriptStepSchema),
+  corrections: z.array(conversationTranscriptCorrectionSchema),
+});
+export type ConversationTranscriptResponse = z.infer<typeof conversationTranscriptResponseSchema>;
+
 // --- Worker-token-beheer (T5.8, DESIGN §5.2, §9.4, ADR-0010) ---
 
 /**

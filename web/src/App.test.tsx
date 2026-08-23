@@ -367,6 +367,12 @@ function fakeApi(
     listAuditLogs() {
       return Promise.resolve({ entries: [] });
     },
+    listConversations() {
+      return Promise.resolve({ conversations: [] });
+    },
+    getConversation() {
+      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
+    },
     // Operatorconsole (T8.3) — eigen routetak met eigen test; hier stubs zodat de beheer-app
     // tegen de volledige `Api` compileert.
     listOperatorOrganizations() {

@@ -496,6 +496,24 @@ in een organisatie-lijst. Het `ip`-veld blijft server-side (niet in de respons).
 |---|---|---|
 | GET | `/admin/audit-logs?limit=` | `200` + `auditLogListResponseSchema`: `{ entries[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Elke regel: `action`, `outcome`, `accountId`, `targetType`, `targetId`, `metadata`, `createdAt` — **geen** `ip`, **geen** communicatie-inhoud. |
 
+### Gespreksverloop terugzien (T12.1, DESIGN §3.1, §3.6, §9.1, §9.4)
+
+Na elke gebruikerstest is de vraag dezelfde: *wat gebeurde er nou eigenlijk?* Deze twee endpoints geven
+het antwoord uit wat al vastligt — `ConversationStep` bewaart per stap de **getoonde vraag**, de
+**aangeboden concepten** (`offeredConcepts`, T10.3) en de **keuze van de gebruiker**. Er wordt dus niets
+extra's opgeslagen om te kunnen terugkijken; dat zou tegen §3.6 in gaan.
+
+Dit is de enige beheerweergave met **communicatie-inhoud**, dus met de strengste grens: ADMIN én
+CAREGIVER, tenant-gefilterd (`assertSameTenant`) en voor een begeleider beperkt tot **gekoppelde**
+gebruikers (`assertCaregiverAccess`) — dezelfde grens als de voorkeuren- en persoonlijke-context-API.
+Een onbekend gesprek en een gesprek uit een andere organisatie geven **dezelfde** `403`, zodat uit de
+statuscode niet is af te leiden dat een gesprek bestaat (IDOR).
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/admin/users/{id}/conversations?limit=` | ADMIN, CAREGIVER (gekoppeld) | De gesprekken van deze gebruiker, nieuwste eerst (`conversationListResponseSchema`; `limit` 1–100, standaard 25). Per gesprek: status, modus, de begeleidersvraag bij vraagmodus, de **gespreksstrategie** die draaide (T11.5), starttijd, aantal stappen, aantal correcties en de bevestigde boodschap (of `null`). |
+| GET | `/admin/conversations/{id}` | ADMIN, CAREGIVER (gekoppeld) | Het volledige verloop (`conversationTranscriptResponseSchema`): dezelfde samenvatting plus `steps[]` — per stap de gestelde **vraag**, de **aangeboden opties** in de getoonde volgorde (label, glyph, `imageUrl`, `isNew`) met de keuze van de gebruiker als `chosen: true`, en de zekerheid waarmee de vraag werd aangeboden — en `corrections[]` (❌ Nee / "Staat er niet bij", met stap en afgewezen concept). Een concept dat intussen uit de bibliotheek is verdwenen blijft staan met `missing: true` en zijn sleutel als label: de terugblik moet kloppen met wat de gebruiker zág, dus zo'n optie weglaten zou het beeld vervalsen. **Niet** in de respons: de prompt, de hypothese van de AI en afgewezen boodschappen (§3.6, §9.4). |
+
 ### Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, ADR-0011)
 
 `operatorAuthorize(...)` — een **eigen** guard, niet `authorize()` (geen sessie → `401`; elk ander account,

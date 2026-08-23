@@ -34,6 +34,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T12.1 Een gesprek van begin tot eind terugzien.** Na elke gebruikerstest is de vraag dezelfde: wat
+  gebeurde er nou eigenlijk? Dat was alleen te reconstrueren uit losse brokken — het AI-activiteitscherm
+  toont losse jobs zonder te weten bij welk gesprek ze horen, de tablet toont alleen het hier-en-nu, en de
+  rest zit in de server-logs. Nieuwe tab **Gesprekken** in de beheeromgeving: kies een gebruiker, kies een
+  gesprek, en lees per stap de gestelde vraag, de aangeboden pictogrammen in de getoonde volgorde en de
+  keuze van de gebruiker — met de correcties op hun plek en de bevestigde boodschap eronder.
+  Er wordt **niets extra's opgeslagen** om dit mogelijk te maken: `ConversationStep` bewaart de vraag, het
+  aanbod (T10.3) en de keuze al. Nieuw zijn `GET /admin/users/{id}/conversations` en
+  `GET /admin/conversations/{id}`. Dit is de eerste beheerweergave met communicatie-inhoud en heeft daarom
+  de strengste grens: ADMIN én CAREGIVER, tenant-gefilterd en voor een begeleider beperkt tot gekoppelde
+  gebruikers; een onbekend gesprek en een gesprek uit een andere organisatie geven dezelfde `403`, zodat
+  het bestaan van een gesprek niet uit de statuscode te lezen is.
+
 - **T10.13 De vrije ronde is weer echt vrij.** Vervolg op T10.12, gemeld in de vijfde gebruikerstest.
   Op het pad "Iets willen → Eten → Brood" leverde ❌ Nee terecht "beleg" op, maar daarnaast stonden
   "pijn", "nagel" en "er is iets aan de hand" op het scherm, en na de keuze "beleg" sloeg de vraag om

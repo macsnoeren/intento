@@ -10,6 +10,8 @@ import {
   aiWaitingErrorSchema,
   apiErrorSchema,
   auditLogListResponseSchema,
+  conversationListResponseSchema,
+  conversationTranscriptResponseSchema,
   authResponseSchema,
   changePasswordResponseSchema,
   caregiverConversationViewSchema,
@@ -53,6 +55,8 @@ import {
   type AiStatusResponse,
   type AttachOpenSymbolsRequest,
   type AuditLogListResponse,
+  type ConversationListResponse,
+  type ConversationTranscriptResponse,
   type AuthResponse,
   type ChangePasswordRequest,
   type ChangePasswordResponse,
@@ -221,6 +225,13 @@ export interface Api {
   getDashboard(): Promise<DashboardResponse>;
   /** Audit-log van gevoelige acties van de eigen organisatie (nieuwste eerst) (T8.2, DESIGN §9.4). */
   listAuditLogs(): Promise<AuditLogListResponse>;
+  /**
+   * Gespreksverloop terugzien (T12.1, DESIGN §3.1, §9.1). Tenant-gefilterd en voor een begeleider
+   * beperkt tot gekoppelde gebruikers — dit is de enige beheerweergave met communicatie-inhoud, dus de
+   * server bewaakt de grens en de client toont alleen wat hij terugkrijgt.
+   */
+  listConversations(userId: string): Promise<ConversationListResponse>;
+  getConversation(id: string): Promise<ConversationTranscriptResponse>;
   /**
    * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4). Deze vijf calls gaan naar de aparte
    * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
@@ -564,6 +575,16 @@ export const httpApi: Api & DeviceApi = {
   },
   async listAuditLogs() {
     return auditLogListResponseSchema.parse(await request('/admin/audit-logs'));
+  },
+  async listConversations(userId) {
+    return conversationListResponseSchema.parse(
+      await request(`/admin/users/${encodeURIComponent(userId)}/conversations`),
+    );
+  },
+  async getConversation(id) {
+    return conversationTranscriptResponseSchema.parse(
+      await request(`/admin/conversations/${encodeURIComponent(id)}`),
+    );
   },
   async listOperatorOrganizations() {
     return operatorOrganizationListResponseSchema.parse(await request('/operator/organizations'));

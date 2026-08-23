@@ -1154,3 +1154,68 @@ body {
   color: var(--intento-muted);
   background: var(--intento-bg);
 }
+
+/* Gespreksverloop (T12.1): een gesprek van begin tot eind teruglezen. Per stap de gestelde vraag, het
+   aanbod dat de gebruiker zag, en zijn keuze — die laatste zichtbaar gemarkeerd, want dat is waar het
+   oog naartoe moet. */
+.transcript {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.transcript__step {
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 0.75rem;
+}
+
+.transcript__question {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.transcript__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.transcript__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--intento-border);
+  border-radius: 999px;
+  background: var(--intento-bg);
+}
+
+/* De keuze van de gebruiker: niet alleen kleur — ook een dikkere rand en vet, zodat het verschil ook
+   zonder kleurwaarneming te zien is. */
+.transcript__option--chosen {
+  border-width: 2px;
+  border-color: #1f7a3d;
+  background: #e7f6ec;
+  font-weight: 600;
+}
+
+/* Tekst die alleen voor schermlezers bedoeld is (bv. "gekozen door de gebruiker" bij een pictogram
+   waar dat visueel al uit de opmaak blijkt). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

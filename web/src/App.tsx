@@ -10,6 +10,7 @@ import { WorkerTokensPage } from './WorkerTokensPage.tsx';
 import { AiActivityPage } from './AiActivityPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
+import { ConversationsPage } from './ConversationsPage.tsx';
 import { AccountPage } from './AccountPage.tsx';
 import { ConceptProposalsPage } from './ConceptProposalsPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
@@ -276,6 +277,22 @@ export function App({
       <>
         {banner}
         <AccountPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  // Gesprekken terugzien (T12.1): de enige beheerweergave met communicatie-inhoud, dus tenant- en
+  // begeleidersgebonden — de server bewaakt dat, hier tonen we alleen wat er terugkomt.
+  if (view === 'conversations') {
+    return (
+      <>
+        {banner}
+        <ConversationsPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

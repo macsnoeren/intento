@@ -491,6 +491,67 @@ bewust bij "Na de MVP".
 
 ---
 
+## Fase 12 — Een gesprek van begin tot eind terugzien
+
+**Aanleiding.** Bij elke gebruikerstest is de vraag dezelfde: *wat gebeurde er nou eigenlijk?* Vandaag is
+dat alleen te reconstrueren uit losse brokken — het AI-activiteitscherm (T9.15) toont de laatste 25 jobs
+zonder te weten bij welk gesprek ze horen, de tablet toont alleen het hier-en-nu, en de rest zit in de
+server-logs. Wie wil begrijpen waarom de AI naar drinken afsloeg, moet drie plekken naast elkaar leggen.
+
+Alles wat nodig is, ligt al vast: `ConversationStep` bewaart per stap de **getoonde vraag**, de
+**aangeboden concepten** (`offeredConcepts`, T10.3) en de **keuze van de gebruiker**. Er is dus geen nieuw
+soort opslag nodig om een gesprek terug te lezen — alleen een manier om het te tonen.
+
+**Twee weergaven, twee grenzen.** Het gesprek van een gebruiker is communicatie-inhoud en hoort binnen de
+organisatie te blijven (§9.1, multi-tenant-isolatie). Het AI-activiteitscherm is juist
+platform-infrastructuur en staat bewust buiten de tenant-boom. Die twee mogen niet in elkaar schuiven,
+dus komen er twee weergaven met elk hun eigen grens en hun eigen mate van detail.
+
+- [x] **T12.1 Gespreksverloop terugzien in de beheeromgeving** *(gebruikerstest)*
+  *DESIGN: §3.1, §3.6, §9.1, §9.4.* Een begeleider of beheerder kiest een gebruiker, ziet diens gesprekken
+  en klapt er één open: per stap de **gestelde vraag**, de **aangeboden pictogrammen** in de getoonde
+  volgorde, en **wat de gebruiker koos** — plus de correcties (❌ Nee, "Staat er niet bij") en de
+  uiteindelijk bevestigde boodschap. Werk: `GET /admin/users/{id}/conversations` (lijst) en
+  `GET /admin/conversations/{id}` (verloop), beide ADMIN/CAREGIVER, tenant-gefilterd en voor een CAREGIVER
+  beperkt tot **gekoppelde** gebruikers — dezelfde grens als de voorkeuren-API (T6.3). Geen migratie: alles
+  staat al in `ConversationStep`/`CorrectionEvent`/`GeneratedMessage`. Een aangeboden concept dat intussen
+  uit de bibliotheek is verdwenen valt terug op zijn sleutel in plaats van de weergave te breken. In de
+  web-beheeromgeving een tab "Gesprekken" met de lijst en het opengeklapte verloop.
+  *Acceptatie:* het verloop toont per stap vraag + aanbod + keuze in de juiste volgorde (test); een
+  begeleider van een andere organisatie krijgt `404`/`403` en ziet niets (isolatietest); een CAREGIVER
+  zonder koppeling aan de gebruiker krijgt `403` (test); een verwijderd symbool breekt de weergave niet
+  (test); de webpagina toont een gekozen gesprek van begin tot eind (component-test).
+
+- [ ] **T12.3 Een verfijnronde is onzichtbaar in de terugblik** *(ontdekt bij T12.1)*
+  *DESIGN: §3.4, §3.6.* In de rooktest van T12.1 kwam het gemelde brood/beleg-gesprek er netjes uit —
+  maar de ❌ Nee die de verfijnronde in gang zette, staat er niet in: `corrections` was leeg. Dat klopt met
+  T10.12 (de eerste ❌ legt bewust **niets** vast, zodat de gebruiker niets kwijtraakt), maar het maakt de
+  terugblik onvolledig op precies het punt waar een begeleider wil weten waarom het gesprek een wending
+  nam: tussen "Brood" en "Wil je er iets op?" lijkt de AI spontaan van vraag te veranderen. Werk:
+  overwegen of de verfijnronde als **gebeurtenis zonder gevolg** vastgelegd moet worden (een
+  `CorrectionEvent` met een eigen type dat níets uitsluit) of dat de weergave hem uit `refinedAtStep` kan
+  afleiden. Afweging expliciet maken: meer vastleggen om beter te kunnen terugkijken botst met §3.6, dus
+  de goedkoopste vorm wint.
+  *Acceptatie:* de terugblik van een gesprek met een verfijnronde laat zien dát de gebruiker ❌ drukte
+  zonder dat er iets is uitgesloten (test); de gespreksflow zelf gedraagt zich ongewijzigd (bestaande
+  T10.12-tests groen).
+
+- [ ] **T12.2 AI-activiteit per gesprek** *(gebruikerstest)*
+  *DESIGN: §7.10, §9.4; bouwt op T9.15/T11.6.* Het AI-activiteitscherm toont losse jobs; wat ontbreekt is
+  de draad. Werk: `AiJob` krijgt een `sessionId` (nullable, **geen** foreign key — `AiJob` is
+  platform-infrastructuur en mag niet aan de tenant-boom hangen), gezet bij het inschakelen van de job
+  naast de al meereizende strategie (T11.6). Het scherm groepeert daarop: kies een gesprek en zie de
+  opeenvolgende AI-beslissingen — vraag, voorgestelde opties, zekerheid, strategie, duur en fouten — plus
+  per stap het concept dat de gebruiker koos, zodat zichtbaar wordt of het aanbod ergens afsloeg. Bewust
+  **niet** de prompt (daar zit persoonlijke context in, §9.4) en **niet** de geformuleerde boodschap: de
+  zin zelf is communicatie-inhoud en blijft bij T12.1, binnen de organisatie.
+  *Acceptatie:* jobs van hetzelfde gesprek komen als één groep terug, oplopend in de tijd (test); de
+  prompt (`payloadJson`) verlaat de server nergens — de bestaande T9.15-test blijft groen (test); een
+  organisatie-ADMIN krijgt nog steeds `403` op het platformendpoint (test); migratie draait schoon op een
+  lege db en bestaande jobs houden `sessionId = null`.
+
+---
+
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
 Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.

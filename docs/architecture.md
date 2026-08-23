@@ -99,6 +99,12 @@ authenticatiepijler:
   een eindconcept volgt het **voorstelscherm** (T4.3): de gegenereerde zin + pictogramreeks met
   ✅ Ja / ❌ Nee — bevestigen slaat de boodschap op en rondt de sessie af, ❌ gaat terug naar de vraag.
 - **Beheeromgeving** — overige paden, `App.tsx`, op **account-auth** (`/auth/*`, ADMIN/CAREGIVER).
+  Bevat sinds T12.1 ook **Gesprekken**: een gesprek van begin tot eind teruglezen — per stap de gestelde
+  vraag, het aanbod dat de gebruiker zag en zijn keuze (`routes/conversation-history.ts`). Dat leest
+  uitsluitend uit wat de gespreksflow al vastlegt (`ConversationStep.offeredConcepts`, T10.3), dus er
+  wordt niets extra's bewaard om te kunnen terugkijken (§3.6). Het is de enige beheerweergave met
+  communicatie-inhoud en draagt daarom de strengste grens: tenant-gefilterd én, voor een begeleider,
+  beperkt tot gekoppelde gebruikers.
 - **Begeleiderinterface** — volgt in latere fases (vraag- en ondersteuningsmodus, fase 7).
 
 Deze scheiding is bewust ook in de client zichtbaar: een tablet-token werkt niet op accountroutes
