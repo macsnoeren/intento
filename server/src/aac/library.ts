@@ -49,6 +49,16 @@ export function buildSearchText(
 const synonymsSchema = z.array(z.string());
 
 /**
+ * Attributie-URL's uit de db komen oorspronkelijk van een externe dienst en worden in de beheer-UI
+ * als `href` getoond. Alles wat geen `http(s)` is valt hier weg: een oude of vreemde waarde levert
+ * geen link op in plaats van een XSS-vector of een 500 op het responseschema.
+ */
+function linkOrNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed && /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+/**
  * Bouwt het attributie-object uit de opgeslagen bron-/licentievelden, of `null` als er geen
  * externe bron is (zelf-geüploade afbeelding of glyph-placeholder). De licentie is de dragende
  * waarde: zonder licentie is er geen te tonen attributie.
@@ -57,10 +67,10 @@ function attributionOf(symbol: AacSymbolModel): AacSymbolPublic['attribution'] {
   if (!symbol.imageLicense) return null;
   return {
     license: symbol.imageLicense,
-    licenseUrl: symbol.imageLicenseUrl ?? null,
+    licenseUrl: linkOrNull(symbol.imageLicenseUrl),
     author: symbol.imageAuthor ?? null,
-    authorUrl: symbol.imageAuthorUrl ?? null,
-    sourceUrl: symbol.imageSourceUrl ?? null,
+    authorUrl: linkOrNull(symbol.imageAuthorUrl),
+    sourceUrl: linkOrNull(symbol.imageSourceUrl),
   };
 }
 

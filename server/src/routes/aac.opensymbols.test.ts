@@ -127,6 +127,44 @@ describe('OpenSymbols-integratie — /admin/aac/opensymbols', () => {
     expect(stored!.imageSourceUrl).toBe('https://www.opensymbols.org/symbols/os-1');
   });
 
+  it('accepteert http-attributie-URL’s bij het koppelen (licentie-/auteurspagina’s zijn vaak http)', async () => {
+    const dog = await prisma.aacSymbol.findUnique({ where: { concept: 'dog' } });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/aac/symbols/${dog!.id}/opensymbols`,
+      headers: { cookie: adminCookie },
+      payload: {
+        imageUrl: 'https://cdn.example.org/os-1.png',
+        license: 'CC BY-SA',
+        licenseUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+        author: 'ARASAAC',
+        authorUrl: 'http://www.arasaac.org',
+        sourceUrl: 'http://www.opensymbols.org/symbols/os-1',
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const updated = aacSymbolAdminSchema.parse(res.json());
+    expect(updated.attribution).toMatchObject({
+      licenseUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      authorUrl: 'http://www.arasaac.org',
+    });
+  });
+
+  it('weigert een javascript:-attributie-URL bij het koppelen (XSS, 400)', async () => {
+    const dog = await prisma.aacSymbol.findUnique({ where: { concept: 'dog' } });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/admin/aac/symbols/${dog!.id}/opensymbols`,
+      headers: { cookie: adminCookie },
+      payload: {
+        imageUrl: 'https://cdn.example.org/os-1.png',
+        license: 'CC BY-SA',
+        sourceUrl: 'javascript:alert(1)', // bewust: precies wat geweigerd moet worden.
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('weigert een niet-https bron-URL (400)', async () => {
     const dog = await prisma.aacSymbol.findUnique({ where: { concept: 'dog' } });
     const res = await app.inject({
@@ -279,6 +317,25 @@ describe('OpenSymbols-hulpfuncties', () => {
       author: null,
       authorUrl: null,
       sourceUrl: null,
+    });
+  });
+
+  it('houdt http-attributie maar gooit een javascript:-URL weg (mapOpenSymbolsResults)', () => {
+    const results = mapOpenSymbolsResults([
+      {
+        id: 9,
+        name: 'hond',
+        image_url: 'https://cdn.example.org/os-9.png',
+        license: 'CC BY-SA',
+        license_url: 'http://creativecommons.org/licenses/by-sa/3.0/',
+        author_url: 'javascript:alert(1)',
+        source_url: 'http://www.opensymbols.org/symbols/os-9',
+      },
+    ]);
+    expect(results[0]).toMatchObject({
+      licenseUrl: 'http://creativecommons.org/licenses/by-sa/3.0/',
+      authorUrl: null,
+      sourceUrl: 'http://www.opensymbols.org/symbols/os-9',
     });
   });
 

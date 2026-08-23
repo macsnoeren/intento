@@ -128,6 +128,17 @@ function orNull(value: string | null | undefined): string | null {
 }
 
 /**
+ * Attributie-URL's (licentie, auteur, bron) worden in de beheer-UI als `href` getoond. `http` mag —
+ * licentiepagina's staan vaak nog op plain http — maar al het andere (`javascript:`, `data:`) is
+ * XSS en valt weg naar `null`: liever geen link dan een gevaarlijke. Een onbruikbare URL laat de
+ * zoekopdracht dus nooit falen, hij verdwijnt alleen.
+ */
+function linkOrNull(value: string | null | undefined): string | null {
+  const trimmed = orNull(value);
+  return trimmed && /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+/**
  * Mapt de rauwe externe resultaten naar de gesaneerde interne vorm. Resultaten **zonder** een
  * `https`-afbeeldings-URL worden weggelaten — die zijn onbruikbaar/onveilig. Zo bereikt geen
  * niet-`https`-bron ooit de client.
@@ -143,10 +154,10 @@ export function mapOpenSymbolsResults(raw: unknown): OpenSymbolsResult[] {
       imageUrl: item.image_url.trim(),
       extension: item.extension?.trim() || '',
       license: item.license?.trim() || 'onbekend',
-      licenseUrl: orNull(item.license_url),
+      licenseUrl: linkOrNull(item.license_url),
       author: orNull(item.author),
-      authorUrl: orNull(item.author_url),
-      sourceUrl: orNull(item.source_url),
+      authorUrl: linkOrNull(item.author_url),
+      sourceUrl: linkOrNull(item.source_url),
     });
   }
   return results;

@@ -233,6 +233,13 @@
       `502`); zoekresultaten zonder `https`-afbeelding worden weggefilterd vóór ze de client bereiken.
       Getest in `routes/aac.opensymbols.test.ts` (niet-`https` → `400`, interne host → `400`,
       `415`/`413`/`502`/`503`, sanering van niet-`https`-resultaten).
+      **Attributie-URL's** (`licenseUrl`/`authorUrl`/`sourceUrl`) volgen een andere, bewust minder
+      strenge regel (`webLinkUrlSchema`): die worden nooit door de server opgehaald maar als `href`
+      in de beheer-UI getoond, dus geldt de XSS-eis `http(s)`-only — `http` mag, want licentie- en
+      auteurspagina's van pictogrambibliotheken staan nog volop op plain `http`. `javascript:`/`data:`
+      wordt geweigerd (`400`) bij het koppelen en valt bij zoeken/uitlezen stil weg naar `null`
+      (`mapOpenSymbolsResults`, `aac/library.ts`), zodat een vreemde externe of oude opgeslagen waarde
+      geen link oplevert in plaats van een XSS-vector.
 - [x] **AI-grens en promptbegrenzing (T5.1)** — de AI loopt **volledig server-side** achter de
       AI-Orchestrator (`server/src/ai/`); de client praat nooit rechtstreeks met de LLM (DESIGN §8.1) en
       de AI-schema's staan bewust server-intern (niet in `@intento/shared`). Elke aanroep krijgt alléén de

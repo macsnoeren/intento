@@ -7,6 +7,17 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ### Gerepareerd — vierde gebruikerstest
 
+- **Koppelen weigerde de attributie van OpenSymbols: "licenseUrl: Alleen https-URL’s zijn
+  toegestaan."** Licentie- en auteurspagina's van pictogrambibliotheken staan nog volop op plain
+  `http` (bv. `http://creativecommons.org/licenses/…`), terwijl `attachOpenSymbolsRequestSchema` voor
+  álle URL's `https` eiste. Die eis hoort bij de **afbeeldings**-URL, die de server zelf ophaalt
+  (SSRF); attributie-URL's worden alleen als link getoond. Nieuw `webLinkUrlSchema` (`http(s)`-only)
+  voor `licenseUrl`/`authorUrl`/`sourceUrl`; `imageUrl` blijft `https`-only mét SSRF-guard.
+  Tegelijk het gat aan de andere kant gedicht: de zoekproxy en het uitlezen uit de db gaven deze
+  URL's ongefilterd door terwijl de beheer-UI ze als `href` toont — een `javascript:`-waarde van de
+  externe dienst had zo een XSS kunnen worden (o.a. via een AI-aangedragen concept, dat de attributie
+  buiten het koppelverzoek om opslaat). Niet-`http(s)` valt nu weg naar `null` bij zoeken én lezen.
+
 - **Zoeken in OpenSymbols mislukte met "OpenSymbols is niet bereikbaar".** De API laat ontbrekende
   attributie niet weg maar stuurt expliciet `null` (o.a. `source_url`); het rauwe zod-schema stond
   alleen `string | undefined` toe, dus één `null` liet de hele zoekopdracht falen (502). Alle rauwe

@@ -741,6 +741,22 @@ export const aacCategorySchema = z.enum([
 export type AacCategory = z.infer<typeof aacCategorySchema>;
 
 /**
+ * Een attributie-/verwijzings-URL (licentie, auteur, bron). Anders dan `httpsUrlSchema` mag hier
+ * ook `http`: dit zijn geen afbeeldingsbronnen die de server ophaalt, maar links die een beheerder
+ * kan aanklikken — en externe pictogrambibliotheken publiceren hun licentie- en auteurspagina's nog
+ * volop op plain `http` (bv. `http://creativecommons.org/licenses/…`). Een strengere eis zou het
+ * koppelen blokkeren zonder iets veiliger te maken. Alle andere schema's blijven geweigerd:
+ * `javascript:`/`data:` in een `href` is XSS (CLAUDE.md security-checklist: `http(s)`-only).
+ */
+export const webLinkUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((value) => /^https?:\/\//i.test(value), {
+    message: 'Alleen http(s)-URL’s zijn toegestaan.',
+  });
+
+/**
  * Bronvermelding en licentie van een pictogramafbeelding (T3.3). Wordt gevuld wanneer een
  * afbeelding uit een externe bron (OpenSymbols) is gekoppeld, zodat de licentie-attributie
  * altijd met het pictogram meereist (CC-attributie vereist auteur + bron + licentie). Bij een
@@ -749,14 +765,14 @@ export type AacCategory = z.infer<typeof aacCategorySchema>;
 export const aacAttributionSchema = z.object({
   /** Naam van de licentie, bv. "CC BY-SA". */
   license: z.string(),
-  /** URL naar de licentietekst (indien bekend). */
-  licenseUrl: z.string().nullable(),
+  /** URL naar de licentietekst (indien bekend), `http(s)`-only — de UI toont 'm als link. */
+  licenseUrl: webLinkUrlSchema.nullable(),
   /** Auteur/maker van het pictogram (indien bekend). */
   author: z.string().nullable(),
-  /** URL naar de auteur (indien bekend). */
-  authorUrl: z.string().nullable(),
-  /** Bron-URL van het pictogram bij de externe dienst (indien bekend). */
-  sourceUrl: z.string().nullable(),
+  /** URL naar de auteur (indien bekend), `http(s)`-only. */
+  authorUrl: webLinkUrlSchema.nullable(),
+  /** Bron-URL van het pictogram bij de externe dienst (indien bekend), `http(s)`-only. */
+  sourceUrl: webLinkUrlSchema.nullable(),
 });
 export type AacAttribution = z.infer<typeof aacAttributionSchema>;
 
@@ -943,10 +959,10 @@ export const openSymbolsResultSchema = z.object({
   imageUrl: httpsUrlSchema,
   extension: z.string(),
   license: z.string(),
-  licenseUrl: z.string().nullable(),
+  licenseUrl: webLinkUrlSchema.nullable(),
   author: z.string().nullable(),
-  authorUrl: z.string().nullable(),
-  sourceUrl: z.string().nullable(),
+  authorUrl: webLinkUrlSchema.nullable(),
+  sourceUrl: webLinkUrlSchema.nullable(),
 });
 export type OpenSymbolsResult = z.infer<typeof openSymbolsResultSchema>;
 
@@ -966,10 +982,10 @@ export type OpenSymbolsSearchResponse = z.infer<typeof openSymbolsSearchResponse
 export const attachOpenSymbolsRequestSchema = z.object({
   imageUrl: httpsUrlSchema,
   license: z.string().trim().min(1).max(200),
-  licenseUrl: httpsUrlSchema.nullable().optional(),
+  licenseUrl: webLinkUrlSchema.nullable().optional(),
   author: z.string().trim().max(200).nullable().optional(),
-  authorUrl: httpsUrlSchema.nullable().optional(),
-  sourceUrl: httpsUrlSchema.nullable().optional(),
+  authorUrl: webLinkUrlSchema.nullable().optional(),
+  sourceUrl: webLinkUrlSchema.nullable().optional(),
 });
 export type AttachOpenSymbolsRequest = z.infer<typeof attachOpenSymbolsRequestSchema>;
 
