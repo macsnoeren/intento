@@ -498,6 +498,18 @@ in een organisatie-lijst. Het `ip`-veld blijft server-side (niet in de respons).
 |---|---|---|
 | GET | `/admin/audit-logs?limit=` | `200` + `auditLogListResponseSchema`: `{ entries[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Elke regel: `action`, `outcome`, `accountId`, `targetType`, `targetId`, `metadata`, `createdAt` — **geen** `ip`, **geen** communicatie-inhoud. |
 
+### Berichten voor de begeleider (T13.1, DESIGN §2, §3.3, §3.6, §9.1)
+
+Een gebruiker komt tot een zin en bevestigt hem — en dan moet iemand dat zien. Deze lijst is dat
+sluitstuk: elke **bevestigde** boodschap van de gebruikers waar dit account bij hoort, nieuwste eerst,
+met het tijdstip erbij. Er wordt niets nieuws opgeslagen; `GeneratedMessage` bewaart de bevestigde
+boodschap al (T4.3). Dat is meteen de grens van wat hier kan verschijnen: een voorstel dat de gebruiker
+**afwees** wordt nooit opgeslagen (§3.6) en bereikt dus nooit een begeleider.
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/caregiver/messages?limit=` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageListResponseSchema`: `{ messages[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Per regel: `message`, `createdAt` (het moment van bevestigen), `userId`/`userName`, `sessionId` — zodat het gesprek erachter met `GET /admin/conversations/{id}` (T12.1) te openen is — en `caregiverQuestion` als het een antwoord in vraagmodus was. De grens is dezelfde als bij `GET /question/users`: een CAREGIVER ziet uitsluitend **gekoppelde** gebruikers, een ADMIN de eigen organisatie, en beide altijd tenant-gefilterd. De filtering zit in de query zelf, niet in een controle achteraf, zodat een boodschap van een niet-gekoppelde gebruiker er per constructie niet in kan komen. |
+
 ### Gespreksverloop terugzien (T12.1, DESIGN §3.1, §3.6, §9.1, §9.4)
 
 Na elke gebruikerstest is de vraag dezelfde: *wat gebeurde er nou eigenlijk?* Deze twee endpoints geven

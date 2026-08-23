@@ -45,6 +45,16 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T13.1 De begeleider ziet wat de gebruiker zei.** Een gebruiker kwam tot een zin, bevestigde hem — en
+  dan gebeurde er niets: de boodschap bleef staan in de database en op zijn eigen tablet, en wie hem
+  moest horen, moest toevallig meekijken. Daarmee stopte de communicatie precies op het punt waar ze zou
+  moeten beginnen. Nieuw `GET /caregiver/messages` plus een berichtenlijst op de pagina **Begeleiden**
+  (het enige scherm dat een gewone begeleider heeft): elke bevestigde boodschap, nieuwste eerst, met het
+  tijdstip, de naam van de gebruiker en — bij een antwoord in vraagmodus — de vraag waarop geantwoord is.
+  Geen nieuwe opslag: `GeneratedMessage` bewaarde dit al. Een afgewezen voorstel wordt nooit opgeslagen en
+  bereikt dus ook nooit een begeleider (§3.6). Een CAREGIVER ziet uitsluitend gekoppelde gebruikers, en de
+  filtering zit in de query zelf zodat er per constructie niets langs de koppeling kan glippen.
+
 - **T12.2 AI-activiteit per gesprek.** Het activiteitscherm toonde losse jobs; wat ontbrak was de draad.
   `AiJob` krijgt een `sessionId` (nullable, bewust **geen** foreign key — de wachtrij is
   platform-infrastructuur en mag niet aan de tenant-boom hangen), gezet bij het inschakelen naast de al

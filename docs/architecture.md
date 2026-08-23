@@ -99,6 +99,9 @@ authenticatiepijler:
   een eindconcept volgt het **voorstelscherm** (T4.3): de gegenereerde zin + pictogramreeks met
   ✅ Ja / ❌ Nee — bevestigen slaat de boodschap op en rondt de sessie af, ❌ gaat terug naar de vraag.
 - **Beheeromgeving** — overige paden, `App.tsx`, op **account-auth** (`/auth/*`, ADMIN/CAREGIVER).
+  De pagina **Begeleiden** draagt sinds T13.1 ook de **berichtenlijst** (`routes/messages.ts`): elke
+  boodschap die een gekoppelde gebruiker bevestigde, nieuwste eerst met tijdstip. Bewust op dát scherm,
+  want dat is het enige dat een gewone CAREGIVER heeft.
   Bevat sinds T12.1 ook **Gesprekken**: een gesprek van begin tot eind teruglezen — per stap de gestelde
   vraag, het aanbod dat de gebruiker zag en zijn keuze (`routes/conversation-history.ts`). Dat leest
   uitsluitend uit wat de gespreksflow al vastlegt (`ConversationStep.offeredConcepts`, T10.3), dus er

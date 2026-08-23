@@ -3,6 +3,7 @@ import type {
   AacSymbol,
   AccountPublic,
   CaregiverConversationView,
+  CaregiverMessage,
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
@@ -23,6 +24,11 @@ import { AdminNav, type AdminView } from './AdminNav.tsx';
  * Versturen roept `POST /question/start` aan: de vraag verschijnt daarna in de gebruikersapp op de
  * tablet, waar de gebruiker het antwoord zelf samenstelt en bevestigt. De begeleider bevestigt nooit
  * namens de gebruiker (DESIGN §2, §3.3).
+ *
+ * Sinds T13.1 staat er ook een **berichtenlijst** op: elke boodschap die een gekoppelde gebruiker
+ * bevestigde, nieuwste eerst met het tijdstip erbij. Juist hier, want dit is het enige scherm dat een
+ * gewone begeleider heeft — en zonder die lijst stopte de communicatie precies op het punt waar ze zou
+ * moeten beginnen: de gebruiker zei iets, en niemand zag het.
  *
  * Sinds T9.1 is dit scherm er ook voor een **beheerder**: in kleine organisaties is de beheerder vaak
  * zelf de begeleider aan tafel. Geeft de aanroeper `onNavigate` mee, dan verschijnt de beheernavigatie
@@ -295,6 +301,8 @@ export function QuestionModePage({
         </form>
       )}
 
+      <CaregiverMessages api={api} pollMs={watchPollMs} />
+
       {userId ? <ConversationWatch api={api} userId={userId} pollMs={watchPollMs} /> : null}
 
       {/* Eigen wachtwoord wijzigen (T2.5). Een begeleider komt binnen met een tijdelijk wachtwoord
@@ -442,6 +450,91 @@ function ConversationWatch({
           )}
         </>
       ) : null}
+    </section>
+  );
+}
+
+/** Standaardinterval (ms) waarmee de berichtenlijst zichzelf ververst (T13.1). */
+const MESSAGES_POLL_MS = 15000;
+
+/**
+ * De boodschappen die gebruikers van deze begeleider hebben bevestigd (T13.1, DESIGN §2, §3.3).
+ *
+ * Ververst zichzelf: dit scherm staat naast de tablet open terwijl de gebruiker aan het werk is, dus
+ * een boodschap moet vanzelf verschijnen — een begeleider die moet onthouden te verversen, mist hem.
+ * Rustiger dan het meekijkpaneel: hier gaat het om wat er *af* is, niet om wat er nú gebeurt.
+ *
+ * Bewust read-only. Een begeleider kan hier niets veranderen aan wat de gebruiker zei; de boodschap is
+ * van de gebruiker (DESIGN §2).
+ */
+function CaregiverMessages({
+  api,
+  pollMs = MESSAGES_POLL_MS,
+}: {
+  api: Api;
+  pollMs?: number;
+}): React.JSX.Element {
+  const [messages, setMessages] = useState<CaregiverMessage[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async (): Promise<void> => {
+      try {
+        const { messages: list } = await api.listCaregiverMessages();
+        if (!cancelled) {
+          setMessages(list);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof ApiRequestError ? err.message : 'Berichten laden mislukt.');
+        }
+      }
+    };
+    void load();
+    if (pollMs <= 0) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    const timer = setInterval(() => void load(), pollMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [api, pollMs]);
+
+  return (
+    <section className="panel" aria-label="Berichten van je gebruikers">
+      <h2 className="panel__subtitle">Berichten</h2>
+      {/* Bewust `status` en geen `alert`: dit paneel ververst zichzelf op de achtergrond, dus een
+          mislukte ronde hoort beleefd gemeld te worden en niet het scherm te onderbreken terwijl de
+          begeleider een vraag zit te typen. */}
+      {error ? (
+        <p className="form__error" role="status">
+          {error}
+        </p>
+      ) : null}
+      {messages.length === 0 ? (
+        <p className="muted">
+          Nog geen bevestigde berichten. Zodra een gebruiker een boodschap bevestigt, verschijnt die
+          hier.
+        </p>
+      ) : (
+        <ul className="activity-list">
+          {messages.map((entry) => (
+            <li key={entry.id} className="activity-list__item">
+              <span className="activity-list__user">{entry.userName}</span>
+              <span>{entry.message}</span>
+              {entry.caregiverQuestion ? (
+                <span className="muted">op je vraag: “{entry.caregiverQuestion}”</span>
+              ) : null}
+              <span className="muted">{new Date(entry.createdAt).toLocaleString('nl-NL')}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

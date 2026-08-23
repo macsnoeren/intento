@@ -552,6 +552,60 @@ dus komen er twee weergaven met elk hun eigen grens en hun eigen mate van detail
 
 ---
 
+## Fase 13 — De begeleider ziet wat de gebruiker zei
+
+**Aanleiding.** Een gebruiker komt tot een zin en bevestigt hem — en dan? Vandaag blijft die boodschap
+staan in de database en op zijn eigen tablet, en verder gebeurt er niets. Wie hem moet horen (de
+begeleider) moet toevallig meekijken. Daarmee stopt de communicatie precies op het punt waar ze zou
+moeten beginnen: iemand vraagt om iets, en er is niemand die het ziet.
+
+Wat nodig is, ligt al vast: `GeneratedMessage` bewaart elke **bevestigde** boodschap met haar tijdstip,
+en `CaregiverAssignment` weet wie bij welke gebruiker hoort. Er is dus geen nieuwe opslag nodig — alleen
+een weergave en een seintje.
+
+- [x] **T13.1 Berichtenlijst voor de begeleider** *(gebruikerswens)*
+  *DESIGN: §2, §3.3, §3.6, §9.1, §9.4.* Elke bevestigde boodschap van de gebruikers waar dit account bij
+  hoort, nieuwste eerst, met **tijdstip** en de naam van de gebruiker — zodat de begeleider ziet dat er
+  iets gezegd is en erop kan handelen. Werk: `GET /caregiver/messages?limit=`, ADMIN/CAREGIVER,
+  tenant-gefilterd en voor een CAREGIVER beperkt tot **gekoppelde** gebruikers (dezelfde grens als
+  `GET /question/users`). Per regel ook de `sessionId`, zodat het gesprek erachter met T12.1 te openen
+  is. De lijst komt op de pagina **Begeleiden**: dat is het enige scherm dat een gewone CAREGIVER heeft.
+  Geen migratie — alles staat al in `GeneratedMessage`.
+  *Acceptatie:* een bevestigde boodschap verschijnt in de lijst van de gekoppelde begeleider met de
+  juiste tijd (end-to-end test); een begeleider zonder koppeling ziet hem **niet**, ook niet binnen
+  dezelfde organisatie (isolatietest); een account uit een andere organisatie ziet niets (tenant-test);
+  de pagina Begeleiden toont de lijst (component-test).
+
+- [ ] **T13.2 De begeleider krijgt een seintje per e-mail** *(gebruikerswens)*
+  *DESIGN: §3.6, §9.4, §10.1.* Bij het bevestigen van een boodschap krijgen de **gekoppelde** begeleiders
+  een mail dat er iets nieuws is. Werk: bij `POST /conversation/{id}/confirm` een mail naar elke
+  gekoppelde begeleider, via de bestaande `MailTransport` (T1.4). Drie harde keuzes:
+  1. **De boodschap staat niet in de mail.** "Sanne heeft om 14:32 iets gezegd — log in om te kijken."
+     is precies wat gevraagd is ("gemaild dat er een nieuwe vraag is") én het veilige antwoord: e-mail is
+     een externe, onversleutelde en bewaarde kanaal, en de zin zelf is communicatie-inhoud (§9.4).
+  2. **Nooit blokkerend.** Faalt de mail (geen SMTP, time-out), dan gaat het bevestigen gewoon door en
+     wordt de fout gelogd — zoals bij registratie. De boodschap van de gebruiker mag nooit stukgaan op
+     een mailserver.
+  3. **Uit te zetten.** `NOTIFY_CAREGIVERS_BY_EMAIL` (default aan) — een organisatie die niet per zin
+     gemaild wil worden, zet het uit zonder code te wijzigen.
+  Nieuwe env `APP_BASE_URL` voor de link in de mail (https verplicht in productie, net als
+  `EMAIL_VERIFICATION_URL_BASE`).
+  *Acceptatie:* bevestigen stuurt één mail per gekoppelde begeleider en géén aan een niet-gekoppelde
+  (test met `MemoryMailTransport`); de mail bevat de naam van de gebruiker en het tijdstip maar **niet**
+  de zin (test); een mailfout laat `/confirm` gewoon `200` geven en de boodschap staat in de db (test);
+  met `NOTIFY_CAREGIVERS_BY_EMAIL=false` gaat er niets uit (test); `.env.example` bijgewerkt.
+
+- [ ] **T13.3 Afhandelen: wat is er al opgepakt?** *(ontdekt bij T13.1)*
+  *DESIGN: §3.3, §3.6.* Een lijst die alleen maar groeit, wordt ruis: na een dag weet een begeleider niet
+  meer wat nieuw is en wat al is opgepakt. Werk: overwegen of `GeneratedMessage` een `acknowledgedAt` +
+  `acknowledgedByAccountId` krijgt met een knop "opgepakt", of dat een lichter signaal volstaat (bv. een
+  markering "nieuw sinds je vorige bezoek" per account). Afweging expliciet maken: het is een
+  begeleiders-administratie, geen uitspraak van de gebruiker — het mag de boodschap zelf nooit wijzigen
+  of verbergen (§2).
+  *Acceptatie:* volgt bij het oppakken van de taak.
+
+---
+
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
 Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.

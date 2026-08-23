@@ -373,6 +373,9 @@ function fakeApi(
     getAiConversation() {
       return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
     },
+    listCaregiverMessages() {
+      return Promise.resolve({ messages: [] });
+    },
     listConversations() {
       return Promise.resolve({ conversations: [] });
     },

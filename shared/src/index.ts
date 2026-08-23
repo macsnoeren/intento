@@ -1238,6 +1238,37 @@ export const caregiverConversationViewSchema = z.object({
 });
 export type CaregiverConversationView = z.infer<typeof caregiverConversationViewSchema>;
 
+// --- Berichten voor de begeleider (T13.1, DESIGN §2, §3.3, §9.1) ---
+
+/**
+ * Eén **bevestigde** boodschap van een gebruiker, zoals de begeleider hem in zijn lijst ziet.
+ *
+ * Dit is het sluitstuk van de communicatie: de gebruiker komt tot een zin en bevestigt hem zelf, en dan
+ * hoort iemand hem te zien. Alléén bevestigde boodschappen komen hier — een voorstel dat de gebruiker
+ * afwees wordt nooit opgeslagen (DESIGN §3.6) en hoort dus ook nooit bij een begeleider terecht te
+ * komen.
+ *
+ * `sessionId` staat erbij zodat de begeleider het gesprek erachter kan openen (T12.1): niet alleen
+ * *wat* er gezegd is, maar ook hoe de gebruiker daar kwam.
+ */
+export const caregiverMessageSchema = z.object({
+  id: z.string(),
+  sessionId: z.string(),
+  userId: z.string(),
+  userName: z.string(),
+  message: z.string(),
+  /** Het moment waarop de gebruiker de boodschap bevestigde. */
+  createdAt: z.iso.datetime(),
+  /** De letterlijke begeleidersvraag als dit een antwoord in vraagmodus was (§3.2); anders `null`. */
+  caregiverQuestion: z.string().nullable(),
+});
+export type CaregiverMessage = z.infer<typeof caregiverMessageSchema>;
+
+export const caregiverMessageListResponseSchema = z.object({
+  messages: z.array(caregiverMessageSchema),
+});
+export type CaregiverMessageListResponse = z.infer<typeof caregiverMessageListResponseSchema>;
+
 // --- Gespreksverloop terugzien (T12.1, DESIGN §3.1, §3.6, §9.1, §9.4) ---
 
 /**

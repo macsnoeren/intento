@@ -17,6 +17,7 @@ import {
   authResponseSchema,
   changePasswordResponseSchema,
   caregiverConversationViewSchema,
+  caregiverMessageListResponseSchema,
   caregiverListResponseSchema,
   conceptProposalSchema,
   conceptProposalListResponseSchema,
@@ -57,6 +58,7 @@ import {
   type AiStatusResponse,
   type AttachOpenSymbolsRequest,
   type AiConversationDetail,
+  type CaregiverMessageListResponse,
   type AiConversationListResponse,
   type AuditLogListResponse,
   type ConversationListResponse,
@@ -240,6 +242,11 @@ export interface Api {
    * beperkt tot gekoppelde gebruikers — dit is de enige beheerweergave met communicatie-inhoud, dus de
    * server bewaakt de grens en de client toont alleen wat hij terugkrijgt.
    */
+  /**
+   * De bevestigde boodschappen van de gebruikers waar dit account bij hoort (T13.1), nieuwste eerst.
+   * Voor een CAREGIVER filtert de server op **gekoppelde** gebruikers.
+   */
+  listCaregiverMessages(): Promise<CaregiverMessageListResponse>;
   listConversations(userId: string): Promise<ConversationListResponse>;
   getConversation(id: string): Promise<ConversationTranscriptResponse>;
   /**
@@ -593,6 +600,9 @@ export const httpApi: Api & DeviceApi = {
   },
   async listAuditLogs() {
     return auditLogListResponseSchema.parse(await request('/admin/audit-logs'));
+  },
+  async listCaregiverMessages() {
+    return caregiverMessageListResponseSchema.parse(await request('/caregiver/messages'));
   },
   async listConversations(userId) {
     return conversationListResponseSchema.parse(

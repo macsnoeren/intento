@@ -62,6 +62,7 @@ function fakeApi(
       | 'listAacTopics'
       | 'startQuestion'
       | 'viewUserConversation'
+      | 'listCaregiverMessages'
       | 'getAiStatus'
     >
   > = {},
@@ -80,6 +81,9 @@ function fakeApi(
     // lopend gesprek", zodat het in tests over de vraagflow geen ruis (of foutmelding) oplevert.
     viewUserConversation: (userId: string) =>
       Promise.resolve({ userId, userName: 'Sanne', supportMode: false, session: null }),
+    // De berichtenlijst (T13.1) laadt bij het openen; standaard leeg zodat tests over de vraagflow er
+    // geen ruis van krijgen.
+    listCaregiverMessages: () => Promise.resolve({ messages: [] }),
     getAiStatus: () =>
       Promise.resolve({
         mode: 'queue' as const,
@@ -297,5 +301,45 @@ describe('begeleiderinterface — vraagmodus', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Vraag versturen' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Je bent niet gekoppeld.');
+  });
+
+  it('toont de bevestigde berichten van de gebruikers, nieuwste eerst met tijdstip (T13.1)', async () => {
+    // Zonder deze lijst stopte de communicatie op het punt waar ze zou moeten beginnen: de gebruiker
+    // bevestigt een zin en niemand ziet het.
+    const api = fakeApi({
+      listCaregiverMessages: () =>
+        Promise.resolve({
+          messages: [
+            {
+              id: 'm-1',
+              sessionId: 'sess-1',
+              userId: 'u-1',
+              userName: 'Sanne',
+              message: 'Ik wil brood eten.',
+              createdAt: '2026-08-23T12:32:00.000Z',
+              caregiverQuestion: null,
+            },
+            {
+              id: 'm-2',
+              sessionId: 'sess-2',
+              userId: 'u-1',
+              userName: 'Sanne',
+              message: 'Water.',
+              createdAt: '2026-08-23T09:00:00.000Z',
+              caregiverQuestion: 'Wat wil je drinken?',
+            },
+          ],
+        }),
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} watchPollMs={0} />);
+
+    const paneel = await screen.findByRole('region', { name: 'Berichten van je gebruikers' });
+    expect(within(paneel).getByText('Ik wil brood eten.')).toBeTruthy();
+    // Bij een antwoord in vraagmodus staat erbij waaróp geantwoord is.
+    expect(within(paneel).getByText(/Wat wil je drinken\?/)).toBeTruthy();
+    // Het tijdstip staat erbij, in de lokale notatie.
+    expect(
+      within(paneel).getByText(new Date('2026-08-23T12:32:00.000Z').toLocaleString('nl-NL')),
+    ).toBeTruthy();
   });
 });
