@@ -93,6 +93,8 @@ function fakeApi(initial: PreferencePublic[]): {
     viewUserConversation: notImplemented,
     getDashboard: notImplemented,
     listAuditLogs: notImplemented,
+    listAiConversations: notImplemented,
+    getAiConversation: notImplemented,
     listConversations: notImplemented,
     getConversation: notImplemented,
     listOperatorOrganizations: notImplemented,

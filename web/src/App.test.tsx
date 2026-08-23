@@ -367,6 +367,12 @@ function fakeApi(
     listAuditLogs() {
       return Promise.resolve({ entries: [] });
     },
+    listAiConversations() {
+      return Promise.resolve({ conversations: [] });
+    },
+    getAiConversation() {
+      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
+    },
     listConversations() {
       return Promise.resolve({ conversations: [] });
     },

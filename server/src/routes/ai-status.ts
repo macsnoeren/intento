@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import {
+  aiConversationDetailSchema,
+  aiConversationListResponseSchema,
   aiJobListResponseSchema,
   aiStatusResponseSchema,
+  type AiConversationDetail,
+  type AiConversationListResponse,
   type AiJobListResponse,
   type AiJobSummary,
   type AiStatusResponse,
@@ -45,6 +50,17 @@ export const WORKER_ONLINE_WINDOW_MS = 60_000;
  */
 /** Aantal AI-jobs dat het activiteitenoverzicht toont: genoeg om een gesprek terug te zien, niet meer. */
 const AI_JOB_PAGE_SIZE = 25;
+
+/** Query op de gesprekslijst van het AI-activiteitscherm (T12.2). */
+const conversationsQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(100).default(25),
+});
+
+const sessionParamsSchema = z.object({ id: z.string().min(1) });
+
+/** Statussen die als "misging" tellen in de gesprekslijst. */
+const JOB_STATUS_FAILED = 'FAILED';
+const JOB_STATUS_EXPIRED = 'EXPIRED';
 
 /**
  * Vat het door de worker ingeleverde resultaat samen voor het activiteitenoverzicht (T9.15).
@@ -159,8 +175,108 @@ export function registerAiStatusRoutes(
           // Welke aanpak deze aanvraag voortbracht (T11.6): alleen de sleutel — de prompt blijft buiten
           // beeld, daar zit persoonlijke context in.
           strategy: job.strategy,
+          // De draad (T12.2): bij welk gesprek hoorde deze aanvraag?
+          sessionId: job.sessionId,
           ...summarizeResult(job),
         })),
+      });
+    },
+  );
+
+  // AI-activiteit **per gesprek** (T12.2). De losse jobs beantwoorden "doet de AI iets?"; deze twee
+  // endpoints beantwoorden "hoe liep dít gesprek?" — de vraag die elke gebruikerstest opriep en die met
+  // losse regels niet te beantwoorden was.
+  //
+  // Zelfde platformgrens als `/admin/ai/jobs`. De **keuzes van de gebruiker** komen uit
+  // `ConversationStep`, dus uit de tenant-boom; er gaan bewust alleen **conceptsleutels** overheen. Die
+  // zijn van dezelfde soort als wat de jobresultaten al tonen (de AI stelde ze zelf voor). De
+  // geformuleerde boodschap blijft eruit: dát is communicatie-inhoud en hoort bij het tenant-gebonden
+  // gespreksverloop (T12.1).
+  app.get(
+    '/admin/ai/conversations',
+    { preHandler: [authorize(prisma, { roles: ['ADMIN'] }), requirePlatformOrg(prisma)] },
+    async (request): Promise<AiConversationListResponse> => {
+      const { limit } = conversationsQuerySchema.parse(request.query);
+
+      const groups = await prisma.aiJob.groupBy({
+        by: ['sessionId'],
+        where: { sessionId: { not: null } },
+        _count: { _all: true },
+        _min: { createdAt: true },
+        _max: { createdAt: true },
+        orderBy: { _max: { createdAt: 'desc' } },
+        take: limit,
+      });
+
+      // Mislukkingen apart tellen: dat is het snelste signaal dat er iets misging, en het scheelt een
+      // detailrondje per gesprek.
+      const failures = await prisma.aiJob.groupBy({
+        by: ['sessionId'],
+        where: {
+          sessionId: { in: groups.flatMap((g) => (g.sessionId ? [g.sessionId] : [])) },
+          status: { in: [JOB_STATUS_FAILED, JOB_STATUS_EXPIRED] },
+        },
+        _count: { _all: true },
+      });
+      const failedBySession = new Map(
+        failures.map((row) => [row.sessionId, row._count._all] as const),
+      );
+
+      return aiConversationListResponseSchema.parse({
+        conversations: groups.flatMap((group) => {
+          if (!group.sessionId || !group._min.createdAt || !group._max.createdAt) return [];
+          return [
+            {
+              sessionId: group.sessionId,
+              jobCount: group._count._all,
+              failedCount: failedBySession.get(group.sessionId) ?? 0,
+              firstAt: group._min.createdAt.toISOString(),
+              lastAt: group._max.createdAt.toISOString(),
+            },
+          ];
+        }),
+      });
+    },
+  );
+
+  app.get(
+    '/admin/ai/conversations/:id',
+    { preHandler: [authorize(prisma, { roles: ['ADMIN'] }), requirePlatformOrg(prisma)] },
+    async (request): Promise<AiConversationDetail> => {
+      const { id } = sessionParamsSchema.parse(request.params);
+
+      const [jobs, steps] = await Promise.all([
+        prisma.aiJob.findMany({
+          where: { sessionId: id },
+          orderBy: { createdAt: 'asc' },
+          include: { claimedBy: { select: { name: true } } },
+        }),
+        // Het gesprek zelf kan intussen verwijderd zijn (`AiJob.sessionId` is bewust géén foreign key);
+        // dan blijven de jobs staan en is de keuzelijst leeg. Dat is een geldige uitkomst, geen fout.
+        prisma.conversationStep.findMany({
+          where: { sessionId: id },
+          orderBy: { order: 'asc' },
+          select: { order: true, selectedConcept: true },
+        }),
+      ]);
+
+      return aiConversationDetailSchema.parse({
+        sessionId: id,
+        strategy: jobs.find((job) => job.strategy !== null)?.strategy ?? null,
+        jobs: jobs.map((job) => ({
+          id: job.id,
+          task: job.task,
+          status: job.status,
+          attempts: job.attempts,
+          createdAt: job.createdAt.toISOString(),
+          durationMs: Math.max(0, job.updatedAt.getTime() - job.createdAt.getTime()),
+          worker: job.claimedBy?.name ?? null,
+          error: job.errorMessage,
+          strategy: job.strategy,
+          sessionId: job.sessionId,
+          ...summarizeResult(job),
+        })),
+        choices: steps.map((step) => ({ order: step.order, concept: step.selectedConcept })),
       });
     },
   );

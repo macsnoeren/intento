@@ -1,6 +1,11 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { aiJobListResponseSchema, aiStatusResponseSchema } from '@intento/shared';
+import {
+  aiConversationDetailSchema,
+  aiConversationListResponseSchema,
+  aiJobListResponseSchema,
+  aiStatusResponseSchema,
+} from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import { createWorkerToken } from '../ai/worker-token.js';
@@ -172,6 +177,120 @@ describe('AI-status — GET /ai/status (T9.4)', () => {
     const res = await app.inject({ method: 'GET', url: '/admin/ai/jobs', headers: { cookie } });
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({ error: { code: 'NOT_PLATFORM_ADMIN' } });
+  });
+
+  // --- T12.2: de losse jobs als één draad ---------------------------------------------------------
+
+  /** Legt twee AI-jobs en twee gespreksstappen vast alsof er één gesprek is gevoerd. */
+  async function seedAiConversation(sessionId: string): Promise<void> {
+    await prisma.aiJob.create({
+      data: {
+        task: 'select_next_question',
+        status: 'SUCCEEDED',
+        payloadJson: JSON.stringify({ geheim: 'persoonlijke context van de gebruiker' }),
+        resultJson: JSON.stringify({
+          question: 'Wat wil je?',
+          options: [{ symbol: 'eat', confidence: 0.8 }],
+          reason: 'richting bepalen',
+          confidence: 0.5,
+        }),
+        attempts: 1,
+        strategy: 'refine',
+        sessionId,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    await prisma.aiJob.create({
+      data: {
+        task: 'select_next_question',
+        status: 'FAILED',
+        payloadJson: JSON.stringify({}),
+        errorMessage: 'worker gaf geen resultaat',
+        attempts: 3,
+        strategy: 'refine',
+        sessionId,
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+  }
+
+  it('groepeert de AI-jobs per gesprek (T12.2)', async () => {
+    const cookie = await withMode('queue');
+    await prisma.organization.updateMany({ data: { isPlatform: true } });
+
+    const user = await seedUser('Sanne');
+    const session = await prisma.conversationSession.create({ data: { userId: user.id } });
+    await prisma.conversationStep.create({
+      data: {
+        sessionId: session.id,
+        order: 0,
+        question: 'Wat wil je?',
+        selectedConcept: 'want',
+        offeredConcepts: ['want', 'say'],
+      },
+    });
+    await seedAiConversation(session.id);
+
+    const lijst = await app!.inject({
+      method: 'GET',
+      url: '/admin/ai/conversations',
+      headers: { cookie },
+    });
+    expect(lijst.statusCode).toBe(200);
+    const { conversations } = aiConversationListResponseSchema.parse(lijst.json());
+    expect(conversations).toHaveLength(1);
+    expect(conversations[0]).toMatchObject({
+      sessionId: session.id,
+      jobCount: 2,
+      failedCount: 1,
+    });
+
+    const detail = await app!.inject({
+      method: 'GET',
+      url: `/admin/ai/conversations/${session.id}`,
+      headers: { cookie },
+    });
+    expect(detail.statusCode).toBe(200);
+    const verloop = aiConversationDetailSchema.parse(detail.json());
+
+    // De AI-kant: de aanvragen in de volgorde waarin ze liepen, met de aanpak die draaide.
+    expect(verloop.strategy).toBe('refine');
+    expect(verloop.jobs.map((job) => job.status)).toEqual(['SUCCEEDED', 'FAILED']);
+    expect(verloop.jobs[0]!.question).toBe('Wat wil je?');
+    // En de gebruikerskant: wat hij ermee deed.
+    expect(verloop.choices).toEqual([{ order: 0, concept: 'want' }]);
+    // De prompt blijft eruit — ook hier (§9.4).
+    expect(detail.body).not.toContain('persoonlijke context');
+  });
+
+  it('laat een verwijderd gesprek niet omvallen, maar toont de jobs zonder keuzes (T12.2)', async () => {
+    // `AiJob.sessionId` is bewust géén foreign key: de wachtrij is platform-infrastructuur en mag niet
+    // met tenantdata mee cascaden. Het gevolg is dat de sleutel naar een verdwenen gesprek kan wijzen.
+    const cookie = await withMode('queue');
+    await prisma.organization.updateMany({ data: { isPlatform: true } });
+    await seedAiConversation('sessie-die-niet-meer-bestaat');
+
+    const detail = await app!.inject({
+      method: 'GET',
+      url: '/admin/ai/conversations/sessie-die-niet-meer-bestaat',
+      headers: { cookie },
+    });
+    expect(detail.statusCode).toBe(200);
+    const verloop = aiConversationDetailSchema.parse(detail.json());
+    expect(verloop.jobs).toHaveLength(2);
+    expect(verloop.choices).toEqual([]);
+  });
+
+  it('houdt ook de gespreksgroepering weg bij een gewone organisatie-ADMIN (T12.2)', async () => {
+    app = await buildApp({ env: testEnv({ AI_PROVIDER: 'queue', LOGIN_RATE_LIMIT_MAX: '100' }) });
+    const org = await seedOrganization('Gewone zorgorganisatie');
+    const admin = await seedAccount('admin@zorg.local', 'pw', 'ADMIN', org);
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    for (const url of ['/admin/ai/conversations', '/admin/ai/conversations/x']) {
+      const res = await app.inject({ method: 'GET', url, headers: { cookie } });
+      expect(res.statusCode).toBe(403);
+    }
   });
 
   it('laat ook de tablet (device-auth) de status opvragen, maar niemand zonder auth', async () => {

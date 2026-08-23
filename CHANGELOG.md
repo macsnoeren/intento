@@ -34,6 +34,15 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T12.2 AI-activiteit per gesprek.** Het activiteitscherm toonde losse jobs; wat ontbrak was de draad.
+  `AiJob` krijgt een `sessionId` (nullable, bewust **geen** foreign key — de wachtrij is
+  platform-infrastructuur en mag niet aan de tenant-boom hangen), gezet bij het inschakelen naast de al
+  meereizende strategie. Nieuw zijn `GET /admin/ai/conversations` en `/admin/ai/conversations/{id}`: kies
+  een gesprek en zie de opeenvolgende beslissingen — vraag, voorgestelde opties, zekerheid, strategie,
+  duur en fouten — met daarnaast de route die de gebruiker liep. De prompt komt er nog steeds nooit uit,
+  en de geformuleerde boodschap ook niet: die is communicatie-inhoud en blijft bij T12.1, binnen de
+  organisatie.
+
 - **T12.1 Een gesprek van begin tot eind terugzien.** Na elke gebruikerstest is de vraag dezelfde: wat
   gebeurde er nou eigenlijk? Dat was alleen te reconstrueren uit losse brokken — het AI-activiteitscherm
   toont losse jobs zonder te weten bij welk gesprek ze horen, de tablet toont alleen het hier-en-nu, en de

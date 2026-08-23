@@ -185,6 +185,11 @@ export type AiMessageResult = z.infer<typeof aiMessageResultSchema>;
 export interface AiCallMeta {
   /** De sleutel van de actieve gespreksstrategie, of weggelaten als de aanroeper er geen kent. */
   strategy?: string;
+  /**
+   * Het gesprek waar deze aanvraag bij hoort (T12.2). Net als de strategie puur administratie: het
+   * beheerscherm kan de losse jobs zo als één draad tonen. Bereikt het model nooit.
+   */
+  sessionId?: string;
 }
 
 export interface AiProvider {
@@ -196,10 +201,11 @@ export interface AiProvider {
    */
   selectNextQuestion(prompt: AiPrompt, meta?: AiCallMeta): Promise<AiQuestionDecision>;
   /**
-   * Vormt een natuurlijke zin uit de bevestigde concepten (T5.3, §7.1 taak 4). **Optioneel**: een
+   * Vormt een natuurlijke zin uit de bevestigde concepten (T5.3, §7.1 taak 4). `meta` is dezelfde
+   * administratie als bij `selectNextQuestion` en bereikt het model nooit. **Optioneel**: een
    * provider die deze taak niet kan (bv. een pure vraagselector), laat de methode weg — de
    * conversatie-laag valt dan terug op de deterministische sjabloon-zin. De uitvoer wordt hoe dan ook
    * opnieuw gevalideerd (vorm + AAC-begrenzing), dus een provider wordt ook hier nooit vertrouwd.
    */
-  generateMessage?(prompt: AiMessagePrompt): Promise<AiMessageResult>;
+  generateMessage?(prompt: AiMessagePrompt, meta?: AiCallMeta): Promise<AiMessageResult>;
 }

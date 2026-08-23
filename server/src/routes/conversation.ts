@@ -290,6 +290,8 @@ async function ensureOffer(
     hypothesis: readHypothesis(session.hypothesis),
     // Verfijnronde na ❌ Nee (T10.12): hoort bij dit punt zolang de gebruiker niets nieuws koos.
     refining: session.refinedAtStep === steps.length,
+    // Administratie voor het AI-activiteitscherm (T12.2): bij welk gesprek hoort deze aanvraag?
+    sessionId: session.id,
   });
 
   // Zichtbaar maken wát de AI deed (T9.15): taak, hoeveel kandidaten er waren (en waar ze vandaan
@@ -820,7 +822,7 @@ export function registerConversationRoutes(
 
       const { symbols, chosen } = await buildMessageInput(prisma, steps);
       const userContext = await loadUserContext(prisma, encryptor, session.userId);
-      const composed = await composeMessage(prisma, orchestrator, chosen, userContext);
+      const composed = await composeMessage(prisma, orchestrator, chosen, userContext, session.id);
       return conversationGenerateResponseSchema.parse({
         sessionId: session.id,
         status: session.status,
@@ -861,7 +863,13 @@ export function registerConversationRoutes(
 
       const { chosen } = await buildMessageInput(prisma, steps);
       const userContext = await loadUserContext(prisma, encryptor, session.userId);
-      const { message } = await composeMessage(prisma, orchestrator, chosen, userContext);
+      const { message } = await composeMessage(
+        prisma,
+        orchestrator,
+        chosen,
+        userContext,
+        session.id,
+      );
 
       // Bevestigde boodschap opslaan én de sessie afronden in één transactie.
       await prisma.$transaction([

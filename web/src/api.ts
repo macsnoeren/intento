@@ -5,6 +5,8 @@ import {
   aacSymbolAdminSchema,
   aiConceptReviewListResponseSchema,
   aacSymbolListResponseSchema,
+  aiConversationDetailSchema,
+  aiConversationListResponseSchema,
   aiJobListResponseSchema,
   aiStatusResponseSchema,
   aiWaitingErrorSchema,
@@ -54,6 +56,8 @@ import {
   type AiJobListResponse,
   type AiStatusResponse,
   type AttachOpenSymbolsRequest,
+  type AiConversationDetail,
+  type AiConversationListResponse,
   type AuditLogListResponse,
   type ConversationListResponse,
   type ConversationTranscriptResponse,
@@ -215,6 +219,12 @@ export interface Api {
    * Een gewone organisatie-ADMIN krijgt 403 `NOT_PLATFORM_ADMIN`.
    */
   listAiJobs(): Promise<AiJobListResponse>;
+  /**
+   * Dezelfde AI-aanvragen als één draad per gesprek (T12.2). Zelfde platformgrens; bevat conceptsleutels
+   * en metadata, nooit de prompt of een geformuleerde boodschap.
+   */
+  listAiConversations(): Promise<AiConversationListResponse>;
+  getAiConversation(sessionId: string): Promise<AiConversationDetail>;
   /** Gebruikers aan wie dit account (begeleider/beheerder) een vraag mag stellen (vraagmodus, T7.1). */
   listQuestionUsers(): Promise<UserListResponse>;
   /** Start een vraagmodus-sessie: de vraag verschijnt in de gebruikersapp op de tablet (T7.1). */
@@ -556,6 +566,14 @@ export const httpApi: Api & DeviceApi = {
   },
   async listAiJobs() {
     return aiJobListResponseSchema.parse(await request('/admin/ai/jobs'));
+  },
+  async listAiConversations() {
+    return aiConversationListResponseSchema.parse(await request('/admin/ai/conversations'));
+  },
+  async getAiConversation(sessionId) {
+    return aiConversationDetailSchema.parse(
+      await request(`/admin/ai/conversations/${encodeURIComponent(sessionId)}`),
+    );
   },
   async listQuestionUsers() {
     return userListResponseSchema.parse(await request('/question/users'));

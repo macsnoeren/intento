@@ -1669,6 +1669,12 @@ export const aiJobSummarySchema = z.object({
    * draaide. `null` bij een boodschap-job of een oudere rij.
    */
   strategy: z.string().nullable(),
+  /**
+   * Het **gesprek** waar deze aanvraag bij hoorde (T12.2): zonder die sleutel zijn het losse
+   * beslissingen en is niet te zien hoe een gesprek liep. `null` voor rijen van vóór T12.2 en voor een
+   * aanvraag buiten een gesprek om.
+   */
+  sessionId: z.string().nullable(),
 });
 export type AiJobSummary = z.infer<typeof aiJobSummarySchema>;
 
@@ -1677,6 +1683,45 @@ export const aiJobListResponseSchema = z.object({
   jobs: z.array(aiJobSummarySchema),
 });
 export type AiJobListResponse = z.infer<typeof aiJobListResponseSchema>;
+
+// --- AI-activiteit per gesprek (T12.2, DESIGN §7.10, §9.4) ---
+
+/**
+ * Eén gesprek in het AI-activiteitscherm: hoeveel aanvragen het opleverde en wanneer. Genoeg om het
+ * juiste gesprek te herkennen; de inhoud staat in het detail.
+ */
+export const aiConversationSummarySchema = z.object({
+  sessionId: z.string(),
+  jobCount: z.number().int().min(0),
+  /** Aantal mislukte/verlopen aanvragen — het snelste signaal dat er iets misging. */
+  failedCount: z.number().int().min(0),
+  firstAt: z.iso.datetime(),
+  lastAt: z.iso.datetime(),
+});
+export type AiConversationSummary = z.infer<typeof aiConversationSummarySchema>;
+
+export const aiConversationListResponseSchema = z.object({
+  conversations: z.array(aiConversationSummarySchema),
+});
+export type AiConversationListResponse = z.infer<typeof aiConversationListResponseSchema>;
+
+/**
+ * De AI-kant van één gesprek: de opeenvolgende aanvragen (oudste eerst) en, per stap, het concept dat
+ * de gebruiker koos.
+ *
+ * Die twee naast elkaar maken pas zichtbaar wát er gebeurde: de jobs tonen wat de AI vroeg en
+ * voorstelde, de keuzes tonen wat de gebruiker daarmee deed. Bewust **alleen conceptsleutels** — geen
+ * geformuleerde boodschap (dat is communicatie-inhoud en blijft binnen de organisatie, T12.1) en nooit
+ * de prompt (daar zit persoonlijke context in, §9.4).
+ */
+export const aiConversationDetailSchema = z.object({
+  sessionId: z.string(),
+  /** De gespreksstrategie die in dit gesprek draaide (T11.6); `null` als geen enkele job hem meegaf. */
+  strategy: z.string().nullable(),
+  jobs: z.array(aiJobSummarySchema),
+  choices: z.array(z.object({ order: z.number().int().min(0), concept: z.string() })),
+});
+export type AiConversationDetail = z.infer<typeof aiConversationDetailSchema>;
 
 // --- AI-status (T9.4, DESIGN §7.2, §9.2, §9.4, ADR-0010) ---
 

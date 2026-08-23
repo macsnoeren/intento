@@ -40,12 +40,12 @@ export class QueueAiProvider implements AiProvider {
   async selectNextQuestion(prompt: AiPrompt, meta?: AiCallMeta): Promise<AiQuestionDecision> {
     // De strategiesleutel gaat mee de wachtrij in (T11.6) — niet de prompt in. Zo kan het beheerscherm
     // AI-activiteit tonen wélke aanpak draaide zonder dat er promptinhoud in beeld komt.
-    const raw = await this.runJob(AI_TASK_SELECT_NEXT_QUESTION, prompt, meta?.strategy ?? null);
+    const raw = await this.runJob(AI_TASK_SELECT_NEXT_QUESTION, prompt, meta);
     return aiQuestionDecisionSchema.parse(raw);
   }
 
-  async generateMessage(prompt: AiMessagePrompt): Promise<AiMessageResult> {
-    const raw = await this.runJob(AI_TASK_GENERATE_MESSAGE, prompt);
+  async generateMessage(prompt: AiMessagePrompt, meta?: AiCallMeta): Promise<AiMessageResult> {
+    const raw = await this.runJob(AI_TASK_GENERATE_MESSAGE, prompt, meta);
     return aiMessageResultSchema.parse(raw);
   }
 
@@ -58,9 +58,12 @@ export class QueueAiProvider implements AiProvider {
   private async runJob(
     task: JobTask,
     payload: AiPrompt | AiMessagePrompt,
-    strategy: string | null = null,
+    meta: AiCallMeta = {},
   ): Promise<unknown> {
-    const admission = await enqueueJob(this.prisma, this.config, task, payload, strategy);
+    const admission = await enqueueJob(this.prisma, this.config, task, payload, {
+      strategy: meta.strategy ?? null,
+      sessionId: meta.sessionId ?? null,
+    });
     if (admission.status === 'WAITING_FOR_WORKER') {
       throw new AiWorkerBusyError(admission.position, this.config.pollIntervalMs * 4);
     }

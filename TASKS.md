@@ -536,7 +536,7 @@ dus komen er twee weergaven met elk hun eigen grens en hun eigen mate van detail
   zonder dat er iets is uitgesloten (test); de gespreksflow zelf gedraagt zich ongewijzigd (bestaande
   T10.12-tests groen).
 
-- [ ] **T12.2 AI-activiteit per gesprek** *(gebruikerstest)*
+- [x] **T12.2 AI-activiteit per gesprek** *(gebruikerstest)*
   *DESIGN: §7.10, §9.4; bouwt op T9.15/T11.6.* Het AI-activiteitscherm toont losse jobs; wat ontbreekt is
   de draad. Werk: `AiJob` krijgt een `sessionId` (nullable, **geen** foreign key — `AiJob` is
   platform-infrastructuur en mag niet aan de tenant-boom hangen), gezet bij het inschakelen van de job

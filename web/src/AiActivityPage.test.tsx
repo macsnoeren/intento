@@ -33,6 +33,7 @@ function job(overrides: Partial<AiJobSummary> = {}): AiJobSummary {
     worker: 'gpu-node-1',
     error: null,
     strategy: 'refine',
+    sessionId: null,
     question: 'Waar heb je pijn?',
     options: [
       { concept: 'nail', confidence: 0.82 },
@@ -44,13 +45,18 @@ function job(overrides: Partial<AiJobSummary> = {}): AiJobSummary {
   };
 }
 
-function fakeApi(overrides: Partial<Pick<Api, 'listAiJobs' | 'getAiStatus'>> = {}): Api {
+function fakeApi(
+  overrides: Partial<
+    Pick<Api, 'listAiJobs' | 'getAiStatus' | 'listAiConversations' | 'getAiConversation'>
+  > = {},
+): Api {
   const notImplemented = () =>
     Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
   const base = new Proxy({}, { get: () => notImplemented }) as Api;
   return {
     ...base,
     listAiJobs: () => Promise.resolve({ jobs: [job()] }),
+    listAiConversations: () => Promise.resolve({ conversations: [] }),
     getAiStatus: () =>
       Promise.resolve({
         mode: 'queue' as const,
@@ -164,5 +170,47 @@ describe('AI-activiteit (T9.15)', () => {
     expect(await screen.findByText(/ronde 1/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Nu verversen' }));
     expect(await screen.findByText(/ronde 2/)).toBeTruthy();
+  });
+
+  it('toont de aanvragen als draad per gesprek, met de route van de gebruiker (T12.2)', async () => {
+    // Losse regels beantwoorden "doet de AI iets?"; deze draad beantwoordt "hoe liep dít gesprek?".
+    render(
+      <AiActivityPage
+        api={fakeApi({
+          listAiConversations: () =>
+            Promise.resolve({
+              conversations: [
+                {
+                  sessionId: 'sess-1',
+                  jobCount: 2,
+                  failedCount: 1,
+                  firstAt: '2026-08-22T09:00:00.000Z',
+                  lastAt: '2026-08-22T09:01:00.000Z',
+                },
+              ],
+            }),
+          getAiConversation: () =>
+            Promise.resolve({
+              sessionId: 'sess-1',
+              strategy: 'refine',
+              jobs: [job({ id: 'job-a', question: 'Wat wil je?' })],
+              choices: [
+                { order: 0, concept: 'want' },
+                { order: 1, concept: 'eat' },
+              ],
+            }),
+        })}
+        account={admin}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+        pollMs={0}
+      />,
+    );
+
+    expect(await screen.findByText('2 aanvragen · 1 mislukt')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Bekijk' }));
+
+    expect(await screen.findByText(/Route van de gebruiker/)).toBeTruthy();
+    expect(screen.getByText(/want → eat/)).toBeTruthy();
   });
 });

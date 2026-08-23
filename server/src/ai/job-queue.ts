@@ -148,6 +148,14 @@ export type Admission =
   | { status: 'QUEUED'; jobId: string }
   | { status: 'WAITING_FOR_WORKER'; jobId: string; position: number };
 
+/** Administratie die met een job meereist maar het model nooit bereikt (T11.6/T12.2). */
+export interface JobMeta {
+  /** De sleutel van de actieve gespreksstrategie. */
+  strategy?: string | null;
+  /** Het gesprek waar de aanvraag bij hoort, zodat het beheerscherm de draad kan tonen. */
+  sessionId?: string | null;
+}
+
 /**
  * Zet een AI-aanvraag op de wachtrij. Onder de capaciteit → `QUEUED`; erboven → `WAITING_FOR_WORKER` met
  * de 1-based positie tussen de wachtende jobs. De `payload` is de door `buildAiPrompt`/`buildMessagePrompt`
@@ -158,8 +166,12 @@ export async function enqueueJob(
   config: QueueConfig,
   task: JobTask,
   payload: unknown,
-  /** De actieve gespreksstrategie (T11.6); puur administratie voor het AI-activiteitscherm. */
-  strategy: string | null = null,
+  /**
+   * Administratie over de aanvraag voor het AI-activiteitscherm (T11.6/T12.2): welke aanpak draaide en
+   * bij welk gesprek het hoorde. Bewust **buiten** de payload: de prompt heeft een gesloten sleutelset
+   * (§7.7) en deze velden zijn geen context voor het model.
+   */
+  meta: JobMeta = {},
 ): Promise<Admission> {
   const now = new Date();
   await sweepQueue(prisma, config, now);
@@ -173,7 +185,8 @@ export async function enqueueJob(
       task,
       status: admitted ? JOB_STATUS.QUEUED : JOB_STATUS.WAITING_FOR_WORKER,
       payloadJson: JSON.stringify(payload),
-      strategy,
+      strategy: meta.strategy ?? null,
+      sessionId: meta.sessionId ?? null,
       expiresAt,
     },
   });

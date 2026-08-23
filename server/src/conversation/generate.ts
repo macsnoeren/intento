@@ -270,6 +270,12 @@ export async function composeMessage(
   orchestrator: AiOrchestrator,
   chosen: ChosenConcept[],
   userContext: AiUserContextItem[] = [],
+  /**
+   * Het gesprek waar deze boodschap bij hoort (T12.2). Puur administratie voor het AI-activiteitscherm:
+   * zonder dit valt de afsluitende boodschap-job buiten de draad van het gesprek. Bereikt het model
+   * nooit — het reist buiten de prompt om (§7.7).
+   */
+  sessionId?: string,
 ): Promise<ComposedMessage> {
   // Veilige bodem: altijd beschikbaar, altijd binnen de gekozen concepten.
   const scripted = generateMessage(chosen);
@@ -281,10 +287,13 @@ export async function composeMessage(
 
   if (!orchestrator.canGenerateMessage) return scriptedResult;
 
-  const aiResult = await orchestrator.generateMessage({
-    chosenConcepts: chosen.map((c) => ({ concept: c.concept, label: c.label })),
-    userContext,
-  });
+  const aiResult = await orchestrator.generateMessage(
+    {
+      chosenConcepts: chosen.map((c) => ({ concept: c.concept, label: c.label })),
+      userContext,
+    },
+    sessionId ? { sessionId } : undefined,
+  );
   if (!aiResult) return scriptedResult;
 
   const message = aiResult.message.trim();

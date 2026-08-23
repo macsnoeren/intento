@@ -165,6 +165,11 @@ export interface DecideNextQuestionInput {
    * de AI de expliciete opdracht die keuze preciezer te maken in plaats van van onderwerp te wisselen.
    */
   refining?: boolean;
+  /**
+   * Het gesprek waar deze beslissing bij hoort (T12.2). Alleen administratie: het AI-activiteitscherm
+   * kan de losse jobs zo als één draad tonen. Nooit prompt-context.
+   */
+  sessionId?: string;
 }
 
 /**
@@ -337,7 +342,7 @@ export async function decideNextQuestion(
     },
     // Administratie over de aanroep (T11.6): de strategie reist **buiten de prompt om** mee zodat het
     // AI-activiteitscherm kan tonen welke aanpak draaide, zonder de gesloten sleutelset aan te raken.
-    { strategy: strategy.key },
+    { strategy: strategy.key, ...(input.sessionId ? { sessionId: input.sessionId } : {}) },
   );
 
   // 4. Validatielaag: bestaand → houden, synoniem → omzetten, nieuw → aanmaken (of alleen voorstellen).

@@ -729,6 +729,16 @@ model AiJob {
   /// dit?" niet te beantwoorden zonder te weten wélke draaide. Bewust géén promptinhoud en geen
   /// persoonlijke context (DESIGN §9.4); `null` bij een boodschap-job of een oudere rij.
   strategy       String?
+  /// Het **gesprek** waar deze aanvraag bij hoort (T12.2, DESIGN §9.4): puur administratie, zodat het
+  /// beheerscherm AI-activiteit de losse jobs als één draad kan tonen — zonder die sleutel is "waarom
+  /// deed de AI dit?" niet te beantwoorden, want je ziet alleen losse beslissingen.
+  ///
+  /// Bewust **geen** foreign key naar `ConversationSession`: `AiJob` is platform-infrastructuur en staat
+  /// buiten de tenant-boom (net als `WorkerToken`). Een FK zou die twee aan elkaar knopen en de
+  /// wachtrij mee laten cascaden met tenantdata. Het gevolg is dat de sleutel naar een verwijderd
+  /// gesprek kan wijzen; de leeskant gaat daar defensief mee om. `null` bij een aanvraag buiten een
+  /// gesprek om en bij rijen van vóór T12.2.
+  sessionId      String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -736,4 +746,5 @@ model AiJob {
 
   @@index([status, createdAt])
   @@index([claimedById])
+  @@index([sessionId])
 }

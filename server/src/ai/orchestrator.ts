@@ -62,10 +62,13 @@ export class AiOrchestrator {
    * deterministische sjabloon-zin. De **inhoudelijke** AAC-begrenzing (§7.8: geen concept buiten de
    * sessie) wordt door de conversatie-laag afgedwongen; de orchestrator blijft DB-vrij.
    */
-  async generateMessage(input: AiMessagePromptInput): Promise<AiMessageResult | null> {
+  async generateMessage(
+    input: AiMessagePromptInput,
+    meta?: AiCallMeta,
+  ): Promise<AiMessageResult | null> {
     if (!this.provider.generateMessage) return null;
     const prompt: AiMessagePrompt = buildMessagePrompt(input);
-    const raw = await this.provider.generateMessage(prompt);
+    const raw = await this.provider.generateMessage(prompt, meta);
     return aiMessageResultSchema.parse(raw);
   }
 }

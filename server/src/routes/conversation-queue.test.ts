@@ -108,6 +108,29 @@ describe('gespreksflow op de AI-wachtrij — /conversation (queue-provider)', ()
     expect(proposal).not.toBeNull();
   });
 
+  it('schrijft het gesprek bij de job zodat de losse aanvragen één draad vormen (T12.2)', async () => {
+    const { config, ready } = buildQueueApp();
+    app = await ready;
+    const user = await seedUser('Sanne');
+    const cookie = await deviceCookie(app, user.id);
+    const { record } = await createWorkerToken(prisma, { name: 'w' });
+
+    const startP = app.inject({ method: 'POST', url: '/conversation/start', headers: { cookie } });
+    await driveOneJob(config, record.id, {
+      question: 'Wat wil je duidelijk maken?',
+      options: [{ symbol: 'want', confidence: 0.9 }],
+      reason: 'test',
+    });
+    const res = await startP;
+    expect(res.statusCode).toBe(201);
+    const sessionId = res.json().sessionId as string;
+
+    // De sleutel reist buiten de prompt om mee (§7.7): hij staat op de job, niet in de payload.
+    const jobs = await prisma.aiJob.findMany({ where: { sessionId } });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]!.payloadJson).not.toContain(sessionId);
+  });
+
   it('bij een volle wachtrij krijgt de client een WAITING-signaal (503) i.p.v. te blokkeren', async () => {
     const { config, ready } = buildQueueApp({ AI_WORKER_MAX_CONCURRENT_JOBS: '1' });
     app = await ready;
