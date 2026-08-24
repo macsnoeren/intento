@@ -85,6 +85,16 @@ describe.each(CONVERSATION_STRATEGIES.map((s) => [s.key, s] as const))(
       const rules = promptRulesFor(strategy);
       for (const rule of AAC_RULES) expect(rules).toContain(rule);
     });
+
+    it('laat het model niet onvoorwaardelijk van onderwerp wisselen (T14.3)', () => {
+      // Een strategie mag regels toevoegen, maar geen tegenspraak introduceren: de `calm`-strategie zei
+      // "maak geen onverwachte sprong naar een ander onderwerp" terwijl de basisregels bij
+      // `no_fitting_option` juist om een koerswijziging vroegen. Het model moest gokken welke gold — en
+      // koos in de gebruikerstest de sprong (nagels bij een vraag over eten).
+      const tekst = [strategy.prompt.goal, ...promptRulesFor(strategy)].join(' ');
+      expect(tekst).not.toMatch(/verleg de invalshoek/i);
+      expect(tekst).not.toMatch(/verkeerde richting/i);
+    });
   },
 );
 

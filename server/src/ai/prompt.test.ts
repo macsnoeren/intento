@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   AAC_RULES,
+  FREE_ROUND_RULES,
   GOAL,
   MESSAGE_AAC_RULES,
   MESSAGE_GOAL,
@@ -161,5 +162,72 @@ describe('renderPromptText — serialisatie blijft binnen de gesloten set', () =
     expect(text).toContain('TOEGESTANE OPTIES:');
     expect(text).toContain('outside (Buiten)');
     expect(text.toLowerCase()).not.toContain('chatgeschiedenis:');
+  });
+});
+
+/**
+ * De prompt mag zichzelf niet tegenspreken (T14.3, DESIGN §7.5, §7.6).
+ *
+ * Gemeld in de zesde gebruikerstest: op de route "Een vraag stellen → Wat? → Eten" leverde 🤷 "Staat er
+ * niet bij" opties als **nagel** op — een sprong naar een heel ander onderwerp. Dat was geen modelfout.
+ * De prompt bevatte twee instructies die elkaar uitsloten: `FREE_ROUND_RULES` (T10.13) zei *"blijf bij het
+ * onderwerp van het pad"*, terwijl `AAC_RULES` bij `no_fitting_option` zei *"je zocht in de verkeerde
+ * richting: verleg de invalshoek"*. De `calm`-strategie voegde daar nog *"maak geen onverwachte sprong naar
+ * een ander onderwerp"* aan toe. Welke het model volgde, was een gok.
+ *
+ * Deze tests houden die tegenspraak weg: een afwijzing betekent "dit woord stond er niet bij", niet "dit
+ * onderwerp is fout" — van onderwerp wisselen mag alleen na herhaalde afwijzing op hetzelfde punt.
+ */
+describe('promptregels spreken elkaar niet tegen (T14.3)', () => {
+  /** Formuleringen die het model onvoorwaardelijk van onderwerp laten wisselen. */
+  const ONVOORWAARDELIJKE_KOERSWIJZIGING = [/verleg de invalshoek/i, /verkeerde richting/i];
+
+  it('vraagt bij "geen van deze past" om ándere concepten binnen hetzelfde onderwerp', () => {
+    const regel = AAC_RULES.find((rule) => rule.includes('no_fitting_option'));
+    expect(regel).toBeDefined();
+    expect(regel!).toMatch(/blijf in dezelfde gesprekslijn/i);
+    // En het omgekeerde staat er niet meer in.
+    for (const patroon of ONVOORWAARDELIJKE_KOERSWIJZIGING) {
+      expect(regel!).not.toMatch(patroon);
+    }
+  });
+
+  it('staat van onderwerp wisselen alleen toe na herhaalde afwijzing', () => {
+    const regel = AAC_RULES.find((rule) => /wissel alleen van onderwerp/i.test(rule));
+    expect(regel).toBeDefined();
+    expect(regel!).toMatch(/herhaaldelijk/i);
+  });
+
+  it('spreekt de vrije-ronde-opdracht nergens tegen', () => {
+    // De vrije ronde vraagt om verfijningen binnen het pad; geen enkele andere regel — en ook het doel
+    // niet — mag daar tegenin gaan, in welke combinatie de prompt ook wordt gebouwd.
+    expect(FREE_ROUND_RULES.join(' ')).toMatch(/blijf bij het onderwerp/i);
+
+    for (const refining of [false, true]) {
+      for (const freeRound of [false, true]) {
+        const prompt = buildAiPrompt({
+          conversationContext: [
+            { concept: 'ask', label: 'Een vraag stellen' },
+            { concept: 'ask-what', label: 'Wat?' },
+            { concept: 'eat', label: 'Eten' },
+          ],
+          availableSymbols: freeRound ? [] : [{ concept: 'bread', label: 'Brood' }],
+          rejectedConcepts: [{ concept: 'apple', label: 'Appel', kind: 'no_fitting_option' }],
+          refining,
+          freeRound,
+        });
+        const tekst = [prompt.goal, ...prompt.aacRules, ...prompt.systemRules].join(' ');
+        for (const patroon of ONVOORWAARDELIJKE_KOERSWIJZIGING) {
+          expect(tekst).not.toMatch(patroon);
+        }
+      }
+    }
+  });
+
+  it('houdt ook het doel bij de gesprekslijn van de gebruiker', () => {
+    expect(GOAL).toMatch(/blijf in de gesprekslijn/i);
+    for (const patroon of ONVOORWAARDELIJKE_KOERSWIJZIGING) {
+      expect(GOAL).not.toMatch(patroon);
+    }
   });
 });

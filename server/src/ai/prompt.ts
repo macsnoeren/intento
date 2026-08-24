@@ -49,9 +49,10 @@ export const SYSTEM_RULES: readonly string[] = [
 export const GOAL =
   'Achterhaal wat de gebruiker wil zeggen. Bepaal de meest waardevolle volgende pictogramvraag: ' +
   'verminder onzekerheid, overlaad de gebruiker niet, en kies de snelste route naar de bedoelde ' +
-  'betekenis. Kijk daarbij naar wat de gebruiker al koos én naar wat hij afwees — een afwijzing is een ' +
-  'aanwijzing dat je in de verkeerde richting zoekt. Formuleer de vraag in het Nederlands, kort en ' +
-  'eenvoudig, en richt je rechtstreeks tot de gebruiker.';
+  'betekenis. Kijk daarbij naar wat de gebruiker al koos én naar wat hij afwees — een afwijzing zegt dat ' +
+  'je nog niet het juiste woord had, niet dat het onderwerp fout is. Blijf in de gesprekslijn die de ' +
+  'gebruiker met zijn keuzes heeft uitgezet en zoek dáárbinnen verder. Formuleer de vraag in het ' +
+  'Nederlands, kort en eenvoudig, en richt je rechtstreeks tot de gebruiker.';
 
 /** AAC-begrenzingsregels (DESIGN §7.6). */
 export const AAC_RULES: readonly string[] = [
@@ -61,8 +62,11 @@ export const AAC_RULES: readonly string[] = [
     'een ander woord. Verzin nooit een nieuw begrip als er een passende bestaande optie is.',
   'Herhaal geen vraag of optie die al eerder in de gesprekscontext is gekozen.',
   'Bied geen concept aan dat in "rejectedConcepts" staat.',
-  'Staat er een concept met soort "no_fitting_option" bij de afwijzingen, dan zocht je in de verkeerde ' +
-    'richting: verleg de invalshoek in plaats van dezelfde richting met minder opties aan te bieden.',
+  'Staat er een concept met soort "no_fitting_option" bij de afwijzingen, dan stond het woord van de ' +
+    'gebruiker niet tussen de aangeboden opties. Dat zegt niets over het onderwerp: blijf in dezelfde ' +
+    'gesprekslijn en draag ándere concepten binnen dat onderwerp aan, desnoods zelfbedachte.',
+  'Wissel alleen van onderwerp als de gebruiker op hetzelfde punt herhaaldelijk heeft afgewezen en er ' +
+    'binnen dat onderwerp aantoonbaar niets meer te bedenken valt.',
   'Stel geen vraag die al in "askedQuestions" staat, ook niet in andere bewoordingen.',
 ];
 

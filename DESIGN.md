@@ -262,7 +262,11 @@ Dat bijhouden is meer dan een filter: de **negatieve context reist expliciet mee
   - `wrong_guess` — de gebruiker wees een *voorstel* af (❌ Nee); de route klopte niet.
   - `no_fitting_option` — het juiste pictogram stond niet tussen de aangeboden opties; de gebruiker weet het beter dan de aangeboden set.
 
-Een afwijzing wegfilteren zonder het te vertellen maakt de AI blind: ze ziet alleen een kleinere lijst en herhaalt haar redenering. `no_fitting_option` moet juist een **richtingverandering** uitlokken — andere invalshoek, niet dezelfde invalshoek met minder opties. Het gesprek valt daarbij nooit terug naar het startscherm: de gemaakte keuzes van de gebruiker blijven staan.
+Een afwijzing wegfilteren zonder het te vertellen maakt de AI blind: ze ziet alleen een kleinere lijst en herhaalt haar redenering. `no_fitting_option` moet dus **andere concepten** uitlokken — maar wél binnen hetzelfde onderwerp: de gebruiker zegt "mijn woord stond er niet bij", niet "we hebben het over het verkeerde". Van onderwerp wisselen mag pas als hij op hetzelfde punt herhaaldelijk afwijst en daarbinnen aantoonbaar niets meer te bedenken valt.
+
+> **Correctie (T14.3).** Tot dan stond hier "een richtingverandering — andere invalshoek", en dat stond letterlijk zo in de promptregels. Sinds T10.13 zegt de vrije-ronde-opdracht juist "blijf bij het onderwerp van het pad", en de `calm`-strategie "maak geen onverwachte sprong naar een ander onderwerp". Drie regels in één prompt die elkaar uitsluiten; het model moest gokken. In de zesde gebruikerstest koos het de sprong: op "Een vraag stellen → Wat? → Eten" leverde 🤷 opties als *nagel* op. De gesprekslijn van de gebruiker weegt zwaarder dan de wens om te variëren.
+
+Het gesprek valt daarbij nooit terug naar het startscherm: de gemaakte keuzes van de gebruiker blijven staan.
 
 ### 7.6 AAC-begrenzing en validatielaag
 

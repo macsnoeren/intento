@@ -117,10 +117,10 @@ async function loadUserContext(
 /**
  * De in deze sessie **afgewezen** concepten met het soort afwijzing (uit eerdere correcties, T5.4/T10.4).
  * Deze worden bij elke volgende beslissing uitgesloten van de aangeboden opties én **meegegeven aan de
- * AI**, zodat een afgewezen route nooit opnieuw wordt aangeboden én het model zijn richting kan verleggen
- * (DESIGN §3.4, §7.5). Puur afgeleid uit de opgeslagen `CorrectionEvent`s, zodat de uitsluiting blijft
+ * AI**, zodat een afgewezen route nooit opnieuw wordt aangeboden én het model bínnen hetzelfde onderwerp
+ * iets anders kan bedenken (T14.3, DESIGN §3.4, §7.5). Puur afgeleid uit de opgeslagen `CorrectionEvent`s, zodat de uitsluiting blijft
  * gelden voor de rest van de sessie (ook na `/back` of `/next`). Bij een dubbel voorkomend concept wint
- * `no_fitting_option`: dat is het sterkste signaal ("zoek in een andere richting").
+ * `no_fitting_option`: dat is het sterkste signaal ("dit stond er echt niet bij").
  */
 async function loadRejections(
   prisma: PrismaClient,

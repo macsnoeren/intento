@@ -606,6 +606,75 @@ een weergave en een seintje.
 
 ---
 
+## Fase 14 — Een vraag is geen wens (zesde gebruikerstest)
+
+**Aanleiding.** De gebruiker wilde vragen *"Wat eten we vandaag?"* en koos ❓ Een vraag stellen → ❔ Wat?
+→ 🍽️ Eten. Daar liep het vast, en na "nee" kwamen er onverwante opties (nagels) uit. Nagemeten op een
+echte database:
+
+1. `generateMessage(['ask','ask-what','eat'])` levert letterlijk **`"Ik wil iets vragen over wat? eten."`**
+   — het vraagwoord wordt als lijdend voorwerp aan het `ask`-frame geplakt. Er ís geen vraagframe.
+2. Op dat punt heeft `eat` zes onverkende kinderen, dus de voorsteldrempel (T10.10) **eist verfijning**:
+   de gebruiker krijgt "wat wil je eten?" met appel/banaan/brood, terwijl zijn vraag al af was.
+3. `MESSAGE_GOAL` schrijft voor: *"één korte, natuurlijke Nederlandse zin die de gebruiker zelf **in de
+   ik-vorm** zou zeggen"*. Een vraag in de wij-vorm is daarmee expliciet verboden — ook voor een model dat
+   het uit zichzelf goed zou doen.
+4. Drukt de gebruiker 🤷 "Staat er niet bij", dan worden alle zes getoonde kinderen in één klap
+   uitgesloten en is de kandidatenset **leeg** (nagemeten) → vrije ronde. En dáár spreken twee regels in
+   dezelfde prompt elkaar tegen: `FREE_ROUND_RULES` zegt *"blijf bij het onderwerp van het pad"*, terwijl
+   `AAC_RULES` zegt *"staat er een concept met soort `no_fitting_option` bij de afwijzingen, dan zocht je
+   in de verkeerde richting: verleg de invalshoek"*. Het model volgde de tweede en verliet de eetlijn.
+   (Herhaald ❌ Nee blijft wél netjes in de lijn — nagemeten: appel/banaan → drinken/activiteiten →
+   andere vraagwoorden. De sprong naar nagels komt dus van de vrije ronde.)
+
+De rode draad: **Intento behandelt elke route als "ik wil X"**. Een vraagroute heeft geen eigen zin, geen
+eigen eindpunt en geen eigen promptregels — terwijl de bibliotheek de vraagwoorden sinds T9.11 wél kent.
+
+- [ ] **T14.1 Een vraagroute levert een vraag op**
+  *DESIGN: §3.1, §7.1 taak 4, §7.8.* Werk: in `message.ts` een **vraagframe** per vraagwoord dat het
+  onderwerp in de zin opneemt in plaats van erachter te plakken — "Wat eten we?", "Wat drinken we?",
+  "Wat gaan we doen?", "Waar is mama?", "Wanneer eten we?", "Mag ik naar het toilet?" — met een nette
+  terugval ("Ik wil iets vragen over ‹onderwerp›.") voor combinaties zonder frame, waarin het vraagwoord
+  **niet** meer als los woord meeloopt. En in `ai/prompt.ts`: `MESSAGE_GOAL` mag de ik-vorm niet langer
+  voorschrijven als de route met `ask` begint — dan is een vraag in de wij-/jij-vorm juist de goede vorm.
+  De veiligheidslaag blijft ongemoeid: de zin mag nog steeds geen concept bevatten dat de gebruiker niet
+  koos (nagemeten: "Wat eten we vandaag?" komt er nu al doorheen).
+  *Acceptatie:* `ask + ask-what + eat` levert "Wat eten we?" en niet "Ik wil iets vragen over wat? eten."
+  (test); elk vraagwoord uit de bibliotheek heeft een frame of een nette terugval zonder los vraagwoord
+  (test over alle `question`-concepten); een AI-zin in vraagvorm overleeft de veiligheidslaag (test); de
+  bestaande zinstests blijven groen.
+
+- [ ] **T14.2 Een vraag is af zodra het onderwerp bekend is**
+  *DESIGN: §7.4.* De voorsteldrempel eist sinds T10.10 dat er niets meer te verfijnen valt. Voor een wens
+  klopt dat ("Ik wil eten." is vaag), voor een vraag niet: "Wat eten we?" ís de vraag, en doorvragen maakt
+  er "Wat appel?" van. Werk: op een route `ask > vraagwoord > onderwerp` blokkeren onverkende kinderen het
+  voorstel niet meer. Verfijnen blijft *mogelijk* (de gebruiker kan "vandaag" of "vanavond" toevoegen als
+  die concepten er zijn), maar is niet langer verplicht.
+  *Acceptatie:* een gesprek `ask → ask-what → eat` komt zonder extra tussenstap bij het voorstelscherm
+  (end-to-end test); een wensroute (`want → eat`) blijft wél doorvragen (bestaande T10.10-test groen).
+
+- [x] **T14.3 "Staat er niet bij" blijft in de gesprekslijn**
+  *DESIGN: §7.5, §7.6.* De promptregel bij `no_fitting_option` ("verleg de invalshoek") spreekt de
+  vrije-ronde-regel ("blijf bij het onderwerp van het pad") rechtstreeks tegen, en is de directe
+  aanleiding van de nagels. Werk: de regel herformuleren tot *andere concepten binnen dezelfde lijn* —
+  het onderwerp blijft, de invalshoek erbinnen verandert; pas bij herhaalde afwijzing op hetzelfde punt
+  mag het onderwerp los. Meenemen: 🤷 sluit nu álle getoonde opties tegelijk uit, waardoor een knoop met
+  zes kinderen in één druk leeg is; overwegen of de uitsluiting begrensd moet worden zodat er iets te
+  kiezen overblijft.
+  *Acceptatie:* de prompt bevat geen twee regels meer die elkaar tegenspreken (test op de gebouwde
+  prompt); na 🤷 op "wat wil je eten?" blijft het aanbod binnen de eetlijn in plaats van naar een ander
+  onderwerp te springen (test met een provider die de regels volgt); bestaande T9.12-/T10.4-tests groen.
+
+- [ ] **T14.4 Tijdsbepalingen in de bibliotheek** *(ontdekt bij T14.1)*
+  *DESIGN: §3.1, §6.2.* "Wat eten we **vandaag**?" is niet volledig uit te drukken: de bibliotheek kent
+  geen tijdsbegrippen (vandaag, vanavond, morgen, straks, nu). Daardoor kan de gebruiker een vraag niet in
+  de tijd plaatsen en heeft de AI er ook geen concept voor. Werk: een kleine set tijdsconcepten toevoegen
+  en als verfijning onder de vraagwoorden hangen, zodat ze na het onderwerp gekozen kunnen worden.
+  *Acceptatie:* `ask → ask-what → eat → vandaag` levert "Wat eten we vandaag?" (test); seed blijft
+  idempotent.
+
+---
+
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
 Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.

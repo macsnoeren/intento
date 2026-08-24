@@ -48,8 +48,9 @@ export const AI_TASK_SELECT_NEXT_QUESTION = 'select_next_question' as const;
  *
  * - `wrong_guess` — de gebruiker wees een **voorstel** af (❌ Nee): de afgelegde route klopte niet.
  * - `no_fitting_option` — het juiste pictogram stond **niet tussen de aangeboden opties**: de gebruiker
- *   weet het beter dan de aangeboden set; de AI moet een andere invalshoek zoeken, niet dezelfde
- *   invalshoek met minder opties.
+ *   weet het beter dan de aangeboden set, dus er moeten *andere* concepten komen — maar wél binnen
+ *   hetzelfde onderwerp (T14.3). Tot dan las de prompt dit als "verkeerde richting" en sprong het model
+ *   naar een ander onderwerp: op "Een vraag stellen → Wat? → Eten" leverde 🤷 opties als "nagel" op.
  */
 export const aiRejectedConceptSchema = z.object({
   concept: z.string().min(1),

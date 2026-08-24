@@ -870,4 +870,62 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       }
     });
   });
+
+  // --- T14.3: "Staat er niet bij" blijft in de gesprekslijn ------------------------------------------
+
+  describe('na 🤷 blijft de opdracht binnen het onderwerp (T14.3)', () => {
+    it('geeft het model de opdracht in dezelfde gesprekslijn te blijven', async () => {
+      // Gemeld in de zesde gebruikerstest: op "Een vraag stellen → Wat? → Eten" leverde 🤷 opties als
+      // "nagel" op. De prompt bevatte twee instructies die elkaar uitsloten — "blijf bij het onderwerp"
+      // tegenover "je zocht in de verkeerde richting: verleg de invalshoek". Deze test bewijst dat de
+      // juiste opdracht ook in de **echte flow** bij het model aankomt, niet alleen in een losse
+      // prompt-unittest.
+      const prompts: AiPrompt[] = [];
+      const spy: AiProvider = {
+        name: 'spy',
+        selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+          prompts.push(prompt);
+          // Volgt de regels: blijft binnen het onderwerp en draagt zelf iets aan.
+          if (prompt.availableSymbols.length === 0) {
+            return Promise.resolve({
+              question: 'Wat wil je op je brood?',
+              options: [{ symbol: 'pannenkoek', confidence: 0.9 }],
+              confidence: 0.6,
+              reason: 'binnen de eetlijn blijven',
+            });
+          }
+          return Promise.resolve({
+            question: 'Wat wil je?',
+            options: prompt.availableSymbols.slice(0, 6).map((ref) => ({
+              symbol: ref.concept,
+              confidence: 0.7,
+            })),
+            confidence: 0.5,
+            reason: 'aanbod ordenen',
+          });
+        },
+      };
+
+      const { cookie, sessionId } = await startFor(spy);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      // Alle getoonde eetopties worden in één druk uitgesloten; het punt is daarna leeg → vrije ronde.
+      const state = await noneFit(cookie, sessionId);
+
+      const laatste = prompts[prompts.length - 1]!;
+      expect(laatste.availableSymbols).toEqual([]);
+      expect(laatste.rejectedConcepts.some((r) => r.kind === 'no_fitting_option')).toBe(true);
+
+      const opdracht = [laatste.goal, ...laatste.aacRules].join(' ');
+      expect(opdracht).toMatch(/blijf in dezelfde gesprekslijn/i);
+      expect(opdracht).toMatch(/blijf bij het onderwerp/i);
+      // En nergens de tegengestelde opdracht die de sprong naar nagels veroorzaakte.
+      expect(opdracht).not.toMatch(/verleg de invalshoek/i);
+      expect(opdracht).not.toMatch(/verkeerde richting/i);
+
+      // De route blijft staan en het aanbod is wat de AI binnen de lijn aandroeg.
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat']);
+      expect(conceptsOf(state)).toEqual(['pannenkoek']);
+    });
+  });
 });

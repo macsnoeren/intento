@@ -45,6 +45,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T14.3 De prompt sprak zichzelf tegen.** Gemeld in de zesde gebruikerstest: op de route "Een vraag
+  stellen → Wat? → Eten" leverde 🤷 "Staat er niet bij" opties als **nagel** op. Geen modelfout — de prompt
+  bevatte drie instructies die elkaar uitsloten: de vrije-ronde-opdracht (T10.13) zei *"blijf bij het
+  onderwerp van het pad"*, de `calm`-strategie *"maak geen onverwachte sprong naar een ander onderwerp"*,
+  en de AAC-regel bij `no_fitting_option` zei *"je zocht in de verkeerde richting: verleg de invalshoek"*.
+  Welke het model volgde, was een gok. Die regel is nu: een afwijzing betekent dat het **woord** er niet
+  bij stond, niet dat het **onderwerp** fout is — blijf in dezelfde gesprekslijn en draag daarbinnen
+  andere concepten aan; van onderwerp wisselen mag pas na herhaalde afwijzing op hetzelfde punt. Ook het
+  doel (`GOAL`) is bijgesteld. Nieuw is een invariant-test per strategie die de tegenspraak niet meer
+  terug laat komen, plus een end-to-end test die bewijst dat de juiste opdracht in de échte flow bij het
+  model aankomt. De uitsluiting zelf blijft ongewijzigd: opties die de gebruiker heeft gezien en afgewezen
+  opnieuw aanbieden zou erger zijn dan een lege lijst met een duidelijke opdracht.
+
 - **T13.2 Een seintje per e-mail.** De berichtenlijst helpt alleen als de begeleider kijkt; bij het
   bevestigen gaat er nu een mail naar elke **gekoppelde** begeleider dat er iets nieuws is. Drie bewuste
   keuzes: de **boodschap staat niet in de mail** (e-mail is een extern kanaal — andermans servers,
