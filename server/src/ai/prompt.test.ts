@@ -5,6 +5,8 @@ import {
   GOAL,
   MESSAGE_AAC_RULES,
   MESSAGE_GOAL,
+  MESSAGE_QUESTION_GOAL,
+  MESSAGE_STATEMENT_RULES,
   SYSTEM_RULES,
   buildAiPrompt,
   buildMessagePrompt,
@@ -128,7 +130,7 @@ describe('buildMessagePrompt — beperkte context voor boodschapgeneratie (T5.3,
     expect(prompt.task).toBe(AI_TASK_GENERATE_MESSAGE);
     expect(prompt.systemRules).toEqual([...SYSTEM_RULES]);
     expect(prompt.goal).toBe(MESSAGE_GOAL);
-    expect(prompt.aacRules).toEqual([...MESSAGE_AAC_RULES]);
+    expect(prompt.aacRules).toEqual([...MESSAGE_AAC_RULES, ...MESSAGE_STATEMENT_RULES]);
     expect(prompt.chosenConcepts).toEqual([want, outside]);
     expect(prompt.userContext).toEqual([]);
   });
@@ -229,5 +231,51 @@ describe('promptregels spreken elkaar niet tegen (T14.3)', () => {
     for (const patroon of ONVOORWAARDELIJKE_KOERSWIJZIGING) {
       expect(GOAL).not.toMatch(patroon);
     }
+  });
+});
+
+/**
+ * De boodschap-prompt van een **vraagroute** (T14.1, DESIGN §3.1, §7.1 taak 4).
+ *
+ * `MESSAGE_GOAL` schrijft de ik-vorm voor. Voor een wens klopt dat, maar het verbood precies de zin die
+ * de gebruiker in de zesde gebruikerstest wilde stellen: "Wat eten we vandaag?".
+ */
+describe('boodschap-prompt voor een vraagroute (T14.1)', () => {
+  const route = [
+    { concept: 'ask', label: 'Een vraag stellen' },
+    { concept: 'ask-what', label: 'Wat?' },
+    { concept: 'eat', label: 'Eten' },
+  ];
+
+  it('vraagt om een vraagzin in plaats van een mededeling in de ik-vorm', () => {
+    const prompt = buildMessagePrompt({ chosenConcepts: route, questionRoute: true });
+    expect(prompt.goal).toBe(MESSAGE_QUESTION_GOAL);
+    expect(prompt.goal).toMatch(/vraagzin/i);
+    expect(prompt.goal).not.toMatch(/in de ik-vorm zou zeggen/i);
+    // En de regel die een vraag verbiedt, blijft weg.
+    expect(prompt.aacRules).not.toContain(MESSAGE_STATEMENT_RULES[0]);
+  });
+
+  it('houdt een wensroute ongewijzigd bij de ik-vorm', () => {
+    const prompt = buildMessagePrompt({
+      chosenConcepts: [
+        { concept: 'want', label: 'Iets willen' },
+        { concept: 'eat', label: 'Eten' },
+      ],
+    });
+    expect(prompt.goal).toBe(MESSAGE_GOAL);
+    expect(prompt.aacRules).toContain(MESSAGE_STATEMENT_RULES[0]);
+  });
+
+  it('houdt de gesloten sleutelset ook voor een vraagroute', () => {
+    const prompt = buildMessagePrompt({ chosenConcepts: route, questionRoute: true });
+    expect(Object.keys(prompt).sort()).toEqual([
+      'aacRules',
+      'chosenConcepts',
+      'goal',
+      'systemRules',
+      'task',
+      'userContext',
+    ]);
   });
 });

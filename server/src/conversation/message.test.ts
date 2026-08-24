@@ -96,4 +96,92 @@ describe('generateMessage — zinsframes', () => {
       ]),
     ).toBe('Ik wil soep.');
   });
+
+  // --- T14.1: een vraagroute levert een vraag op ----------------------------------------------------
+
+  describe('vraagroutes (T14.1)', () => {
+    const ask: ChosenConcept = { concept: 'ask', label: 'Een vraag stellen', category: 'intent' };
+    const wat: ChosenConcept = { concept: 'ask-what', label: 'Wat?', category: 'question' };
+    const eten: ChosenConcept = { concept: 'eat', label: 'Eten', category: 'activity' };
+
+    it('vormt de gemelde route tot een echte vraag', () => {
+      // Zesde gebruikerstest: de gebruiker wilde "Wat eten we vandaag?" vragen en koos ❓ → ❔ Wat? →
+      // 🍽️ Eten. Dat leverde letterlijk "Ik wil iets vragen over wat? eten." op — het vraagwoord werd als
+      // lijdend voorwerp aan het wens-frame geplakt.
+      expect(generateMessage([ask, wat, eten])).toBe('Wat eten we?');
+    });
+
+    it('neemt een tijdsbepaling vloeiend in de zin op', () => {
+      const vandaag: ChosenConcept = { concept: 'today', label: 'Vandaag', category: 'time' };
+      expect(generateMessage([ask, wat, eten, vandaag])).toBe('Wat eten we vandaag?');
+    });
+
+    it('zet een tweede inhoudelijk begrip er telegrafisch achter in plaats van er onzin van te maken', () => {
+      // "Wat eten we brood?" is geen zin. Met een komma blijft het leesbaar én herleidbaar tot de
+      // pictogrammen die de gebruiker aantikte.
+      const brood: ChosenConcept = { concept: 'bread', label: 'Brood', category: 'food' };
+      expect(generateMessage([ask, wat, eten, brood])).toBe('Wat eten we, brood?');
+    });
+
+    it('geeft ook zonder onderwerp een echte vraag', () => {
+      expect(generateMessage([ask, wat])).toBe('Wat is dat?');
+      expect(generateMessage([ask])).toBe('Ik wil een vraag stellen.');
+    });
+
+    it('gebruikt per vraagwoord de juiste vorm', () => {
+      const q = (concept: string, label: string): ChosenConcept => ({
+        concept,
+        label,
+        category: 'question',
+      });
+      const t = (concept: string, label: string, category: string): ChosenConcept => ({
+        concept,
+        label,
+        category,
+      });
+      expect(generateMessage([ask, q('ask-who', 'Wie?'), t('mom', 'Mama', 'person')])).toBe(
+        'Wie is mama?',
+      );
+      expect(generateMessage([ask, q('ask-where', 'Waar?'), t('toilet', 'Toilet', 'place')])).toBe(
+        'Waar is het toilet?',
+      );
+      expect(
+        generateMessage([ask, q('ask-when', 'Wanneer?'), t('outside', 'Buiten', 'place')]),
+      ).toBe('Wanneer gaan we naar buiten?');
+      expect(
+        generateMessage([ask, q('ask-may', 'Mag ik?'), t('tv', 'Televisie', 'activity')]),
+      ).toBe('Mag ik televisie kijken?');
+    });
+
+    it('laat het vraagwoord nooit als los woord in de zin staan', () => {
+      // De kern van de fout: "…over **wat?** eten." Welke combinatie ook gekozen wordt, het vraagwoord
+      // is het frame en mag nooit als inhoud meelopen.
+      const vraagwoorden = ['ask-what', 'ask-who', 'ask-where', 'ask-when', 'ask-may'];
+      const onderwerpen: ChosenConcept[] = [
+        { concept: 'eat', label: 'Eten', category: 'activity' },
+        { concept: 'mom', label: 'Mama', category: 'person' },
+        { concept: 'toilet', label: 'Toilet', category: 'place' },
+        { concept: 'onbekend-begrip', label: 'Onbekend begrip', category: 'object' },
+      ];
+      for (const woord of vraagwoorden) {
+        for (const onderwerp of onderwerpen) {
+          const zin = generateMessage([
+            ask,
+            { concept: woord, label: 'Vraagwoord?', category: 'question' },
+            onderwerp,
+          ]);
+          expect(zin).toMatch(/\?$/);
+          expect(zin[0]).toBe(zin[0]!.toUpperCase());
+          expect(zin.toLowerCase()).not.toContain('vraagwoord');
+          expect(zin).not.toContain('??');
+        }
+      }
+    });
+
+    it('raakt een wensroute niet aan', () => {
+      const want: ChosenConcept = { concept: 'want', label: 'Iets willen', category: 'intent' };
+      const brood: ChosenConcept = { concept: 'bread', label: 'Brood', category: 'food' };
+      expect(generateMessage([want, eten, brood])).toBe('Ik wil brood.');
+    });
+  });
 });

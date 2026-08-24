@@ -928,4 +928,91 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       expect(conceptsOf(state)).toEqual(['pannenkoek']);
     });
   });
+
+  // --- T14.1/T14.2: de gemelde vraagroute, van startscherm tot boodschap ----------------------------
+
+  describe('een vraag stellen (T14.1/T14.2)', () => {
+    /** Provider die de aangeboden opties ordent en zeker genoeg is om een voorstel te laten volgen. */
+    const zeker: AiProvider = {
+      name: 'zeker',
+      selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+        return Promise.resolve({
+          question: 'Waar gaat je vraag over?',
+          options: prompt.availableSymbols.slice(0, 6).map((ref) => ({
+            symbol: ref.concept,
+            confidence: 0.9,
+          })),
+          confidence: 0.95,
+          reason: 'de route is duidelijk',
+        });
+      },
+    };
+
+    it('komt via "Wat?" en "Eten" bij de vraag "Wat eten we?"', async () => {
+      // Het gemelde verloop uit de zesde gebruikerstest. Vóór T14.1/T14.2 liep dit twee keer vast: de
+      // beslissingslaag eiste eerst verfijning van "eten" (zes kinderen), en het voorstel luidde
+      // vervolgens "Ik wil iets vragen over wat? eten."
+      const { cookie, sessionId } = await startFor(zeker);
+      const naVraag = await next(cookie, sessionId, 'ask');
+      expect(conceptsOf(naVraag)).toContain('ask-what');
+
+      const naWat = await next(cookie, sessionId, 'ask-what');
+      expect(conceptsOf(naWat)).toContain('eat');
+
+      const naEten = await next(cookie, sessionId, 'eat');
+      // De vraag is af: geen verplichte vervolgvraag meer (T14.2).
+      expect(naEten.done).toBe(true);
+
+      const bevestigd = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/confirm`,
+        headers: { cookie },
+      });
+      expect(bevestigd.statusCode).toBe(200);
+      expect(bevestigd.json().message).toBe('Wat eten we?');
+    });
+
+    it('kan de vraag in de tijd plaatsen (T14.4)', async () => {
+      const { cookie, sessionId } = await startFor(zeker);
+      await next(cookie, sessionId, 'ask');
+      await next(cookie, sessionId, 'ask-what');
+      const naEten = await next(cookie, sessionId, 'eat');
+      expect(naEten.done).toBe(true);
+
+      // De gebruiker wil preciezer zijn: ❌ opent een verfijnronde, en dáár staan de tijdsbepalingen.
+      const verfijn = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/correction`,
+        headers: { cookie },
+        payload: { type: 'wrong_guess' },
+      });
+      expect(verfijn.statusCode).toBe(200);
+      const opties = conceptsOf(parseState(verfijn.json()));
+      expect(opties).toContain('today');
+
+      const naVandaag = await next(cookie, sessionId, 'today');
+      expect(naVandaag.history.map((entry) => entry.symbol.concept)).toEqual([
+        'ask',
+        'ask-what',
+        'eat',
+        'today',
+      ]);
+
+      const bevestigd = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/confirm`,
+        headers: { cookie },
+      });
+      expect(bevestigd.json().message).toBe('Wat eten we vandaag?');
+    });
+
+    it('blijft bij een wens gewoon doorvragen', async () => {
+      // De tegenproef bij T14.2: "Ik wil eten." is nog steeds te vaag voor een voorstel (T10.10).
+      const { cookie, sessionId } = await startFor(zeker);
+      await next(cookie, sessionId, 'want');
+      const naEten = await next(cookie, sessionId, 'eat');
+      expect(naEten.done).toBe(false);
+      expect(naEten.question).not.toBeNull();
+    });
+  });
 });

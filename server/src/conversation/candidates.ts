@@ -3,6 +3,7 @@ import type { AacSymbolModel, ConversationStepModel } from '../generated/prisma/
 import { normalizeSearch } from '../aac/library.js';
 import type { AiUserContextItem } from '../ai/provider.js';
 import { loadChildSymbols } from './engine.js';
+import { isCompleteQuestion } from './message.js';
 import { defaultStrategy, type StrategyCandidateSource } from './strategy.js';
 
 /**
@@ -108,11 +109,11 @@ const STOP_WORDS = new Set([
 ]);
 
 /**
- * De herkomst van een kandidaat; puur voor diagnose/logging (T9.15) en de aanvulvolgorde. Dit is de
- * strategiebron (§7.10) plus `intent`: die laatste is geen strategiekeuze maar de gegarandeerde bodem
- * onder het gesprek, en wordt door `decision.ts` toegevoegd.
+ * De herkomst van een kandidaat; puur voor diagnose/logging (T9.15) en de aanvulvolgorde. Dit zijn de
+ * strategiebronnen (§7.10) plus twee die géén strategiekeuze zijn: `intent` (de gegarandeerde bodem
+ * onder het gesprek, toegevoegd door `decision.ts`) en `time` (T14.4, zie `loadTimeSymbols`).
  */
-export type CandidateSource = StrategyCandidateSource | 'intent';
+export type CandidateSource = StrategyCandidateSource | 'intent' | 'time';
 
 export interface CandidateSet {
   /**
@@ -241,6 +242,28 @@ async function loadGrandchildSymbols(
   return relations.map((relation) => relation.child);
 }
 
+/**
+ * Vaste volgorde van de tijdsbepalingen (T14.4): **chronologisch**, van dichtbij naar veraf.
+ *
+ * Op label sorteren gaf "Morgen, Nu, Straks, Vanavond, Vandaag" — alfabetisch, en daarmee stond het
+ * waarschijnlijkste woord achteraan (en viel het bij een klein aanbod zelfs weg). Een concept dat hier
+ * niet in staat komt erachter, op label.
+ */
+const TIME_ORDER = ['now', 'soon', 'today', 'tonight', 'tomorrow'];
+
+/** De tijdsbepalingen uit de bibliotheek (T14.4), in chronologische volgorde. */
+async function loadTimeSymbols(prisma: PrismaClient): Promise<AacSymbolModel[]> {
+  const symbols = await prisma.aacSymbol.findMany({
+    where: { category: 'time' },
+    orderBy: { label: 'asc' },
+  });
+  const rank = (symbol: AacSymbolModel): number => {
+    const index = TIME_ORDER.indexOf(symbol.concept);
+    return index === -1 ? TIME_ORDER.length : index;
+  };
+  return symbols.sort((a, b) => rank(a) - rank(b));
+}
+
 /** Haalt de symbolen op bij de sterkste voorkeuren van deze gebruiker (leeg als leren uitstaat). */
 async function loadPreferredSymbols(
   prisma: PrismaClient,
@@ -337,6 +360,7 @@ export async function collectCandidates(
     retrieval: 0,
     preference: 0,
     intent: 0,
+    time: 0,
   };
   const seen = new Set<string>();
 
@@ -358,6 +382,19 @@ export async function collectCandidates(
     retrieval: retrieved,
     preference: preferred,
   };
+  // Een **vraag** mag altijd in de tijd geplaatst worden (T14.4): "Wat eten we?" → "Wat eten we
+  // vandaag?". Dat is geen boomrelatie — onder een vraagwoord zouden tijdsbegrippen naast het onderwerp
+  // komen te staan ("Wat is vandaag?") en onder een onderwerp zouden ze ook in een wens opduiken ("Ik
+  // wil vandaag."). Het is een eigenschap van dít soort route, dus staat de regel hier.
+  //
+  // En ze gaan **vóór** de boomkinderen. Op een vraagroute zijn die kinderen namelijk geen natuurlijke
+  // verfijning: wie "Wat eten we?" preciezer wil maken, bedoelt "vandaag" of "vanavond" — kiest hij
+  // "brood", dan verandert de bétekenis van de vraag ("Wat eten we, brood?"). Bij een wens is het
+  // andersom, en daar komt deze bron dan ook niet aan te pas.
+  if (isCompleteQuestion(steps.map((step) => ({ concept: step.selectedConcept })))) {
+    add(await loadTimeSymbols(prisma), 'time');
+  }
+
   for (const source of sources) add(symbolsBySource[source], source);
 
   const available = candidates.filter((symbol) => !excluded.has(symbol.concept));

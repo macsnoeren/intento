@@ -10,6 +10,7 @@ import { DEFAULT_INTERPRETATION_CONFIDENCE } from '../ai/thresholds.js';
 import { collectCandidates, type CandidateSource } from './candidates.js';
 import { loadIntentSymbols } from './engine.js';
 import { updateHypothesis, type Hypothesis } from './hypothesis.js';
+import { isCompleteQuestion } from './message.js';
 import { defaultStrategy, promptRulesFor, type ConversationStrategy } from './strategy.js';
 
 /**
@@ -94,7 +95,14 @@ export interface ConversationDecision {
 function noDiagnostics(widened = false): ConversationDecision['diagnostics'] {
   return {
     candidateCount: 0,
-    candidateSources: { children: 0, descendants: 0, retrieval: 0, preference: 0, intent: 0 },
+    candidateSources: {
+      children: 0,
+      descendants: 0,
+      retrieval: 0,
+      preference: 0,
+      intent: 0,
+      time: 0,
+    },
     aiOptionCount: 0,
     offered: [],
     reason: null,
@@ -262,6 +270,19 @@ export async function decideNextQuestion(
     (symbol) => sourceByConcept.get(symbol.concept) === 'children',
   ).length;
 
+  /**
+   * Is de route een **afgeronde vraag** (T14.2)? `ask → vraagwoord → onderwerp` is een volwaardige
+   * boodschap ("Wat eten we?"), ook al heeft het onderwerp nog kinderen in de boom. De
+   * concreetheids-eis hierboven is gemaakt voor een *wens* — "Ik wil eten." is vaag en verdient een
+   * vervolgvraag. Bij een vraag pakt diezelfde eis verkeerd uit: doorvragen naar appel of brood maakt
+   * van "Wat eten we?" een heel andere zin, en in de zesde gebruikerstest kwam de gebruiker daardoor
+   * nooit bij zijn vraag uit. Verfijnen blijft mogelijk (een tijdsbepaling maakt de vraag scherper),
+   * maar het is niet langer een voorwaarde.
+   */
+  const completeQuestion = isCompleteQuestion(
+    steps.map((step) => ({ concept: step.selectedConcept })),
+  );
+
   // Het laatst gekozen concept is een **eindconcept**: de route is af, dus een boodschap voorstellen
   // (§7.4). Dit verschilt wezenlijk van "alles uitgesloten" — daar valt nog wél wat te vragen.
   if (atLeafConcept && mayPropose) {
@@ -380,14 +401,15 @@ export async function decideNextQuestion(
   //  1. de AI is zeker genoeg (de drempel van de strategie);
   //  2. de **gebruiker** heeft zelf genoeg gekozen — aan de start, en in vraagmodus met alleen het anker
   //     van de begeleider, valt er niets voor te stellen dat van de gebruiker is (T9.14);
-  //  3. er valt niets meer te verfijnen. Zekerheid alleen was niet genoeg: een zeker model op een
-  //     categorie als "eten" levert een boodschap op die niets zegt.
+  //  3. er valt niets meer te verfijnen — of de route is een **afgeronde vraag** (T14.2). Zekerheid
+  //     alleen was niet genoeg: een zeker model op een categorie als "eten" levert een wens op die
+  //     niets zegt. Maar "Wat eten we?" is wél af, ook al heeft "eten" nog kinderen.
   //  4. er draait geen verfijnronde. De gebruiker zei zojuist dat het nog niet precies genoeg is; dan is
   //     opnieuw een boodschap voorstellen precies het antwoord dat hij net afwees (T10.12).
   if (
     confidence >= strategy.confidencePropose &&
     mayPropose &&
-    unexploredRefinements === 0 &&
+    (unexploredRefinements === 0 || completeQuestion) &&
     !refining
   ) {
     return {
@@ -500,7 +522,14 @@ async function intentOnlyCandidates(
     candidates: intents,
     available: intents.filter((symbol) => !excluded.has(symbol.concept)),
     sourceByConcept: new Map(intents.map((symbol) => [symbol.concept, 'intent' as const])),
-    counts: { children: 0, descendants: 0, retrieval: 0, preference: 0, intent: intents.length },
+    counts: {
+      children: 0,
+      descendants: 0,
+      retrieval: 0,
+      preference: 0,
+      intent: intents.length,
+      time: 0,
+    },
     atLeafConcept: false,
   };
 }

@@ -236,6 +236,53 @@ export const AAC_SEED_SYMBOLS: AacSeedSymbol[] = [
     synonyms: ['mag ik', 'mag', 'toestemming'],
   },
 
+  // --- T14.4: tijdsbepalingen, zodat een vraag in de tijd te plaatsen is ---
+  //
+  // Gemeld in de zesde gebruikerstest: de gebruiker wilde "Wat eten we **vandaag**?" vragen, maar de
+  // bibliotheek kende geen tijdsbegrippen. Daardoor kon hij zijn vraag niet in de tijd plaatsen en had
+  // ook de AI er geen concept voor. Ze hangen onder de vraagwoorden: een tijdsbepaling is een
+  // verfijning ván een vraag, geen zelfstandig onderwerp.
+  //
+  // Bewust **zonder** relaties in de boom. Onder een vraagwoord hangen zou ze naast het onderwerp
+  // zetten ("Wat is vandaag?"), en onder een onderwerp zou ze ook in een wens laten opduiken ("Ik wil
+  // vandaag."). Ze horen op één plek thuis: als verfijning van een vraag die al een onderwerp heeft.
+  // Die regel staat in de kandidatenlaag (`candidates.ts`, bron `time`), niet in de boom.
+  {
+    concept: 'today',
+    label: 'Vandaag',
+    category: 'time',
+    glyph: '📅',
+    synonyms: ['vandaag', 'deze dag'],
+  },
+  {
+    concept: 'tonight',
+    label: 'Vanavond',
+    category: 'time',
+    glyph: '🌙',
+    synonyms: ['vanavond', 'vanaf vanavond', 'straks vanavond'],
+  },
+  {
+    concept: 'tomorrow',
+    label: 'Morgen',
+    category: 'time',
+    glyph: '🌅',
+    synonyms: ['morgen', 'morgenochtend'],
+  },
+  {
+    concept: 'soon',
+    label: 'Straks',
+    category: 'time',
+    glyph: '⏭️',
+    synonyms: ['straks', 'later'],
+  },
+  {
+    concept: 'now',
+    label: 'Nu',
+    category: 'time',
+    glyph: '⚡',
+    synonyms: ['nu', 'meteen', 'direct'],
+  },
+
   // --- T9.11: sociale uitingen, zodat "Iets zeggen" ergens heen leidt ---
   { concept: 'yes', label: 'Ja', category: 'expression', glyph: '👍', synonyms: ['ja', 'klopt'] },
   { concept: 'no', label: 'Nee', category: 'expression', glyph: '👎', synonyms: ['nee', 'niet'] },

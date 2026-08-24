@@ -62,4 +62,53 @@ describe('collectCandidates — retrieval', () => {
     expect(terms).not.toContain('wat');
     expect(terms).not.toContain('wil');
   });
+
+  it('biedt tijdsbepalingen aan zodra een vraag een onderwerp heeft (T14.4)', async () => {
+    // Gemeld in de zesde gebruikerstest: "Wat eten we **vandaag**?" was niet uit te drukken — de
+    // bibliotheek kende geen tijdsbegrippen en de gebruiker kon zijn vraag dus niet in de tijd plaatsen.
+    const found = await collectCandidates(prisma, {
+      steps: steps('ask', 'ask-what', 'eat'),
+      excluded: new Set(['ask', 'ask-what', 'eat']),
+      userId: '',
+      limit: 30,
+    });
+
+    const concepts = found.candidates.map((symbol) => symbol.concept);
+    expect(concepts).toContain('today');
+    // En ze gaan vóór de boomkinderen: wie "Wat eten we?" preciezer wil maken bedoelt "vandaag", niet
+    // "brood" — dat laatste verandert de betekenis van de vraag.
+    expect(concepts.indexOf('today')).toBeLessThan(concepts.indexOf('bread'));
+    expect(found.counts.time).toBeGreaterThan(0);
+    // Chronologisch, niet alfabetisch: anders staat "vandaag" achteraan (na "morgen" en "nu") en valt
+    // het bij een klein aanbod weg.
+    const tijden = concepts.filter((concept) =>
+      ['now', 'soon', 'today', 'tonight', 'tomorrow'].includes(concept),
+    );
+    expect(tijden).toEqual(['now', 'soon', 'today', 'tonight', 'tomorrow']);
+  });
+
+  it('houdt tijdsbepalingen weg bij een wens (T14.4)', async () => {
+    // "Ik wil vandaag." is geen boodschap. Een tijdsbepaling hoort bij een vraag, niet bij een wens —
+    // daarom staat de regel in deze laag en niet als relatie in de boom.
+    const found = await collectCandidates(prisma, {
+      steps: steps('want', 'eat'),
+      excluded: new Set(['want', 'eat']),
+      userId: '',
+      limit: 30,
+    });
+
+    expect(found.candidates.map((symbol) => symbol.concept)).not.toContain('today');
+    expect(found.counts.time).toBe(0);
+  });
+
+  it('houdt tijdsbepalingen weg zolang de vraag nog geen onderwerp heeft (T14.4)', async () => {
+    const found = await collectCandidates(prisma, {
+      steps: steps('ask', 'ask-what'),
+      excluded: new Set(['ask', 'ask-what']),
+      userId: '',
+      limit: 30,
+    });
+
+    expect(found.candidates.map((symbol) => symbol.concept)).not.toContain('today');
+  });
 });

@@ -70,6 +70,21 @@ export const AAC_RULES: readonly string[] = [
   'Stel geen vraag die al in "askedQuestions" staat, ook niet in andere bewoordingen.',
 ];
 
+/**
+ * Het doel bij boodschapgeneratie voor een **vraagroute** (T14.1, DESIGN §3.1, §7.1 taak 4).
+ *
+ * `MESSAGE_GOAL` schrijft de **ik-vorm** voor, en dat is juist voor een wens ("Ik wil brood eten.") maar
+ * verbiedt precies de zin die een vraagroute nodig heeft. Gemeld in de zesde gebruikerstest: met
+ * ❓ Een vraag stellen → ❔ Wat? → 🍽️ Eten wilde de gebruiker *"Wat eten we vandaag?"* vragen — een zin die
+ * het model volgens zijn eigen opdracht niet mocht maken.
+ */
+export const MESSAGE_QUESTION_GOAL =
+  'De gebruiker stelt een vraag. Vorm uit de bevestigde concepten één korte, natuurlijke Nederlandse ' +
+  'vraagzin die hij zelf zou stellen — het vraagwoord bepaalt de vorm, het gekozen onderwerp vult hem in ' +
+  '("Een vraag stellen" + "Wat?" + "Eten" → "Wat eten we?"). De ik-vorm hoeft hier niet: een vraag staat ' +
+  'meestal in de wij- of jij-vorm. Blijf strikt binnen de gekozen concepten: voeg geen nieuwe ' +
+  'onderwerpen, personen, plekken of activiteiten toe die niet in "chosenConcepts" staan.';
+
 /** Het doel bij boodschapgeneratie (T5.3, DESIGN §7.1 taak 4, §7.8). */
 export const MESSAGE_GOAL =
   'Vorm uit de bevestigde concepten één korte, natuurlijke Nederlandse zin die de gebruiker zelf in de ' +
@@ -80,7 +95,15 @@ export const MESSAGE_GOAL =
 export const MESSAGE_AAC_RULES: readonly string[] = [
   'Gebruik uitsluitend de concepten uit "chosenConcepts"; verzin geen extra begrippen.',
   'Voeg geen persoonlijke informatie toe die niet in de context staat.',
-  'Formuleer één enkele zin — geen vraag, geen opsomming, geen toelichting.',
+  'Formuleer één enkele zin — geen opsomming, geen toelichting.',
+];
+
+/**
+ * Aanvullende regel voor een **wens**-route: daar is een vraag juist niet de bedoeling. Voor een
+ * vraagroute (T14.1) blijft deze regel weg — daar is de vraagvorm de goede vorm.
+ */
+export const MESSAGE_STATEMENT_RULES: readonly string[] = [
+  'Formuleer een mededeling, geen vraag: de gebruiker vertelt wat hij wil of voelt.',
 ];
 
 /** Invoer voor de promptbouw: de reeds gezette route, de toegestane opties en (later) gebruikerscontext. */
@@ -222,6 +245,11 @@ export interface AiMessagePromptInput {
   /** De bevestigde concepten (oplopend op volgorde; de eerste is de intentie). */
   chosenConcepts: AiConceptRef[];
   /**
+   * Is dit een **vraagroute** (T14.1)? Dan krijgt het model een ander doel: een vraagzin in plaats van
+   * een mededeling in de ik-vorm. Weggelaten = wens, het gedrag van vóór T14.1.
+   */
+  questionRoute?: boolean;
+  /**
    * Toegestane gebruikerscontext (DESIGN §7.7). Optioneel en in deze fase doorgaans leeg; T6.1 vult
    * dit met **alleen** de context waarvoor toestemming (`aiUsageAllowed=true`) is gegeven.
    */
@@ -237,8 +265,8 @@ export function buildMessagePrompt(input: AiMessagePromptInput): AiMessagePrompt
   return aiMessagePromptSchema.parse({
     task: AI_TASK_GENERATE_MESSAGE,
     systemRules: [...SYSTEM_RULES],
-    goal: MESSAGE_GOAL,
-    aacRules: [...MESSAGE_AAC_RULES],
+    goal: input.questionRoute ? MESSAGE_QUESTION_GOAL : MESSAGE_GOAL,
+    aacRules: [...MESSAGE_AAC_RULES, ...(input.questionRoute ? [] : MESSAGE_STATEMENT_RULES)],
     userContext: input.userContext ?? [],
     chosenConcepts: input.chosenConcepts,
   });

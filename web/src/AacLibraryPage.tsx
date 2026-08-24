@@ -32,6 +32,7 @@ const CATEGORY_LABELS: Record<AacCategory, string> = {
   object: 'Voorwerp',
   question: 'Vraagwoord',
   expression: 'Uiting',
+  time: 'Tijdsbepaling',
 };
 
 const CATEGORY_OPTIONS = aacCategorySchema.options;

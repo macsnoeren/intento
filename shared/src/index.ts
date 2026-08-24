@@ -737,6 +737,7 @@ export const aacCategorySchema = z.enum([
   'object', // voorwerpen
   'question', // vraagwoorden (wie, wat, waar, wanneer, mag ik) — T9.11
   'expression', // sociale uitingen (ja, nee, dank je, hallo, stop) — T9.11
+  'time', // tijdsbepalingen (vandaag, vanavond, morgen, straks, nu) — T14.4
 ]);
 export type AacCategory = z.infer<typeof aacCategorySchema>;
 

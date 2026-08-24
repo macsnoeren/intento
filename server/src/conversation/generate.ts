@@ -3,7 +3,12 @@ import type { AiOrchestrator } from '../ai/orchestrator.js';
 import type { AiUserContextItem } from '../ai/provider.js';
 import { DEFAULT_MESSAGE_CONFIDENCE } from '../ai/thresholds.js';
 import { normalizeSearch } from '../aac/library.js';
-import { generateMessage, SCRIPTED_CONFIDENCE, type ChosenConcept } from './message.js';
+import {
+  generateMessage,
+  isQuestionRoute,
+  SCRIPTED_CONFIDENCE,
+  type ChosenConcept,
+} from './message.js';
 
 /**
  * AI-boodschapgeneratie met veiligheidsvangnet (T5.3, DESIGN §3.1, §7.1 taak 4, §7.4, §7.8, FR-007/008).
@@ -291,6 +296,8 @@ export async function composeMessage(
     {
       chosenConcepts: chosen.map((c) => ({ concept: c.concept, label: c.label })),
       userContext,
+      // Een vraagroute krijgt een ander doel mee (T14.1): de ik-vorm zou de vraag verbieden.
+      questionRoute: isQuestionRoute(chosen),
     },
     sessionId ? { sessionId } : undefined,
   );

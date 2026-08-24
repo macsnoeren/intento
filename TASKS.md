@@ -630,7 +630,7 @@ echte database:
 De rode draad: **Intento behandelt elke route als "ik wil X"**. Een vraagroute heeft geen eigen zin, geen
 eigen eindpunt en geen eigen promptregels — terwijl de bibliotheek de vraagwoorden sinds T9.11 wél kent.
 
-- [ ] **T14.1 Een vraagroute levert een vraag op**
+- [x] **T14.1 Een vraagroute levert een vraag op**
   *DESIGN: §3.1, §7.1 taak 4, §7.8.* Werk: in `message.ts` een **vraagframe** per vraagwoord dat het
   onderwerp in de zin opneemt in plaats van erachter te plakken — "Wat eten we?", "Wat drinken we?",
   "Wat gaan we doen?", "Waar is mama?", "Wanneer eten we?", "Mag ik naar het toilet?" — met een nette
@@ -644,7 +644,7 @@ eigen eindpunt en geen eigen promptregels — terwijl de bibliotheek de vraagwoo
   (test over alle `question`-concepten); een AI-zin in vraagvorm overleeft de veiligheidslaag (test); de
   bestaande zinstests blijven groen.
 
-- [ ] **T14.2 Een vraag is af zodra het onderwerp bekend is**
+- [x] **T14.2 Een vraag is af zodra het onderwerp bekend is**
   *DESIGN: §7.4.* De voorsteldrempel eist sinds T10.10 dat er niets meer te verfijnen valt. Voor een wens
   klopt dat ("Ik wil eten." is vaag), voor een vraag niet: "Wat eten we?" ís de vraag, en doorvragen maakt
   er "Wat appel?" van. Werk: op een route `ask > vraagwoord > onderwerp` blokkeren onverkende kinderen het
@@ -665,7 +665,7 @@ eigen eindpunt en geen eigen promptregels — terwijl de bibliotheek de vraagwoo
   prompt); na 🤷 op "wat wil je eten?" blijft het aanbod binnen de eetlijn in plaats van naar een ander
   onderwerp te springen (test met een provider die de regels volgt); bestaande T9.12-/T10.4-tests groen.
 
-- [ ] **T14.4 Tijdsbepalingen in de bibliotheek** *(ontdekt bij T14.1)*
+- [x] **T14.4 Tijdsbepalingen in de bibliotheek** *(ontdekt bij T14.1)*
   *DESIGN: §3.1, §6.2.* "Wat eten we **vandaag**?" is niet volledig uit te drukken: de bibliotheek kent
   geen tijdsbegrippen (vandaag, vanavond, morgen, straks, nu). Daardoor kan de gebruiker een vraag niet in
   de tijd plaatsen en heeft de AI er ook geen concept voor. Werk: een kleine set tijdsconcepten toevoegen

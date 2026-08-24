@@ -291,4 +291,56 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
     expect(prompt!.lastChoice).toEqual({ concept: 'want', label: 'Iets willen' });
     expect(prompt!.conversationContext).toEqual([{ concept: 'want', label: 'Iets willen' }]);
   });
+
+  // --- T14.2: een vraag is af zodra het onderwerp bekend is ------------------------------------------
+
+  it('stelt een afgeronde vraag voor zonder eerst door te vragen (T14.2)', async () => {
+    // Zesde gebruikerstest: op `ask → ask-what → eat` eiste de voorsteldrempel verfijning omdat "eten"
+    // zes kinderen heeft. De gebruiker kreeg "wat wil je eten?" terwijl zijn vraag ("Wat eten we?") al
+    // af was — doorvragen maakt er een andere zin van.
+    const orchestrator = stubOrchestrator({
+      question: 'Bedoel je dit?',
+      options: [],
+      confidence: 0.95,
+      reason: 'zeker genoeg voor een voorstel',
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('ask', 'ask-what', 'eat'),
+    });
+
+    expect(decision.done).toBe(true);
+    expect(decision.phase).toBe('propose');
+    expect(decision.question).toBeNull();
+  });
+
+  it('blijft bij een wens wél doorvragen (T10.10 blijft gelden)', async () => {
+    const orchestrator = stubOrchestrator({
+      question: 'Bedoel je dit?',
+      options: [],
+      confidence: 0.95,
+      reason: 'zeker genoeg voor een voorstel',
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('want', 'eat'),
+    });
+
+    expect(decision.done).toBe(false);
+    expect(decision.question).not.toBeNull();
+  });
+
+  it('vraagt bij een vraag zonder onderwerp nog wél door (T14.2)', async () => {
+    // "Wat is dat?" zonder onderwerp is te vaag om als boodschap voor te stellen.
+    const orchestrator = stubOrchestrator({
+      question: 'Bedoel je dit?',
+      options: [],
+      confidence: 0.95,
+      reason: 'zeker genoeg voor een voorstel',
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('ask', 'ask-what'),
+    });
+
+    expect(decision.done).toBe(false);
+    expect(decision.question).not.toBeNull();
+  });
 });

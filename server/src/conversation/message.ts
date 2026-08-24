@@ -127,6 +127,163 @@ const TOPIC_FRAME: IntentFrame = {
 };
 
 /**
+ * Vraagframes per vraagwoord (T14.1, DESIGN §3.1, §7.1 taak 4).
+ *
+ * **Waarom dit bestaat.** Tot T14.1 werd élke route als een wens behandeld. De route
+ * `ask → ask-what → eat` — "Ik wil wat vragen", "Wat?", "Eten" — leverde daardoor letterlijk
+ * `"Ik wil iets vragen over wat? eten."`: het vraagwoord werd als lijdend voorwerp aan het
+ * `ask`-frame geplakt. Gemeld in de zesde gebruikerstest, waar de gebruiker gewoon
+ * *"Wat eten we vandaag?"* wilde vragen.
+ *
+ * Een vraag heeft een andere bouw dan een wens: het **vraagwoord** is het frame en het gekozen
+ * onderwerp vult het in — niet andersom. Daarom per vraagwoord een eigen bouwer.
+ *
+ * Dit sjabloon is de **veilige bodem**, niet het eindstation: de AI mag het beter formuleren
+ * (`MESSAGE_QUESTION_GOAL`), en de veiligheidslaag houdt haar binnen de gekozen concepten (§7.8). De
+ * bodem hoeft dus niet perfect te zijn — hij moet grammaticaal zijn, herleidbaar tot de pictogrammen,
+ * en nooit onzin opleveren.
+ */
+
+/**
+ * Werkwoordsvormen voor de onderwerpen die als *handeling* in een vraag terechtkomen ("Wat **eten** we?").
+ * Onderwerpen die hier niet in staan zijn zelfstandig naamwoorden en gaan via `QUESTION_NOUNS`.
+ */
+const QUESTION_VERBS: Record<string, string> = {
+  eat: 'eten',
+  drink: 'drinken',
+  'do-activity': 'doen',
+  rest: 'rusten',
+  outside: 'naar buiten',
+  tv: 'televisie kijken',
+  music: 'muziek luisteren',
+};
+
+/**
+ * Naamwoordsvormen mét lidwoord voor de onderwerpen die in een vraag als *ding* of *persoon* voorkomen
+ * ("Waar is **het toilet**?"). Een concept dat hier niet in staat valt terug op zijn label in kleine
+ * letters, zodat een nieuw bibliotheekconcept altijd nog een leesbare zin geeft.
+ */
+const QUESTION_NOUNS: Record<string, string> = {
+  toilet: 'het toilet',
+  home: 'thuis',
+  dog: 'de hond',
+  mom: 'mama',
+  dad: 'papa',
+  caregiver: 'de begeleider',
+  friend: 'mijn vriend',
+  tv: 'de televisie',
+  music: 'de muziek',
+  outside: 'buiten',
+};
+
+interface QuestionFrame {
+  /** Bouwt de vraag uit het onderwerp; `tail` zijn eventuele verdere verfijningen ("vandaag"). */
+  build: (topic: ChosenConcept, tail: { text: string; flows: boolean }[]) => string;
+  /** De vraag zonder gekozen onderwerp — nog steeds een echte vraag, geen half woord. */
+  withoutTopic: string;
+}
+
+/**
+ * Plakt de staart (verdere verfijningen) achter de kern en sluit af met een vraagteken.
+ *
+ * Een **tijdsbepaling** ("vandaag") hoort vloeiend in de zin: "Wat eten we vandaag?". Elk ander concept
+ * is geen bijwoord maar een tweede inhoudelijk begrip, en dat lezen als deel van de zin levert onzin op
+ * ("Wat eten we brood?"). Zulke concepten komen er met een komma achter — telegrafisch, maar wél een
+ * eerlijke weergave van wat de gebruiker aantikte ("Wat eten we, brood?").
+ */
+function question(core: string, tail: { text: string; flows: boolean }[]): string {
+  const zin = tail.reduce(
+    (acc, part) => (part.flows ? `${acc} ${part.text}` : `${acc}, ${part.text}`),
+    core,
+  );
+  return `${zin}?`;
+}
+
+/** Vloeit dit concept mee in de zin (een tijdsbepaling) of hoort het er met een komma achter? */
+function flowsInSentence(step: ChosenConcept): boolean {
+  return step.category === 'time';
+}
+
+const verbOf = (topic: ChosenConcept): string | undefined => QUESTION_VERBS[topic.concept];
+const nounOf = (topic: ChosenConcept): string =>
+  QUESTION_NOUNS[topic.concept] ?? topic.label.toLowerCase();
+
+const QUESTION_FRAMES: Record<string, QuestionFrame> = {
+  'ask-what': {
+    withoutTopic: 'Wat is dat?',
+    build: (topic, tail) => {
+      const verb = verbOf(topic);
+      return verb ? question(`Wat ${verb} we`, tail) : question(`Wat is ${nounOf(topic)}`, tail);
+    },
+  },
+  'ask-who': {
+    withoutTopic: 'Wie is dat?',
+    build: (topic, tail) => question(`Wie is ${nounOf(topic)}`, tail),
+  },
+  'ask-where': {
+    withoutTopic: 'Waar is dat?',
+    build: (topic, tail) => question(`Waar is ${nounOf(topic)}`, tail),
+  },
+  'ask-when': {
+    withoutTopic: 'Wanneer is dat?',
+    build: (topic, tail) => {
+      const verb = verbOf(topic);
+      return verb
+        ? question(`Wanneer gaan we ${verb}`, tail)
+        : question(`Wanneer is ${nounOf(topic)}`, tail);
+    },
+  },
+  'ask-may': {
+    withoutTopic: 'Mag ik iets vragen?',
+    build: (topic, tail) => {
+      const verb = verbOf(topic);
+      return verb ? question(`Mag ik ${verb}`, tail) : question(`Mag ik ${nounOf(topic)}`, tail);
+    },
+  },
+};
+
+/**
+ * Kent deze route een vraagwoord als tweede stap? Dan is het een vraag en geen wens.
+ *
+ * Neemt bewust alléén de conceptsleutels aan, zodat ook de beslissingslaag (die met opgeslagen stappen
+ * werkt en geen labels bij de hand heeft) dezelfde vraag kan stellen.
+ */
+export function isQuestionRoute(chosen: { concept: string }[]): boolean {
+  return (
+    chosen[0]?.concept === 'ask' && chosen[1] !== undefined && chosen[1].concept in QUESTION_FRAMES
+  );
+}
+
+/**
+ * Is de vraag **af**: staat er een vraagwoord én een onderwerp (T14.2)? Dan is "Wat eten we?" een
+ * volwaardige boodschap en hoeft er niet doorgevraagd te worden.
+ *
+ * Dat verschil met een wens is wezenlijk. "Ik wil eten." is vaag — daar hoort de AI door te vragen wát
+ * (T10.10). Maar "Wat eten we?" ís de vraag; doorvragen naar appel of brood maakt er "Wat eten we,
+ * brood?" van en verandert de betekenis. Verfijnen mag nog steeds (een tijdsbepaling maakt de vraag
+ * scherper), maar is niet langer verplicht.
+ */
+export function isCompleteQuestion(chosen: { concept: string }[]): boolean {
+  return isQuestionRoute(chosen) && chosen.length >= 3;
+}
+
+/**
+ * Vormt de vraag uit `ask → vraagwoord → onderwerp → …`. Het vraagwoord draagt het frame, het eerste
+ * concept erna is het onderwerp en alles daarachter is verfijning ("vandaag"). Geeft `null` als de route
+ * geen vraagroute is, zodat de aanroeper zijn gewone frames gebruikt.
+ */
+function questionSentence(chosen: ChosenConcept[]): string | null {
+  if (!isQuestionRoute(chosen)) return null;
+  const frame = QUESTION_FRAMES[chosen[1]!.concept]!;
+  const [topic, ...rest] = chosen.slice(2);
+  if (!topic) return frame.withoutTopic;
+  const tail = rest
+    .map((step) => ({ text: nounOf(step), flows: flowsInSentence(step) }))
+    .filter((part) => part.text.length > 0);
+  return frame.build(topic, tail);
+}
+
+/**
  * Begint deze route met een intentiecategorie? De categorie is de bron van waarheid; ontbreekt ze (oudere
  * aanroepers, tests), dan geldt "we kennen een zinsframe voor dit concept" als benadering.
  */
@@ -163,6 +320,10 @@ export function generateMessage(chosen: ChosenConcept[]): string {
   if (chosen.length === 0) {
     throw new Error('Kan geen boodschap vormen zonder gekozen concepten.');
   }
+  // Een vraagroute (T14.1) heeft een eigen bouw: het vraagwoord is het frame, niet het onderwerp.
+  const asQuestion = questionSentence(chosen);
+  if (asQuestion !== null) return asQuestion;
+
   const [first, ...refinements] = chosen;
   if (!isIntentStart(first!)) {
     const topic = phrasesOf(chosen);

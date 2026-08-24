@@ -45,6 +45,25 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T14.1/T14.2/T14.4 Een vraag is geen wens.** Zesde gebruikerstest: met ❓ Een vraag stellen → ❔ Wat? →
+  🍽️ Eten wilde de gebruiker *"Wat eten we vandaag?"* vragen. Dat liep op drie plekken vast, en alle drie
+  kwamen ze uit dezelfde aanname — élke route is een wens.
+  - **De zin was stuk.** De route leverde letterlijk `"Ik wil iets vragen over wat? eten."`: het
+    vraagwoord werd als lijdend voorwerp aan het wens-frame geplakt. Er is nu een **vraagframe per
+    vraagwoord** dat het onderwerp ín de zin opneemt — "Wat eten we?", "Waar is het toilet?", "Mag ik
+    televisie kijken?" — met een tijdsbepaling die vloeiend meeloopt ("Wat eten we vandaag?") en een
+    tweede inhoudelijk begrip dat er telegrafisch achter komt in plaats van er onzin van te maken.
+  - **De AI mócht de goede zin niet maken.** `MESSAGE_GOAL` schreef de **ik-vorm** voor. Een vraagroute
+    krijgt nu een eigen doel dat om een vraagzin vraagt; de wens-route houdt de ik-vorm.
+  - **Het gesprek kwam er nooit uit.** "Eten" heeft zes kinderen, dus de voorsteldrempel (T10.10) eiste
+    verfijning en de gebruiker kreeg "wat wil je eten?". Een vraag mét onderwerp geldt nu als **af**;
+    verfijnen mag, maar hoeft niet. Een wens blijft wél doorvragen.
+  - **"Vandaag" bestond niet.** Nieuwe categorie `time` met vandaag/vanavond/morgen/straks/nu. Bewust
+    **zonder** boomrelaties: onder een vraagwoord zouden ze naast het onderwerp komen te staan ("Wat is
+    vandaag?"), onder een onderwerp zouden ze ook in een wens opduiken ("Ik wil vandaag."). Ze verschijnen
+    als kandidaat zodra een vraag een onderwerp heeft — chronologisch geordend en vóór de boomkinderen,
+    want wie "Wat eten we?" preciezer wil maken bedoelt "vandaag", niet "brood".
+
 - **T14.3 De prompt sprak zichzelf tegen.** Gemeld in de zesde gebruikerstest: op de route "Een vraag
   stellen → Wat? → Eten" leverde 🤷 "Staat er niet bij" opties als **nagel** op. Geen modelfout — de prompt
   bevatte drie instructies die elkaar uitsloten: de vrije-ronde-opdracht (T10.13) zei *"blijf bij het
