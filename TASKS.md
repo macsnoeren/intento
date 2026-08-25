@@ -675,6 +675,38 @@ eigen eindpunt en geen eigen promptregels — terwijl de bibliotheek de vraagwoo
 
 ---
 
+## Fase 15 — "Kinderen hebben" is niet hetzelfde als "te vaag" (zevende gebruikerstest)
+
+**Aanleiding.** De route 🎯 Iets willen → 🚶 Iets doen → 🌳 Buiten → 🚶‍♀️ Wandelen leverde geen voorstel op
+maar de vraag *"Wat wil je eten?"*. Nagemeten:
+
+- De zin is er al: `generateMessage` levert **"Ik wil buiten wandelen."** — een complete boodschap.
+- De kandidaten kloppen ook: begeleider, hond, mama, papa, park (de kinderen van `walking`).
+- Toch volgt er een vraag, want `walking` heeft vijf onverkende kinderen en de voorsteldrempel (T10.10)
+  eist dat er niets meer te verfijnen valt.
+
+Daar zit de denkfout. T10.10 is gemaakt voor **"Ik wil iets warms eten."**, waar `eat` een *categorie* is:
+een structureel tussenconcept dat in de zin wégvalt en dus niets zegt. `walking` is geen categorie maar
+een concreet begrip; dat het toevallig kinderen heeft ("met mijn hond", "in het park") maakt de boodschap
+niet vaag. De regel toetst nu "heeft dit concept kinderen?" terwijl de vraag is: "zegt dit concept al
+iets?".
+
+Het antwoord op die vraag staat al in de code: de zinsgenerator kent precies één soort concept dat uit de
+zin verdwijnt (`eat`, `drink`, `do-activity`, lege `CONCEPT_PHRASES`). Dat is dezelfde verzameling.
+
+- [x] **T15.1 Alleen een categorie is te vaag om op te eindigen**
+  *DESIGN: §7.4, §7.1 taak 4.* Werk: de voorsteldrempel eist alleen verfijning als de **laatste keuze een
+  structureel tussenconcept** is — een concept dat in de zin wegvalt — in plaats van bij elk concept dat
+  kinderen heeft. Eén bron van waarheid: de zinsgenerator weet welke concepten dat zijn. Verfijnen blijft
+  mogelijk (de zekerheidsdrempel beslist), maar "heeft kinderen" is geen reden meer om door te vragen.
+  Meenemen: een promptregel dat de gestelde vraag over de **laatste keuze en de aangeboden opties** moet
+  gaan — "Wat wil je eten?" bij de opties mama/papa/hond/park is een vraag die nergens op slaat.
+  *Acceptatie:* `want → do-activity → outside → walking` levert het voorstel "Ik wil buiten wandelen."
+  (end-to-end test); `want → eat` blijft doorvragen (bestaande T10.10-test groen); `want → eat → bread`
+  blijft voorstellen; de promptregel staat in de gebouwde prompt (test).
+
+---
+
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
 Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.

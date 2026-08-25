@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateMessage, type ChosenConcept } from './message.js';
+import { generateMessage, isStructuralConcept, type ChosenConcept } from './message.js';
 
 /**
  * Gescripte zinsvorming (T4.3, herzien in T10.9; DESIGN §7.1 taak 4, §7.8).
@@ -182,6 +182,33 @@ describe('generateMessage — zinsframes', () => {
       const want: ChosenConcept = { concept: 'want', label: 'Iets willen', category: 'intent' };
       const brood: ChosenConcept = { concept: 'bread', label: 'Brood', category: 'food' };
       expect(generateMessage([want, eten, brood])).toBe('Ik wil brood.');
+    });
+  });
+
+  // --- T15.1: welke concepten kunnen de boodschap niet dragen? --------------------------------------
+
+  describe('isStructuralConcept (T15.1)', () => {
+    it('merkt de categorieën aan die in de zin wegvallen', () => {
+      for (const concept of ['eat', 'drink', 'do-activity']) {
+        expect(isStructuralConcept(concept)).toBe(true);
+      }
+    });
+
+    it('merkt ook intenties en vraagwoorden aan: dat zijn frames die nog gevuld moeten worden', () => {
+      for (const concept of ['want', 'ask', 'say', 'feel', 'problem']) {
+        expect(isStructuralConcept(concept)).toBe(true);
+      }
+      for (const concept of ['ask-what', 'ask-who', 'ask-where', 'ask-when', 'ask-may']) {
+        expect(isStructuralConcept(concept)).toBe(true);
+      }
+    });
+
+    it('rekent een concreet begrip er niet toe, ook niet als het kinderen heeft', () => {
+      // De kern van T15.1: "wandelen" heeft kinderen (hond, park, mama…) maar draagt de boodschap
+      // prima — "Ik wil buiten wandelen." zegt iets.
+      for (const concept of ['walking', 'outside', 'bread', 'pain', 'onbekend-nieuw-begrip']) {
+        expect(isStructuralConcept(concept)).toBe(false);
+      }
     });
   });
 });

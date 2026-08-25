@@ -10,7 +10,7 @@ import { DEFAULT_INTERPRETATION_CONFIDENCE } from '../ai/thresholds.js';
 import { collectCandidates, type CandidateSource } from './candidates.js';
 import { loadIntentSymbols } from './engine.js';
 import { updateHypothesis, type Hypothesis } from './hypothesis.js';
-import { isCompleteQuestion } from './message.js';
+import { isCompleteQuestion, isStructuralConcept } from './message.js';
 import { defaultStrategy, promptRulesFor, type ConversationStrategy } from './strategy.js';
 
 /**
@@ -271,6 +271,21 @@ export async function decideNextQuestion(
   ).length;
 
   /**
+   * Is de laatste keuze een **categorie** die nog niets zegt (T15.1)?
+   *
+   * Alleen dán is "er valt nog te verfijnen" een reden om door te vragen. De oorspronkelijke regel keek
+   * naar "heeft dit concept kinderen?", en dat is iets anders: `walking` heeft kinderen ("met mijn
+   * hond", "in het park") maar "Ik wil buiten wandelen." is allang een complete boodschap. In de
+   * zevende gebruikerstest liep de gebruiker daarop vast — hij kreeg op dat punt een vervolgvraag in
+   * plaats van zijn zin.
+   *
+   * De grens is dezelfde als in de zinsgenerator: een concept dat uit de zin wégvalt, kan de boodschap
+   * ook niet dragen.
+   */
+  const lastConcept = steps.length > 0 ? steps[steps.length - 1]!.selectedConcept : null;
+  const endsOnCategory = lastConcept !== null && isStructuralConcept(lastConcept);
+
+  /**
    * Is de route een **afgeronde vraag** (T14.2)? `ask → vraagwoord → onderwerp` is een volwaardige
    * boodschap ("Wat eten we?"), ook al heeft het onderwerp nog kinderen in de boom. De
    * concreetheids-eis hierboven is gemaakt voor een *wens* — "Ik wil eten." is vaag en verdient een
@@ -401,15 +416,16 @@ export async function decideNextQuestion(
   //  1. de AI is zeker genoeg (de drempel van de strategie);
   //  2. de **gebruiker** heeft zelf genoeg gekozen — aan de start, en in vraagmodus met alleen het anker
   //     van de begeleider, valt er niets voor te stellen dat van de gebruiker is (T9.14);
-  //  3. er valt niets meer te verfijnen — of de route is een **afgeronde vraag** (T14.2). Zekerheid
-  //     alleen was niet genoeg: een zeker model op een categorie als "eten" levert een wens op die
-  //     niets zegt. Maar "Wat eten we?" is wél af, ook al heeft "eten" nog kinderen.
+  //  3. de route eindigt niet op een **categorie** met onverkende verfijningen — of het is een
+  //     afgeronde vraag (T14.2). Zekerheid alleen was niet genoeg: een zeker model op een categorie als
+  //     "eten" levert een wens op die niets zegt. Maar "Ik wil buiten wandelen." is wél af, ook al heeft
+  //     "wandelen" kinderen (T15.1), en "Wat eten we?" ook.
   //  4. er draait geen verfijnronde. De gebruiker zei zojuist dat het nog niet precies genoeg is; dan is
   //     opnieuw een boodschap voorstellen precies het antwoord dat hij net afwees (T10.12).
   if (
     confidence >= strategy.confidencePropose &&
     mayPropose &&
-    (unexploredRefinements === 0 || completeQuestion) &&
+    (unexploredRefinements === 0 || completeQuestion || !endsOnCategory) &&
     !refining
   ) {
     return {

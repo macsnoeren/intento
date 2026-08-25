@@ -1015,4 +1015,58 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       expect(naEten.question).not.toBeNull();
     });
   });
+
+  // --- T15.1: een concreet begrip met kinderen is al een boodschap ----------------------------------
+
+  it('stelt een concrete route voor in plaats van door te vragen (T15.1)', async () => {
+    // Zevende gebruikerstest: op 🎯 → 🚶 Iets doen → 🌳 Buiten → 🚶‍♀️ Wandelen volgde een vervolgvraag
+    // ("Wat wil je eten?") in plaats van de zin die er allang stond. De oorzaak: de voorsteldrempel keek
+    // naar "heeft dit concept kinderen?" in plaats van "zegt dit concept al iets?".
+    const zeker: AiProvider = {
+      name: 'zeker',
+      selectNextQuestion(prompt: AiPrompt): Promise<AiQuestionDecision> {
+        return Promise.resolve({
+          question: 'Waar gaat het over?',
+          options: prompt.availableSymbols.slice(0, 6).map((ref) => ({
+            symbol: ref.concept,
+            confidence: 0.9,
+          })),
+          confidence: 0.99,
+          reason: 'de route is duidelijk',
+        });
+      },
+    };
+
+    const { cookie, sessionId } = await startFor(zeker);
+    await next(cookie, sessionId, 'want');
+    // "Iets doen" is een categorie en zegt nog niets: daar wordt gewoon doorgevraagd.
+    const naDoen = await next(cookie, sessionId, 'do-activity');
+    expect(naDoen.done).toBe(false);
+
+    // "Buiten" is concreet. Dat het kinderen heeft (wandelen, fietsen) maakt de boodschap niet vaag,
+    // dus een zeker model mag hier voorstellen — vóór T15.1 volgde er nog een verplichte vraag.
+    const naBuiten = await next(cookie, sessionId, 'outside');
+    expect(naBuiten.done).toBe(true);
+
+    // En preciezer kan nog steeds: ❌ opent een verfijnronde op dezelfde route.
+    const verfijn = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/correction`,
+      headers: { cookie },
+      payload: { type: 'wrong_guess' },
+    });
+    expect(verfijn.statusCode).toBe(200);
+    expect(conceptsOf(parseState(verfijn.json()))).toContain('walking');
+
+    const naWandelen = await next(cookie, sessionId, 'walking');
+    expect(naWandelen.done).toBe(true);
+
+    const bevestigd = await app.inject({
+      method: 'POST',
+      url: `/conversation/${sessionId}/confirm`,
+      headers: { cookie },
+    });
+    expect(bevestigd.statusCode).toBe(200);
+    expect(bevestigd.json().message).toBe('Ik wil buiten wandelen.');
+  });
 });

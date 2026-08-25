@@ -106,6 +106,25 @@ const CONCEPT_PHRASES: Record<string, string> = {
  * kan afronden (T10.11) is "Ik wil eten." een geldig eindpunt, en dan mag "eten" niet wegvallen — anders
  * blijft er "Ik wil iets duidelijk maken." over, wat precies niets zegt.
  */
+/**
+ * Is dit een **structureel tussenconcept**: een categorie die in de zin wegvalt (T15.1)?
+ *
+ * `eat`, `drink` en `do-activity` zijn geen dingen maar verzamelnamen — "Ik wil eten." zegt niets over
+ * wát. Hetzelfde geldt voor een intentie (`want`, `ask`, …) en een vraagwoord (`ask-what`, …): dat zijn
+ * frames die nog gevuld moeten worden. Elk ander concept draagt wél betekenis, ook als het toevallig kinderen heeft in de boom:
+ * "Ik wil buiten wandelen." is een complete boodschap, of er nu nog "met mijn hond" achter kan of niet.
+ *
+ * De beslissingslaag gebruikt dit om te bepalen wanneer er dóórgevraagd moet worden (§7.4). Dat het
+ * dezelfde verzameling is als "valt weg in de zin" is geen toeval: een concept dat niet in de zin
+ * terechtkomt, kan de boodschap ook niet dragen.
+ */
+export function isStructuralConcept(concept: string): boolean {
+  // Ook een **intentie** en een **vraagwoord** zijn structureel: het zijn frames die nog ingevuld
+  // moeten worden. "Ik wil iets duidelijk maken." en "Wat is dat?" zeggen op zichzelf niets, net zoals
+  // "Ik wil eten." niets zegt over wát.
+  return CONCEPT_PHRASES[concept] === '' || concept in QUESTION_FRAMES || concept in INTENT_FRAMES;
+}
+
 function phraseFor(step: ChosenConcept, isLast: boolean): string {
   const mapped = CONCEPT_PHRASES[step.concept];
   if (mapped === undefined) return step.label.toLowerCase();

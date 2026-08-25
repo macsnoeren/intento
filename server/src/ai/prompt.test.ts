@@ -278,4 +278,13 @@ describe('boodschap-prompt voor een vraagroute (T14.1)', () => {
       'userContext',
     ]);
   });
+
+  it('vraagt om een vraag die over de laatste keuze en de aangeboden opties gaat (T15.1)', () => {
+    // Zevende gebruikerstest: bij de opties mama/papa/hond/park luidde de vraag "Wat wil je eten?".
+    // De optielijst was goed; de vraag sloeg nergens op.
+    const regel = AAC_RULES.find((rule) => /je vraag moet gaan over/i.test(rule));
+    expect(regel).toBeDefined();
+    expect(regel!).toMatch(/laatste keuze/i);
+    expect(regel!).toMatch(/opties die je aanbiedt/i);
+  });
 });

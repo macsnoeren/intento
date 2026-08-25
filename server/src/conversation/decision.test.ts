@@ -343,4 +343,41 @@ describe('decideNextQuestion — validatie, herhaling en confidence', () => {
     expect(decision.done).toBe(false);
     expect(decision.question).not.toBeNull();
   });
+
+  // --- T15.1: "kinderen hebben" is niet hetzelfde als "te vaag" -------------------------------------
+
+  it('stelt "Ik wil buiten wandelen." voor in plaats van door te vragen (T15.1)', async () => {
+    // Zevende gebruikerstest: route 🎯 → 🚶 Iets doen → 🌳 Buiten → 🚶‍♀️ Wandelen leverde geen voorstel maar
+    // een vervolgvraag, want "wandelen" heeft vijf kinderen (hond, park, mama, papa, begeleider). Die
+    // maken de boodschap niet vaag — ze maken hem alleen preciezer.
+    const orchestrator = stubOrchestrator({
+      question: 'Met wie ga je wandelen?',
+      options: [],
+      confidence: 0.95,
+      reason: 'zeker genoeg',
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('want', 'do-activity', 'outside', 'walking'),
+    });
+
+    expect(decision.done).toBe(true);
+    expect(decision.phase).toBe('propose');
+  });
+
+  it('blijft doorvragen op een categorie die nog niets zegt (T10.10 blijft gelden)', async () => {
+    // De tegenproef: "eten" is een verzamelnaam en valt in de zin weg, dus "Ik wil eten." zegt niets
+    // over wát — daar hoort de AI wél door te vragen.
+    const orchestrator = stubOrchestrator({
+      question: 'Wat wil je eten?',
+      options: [],
+      confidence: 0.95,
+      reason: 'zeker genoeg',
+    });
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('want', 'eat'),
+    });
+
+    expect(decision.done).toBe(false);
+    expect(decision.question).not.toBeNull();
+  });
 });

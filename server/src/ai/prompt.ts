@@ -68,6 +68,8 @@ export const AAC_RULES: readonly string[] = [
   'Wissel alleen van onderwerp als de gebruiker op hetzelfde punt herhaaldelijk heeft afgewezen en er ' +
     'binnen dat onderwerp aantoonbaar niets meer te bedenken valt.',
   'Stel geen vraag die al in "askedQuestions" staat, ook niet in andere bewoordingen.',
+  'Je vraag moet gaan over de laatste keuze van de gebruiker én over de opties die je aanbiedt. Bied je ' +
+    'mama, papa en de hond aan, vraag dan wie er meegaat — niet wat hij wil eten.',
 ];
 
 /**

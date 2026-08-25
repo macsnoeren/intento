@@ -45,6 +45,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T15.1 "Kinderen hebben" is niet hetzelfde als "te vaag".** Zevende gebruikerstest: de route
+  🎯 Iets willen → 🚶 Iets doen → 🌳 Buiten → 🚶‍♀️ Wandelen leverde geen voorstel maar de vraag *"Wat wil je
+  eten?"*. Nagemeten: de zin stond er al ("Ik wil buiten wandelen.") en de kandidaten klopten ook (hond,
+  park, mama, papa, begeleider). Wat er misging zat in de voorsteldrempel van T10.10, die keek naar
+  *"heeft dit concept kinderen?"*. Die regel is gemaakt voor "Ik wil eten." — waar `eten` een verzamelnaam
+  is die in de zin wégvalt — maar `wandelen` is geen categorie: dat het toevallig kinderen heeft, maakt de
+  boodschap niet vaag. De drempel eist nu alleen verfijning als de route eindigt op een **categorie**:
+  een intentie, een vraagwoord of een verzamelnaam. Eén bron van waarheid, want dat is exact dezelfde
+  verzameling als "valt weg in de zin" — een concept dat de zin niet haalt, kan de boodschap ook niet
+  dragen. Verfijnen blijft mogelijk (de zekerheidsdrempel beslist), maar is geen voorwaarde meer.
+  Daarnaast een promptregel: de gestelde vraag moet over de laatste keuze en de aangeboden opties gaan —
+  "Wat wil je eten?" bij de opties mama/papa/hond/park is een vraag die nergens op slaat.
+
 - **T14.1/T14.2/T14.4 Een vraag is geen wens.** Zesde gebruikerstest: met ❓ Een vraag stellen → ❔ Wat? →
   🍽️ Eten wilde de gebruiker *"Wat eten we vandaag?"* vragen. Dat liep op drie plekken vast, en alle drie
   kwamen ze uit dezelfde aanname — élke route is een wens.
