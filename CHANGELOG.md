@@ -45,6 +45,26 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
     check matchte op hele woorden — dus glipte "warms" erdoor en kwam een concept dat de gebruiker nooit
     koos tóch in zijn boodschap (§7.8). De scan herkent nu ook korte Nederlandse uitgangen.
 
+- **T12.3 Een verfijnronde was onzichtbaar in de terugblik.** Ontdekt bij T12.1: het gemelde
+  brood/beleg-gesprek kwam er netjes uit, maar de ❌ die de wending veroorzaakte stond er niet in —
+  `corrections` was leeg. Dat klopte met T10.12 (de eerste ❌ rolt bewust niets terug, zodat de gebruiker
+  niets kwijtraakt), maar het maakte de terugblik onvolledig op precies het punt waar een begeleider wil
+  weten waarom het gesprek een andere kant op ging: tussen "Brood" en "Wil je er iets op?" leek de AI
+  spontaan van vraag te veranderen. De verfijnronde wordt nu vastgelegd als **gebeurtenis zonder
+  gevolg**: een `CorrectionEvent` met `type: 'refine_round'` en `rejectedConcept: null`.
+  - **Waarom vastleggen en niet afleiden.** `ConversationSession.refinedAtStep` leek de goedkopere weg,
+    maar die vlag is zelf-invaliderend: `clearPendingOffer` zet hem op `null` zodra de gebruiker verder
+    kiest. In precies het gemelde geval — de gebruiker koos ná de verfijnronde gewoon door — zou er dus
+    niets meer te herleiden zijn. Dit is de goedkoopste vorm die de gebeurtenis écht bewaart: geen nieuw
+    soort opslag, één rij in een tabel die er al is.
+  - **Het `null` is de waarborg, niet alleen de inhoud.** `CorrectionEvent.rejectedConcept` is nullable
+    geworden en `loadRejections` haalt alleen rijen **mét** een concept op. Een verfijnronde kan daarmee
+    per constructie niets uitsluiten — T10.12 blijft gelden omdat de query het afdwingt, niet omdat een
+    comment het belooft. `refine_round` is bovendien niet postbaar door een client: de request-enum blijft
+    `wrong_guess`/`no_fitting_option`, alleen de terugblik kent het derde type.
+  - De beheerpagina toont het als "❌ Nee — de AI ging eerst verfijnen; niets teruggerold of uitgesloten",
+    en `correctionCount` telt de verfijnronde mee: ook dát was een druk op ❌.
+
 - **T15.1 "Kinderen hebben" is niet hetzelfde als "te vaag".** Zevende gebruikerstest: de route
   🎯 Iets willen → 🚶 Iets doen → 🌳 Buiten → 🚶‍♀️ Wandelen leverde geen voorstel maar de vraag *"Wat wil je
   eten?"*. Nagemeten: de zin stond er al ("Ik wil buiten wandelen.") en de kandidaten klopten ook (hond,

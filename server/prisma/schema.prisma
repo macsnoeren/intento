@@ -528,14 +528,23 @@ model ConversationStep {
 model CorrectionEvent {
   id        String   @id @default(cuid())
   sessionId String
-  /// Soort correctie: "wrong_guess" (de enige in de MVP; DESIGN §6.2). Gevalideerd op de grens; geen
-  /// native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header.
+  /// Soort correctie: "wrong_guess" (❌ Nee), "no_fitting_option" ("Staat er niet bij") of
+  /// "refine_round" (T12.3: de eerste ❌ die een verfijnronde in gang zette). Gevalideerd op de grens;
+  /// geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header. Alleen de eerste twee
+  /// zijn door een client te posten; "refine_round" ontstaat uitsluitend server-side.
   type      String   @default("wrong_guess")
-  /// De `order`-index van de teruggerolde stap die als vermoedelijke foutstap is aangemerkt.
+  /// De `order`-index van de stap waar de correctie op sloeg: bij een terugrol de teruggerolde stap, bij
+  /// een verfijnronde de laatste keuze die opnieuw bevraagd werd.
   stepOrder Int
   /// Het AAC-concept dat op die stap gekozen was en nu is afgewezen; blijft de rest van de sessie
   /// uitgesloten van de aangeboden opties (§7.5).
-  rejectedConcept String
+  ///
+  /// `null` betekent: **er is niets uitgesloten** (T12.3). Dat is de vorm van een verfijnronde — de
+  /// gebruiker drukte ❌, maar T10.12 rolt dan bewust nog niets terug zodat hij niets kwijtraakt. De
+  /// gebeurtenis wordt vastgelegd zodat de terugblik (T12.1) niet lijkt te suggereren dat de AI spontaan
+  /// van vraag veranderde. Het nullable maken is óók de waarborg: `loadRejections` haalt alleen rijen op
+  /// mét een concept, dus zo'n rij kán per constructie niets uitsluiten.
+  rejectedConcept String?
   createdAt DateTime @default(now())
 
   session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

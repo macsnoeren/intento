@@ -522,7 +522,7 @@ dus komen er twee weergaven met elk hun eigen grens en hun eigen mate van detail
   zonder koppeling aan de gebruiker krijgt `403` (test); een verwijderd symbool breekt de weergave niet
   (test); de webpagina toont een gekozen gesprek van begin tot eind (component-test).
 
-- [ ] **T12.3 Een verfijnronde is onzichtbaar in de terugblik** *(ontdekt bij T12.1)*
+- [x] **T12.3 Een verfijnronde is onzichtbaar in de terugblik** *(ontdekt bij T12.1)*
   *DESIGN: §3.4, §3.6.* In de rooktest van T12.1 kwam het gemelde brood/beleg-gesprek er netjes uit —
   maar de ❌ Nee die de verfijnronde in gang zette, staat er niet in: `corrections` was leeg. Dat klopt met
   T10.12 (de eerste ❌ legt bewust **niets** vast, zodat de gebruiker niets kwijtraakt), maar het maakt de
@@ -532,6 +532,12 @@ dus komen er twee weergaven met elk hun eigen grens en hun eigen mate van detail
   `CorrectionEvent` met een eigen type dat níets uitsluit) of dat de weergave hem uit `refinedAtStep` kan
   afleiden. Afweging expliciet maken: meer vastleggen om beter te kunnen terugkijken botst met §3.6, dus
   de goedkoopste vorm wint.
+  *Uitkomst:* vastleggen. Afleiden uit `refinedAtStep` kán niet — `clearPendingOffer` zet die vlag op
+  `null` zodra de gebruiker verder kiest, dus juist in het gemelde geval (doorkiezen ná de verfijnronde)
+  valt er niets meer te herleiden. Het werd een `CorrectionEvent` met `type: 'refine_round'` en
+  `rejectedConcept: null`: geen nieuw soort opslag, één rij in een bestaande tabel. Het nullable maken van
+  `rejectedConcept` is meteen de waarborg — `loadRejections` haalt alleen rijen mét een concept op, dus
+  zo'n rij kan per constructie niets uitsluiten.
   *Acceptatie:* de terugblik van een gesprek met een verfijnronde laat zien dát de gebruiker ❌ drukte
   zonder dat er iets is uitgesloten (test); de gespreksflow zelf gedraagt zich ongewijzigd (bestaande
   T10.12-tests groen).
@@ -704,6 +710,57 @@ zin verdwijnt (`eat`, `drink`, `do-activity`, lege `CONCEPT_PHRASES`). Dat is de
   *Acceptatie:* `want → do-activity → outside → walking` levert het voorstel "Ik wil buiten wandelen."
   (end-to-end test); `want → eat` blijft doorvragen (bestaande T10.10-test groen); `want → eat → bread`
   blijft voorstellen; de promptregel staat in de gebouwde prompt (test).
+
+---
+
+## Fase 16 — De AI raadt zelf (gespreksstrategie `guess`)
+
+**Aanleiding.** De vraag was of Intento een aanpak aankan waarin de AI *raadt* wat de gebruiker wil
+zeggen: zelf de volgende pictogrammen bedenken, uit de bibliotheek mogen putten én nieuwe woorden mogen
+aandragen. Dat vraagt geen nieuwe architectuur — die modus bestaat al als **vrije ronde** (T10.13,
+§7.6 trap 3): geen optielijst, wél het pad en de negatieve context, en de opdracht om zelf begrippen aan
+te dragen. Hij is alleen een noodgreep (`available.length === 0`) in plaats van een werkwijze.
+
+Wat er wél moet gebeuren voordat dat veilig kan: vandaag is **retrieval een voorfilter** — het model ziet
+bestaande concepten en kiest ze. Zonder dat voorfilter bereikt het de bibliotheek alleen nog via
+naamcollisie in trap 1/2 (sleutel, label, synoniem). Zegt het model "boterham" waar de bibliotheek "brood"
+kent, dan ontstaat een bijna-duplicaat — precies wat §7.6 wil voorkomen. Retrieval moet dus van *vóór* het
+model naar *ná* het model. Dat is de enige echte ontwerpwijziging in deze fase, en ze verbetert de
+bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
+
+- [ ] **T16.1 Deduplicatie zoekt semantisch, niet alleen op naam**
+  *DESIGN: §7.6.* Werk: de validatielaag krijgt tussen trap 2 en trap 3 een **retrieval-stap over de hele
+  bibliotheek**: een door de AI aangedragen begrip dat geen exacte sleutel/label/synoniem-match heeft,
+  wordt eerst tegen de zoekindex gehouden voordat het een nieuw concept wordt. Dezelfde index als
+  `retrieveByTerms` gebruikt, zodat er geen tweede begrip van "lijkt op" ontstaat. Een treffer wordt trap
+  2 (omzetten naar het bestaande symbool), geen treffer blijft trap 3. Los te bouwen en los waardevol:
+  raakt geen enkele strategie in zijn parameters.
+  *Acceptatie:* een vrije-ronde-antwoord met een woord dat alleen semantisch bij een bestaand symbool
+  past, levert dat bestaande symbool op en géén `ConceptProposal` (test); een woord dat écht nieuw is
+  levert onveranderd trap 3 op (bestaande T10.6-tests groen); de drempel waarboven "lijkt op" als
+  treffer geldt, staat als benoemde constante met onderbouwing in de code.
+
+- [ ] **T16.2 Strategie `guess`: de AI draagt alles aan**
+  *DESIGN: §7.3, §7.10; ADR-0013.* Werk: een nieuwe ingebouwde strategie met `candidateSources: []` —
+  geen boom, geen retrieval, geen voorkeuren vooraf — zodat elke beurt een vrije ronde is, plus een
+  promptdoel dat om een **gok** vraagt in plaats van om een vraag. Meenemen: de `time`-bron in
+  `candidates.ts` wordt nu **buiten de strategie om** toegevoegd op een afgeronde vraagroute (T14.4);
+  daardoor zou `available` niet leeg zijn en de vrije ronde juist op een vraagroute stilvallen. Die bron
+  moet onder de strategie komen. Geen nieuw codepad: de invariant-suite draait automatisch mee.
+  *Acceptatie:* met `guess` is `freeRound` waar op elke beurt na de eerste keuze (test); het startscherm
+  toont onveranderd alle intentiecategorieën (invariant-test); een afgeronde vraagroute levert ook een
+  vrije ronde op (test); `strategy.invariants.test.ts` groen voor `guess`; de catalogus toont label en
+  uitleg in begrijpelijke taal voor de begeleider.
+
+- [ ] **T16.3 De gok als tegel — er een spel van maken**
+  *DESIGN: §3.1, §7.4, §2.* Werk: bij `guess` verschijnt de gok als **gemarkeerde optie tussen de andere
+  pictogrammen** ("🎯 Ik denk: buiten wandelen met de hond") in plaats van als vroeg boodschapvoorstel.
+  De gebruiker tikt hem zelf aan; daarna geldt de gewone voorsteldrempel (§7.4) ongewijzigd. Bewust
+  **niet** de voorstelregel van T15.1 versoepelen: die komt uit de zevende gebruikerstest en een gok die
+  de route overslaat, zet de onzekerheid van de AI terug bij de gebruiker (§2).
+  *Acceptatie:* de tegel verschijnt alleen bij `guess` en is zichtbaar onderscheiden van gewone opties
+  (component-test); ❌ op de tegel verwijdert precies één stap, net als nu (test); de tegel komt nooit in
+  een boodschap zonder dat de gebruiker hem heeft aangetikt én bevestigd (test).
 
 ---
 

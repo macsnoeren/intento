@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type {
   AccountPublic,
   ConversationSummary,
+  ConversationTranscriptCorrection,
   ConversationTranscriptResponse,
   UserPublic,
 } from '@intento/shared';
@@ -31,6 +32,26 @@ function summaryLine(conversation: ConversationSummary): string {
   if (conversation.message) return conversation.message;
   if (conversation.caregiverQuestion) return `Vraag: ${conversation.caregiverQuestion}`;
   return 'Geen bevestigde boodschap';
+}
+
+/**
+ * Wat er op dit punt gebeurde toen de gebruiker "nee" zei.
+ *
+ * Drie uitkomsten, en het verschil ertussen is precies wat een begeleider hier wil zien. Bij ❌ Nee rolt
+ * de laatste keuze terug; bij "Staat er niet bij" verdwijnt het hele aanbod van dat punt. Een
+ * **verfijnronde** (T12.3) doet géén van beide: de gebruiker drukte ❌, en de AI probeerde eerst dezelfde
+ * route preciezer te maken zonder hem iets af te nemen. Dat expliciet benoemen voorkomt de indruk dat de
+ * AI daar spontaan van vraag veranderde.
+ */
+function correctionLabel(correction: ConversationTranscriptCorrection): string {
+  switch (correction.type) {
+    case 'refine_round':
+      return '❌ Nee — de AI ging eerst verfijnen; niets teruggerold of uitgesloten';
+    case 'no_fitting_option':
+      return `🤷 Staat er niet bij — ${correction.rejectedConcept ?? 'aanbod'} overgeslagen`;
+    default:
+      return `❌ Nee — ${correction.rejectedConcept ?? 'keuze'} teruggerold`;
+  }
 }
 
 /** Eén aangeboden pictogram in de terugblik; de keuze van de gebruiker is gemarkeerd. */
@@ -229,9 +250,7 @@ export function ConversationsPage({
                   .filter((correction) => correction.stepOrder === step.order)
                   .map((correction) => (
                     <p key={`${correction.stepOrder}-${correction.at}`} className="muted">
-                      {correction.type === 'wrong_guess'
-                        ? `❌ Nee — ${correction.rejectedConcept} teruggerold`
-                        : `🤷 Staat er niet bij — ${correction.rejectedConcept} overgeslagen`}
+                      {correctionLabel(correction)}
                     </p>
                   ))}
               </li>

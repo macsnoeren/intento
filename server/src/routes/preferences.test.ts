@@ -135,8 +135,14 @@ describe('leermechanisme — voorkeuren (T6.3)', () => {
 
     // Zonder bevestiging bestaat er geen enkele voorkeur.
     expect(await prisma.preference.count({ where: { userId: user.id } })).toBe(0);
-    // De correctie is wél als signaal vastgelegd (maar niet als leerdata).
-    expect(await prisma.correctionEvent.count({ where: { sessionId } })).toBe(1);
+    // De correctie is wél als signaal vastgelegd (maar niet als leerdata): de verfijnronde van de eerste
+    // ❌ (T12.3, zonder uitsluiting) en de terugrol van de tweede.
+    expect(await prisma.correctionEvent.count({ where: { sessionId } })).toBe(2);
+    expect(
+      await prisma.correctionEvent.count({
+        where: { sessionId, rejectedConcept: { not: null } },
+      }),
+    ).toBe(1);
   });
 
   it('muteert niets als aiLearningEnabled uit staat', async () => {

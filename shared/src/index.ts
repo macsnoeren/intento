@@ -1097,9 +1097,13 @@ export const conversationChoiceResponseSchema = z.object({
 export type ConversationChoiceResponse = z.infer<typeof conversationChoiceResponseSchema>;
 
 /**
- * Soort correctie op een voorstel (`CorrectionEvent.type`, DESIGN §3.4, §6.2). In de MVP alleen
- * `wrong_guess`: de gebruiker koos ❌ ("Nee, dit klopt niet"). Bewust een gesloten lijst zodat latere
- * correctietypes expliciet worden toegevoegd.
+ * Soort correctie die een **client mag posten** (`POST /conversation/{id}/correction`, DESIGN §3.4,
+ * §6.2): `wrong_guess` (❌ Nee) of `no_fitting_option` ("Staat er niet bij"). Bewust een gesloten lijst
+ * zodat latere correctietypes expliciet worden toegevoegd.
+ *
+ * Let op het verschil met {@link conversationTranscriptCorrectionTypeSchema}: in de **terugblik** kan ook
+ * `refine_round` voorkomen (T12.3). Dat type ontstaat uitsluitend server-side en staat hier daarom niet
+ * bij — een client kan het niet aanmaken.
  */
 export const conversationCorrectionTypeSchema = z.enum(['wrong_guess', 'no_fitting_option']);
 export type ConversationCorrectionType = z.infer<typeof conversationCorrectionTypeSchema>;
@@ -1318,11 +1322,36 @@ export const conversationTranscriptStepSchema = z.object({
 });
 export type ConversationTranscriptStep = z.infer<typeof conversationTranscriptStepSchema>;
 
-/** Een correctie van de gebruiker in het verloop (❌ Nee of "Staat er niet bij", T5.4/T9.12). */
+/**
+ * Soort correctie zoals de **terugblik** hem toont (T12.3). Dit is de postbare set plus één type dat
+ * alleen server-side ontstaat:
+ *
+ * - `refine_round` — de gebruiker drukte ❌ en de AI reageerde met een **verfijnronde** op dezelfde route
+ *   (T10.12) in plaats van met een terugrol. Er wordt dan bewust niets teruggerold en niets uitgesloten,
+ *   zodat de gebruiker niets kwijtraakt. Zonder dit type lijkt de AI in het verloop spontaan van vraag te
+ *   veranderen — precies op het punt waar een begeleider wil weten waarom het gesprek een wending nam.
+ */
+export const conversationTranscriptCorrectionTypeSchema = z.enum([
+  'wrong_guess',
+  'no_fitting_option',
+  'refine_round',
+]);
+export type ConversationTranscriptCorrectionType = z.infer<
+  typeof conversationTranscriptCorrectionTypeSchema
+>;
+
+/**
+ * Een correctie van de gebruiker in het verloop (❌ Nee, "Staat er niet bij" of een verfijnronde,
+ * T5.4/T9.12/T12.3).
+ *
+ * `rejectedConcept` is `null` wanneer er **niets is uitgesloten** — de vorm van een verfijnronde. Het is
+ * geen ontbrekende waarde maar de inhoud van de gebeurtenis: de gebruiker zei "nee" en het gesprek ging
+ * verder zonder dat hem iets werd afgenomen.
+ */
 export const conversationTranscriptCorrectionSchema = z.object({
-  type: conversationCorrectionTypeSchema,
+  type: conversationTranscriptCorrectionTypeSchema,
   stepOrder: z.number().int().nonnegative(),
-  rejectedConcept: z.string(),
+  rejectedConcept: z.string().nullable(),
   at: z.string(),
 });
 export type ConversationTranscriptCorrection = z.infer<
@@ -1340,6 +1369,10 @@ export const conversationSummarySchema = z.object({
   strategy: z.object({ key: conversationStrategySchema, label: z.string() }).nullable(),
   startedAt: z.string(),
   stepCount: z.number().int().nonnegative(),
+  /**
+   * Hoe vaak de gebruiker in dit gesprek ❌ of "Staat er niet bij" gebruikte. Telt sinds T12.3 ook de
+   * verfijnrondes mee: ook dát was een druk op ❌, alleen eentje die niets terugrolde.
+   */
   correctionCount: z.number().int().nonnegative(),
   /** De bevestigde boodschap, of `null` als het gesprek daar niet is uitgekomen. */
   message: z.string().nullable(),

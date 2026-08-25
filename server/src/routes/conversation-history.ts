@@ -44,6 +44,12 @@ import { HttpError } from '../errors.js';
  * **Wat er niet in zit.** De prompt (daar zit persoonlijke context in, §9.4), de hypothese van de AI en
  * afgewezen boodschappen. Een correctie verschijnt als gebeurtenis ("hier zei de gebruiker nee op dit
  * concept"), niet als de boodschap die hij afwees — die wordt nooit opgeslagen (§3.6).
+ *
+ * **Verfijnrondes horen erbij** (T12.3). Een ❌ leidt niet meteen tot een terugrol: eerst volgt een
+ * verfijnronde op dezelfde route (T10.12), waarbij bewust niets wordt uitgesloten. Zonder die
+ * gebeurtenis in het verloop lijkt de AI spontaan van vraag te veranderen. Ze komt hier terug als een
+ * correctie met `type: 'refine_round'` en `rejectedConcept: null` — het `null` is de inhoud: er is niets
+ * afgenomen.
  */
 
 /** Query op de gesprekslijst: hoeveel gesprekken (nieuwste eerst). Begrensd zodat de lijst eindig blijft. */

@@ -537,6 +537,53 @@ describe('Fase 10 — de AI stuurt het gesprek', () => {
       expect(state.question).not.toBeNull();
     });
 
+    it('legt de verfijnronde vast als gebeurtenis zonder gevolg (T12.3)', async () => {
+      // De verfijnronde was onzichtbaar in de terugblik (T12.1): `corrections` bleef leeg, dus tussen
+      // "Brood" en "Wil je er iets op?" leek de AI spontaan van vraag te veranderen. Ze wordt nu
+      // vastgelegd — maar zonder gevolg: `rejectedConcept` is `null`, dus er kán niets uitgesloten zijn.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      await next(cookie, sessionId, 'soup');
+
+      await reject(cookie, sessionId);
+
+      const events = await prisma.correctionEvent.findMany({ where: { sessionId } });
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        type: 'refine_round',
+        rejectedConcept: null,
+        // De laatste keuze — dezelfde stap waar een tweede ❌ hem zou terugrollen.
+        stepOrder: 2,
+      });
+      // De kern van T10.12: de gebruiker raakt niets kwijt. Geen enkele rij sluit iets uit.
+      const excluding = await prisma.correctionEvent.findMany({
+        where: { sessionId, rejectedConcept: { not: null } },
+      });
+      expect(excluding).toEqual([]);
+    });
+
+    it('sluit door de vastlegging niets uit: ↩ Terug biedt de route gewoon weer aan (T12.3)', async () => {
+      // De vastlegging mag geen uitsluiting worden. Na de verfijnronde één stap terug: "soep" hoort dan
+      // gewoon weer bij de opties, want de gebruiker heeft hem nooit afgewezen.
+      const { cookie, sessionId } = await startFor(eagerProvider);
+      await next(cookie, sessionId, 'want');
+      await next(cookie, sessionId, 'eat');
+      await next(cookie, sessionId, 'soup');
+      await reject(cookie, sessionId);
+
+      const res = await app.inject({
+        method: 'POST',
+        url: `/conversation/${sessionId}/back`,
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const state = parseState(res.json());
+
+      expect(state.history.map((entry) => entry.symbol.concept)).toEqual(['want', 'eat']);
+      expect(conceptsOf(state)).toContain('soup');
+    });
+
     it('rolt bij de tweede ❌ één stap terug en blijft binnen wat de gebruiker koos', async () => {
       // De melding uit de derde ronde: na ❌ kwam "Wat wil je drinken?" terwijl de gebruiker juist iets
       // over het eten wilde zeggen. Oorzaak was dat de correctie de héle route terugrolde en "eten"

@@ -123,6 +123,36 @@ describe('gespreksverloop — /admin/users/:id/conversations en /admin/conversat
     expect(transcript.strategy).toEqual({ key: 'refine', label: expect.any(String) });
   });
 
+  it('toont de verfijnronde als gebeurtenis zonder gevolg (T12.3)', async () => {
+    // De bevinding bij T12.1: het gemelde brood/beleg-gesprek kwam er netjes uit, maar de ❌ die de
+    // verfijnronde in gang zette stond er niet in. Daardoor lijkt de AI midden in het gesprek spontaan
+    // van vraag te veranderen — precies op het punt waar een begeleider wil weten waaróm.
+    const { organizationId, email, password } = await seedAccount();
+    const user = await seedUser('Sanne', organizationId);
+    const sessionId = await seedConversation(user.id);
+    await prisma.correctionEvent.create({
+      data: { sessionId, type: 'refine_round', stepOrder: 1, rejectedConcept: null },
+    });
+    const cookie = await loginCookie(app, email, password);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/admin/conversations/${sessionId}`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const transcript = conversationTranscriptResponseSchema.parse(res.json());
+
+    // `null` is hier de inhoud, niet een ontbrekende waarde: er is niets uitgesloten.
+    expect(transcript.corrections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'refine_round', stepOrder: 1, rejectedConcept: null }),
+      ]),
+    );
+    // De verfijnronde telt mee in de samenvatting: ook dát was een druk op ❌.
+    expect(transcript.correctionCount).toBe(2);
+  });
+
   it('breekt niet op een concept dat intussen uit de bibliotheek is', async () => {
     // De bibliotheek is muteerbaar (T10.7: samenvoegen/verwijderen). De terugblik moet blijven kloppen
     // met wat de gebruiker zag, dus een verdwenen optie blijft staan als sleutel in plaats van weg te

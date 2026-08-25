@@ -121,21 +121,30 @@ async function loadUserContext(
  * iets anders kan bedenken (T14.3, DESIGN §3.4, §7.5). Puur afgeleid uit de opgeslagen `CorrectionEvent`s, zodat de uitsluiting blijft
  * gelden voor de rest van de sessie (ook na `/back` of `/next`). Bij een dubbel voorkomend concept wint
  * `no_fitting_option`: dat is het sterkste signaal ("dit stond er echt niet bij").
+ *
+ * De query haalt **alleen rijen met een concept** op. Sinds T12.3 legt ook de verfijnronde een
+ * `CorrectionEvent` vast — een gebeurtenis zonder gevolg, met `rejectedConcept = null` — puur zodat de
+ * terugblik (T12.1) laat zien dát de gebruiker ❌ drukte. Zo'n rij mag níets uitsluiten (T10.12: de eerste
+ * ❌ neemt de gebruiker bewust niets af), en dat is hier geen afspraak maar een filter: zonder concept kan
+ * er ook niets uitgesloten worden.
  */
 async function loadRejections(
   prisma: PrismaClient,
   sessionId: string,
 ): Promise<DecisionRejection[]> {
   const events = await prisma.correctionEvent.findMany({
-    where: { sessionId },
+    where: { sessionId, rejectedConcept: { not: null } },
     select: { rejectedConcept: true, type: true },
   });
   const byConcept = new Map<string, DecisionRejection>();
   for (const event of events) {
+    // `rejectedConcept` is in de query al op niet-null gefilterd; deze controle houdt het type eerlijk.
+    const concept = event.rejectedConcept;
+    if (concept === null) continue;
     const kind = event.type === 'no_fitting_option' ? 'no_fitting_option' : 'wrong_guess';
-    const existing = byConcept.get(event.rejectedConcept);
+    const existing = byConcept.get(concept);
     if (existing && existing.kind === 'no_fitting_option') continue;
-    byConcept.set(event.rejectedConcept, { concept: event.rejectedConcept, kind });
+    byConcept.set(concept, { concept, kind });
   }
   return [...byConcept.values()];
 }
@@ -736,10 +745,39 @@ export function registerConversationRoutes(
       //
       // Wijst hij het daarna opnieuw af, dan klopte de laatste keuze zelf niet en rolt die alsnog terug.
       if (session.refinedAtStep !== steps.length) {
-        await prisma.conversationSession.update({
-          where: { id: session.id },
-          data: { refinedAtStep: steps.length, pendingOffer: Prisma.DbNull, readyToPropose: false },
-        });
+        await prisma.$transaction([
+          // De verfijnronde als **gebeurtenis zonder gevolg** vastleggen (T12.3). Er wordt niets
+          // teruggerold en niets uitgesloten — `rejectedConcept` is `null` — maar zonder deze rij is de
+          // ❌ die de wending veroorzaakte onzichtbaar in de terugblik (T12.1), en lijkt de AI tussen
+          // "Brood" en "Wil je er iets op?" spontaan van vraag te veranderen. Dat is precies het punt
+          // waar een begeleider wil weten waarom het gesprek een wending nam.
+          //
+          // Waarom vastleggen en niet afleiden uit `refinedAtStep`: die vlag is zelf-invaliderend en
+          // wordt door `clearPendingOffer` op `null` gezet zodra de gebruiker iets kiest. In precies het
+          // gemelde geval (de gebruiker koos ná de verfijnronde gewoon verder) zou er dus niets meer te
+          // herleiden zijn. Dit is de goedkoopste vorm die de gebeurtenis echt bewaart: geen nieuw
+          // soort opslag, één rij in een tabel die er al is.
+          //
+          // `steps.length - 1` — niet `steps.length` — zodat de gebeurtenis bij de **laatste keuze**
+          // hangt die opnieuw bevraagd wordt, dezelfde stap waar een tweede ❌ hem zou terugrollen. In
+          // de terugblik komen beide gebeurtenissen daarmee onder dezelfde stap te staan.
+          prisma.correctionEvent.create({
+            data: {
+              sessionId: session.id,
+              type: 'refine_round',
+              stepOrder: steps.length - 1,
+              rejectedConcept: null,
+            },
+          }),
+          prisma.conversationSession.update({
+            where: { id: session.id },
+            data: {
+              refinedAtStep: steps.length,
+              pendingOffer: Prisma.DbNull,
+              readyToPropose: false,
+            },
+          }),
+        ]);
         session.refinedAtStep = steps.length;
         session.pendingOffer = null;
         session.readyToPropose = false;

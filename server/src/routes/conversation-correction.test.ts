@@ -131,7 +131,17 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
       'outside',
     ]);
     expect(state.question).not.toBeNull();
-    expect(await prisma.correctionEvent.count({ where: { sessionId } })).toBe(0);
+    // Er wordt niets uitgesloten: geen enkele vastlegging draagt een afgewezen concept. De verfijnronde
+    // zelf staat er sinds T12.3 wél, als gebeurtenis zonder gevolg — anders is in de terugblik niet te
+    // zien waarom het gesprek hier een wending nam.
+    expect(
+      await prisma.correctionEvent.count({
+        where: { sessionId, rejectedConcept: { not: null } },
+      }),
+    ).toBe(0);
+    const events = await prisma.correctionEvent.findMany({ where: { sessionId } });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'refine_round', rejectedConcept: null });
   });
 
   it('rolt bij de tweede ❌ één stap terug en biedt de afgewezen keuze niet opnieuw aan', async () => {
@@ -154,12 +164,18 @@ describe('correctieflow — /conversation/{id}/correction (T5.4)', () => {
     expect(shown).not.toContain('outside');
     expect(shown.length).toBeGreaterThan(0);
 
-    // De correctie is vastgelegd als signaal (maar er wordt niet van geleerd).
-    const events = await prisma.correctionEvent.findMany({ where: { sessionId } });
-    expect(events).toHaveLength(1);
-    expect(events[0]!.type).toBe('wrong_guess');
-    expect(events[0]!.rejectedConcept).toBe('outside');
-    expect(events[0]!.stepOrder).toBe(2);
+    // De correctie is vastgelegd als signaal (maar er wordt niet van geleerd). Er staat er nu één die
+    // iets uitsluit — de terugrol — naast de verfijnronde van de eerste ❌ (T12.3), die niets uitsluit.
+    const events = await prisma.correctionEvent.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(events.map((event) => event.type)).toEqual(['refine_round', 'wrong_guess']);
+    const excluding = events.filter((event) => event.rejectedConcept !== null);
+    expect(excluding).toHaveLength(1);
+    expect(excluding[0]!.type).toBe('wrong_guess');
+    expect(excluding[0]!.rejectedConcept).toBe('outside');
+    expect(excluding[0]!.stepOrder).toBe(2);
 
     // Niets geleerd/opgeslagen: geen boodschap bewaard, sessie nog actief.
     expect(await prisma.generatedMessage.count({ where: { sessionId } })).toBe(0);

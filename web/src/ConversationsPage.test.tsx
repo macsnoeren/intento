@@ -87,6 +87,9 @@ const verloop: ConversationTranscriptResponse = {
     },
   ],
   corrections: [
+    // De verfijnronde (T12.3): de gebruiker drukte ❌ en de AI probeerde eerst dezelfde route preciezer
+    // te maken. Er is niets teruggerold en niets uitgesloten — vandaar `rejectedConcept: null`.
+    { type: 'refine_round', stepOrder: 1, rejectedConcept: null, at: '2026-08-22T09:00:12.000Z' },
     { type: 'wrong_guess', stepOrder: 1, rejectedConcept: 'bread', at: '2026-08-22T09:00:15.000Z' },
   ],
 };
@@ -148,6 +151,11 @@ describe('gesprekken-pagina (T12.1)', () => {
     expect(screen.getByText('nieuw woord')).toBeTruthy();
     // De correctie staat bij de stap waar hij plaatsvond.
     expect(screen.getByText('❌ Nee — bread teruggerold')).toBeTruthy();
+    // En de verfijnronde ervóór (T12.3) staat er als eigen gebeurtenis: dezelfde ❌, ander gevolg.
+    // Zonder deze regel lijkt de AI hier spontaan van vraag te veranderen.
+    expect(
+      screen.getByText('❌ Nee — de AI ging eerst verfijnen; niets teruggerold of uitgesloten'),
+    ).toBeTruthy();
     // De bevestigde boodschap sluit het verloop af (de lijst toont 'm ook, vandaar de afbakening).
     const verloopSectie = screen.getByRole('region', { name: 'Gespreksverloop' });
     expect(within(verloopSectie).getByText('Ik wil brood eten.')).toBeTruthy();
