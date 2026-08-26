@@ -591,6 +591,11 @@ De web-applicatie heeft één schil om alle ingelogde pagina's:
   uitlogknop. Pagina's die op de AI wachten tonen daar ook de AI-indicator.
 - **Voordeurschermen** — inloggen, aanmelden, e-mailadres bevestigen en het koppelen van een tablet
   delen één gecentreerde kaart met het logo erboven.
+- **Overzicht → detail** (T17.2/T17.3) — schermen met veel inhoud werken in twee stappen. Je ziet
+  eerst een **lijst over de volle breedte** (gebruikers als regels met hun profiel erbij, AAC-symbolen
+  als tegels met hun pictogram); daar één item openen geeft dat item een **eigen scherm** met alles
+  bij elkaar. Toevoegen, importeren en aanmaken zitten achter een knop met een dialoog, zodat het
+  overzicht een overzicht blijft. Verwijderen staat onderaan het detailscherm, apart en met uitleg.
 - **Tablet** — de gebruikersapp heeft een vaste, rustige kopbalk: linksboven het beeldmerk met
   "Intento", rechtsboven de naam van de gebruiker en de AI-indicator. Bewust klein: het keuzescherm
   eronder moet de aandacht houden.

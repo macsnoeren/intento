@@ -10,6 +10,7 @@ import {
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
+import { Modal } from './Modal.tsx';
 
 /**
  * Beheeromgeving — AAC-bibliotheek (T3.2, DESIGN §5.2, FR-015). Een beheerder kan hier de
@@ -59,6 +60,9 @@ export function AacLibraryPage({
 }): React.JSX.Element {
   const [symbols, setSymbols] = useState<AacSymbolAdmin[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Staat de dialoog "Nieuw symbool" open (T17.3)? Het formulier hoorde niet permanent naast de
+  // bibliotheek te staan: je voegt zelden toe en je bladert vaak.
+  const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +112,63 @@ export function AacLibraryPage({
 
   const selected = symbols.find((s) => s.id === selectedId) ?? null;
 
+  // Eén symbool geopend: zijn eigen scherm (T17.3), net als bij een gebruiker.
+  if (selected) {
+    return (
+      <AppShell
+        account={account}
+        title={selected.label}
+        subtitle={`${selected.concept} · ${CATEGORY_LABELS[selected.category]}`}
+        active="aac"
+        onNavigate={onNavigate}
+        onLogout={onLogout}
+      >
+        <div>
+          <button className="detail-back" type="button" onClick={() => setSelectedId(null)}>
+            <span aria-hidden="true">←</span> Alle symbolen
+          </button>
+        </div>
+
+        {error ? (
+          <p className="form__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="detail-grid">
+          <AacSymbolDetail
+            key={selected.id}
+            api={api}
+            symbol={selected}
+            allSymbols={symbols}
+            onChanged={(updated) => void handleChanged(updated)}
+          />
+
+          <div className="detail-grid__wide">
+            <section
+              className="panel panel--danger"
+              aria-label={`Symbool ${selected.label} verwijderen`}
+            >
+              <h2 className="panel__subtitle">Symbool verwijderen</h2>
+              <p className="muted">
+                Haalt {selected.label} uit de bibliotheek, met zijn relaties. De AI kan dit begrip
+                daarna niet meer aanbieden. Dit is niet terug te draaien.
+              </p>
+              <button
+                type="button"
+                className="button button--danger"
+                onClick={() => void handleDelete(selected.id)}
+                aria-label={`Symbool ${selected.label} verwijderen`}
+              >
+                Verwijderen
+              </button>
+            </section>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       account={account}
@@ -123,114 +184,109 @@ export function AacLibraryPage({
         </p>
       ) : null}
 
-      <div className="admin__grid">
-        <section className="panel" aria-label="Symbolen">
-          <form
-            className="form form--inline"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void refresh();
-            }}
-            aria-label="Symbolen zoeken"
-            role="search"
+      <div className="toolbar">
+        <form
+          className="form form--inline toolbar__search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void refresh();
+          }}
+          aria-label="Symbolen zoeken"
+          role="search"
+        >
+          <input
+            className="field__input"
+            type="search"
+            placeholder="Zoek op concept, label of synoniem"
+            aria-label="Zoekterm"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <select
+            className="field__input"
+            aria-label="Filter op categorie"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
           >
-            <input
-              className="field__input"
-              type="search"
-              placeholder="Zoek op concept, label of synoniem"
-              aria-label="Zoekterm"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <select
-              className="field__input"
-              aria-label="Filter op categorie"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">Alle categorieën</option>
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
-            <button className="button" type="submit">
-              Zoeken
-            </button>
-          </form>
+            <option value="">Alle categorieën</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
+          <button className="button" type="submit">
+            Zoeken
+          </button>
+        </form>
 
-          {loading ? (
-            <p className="muted">Laden…</p>
-          ) : symbols.length === 0 ? (
-            <p className="muted">Geen symbolen gevonden.</p>
-          ) : (
-            <ul className="symbol-list">
-              {symbols.map((symbol) => (
-                <li
-                  key={symbol.id}
-                  className={`symbol-list__item${symbol.id === selectedId ? ' symbol-list__item--active' : ''}`}
-                >
-                  <button
-                    type="button"
-                    className="symbol-list__select"
-                    aria-label={symbol.label}
-                    onClick={() => setSelectedId(symbol.id)}
-                  >
-                    <img
-                      className="symbol-list__image"
-                      src={apiUrl(symbol.imageUrl)}
-                      alt=""
-                      width={40}
-                      height={40}
-                    />
-                    <span className="symbol-list__text">
-                      <span className="symbol-list__label">{symbol.label}</span>
-                      <span className="muted symbol-list__meta">
-                        {symbol.concept} · {CATEGORY_LABELS[symbol.category]}
-                      </span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--danger"
-                    onClick={() => void handleDelete(symbol.id)}
-                    aria-label={`Symbool ${symbol.label} verwijderen`}
-                  >
-                    Verwijderen
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <div className="admin__detail">
-          <section className="panel" aria-label="Symbool toevoegen">
-            <h2 className="panel__subtitle">Nieuw symbool</h2>
-            <AacSymbolForm
-              key="create"
-              submitLabel="Toevoegen"
-              onSubmit={handleCreate}
-              resetOnSuccess
-            />
-          </section>
-
-          {selected ? (
-            <AacSymbolDetail
-              key={selected.id}
-              api={api}
-              symbol={selected}
-              allSymbols={symbols}
-              onChanged={(updated) => void handleChanged(updated)}
-            />
-          ) : (
-            <section className="panel">
-              <p className="muted">Kies een symbool om het te bewerken en relaties te leggen.</p>
-            </section>
-          )}
+        <div className="toolbar__actions">
+          <button
+            className="button button--primary"
+            type="button"
+            onClick={() => setCreateOpen(true)}
+          >
+            <span aria-hidden="true">+ </span>Symbool toevoegen
+          </button>
         </div>
       </div>
+
+      {/* Een bibliotheek van pictogrammen scan je op beeld, niet op tekst: tegels in plaats van
+          regels (T17.3). Het label staat er altijd bij — het pictogram is nooit de enige aanduiding. */}
+      <section className="panel" aria-label="Symbolen">
+        {loading ? (
+          <p className="muted">Laden…</p>
+        ) : symbols.length === 0 ? (
+          <p className="muted">Geen symbolen gevonden.</p>
+        ) : (
+          <ul className="symbol-grid">
+            {symbols.map((symbol) => (
+              <li key={symbol.id}>
+                <button
+                  type="button"
+                  className="symbol-card"
+                  aria-label={symbol.label}
+                  onClick={() => setSelectedId(symbol.id)}
+                >
+                  <img
+                    className="symbol-card__image"
+                    src={apiUrl(symbol.imageUrl)}
+                    alt=""
+                    width={72}
+                    height={72}
+                  />
+                  <span className="symbol-card__label">{symbol.label}</span>
+                  <span className="symbol-card__meta">
+                    {symbol.concept} · {CATEGORY_LABELS[symbol.category]}
+                  </span>
+                  {symbol.children.length > 0 ? (
+                    <span className="symbol-card__meta">
+                      {symbol.children.length}{' '}
+                      {symbol.children.length === 1
+                        ? 'onderliggend concept'
+                        : 'onderliggende concepten'}
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {createOpen ? (
+        <Modal title="Nieuw symbool" onClose={() => setCreateOpen(false)}>
+          <AacSymbolForm
+            key="create"
+            submitLabel="Toevoegen"
+            onSubmit={async (input) => {
+              await handleCreate(input);
+              setCreateOpen(false);
+            }}
+            resetOnSuccess
+          />
+        </Modal>
+      ) : null}
     </AppShell>
   );
 }

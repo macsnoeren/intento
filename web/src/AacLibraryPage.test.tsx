@@ -252,13 +252,38 @@ describe('AAC-bibliotheekbeheer', () => {
     expect(screen.getByRole('button', { name: 'Buiten' })).toBeTruthy();
   });
 
+  it('opent een symbool op zijn eigen scherm en gaat terug naar het overzicht (T17.3)', async () => {
+    renderPage();
+
+    // Het overzicht is een tegelraster: pictogram, label en waar het over gaat.
+    const grid = await screen.findByRole('region', { name: 'Symbolen' });
+    const tile = within(grid).getByRole('button', { name: 'Wandelen' });
+    expect(tile.textContent).toContain('walking');
+
+    fireEvent.click(tile);
+
+    // Eigen scherm: bewerken, pictogram en relaties bij elkaar, plus verwijderen apart onderaan.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Wandelen' })).toBeTruthy();
+    expect(screen.getByRole('form', { name: 'Wijzigingen opslaan' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Relaties voor Wandelen' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Symbool Wandelen verwijderen' })).toBeTruthy();
+    // Het aanmaakformulier staat niet meer permanent naast de bibliotheek.
+    expect(screen.queryByRole('form', { name: 'Toevoegen' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alle symbolen' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'AAC-bibliotheek' })).toBeTruthy();
+  });
+
   it('voegt een symbool met relatie toe en vindt het terug via zoeken', async () => {
     const api = fakeApi();
     renderPage(api);
     await screen.findByRole('button', { name: 'Wandelen' });
 
-    // Nieuw symbool aanmaken.
-    const createForm = screen.getByRole('form', { name: 'Toevoegen' });
+    // Nieuw symbool aanmaken: het formulier zit sinds T17.3 achter "Symbool toevoegen".
+    fireEvent.click(screen.getByRole('button', { name: 'Symbool toevoegen' }));
+    const createForm = within(
+      await screen.findByRole('dialog', { name: 'Nieuw symbool' }),
+    ).getByRole('form', { name: 'Toevoegen' });
     fireEvent.change(within(createForm).getByLabelText('Concept (sleutel)'), {
       target: { value: 'reading' },
     });
@@ -273,8 +298,9 @@ describe('AAC-bibliotheekbeheer', () => {
     });
     fireEvent.click(within(createForm).getByRole('button', { name: 'Toevoegen' }));
 
-    // Verschijnt in de lijst en wordt geselecteerd (detailpaneel verschijnt).
+    // De dialoog sluit en het nieuwe symbool krijgt meteen zijn eigen scherm (T17.3).
     expect(await screen.findByRole('form', { name: 'Wijzigingen opslaan' })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     // Relatie leggen: het nieuwe symbool "Lezen" als onderliggend concept.
     const relationForm = screen.getByRole('form', { name: 'Relatie toevoegen' });
@@ -289,8 +315,9 @@ describe('AAC-bibliotheekbeheer', () => {
       expect(screen.getByRole('button', { name: 'Relatie met Buiten verwijderen' })).toBeTruthy(),
     );
 
-    // Terugvinden via zoeken op synoniem.
-    fireEvent.change(screen.getByLabelText('Zoekterm'), { target: { value: 'boek' } });
+    // Terugvinden via zoeken op synoniem — dat staat op het overzicht.
+    fireEvent.click(screen.getByRole('button', { name: 'Alle symbolen' }));
+    fireEvent.change(await screen.findByLabelText('Zoekterm'), { target: { value: 'boek' } });
     fireEvent.click(screen.getByRole('button', { name: 'Zoeken' }));
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Lezen' })).toBeTruthy();
@@ -302,7 +329,10 @@ describe('AAC-bibliotheekbeheer', () => {
     renderPage();
     await screen.findByRole('button', { name: 'Wandelen' });
 
-    const createForm = screen.getByRole('form', { name: 'Toevoegen' });
+    fireEvent.click(screen.getByRole('button', { name: 'Symbool toevoegen' }));
+    const createForm = within(
+      await screen.findByRole('dialog', { name: 'Nieuw symbool' }),
+    ).getByRole('form', { name: 'Toevoegen' });
     fireEvent.change(within(createForm).getByLabelText('Concept (sleutel)'), {
       target: { value: 'walking' },
     });

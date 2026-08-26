@@ -28,6 +28,24 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   beeldmerk met "Intento", rechtsboven de naam van de gebruiker en de AI-indicator. Op een gedeeld
   apparaat was geen van beide te zien. Bewust klein en grijs, en zonder kop-element — de vraag op het
   scherm blijft de enige `<h1>`.
+- **T17.2 Gebruikersbeheer werkt nu als overzicht → detail.** Het scherm stond in twee smalle
+  kolommen: links de gebruikerslijst mét de formulieren voor aanmaken, importeren en
+  begeleider-accounts, rechts de zeven detailpanelen van wie je geselecteerd had. Zolang er niemand
+  geselecteerd was stond de halve pagina leeg te wachten, en zodra dat wél zo was moest je een wizard
+  van vijf stappen in een kolom van een halve pagina invullen. Nu: een **lijst over de volle breedte**
+  waarin elke regel al zegt hoe het profiel staat (pictogrammen per scherm, gespreksstrategie), en één
+  gebruiker openen geeft hem een **eigen scherm** met alle panelen naast elkaar. Aanmaken en
+  importeren zitten achter een knop met een **dialoog**, de organisatielogins achter een tabblad, en
+  verwijderen staat apart onderaan het detailscherm met uitleg over wat er weggaat.
+- **T17.3 De AAC-bibliotheek toont pictogrammen als tegels.** Dezelfde herindeling, maar met een
+  tegelraster: een bibliotheek van pictogrammen scan je op beeld, niet op een lijstje tekst. Het label
+  staat altijd bij het pictogram — beeld is nooit de enige aanduiding (DESIGN §5.1). Eén symbool
+  openen geeft bewerken, pictogram, OpenSymbols-zoeken en relaties op één scherm; "Nieuw symbool" zit
+  achter dezelfde dialoog.
+- **Dialoogvensters zijn met toetsenbord en schakelbediening te bedienen.** Nieuwe `Modal`: de focus
+  gaat naar de dialoog, Tab loopt erbinnen rond, Escape sluit, en bij het sluiten gaat de focus terug
+  naar de knop die de dialoog opende — anders staat een schakelgebruiker daarna weer boven aan de
+  pagina.
 - **Een begeleider kan bij zijn eigen account.** De vraagmodus was zijn énige weergave, waardoor
   "Mijn account" — en dus het wisselen van zijn tijdelijke wachtwoord — alleen bereikbaar was via een
   paneel onder aan diezelfde pagina. Hij krijgt nu een kort menu: Begeleiden en Mijn account. Het menu

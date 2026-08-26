@@ -795,6 +795,32 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   te halen (test); de tabletkopbalk toont naam van app én gebruiker en blijft naast de vraag de enige
   kop op het scherm (test); alle bestaande tests onveranderd groen.
 
+- [x] **T17.2 Gebruikersbeheer: overzicht → detail, aanmaken in een dialoog**
+  *DESIGN: §5.1, §5.2.* Werk: het gebruikersscherm stond in twee smalle kolommen — links de lijst
+  mét de formulieren voor aanmaken, importeren en begeleider-accounts, rechts zeven detailpanelen van
+  de geselecteerde gebruiker. Zolang er niemand geselecteerd was stond de rechterkolom leeg; zodra dat
+  wél zo was moest je een wizard in een halve kolom invullen. Nu een **lijst over de volle breedte**
+  (met per regel het profiel in één oogopslag) die bij openen doorgaat naar een **eigen scherm** met
+  alle panelen naast elkaar. Aanmaken/importeren gaat via knoppen met een **dialoog** (`Modal`), de
+  organisatielogins zitten achter een tabblad "Logins", en verwijderen staat apart onderaan het
+  detailscherm mét uitleg. Meegenomen: de dialoog moet met toetsenbord en schakelbediening te doen
+  zijn (focus erin, Escape sluit, focus terug naar de knop die 'm opende).
+  *Acceptatie:* een gebruiker aanmaken opent zijn scherm; terug geeft het overzicht met zijn regel
+  (test); het scherm van een gebruiker draagt instellingen, begeleiders, context en tabletkoppeling en
+  géén aanmaakformulieren (test); Escape sluit de dialoog zonder aan te maken (test); de dialoog houdt
+  Tab binnen zich en geeft de focus terug (test).
+
+- [x] **T17.3 AAC-bibliotheek: tegels en een eigen scherm per symbool**
+  *DESIGN: §5.1, §5.2, §4.* Werk: dezelfde herindeling voor de bibliotheek, maar met een
+  **tegelraster** in plaats van regels — een pictogrammenbibliotheek scan je op beeld. Het label staat
+  altijd bij het pictogram (het beeld is nooit de enige aanduiding). Eén symbool openen geeft
+  bewerken, pictogram, OpenSymbols-zoeken en relaties op één scherm naast elkaar; "Nieuw symbool" zit
+  achter een knop met dezelfde dialoog als T17.2, en verwijderen staat onderaan het detailscherm.
+  *Acceptatie:* het overzicht toont tegels met pictogram, label en concept (test); een tegel openen
+  geeft het eigen scherm met bewerken, relaties en de verwijderzone, zonder aanmaakformulier (test);
+  aanmaken via de dialoog sluit die dialoog en opent het nieuwe symbool (test); zoeken en filteren
+  werken onveranderd (bestaande tests groen).
+
 ---
 
 ## Onderhoud (ontdekt meerwerk)

@@ -91,7 +91,11 @@ server niet uit elkaar lopen.
   (de voordeurschermen: inloggen, aanmelden, bevestigen, tablet koppelen). `Brand.tsx` houdt naam,
   payoff en logopaden op één plek; de logobestanden zelf staan in `web/public/brand/` en worden uit
   het bronlogo gegenereerd (`web/brand/README.md`). Een pagina bepaalt daardoor alleen nog zijn titel
-  en inhoud — niet zijn kop, menu of uitlogknop.
+  en inhoud — niet zijn kop, menu of uitlogknop. Schermen met veel inhoud volgen sinds T17.2/T17.3
+  hetzelfde **overzicht → detail**-patroon: de pagina houdt de selectie in state (`selectedId`) en
+  rendert óf de lijst óf het detail, elk met een eigen `AppShell`-titel. Handelingen die je vanaf een
+  overzicht begint lopen via `Modal.tsx` (focus erin, Tab rondlopend, Escape sluit, focus terug naar
+  de opener).
 
 ## Interfaces in de web-app
 
