@@ -632,6 +632,67 @@ describe('gebruikersapp op de tablet', () => {
     expect(screen.getByLabelText('Iets willen')).toBeTruthy();
   });
 
+  it('toont de gok van de AI als gemarkeerde tegel tussen de opties (T16.3)', async () => {
+    // Bij de strategie `guess` draagt de AI zelf aan wat ze dénkt dat de gebruiker bedoelt. Die gok
+    // verschijnt als tegel — niet als kant-en-klare boodschap — zodat de gebruiker hem zelf aantikt
+    // (DESIGN §2, §3.1). Zichtbaar onderscheiden van een gewone optie, en niet alleen visueel.
+    const api = fakeDeviceApi({ linked: true });
+    const original = api.startConversation.bind(api);
+    api.startConversation = async () => {
+      const state = await original();
+      return {
+        ...state,
+        question: { prompt: 'Wat wil je?', options: [OUTSIDE, DRINK], guess: 'outside' },
+      };
+    };
+
+    render(<TabletApp api={api} />);
+
+    const tile = await screen.findByLabelText('Ik denk: Buiten');
+    expect(tile.className).toContain('option--guess');
+    // De andere opties blijven gewone tegels; er is er precies één gemarkeerd.
+    const other = screen.getByLabelText('Iets drinken');
+    expect(other.className).not.toContain('option--guess');
+  });
+
+  it('markeert zonder gok geen enkele tegel (elke andere strategie, T16.3)', async () => {
+    const api = fakeDeviceApi({ linked: true });
+    render(<TabletApp api={api} />);
+
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+    expect(screen.queryByLabelText(/^Ik denk:/)).toBeNull();
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.className).not.toContain('option--guess');
+    }
+  });
+
+  it('neemt de gok pas op in het gesprek als de gebruiker hem aantikt (T16.3)', async () => {
+    // De tegel is een aanbod, geen keuze: zolang de gebruiker hem niet aantikt gebeurt er niets, en
+    // ook daarna volgt gewoon de volgende vraag — geen boodschap die hij nooit koos.
+    const api = fakeDeviceApi({ linked: true });
+    const original = api.startConversation.bind(api);
+    api.startConversation = async () => {
+      const state = await original();
+      return {
+        ...state,
+        question: { prompt: 'Wat wil je?', options: [WANT, DRINK], guess: 'want' },
+      };
+    };
+
+    render(<TabletApp api={api} />);
+
+    // De gok staat op het scherm, maar de historie is leeg: er is niets gekozen.
+    await screen.findByLabelText('Ik denk: Iets willen');
+    expect(screen.queryByRole('navigation', { name: 'Gekozen pad' })).toBeNull();
+
+    fireEvent.click(screen.getByLabelText('Ik denk: Iets willen'));
+
+    // Pas na de tik staat de keuze in het pad — en het gesprek gaat gewoon verder met een vraag.
+    await screen.findByRole('heading', { name: 'Wat wil je?' });
+    const pad = await screen.findByRole('navigation', { name: 'Gekozen pad' });
+    expect(within(pad).getByText(/Iets willen/)).toBeTruthy();
+  });
+
   it('rondt af met "Dit is genoeg" en toont het voorstel met de route zoals hij is (T10.11)', async () => {
     // Sinds T10.10 stelt de server pas een boodschap voor als er niets meer te verfijnen valt. Zonder
     // deze uitweg zou "Ik wil iets doen." onbereikbaar zijn, terwijl dat een volwaardige boodschap is.

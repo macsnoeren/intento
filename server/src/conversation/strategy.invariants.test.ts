@@ -262,6 +262,34 @@ describe('invarianten in de gespreksflow (per strategie)', () => {
         expect(await prisma.aacSymbol.count()).toBe(before);
       });
 
+      it('markeert nooit een gok die niet tussen de opties staat (T16.3)', async () => {
+        // De gok is een **tegel**, geen tweede kanaal: een markering die naar een concept wijst dat niet
+        // aangeboden is, zou een gebruiker een keuze tonen die hij niet kan maken — of, erger, een
+        // aanname die nergens meer te zien is. Geldt voor elke strategie, ook de strategieën die geen
+        // gok markeren (dan is de waarde leeg).
+        const { orchestrator } = stub((prompt) => ({
+          question: 'Bedoel je dit?',
+          options: [
+            { symbol: 'walking', confidence: 0.9 },
+            ...prompt.availableSymbols.slice(0, 2).map((ref) => ({
+              symbol: ref.concept,
+              confidence: 0.4,
+            })),
+          ],
+          reason: 'een gok en wat alternatieven',
+          confidence: 0.5,
+        }));
+
+        for (const route of [steps(), steps('want'), steps('want', 'do-activity')]) {
+          const decision = await decideNextQuestion(prisma, orchestrator, {
+            steps: route,
+            strategy,
+          });
+          const guess = decision.question?.guess ?? null;
+          if (guess !== null) expect(conceptsOf(decision)).toContain(guess);
+        }
+      });
+
       it('houdt de promptsleutelset gesloten (een strategie vult inhoud, geen velden)', async () => {
         const { orchestrator, prompts } = stub(() => ({
           question: 'Wat bedoel je?',

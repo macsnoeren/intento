@@ -633,6 +633,16 @@ body {
   border-color: var(--intento-accent);
 }
 
+/* De gok van de AI (T16.3, strategie `guess`): "🎯 Ik denk: …" — een gemarkeerde tegel tussen de
+   gewone pictogrammen. Zichtbaar anders dan een gewone optie, want de gebruiker moet kunnen zien dat
+   dit een aanname is; maar wél een tegel als alle andere, want hij kiest zelf. */
+.option--guess {
+  position: relative;
+  border-width: 3px;
+  border-color: var(--intento-accent);
+  background: var(--intento-accent-soft, #e3edff);
+}
+
 .option__badge {
   position: absolute;
   top: 0.4rem;

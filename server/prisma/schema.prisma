@@ -544,6 +544,11 @@ model ConversationStep {
   /// Vorm: `string[]` (conceptsleutels), bij het lezen met zod gevalideerd. Lege lijst voor stappen van
   /// vóór T10.3.
   offeredConcepts  Json     @default("[]")
+  /// Welke van de aangeboden concepten als **gok** was gemarkeerd (T16.3, strategie `guess`): de tegel
+  /// "🎯 Ik denk: …" tussen de gewone pictogrammen. `null` bij elke andere strategie. Nodig om dezelfde
+  /// reden als `offeredConcepts`: `↩ Terug` en de correctieflow herstellen het scherm zoals het was,
+  /// inclusief wélke tegel gemarkeerd stond — anders verandert een teruggerold scherm stilletjes van vorm.
+  guessConcept     String?
   createdAt        DateTime @default(now())
 
   session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

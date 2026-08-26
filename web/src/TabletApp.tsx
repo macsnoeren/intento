@@ -343,6 +343,9 @@ function ConversationScreen({
   // daardoor onzichtbaar weg en was die nooit te kiezen. Nu blijven de schermen even rustig, maar zijn
   // de resterende opties via "Meer keuzes" bereikbaar (rondlopend terug naar de eerste pagina).
   const allOptions = state.question ? state.question.options : [];
+  // Het concept dat de AI als **gok** aandraagt (T16.3, strategie `guess`); `null` bij elke andere
+  // strategie. Buiten de map gelezen zodat de smalle typering van `state.question` behouden blijft.
+  const guessConcept = state.question?.guess ?? null;
   const perScreen = Math.max(1, profile.iconsPerScreen);
   const pageCount = Math.max(1, Math.ceil(allOptions.length / perScreen));
   const page = Math.min(optionPage, pageCount - 1);
@@ -393,6 +396,9 @@ function ConversationScreen({
                 symbol={symbol}
                 showText={profile.showText}
                 disabled={busy}
+                // De gok van de AI (T16.3, strategie `guess`): één gemarkeerde tegel tússen de gewone
+                // pictogrammen. De server wijst hem aan; de gebruiker tikt hem zelf aan of niet.
+                guess={guessConcept === symbol.concept}
                 onSelect={() => void run(() => api.conversationNext(state.sessionId, symbol.id))}
               />
             ))}
@@ -614,27 +620,43 @@ function OptionButton({
   symbol,
   showText,
   disabled,
+  guess = false,
   onSelect,
 }: {
   symbol: AacSymbol;
   showText: boolean;
   disabled: boolean;
+  /** Is dit de **gok** van de AI (T16.3)? Dan wordt de tegel zichtbaar anders aangeboden. */
+  guess?: boolean;
   onSelect: () => void;
 }): React.JSX.Element {
-  // Een nieuw woord (T10.6, DESIGN §7.6 trap 3) is door de AI aangedragen omdat het begrip nog niet in
-  // de bibliotheek stond. Dat wordt zichtbaar gemarkeerd: de gebruiker mag zien dat dit geen vertrouwd
-  // pictogram is maar een suggestie — hij kiest het nog steeds zelf (DESIGN §7.8). De markering staat
-  // ook in het `aria-label`, zodat ze niet alleen visueel is.
-  const label = symbol.isNew ? `${symbol.label} (nieuw woord)` : symbol.label;
+  // Twee markeringen die allebei zeggen "dit komt van de AI, niet uit de kast":
+  //
+  // - een **nieuw woord** (T10.6, DESIGN §7.6 trap 3) is aangedragen omdat het begrip nog niet in de
+  //   bibliotheek stond;
+  // - een **gok** (T16.3, strategie `guess`) is wat de AI dénkt dat de gebruiker bedoelt. Die staat
+  //   bewust tússen de andere pictogrammen en niet als kant-en-klare boodschap: zo blijft het een
+  //   aanbod dat de gebruiker zelf aantikt (DESIGN §2, §3.1).
+  //
+  // Beide staan ook in het `aria-label`, zodat de markering niet alleen visueel is.
+  const text = guess ? `Ik denk: ${symbol.label}` : symbol.label;
+  const label = symbol.isNew ? `${text} (nieuw woord)` : text;
+  const className = ['option', guess ? 'option--guess' : null, symbol.isNew ? 'option--new' : null]
+    .filter((part) => part !== null)
+    .join(' ');
   return (
     <button
-      className={symbol.isNew ? 'option option--new' : 'option'}
+      className={className}
       type="button"
       disabled={disabled}
       aria-label={label}
       onClick={onSelect}
     >
-      {symbol.isNew ? (
+      {guess ? (
+        <span className="option__badge" aria-hidden="true" title="Gok van de AI">
+          🎯
+        </span>
+      ) : symbol.isNew ? (
         <span className="option__badge" aria-hidden="true" title="Nieuw woord">
           ✨
         </span>
@@ -646,7 +668,7 @@ function OptionButton({
         width={120}
         height={120}
       />
-      {showText ? <span className="option__label">{symbol.label}</span> : null}
+      {showText ? <span className="option__label">{text}</span> : null}
     </button>
   );
 }

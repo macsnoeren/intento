@@ -502,9 +502,26 @@ export async function decideNextQuestion(
     }
   }
 
+  /**
+   * De **gok als tegel** (T16.3, §3.1, §7.4). Bij een strategie die het model zelf laat aandragen
+   * (`guess`) is de zekerste optie precies dat: een gok. Die wordt gemarkeerd aangeboden — tússen de
+   * gewone pictogrammen, niet als vroeg boodschapvoorstel.
+   *
+   * Waarom een tegel en geen voorstel: een gok die de route overslaat legt de onzekerheid van de AI bij
+   * de gebruiker ("klopt dit?" op iets wat hij nooit koos, §2). Als tegel is het een aanbod dat hij zelf
+   * aantikt; daarna is het een gewone keuze en beslist de voorsteldrempel ongewijzigd — de regel van
+   * T15.1 wordt hier bewust *niet* versoepeld.
+   *
+   * De gok is de eerste optie na de zekerheidssortering, en die staat per constructie in het aanbod.
+   * Op het startscherm nooit: daar kiest de gebruiker de richting (§3.1).
+   */
+  const guess =
+    strategy.guessTile && !atStart && filtered.length > 0 ? filtered[0]!.symbol.concept : null;
+
   const question: ConversationQuestion = {
     prompt: aiDecision.question,
     options: offered.map(symbolToPublic),
+    guess,
   };
   // We tonen een vraag, dus de fase is `select` (te onzeker, nieuwe vraag) of `refine` (verder
   // verfijnen). `propose` is hierboven al afgehandeld (dan is er geen vraag meer).

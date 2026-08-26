@@ -204,7 +204,12 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping), **`context-first`**
   (voorkeuren en persoonlijke context vóór de boom) en **`guess`** (T16.2 — *géén* kandidatenbronnen,
   waardoor elke beurt na de eerste keuze een **vrije ronde** is en de AI zelf begrippen aandraagt; het
-  startscherm houdt zijn intentiecategorieën, want die bodem legt `decision.ts` buiten de strategie om); de gekozen sleutel wordt bij het starten van een
+  startscherm houdt zijn intentiecategorieën, want die bodem legt `decision.ts` buiten de strategie om).
+  `guess` markeert bovendien zijn zekerste aandraging als **gok** (`guessTile`, T16.3): de tablet toont die
+  ene tegel als "🎯 Ik denk: …" tussen de gewone opties. De markering reist mee in het vastgelegde aanbod
+  (`pendingOffer.guess`) en op de stap (`ConversationStep.guessConcept`), zodat `↩ Terug` hetzelfde scherm
+  teruggeeft; ze verandert niets aan de flow — de gebruiker tikt de tegel zelf aan en daarna geldt de
+  voorsteldrempel ongewijzigd; de gekozen sleutel wordt bij het starten van een
   gesprek vastgelegd op de sessie (`ConversationSession.strategy`), zodat een instelling die halverwege
   wijzigt een lopend gesprek niet van aanpak laat wisselen; de actieve sleutel staat in de
   AI-beslissingslogregel en op de AI-job (`AiJob.strategy`, buiten de prompt om meegereisd via

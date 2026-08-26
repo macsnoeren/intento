@@ -1023,6 +1023,16 @@ export type ConversationStatus = z.infer<typeof conversationStatusSchema>;
 export const conversationQuestionSchema = z.object({
   prompt: z.string(),
   options: z.array(aacSymbolSchema),
+  /**
+   * Het concept van de optie die de AI als **gok** aandraagt (T16.3, DESIGN §7.10 strategie `guess`).
+   * De gebruikersapp markeert die ene tegel zichtbaar ("🎯 Ik denk: …") tussen de gewone pictogrammen.
+   *
+   * Bewust een verwijzing naar een optie en géén apart voorstelscherm: een gok die de route overslaat
+   * zet de onzekerheid van de AI terug bij de gebruiker (§2). Hij tikt de tegel zelf aan — daarna is het
+   * een gewone keuze en geldt de voorsteldrempel (§7.4) ongewijzigd. `null`/afwezig bij elke andere
+   * strategie, en de waarde staat altijd óók in `options`.
+   */
+  guess: z.string().nullable().optional(),
 });
 export type ConversationQuestion = z.infer<typeof conversationQuestionSchema>;
 

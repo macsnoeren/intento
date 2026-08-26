@@ -348,7 +348,11 @@ want de client kent ze niet):
   `wrong_guess`/`no_fitting_option`, plus `askedQuestions`), zodat "geen van deze past" een
   richtingverandering uitlokt in plaats van alleen een kortere lijst op te leveren.
 - **Confidence-drempels (§7.4):** de interpretatie-zekerheid bepaalt de fase — `select` (<60%, nieuwe
-  vraag), `refine` (60–85%, verfijnen), `propose` (boodschap voorstellen). Bij
+  vraag), `refine` (60–85%, verfijnen), `propose` (boodschap voorstellen). `question.guess` (T16.3) is
+  het concept van de optie die de AI als **gok** aandraagt bij de strategie `guess` (DESIGN §7.10); de
+  gebruikersapp markeert die ene tegel ("🎯 Ik denk: …"). De waarde staat altijd óók in `question.options`
+  en is `null` bij elke andere strategie — een gok is een aanbod dat de gebruiker zelf aantikt, geen
+  kortere weg naar een boodschap. Bij
   `propose` is er geen vraag meer (`question: null`, `done: true`). Voorstellen vereist **twee** dingen
   (T10.10): genoeg zekerheid **én** niets meer te verfijnen — heeft de laatste keuze nog niet-gekozen,
   niet-afgewezen kinderen in de bibliotheek, dan blijft de AI vragen, hoe zeker ze ook is. Een eindconcept

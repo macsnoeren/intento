@@ -30,6 +30,12 @@ export const pendingOfferSchema = z.object({
   confidence: z.number().min(0).max(1),
   /** De fase volgens §7.4. */
   phase: conversationPhaseSchema,
+  /**
+   * Het concept van de optie die als **gok** is aangeboden (T16.3, strategie `guess`); `null` bij elke
+   * andere strategie. Hoort bij het aanbod en niet bij de beslissing van dit moment: `↩ Terug` moet
+   * exact hetzelfde scherm herstellen — inclusief wélke tegel gemarkeerd was.
+   */
+  guess: z.string().nullable().optional(),
 });
 export type PendingOffer = z.infer<typeof pendingOfferSchema>;
 

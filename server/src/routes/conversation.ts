@@ -347,6 +347,7 @@ async function ensureOffer(
         concepts: decision.question.options.map((option) => option.concept),
         confidence: decision.confidence,
         phase: decision.phase,
+        guess: decision.question.guess ?? null,
       }
     : null;
 
@@ -427,7 +428,11 @@ async function questionFromOffer(
     .map((concept) => byConcept.get(concept))
     .filter((symbol): symbol is AacSymbolModel => symbol !== undefined)
     .map(symbolToPublic);
-  return options.length > 0 ? { prompt: offer.question, options } : null;
+  if (options.length === 0) return null;
+  // De gemarkeerde gok (T16.3) alleen meesturen als die optie er ook echt nog staat: een concept dat
+  // intussen uit de bibliotheek verdween mag geen tegel markeren die niemand ziet.
+  const guess = options.some((option) => option.concept === offer.guess) ? offer.guess : null;
+  return { prompt: offer.question, options, guess };
 }
 
 /**
@@ -558,6 +563,8 @@ export function registerConversationRoutes(
           selectedSymbolId: resolved.symbol.id,
           confidence: offer?.confidence ?? null,
           offeredConcepts: offer?.concepts ?? [],
+          // Welke tegel als gok gemarkeerd stond (T16.3); `↩ Terug` toont hetzelfde scherm terug.
+          guessConcept: offer?.guess ?? null,
         },
       });
       // Het aanbod is beantwoord: weg ermee, zodat er een nieuwe beslissing volgt.
@@ -598,6 +605,8 @@ export function registerConversationRoutes(
           selectedSymbolId: resolved.symbol.id,
           confidence: offer?.confidence ?? null,
           offeredConcepts: offer?.concepts ?? [],
+          // Welke tegel als gok gemarkeerd stond (T16.3); `↩ Terug` toont hetzelfde scherm terug.
+          guessConcept: offer?.guess ?? null,
         },
       });
       await clearPendingOffer(prisma, session);
@@ -651,6 +660,7 @@ export function registerConversationRoutes(
         concepts: readOfferedConcepts(last.offeredConcepts),
         confidence: last.confidence ?? DEFAULT_INTERPRETATION_CONFIDENCE,
         phase: phaseForDecision(last.confidence ?? DEFAULT_INTERPRETATION_CONFIDENCE, false),
+        guess: last.guessConcept,
       };
       // Stappen van vóór T10.3 hebben geen vastgelegd aanbod; dan valt de laag terug op een nieuwe
       // beslissing (`ensureOffer` ziet een leeg aanbod als afwezig).

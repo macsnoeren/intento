@@ -57,6 +57,8 @@ Startscherm-categorieën: 🗣 Iets zeggen · ❤️ Hoe ik mij voel · 🤕 Er 
 
 Voorbeeldroute: 🎯 Iets willen → 🚶 Iets doen → 🌳 Buiten → 🐕 Met hond → voorstel *"Ik wil buiten wandelen met mijn hond."*
 
+**De gok als tegel (T16.3).** Bij de strategie `guess` (§7.10) draagt de AI elke beurt zelf begrippen aan; haar zekerste aandraging is per definitie een gok. Die verschijnt als **gemarkeerde tegel tussen de andere pictogrammen** ("🎯 Ik denk: buiten wandelen met de hond"), niet als vroeg boodschapvoorstel. Het verschil is niet cosmetisch: een voorstel dat de route overslaat legt de onzekerheid van de AI bij de gebruiker — hij moet "klopt dit?" beantwoorden over iets wat hij nooit koos (§2). Als tegel is het een aanbod dat hij zelf aantikt; daarna is het een gewone keuze en geldt de voorsteldrempel (§7.4) **ongewijzigd** — ook de regel uit T15.1 wordt er niet voor versoepeld.
+
 ### 3.2 Vraagmodus (begeleider stelt vraag)
 
 Begeleider typt een vraag ("Wat wil je drinken?"). De AI gebruikt de vraag als context, beperkt de mogelijke antwoorden (🥤 Water · 🧃 Sap · ☕ Koffie · 🥛 Melk) en helpt het antwoord formuleren. Het antwoord wordt door de gebruiker samengesteld en bevestigd.

@@ -766,7 +766,7 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   vrije ronde op (test); `strategy.invariants.test.ts` groen voor `guess`; de catalogus toont label en
   uitleg in begrijpelijke taal voor de begeleider.
 
-- [ ] **T16.3 De gok als tegel — er een spel van maken**
+- [x] **T16.3 De gok als tegel — er een spel van maken**
   *DESIGN: §3.1, §7.4, §2.* Werk: bij `guess` verschijnt de gok als **gemarkeerde optie tussen de andere
   pictogrammen** ("🎯 Ik denk: buiten wandelen met de hond") in plaats van als vroeg boodschapvoorstel.
   De gebruiker tikt hem zelf aan; daarna geldt de gewone voorsteldrempel (§7.4) ongewijzigd. Bewust
@@ -775,6 +775,22 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   *Acceptatie:* de tegel verschijnt alleen bij `guess` en is zichtbaar onderscheiden van gewone opties
   (component-test); ❌ op de tegel verwijdert precies één stap, net als nu (test); de tegel komt nooit in
   een boodschap zonder dat de gebruiker hem heeft aangetikt én bevestigd (test).
+
+---
+
+## Onderhoud (ontdekt meerwerk)
+
+- [ ] **TO.1 De wachtrij-tests zijn tijdgevoelig en daardoor wisselvallig**
+  *Ontdekt tijdens T16.3.* `server/src/ai/job-queue.test.ts` draait met `queueTtlMs: 1000` tegen de
+  echte klok, terwijl de suite zelf trager is dan die TTL (het opzetten van een worker-token kost
+  honderden ms door argon2). Op een belaste machine verlopen jobs daardoor middenin een test: dan faalt
+  nu eens "enqueue → claim", dan weer "backpressure" — met een foutmelding die naar de wachtrijcode
+  wijst terwijl die niets mankeert. De testfouten zijn reproduceerbaar bij het los draaien van dat
+  bestand en bestaan onafhankelijk van fase 16 (nagemeten op een schone werkkopie).
+  Werk: de tijd in deze tests deterministisch maken zoals de rest van het bestand dat al doet (de
+  `expiresAt`/`leaseExpiresAt` via de database zetten in plaats van op de klok wachten), of de TTL in de
+  testconfiguratie ruim boven de looptijd leggen. Niet de productiecode aanpassen — daar is niets mis.
+  *Acceptatie:* `job-queue.test.ts` slaagt tien keer achter elkaar, ook los gedraaid en onder belasting.
 
 ---
 

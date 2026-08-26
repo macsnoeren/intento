@@ -91,6 +91,13 @@ export interface ConversationStrategy {
   allowNewConcepts: boolean;
   /** Hoeveel keuzes de **gebruiker** zelf gemaakt moet hebben voordat er iets voorgesteld wordt. */
   minUserChoicesBeforePropose: number;
+  /**
+   * Wordt de zekerste door de AI aangedragen optie zichtbaar als **gok** aangeboden (T16.3, §3.1)? De
+   * tegel staat tússen de gewone pictogrammen ("🎯 Ik denk: …") en is een gewone keuze zodra de
+   * gebruiker hem aantikt — geen kortere weg naar een boodschap. Alleen zinvol bij een strategie die het
+   * model zelf laat aandragen (`guess`); staat hij uit, dan is er geen gemarkeerde tegel.
+   */
+  guessTile: boolean;
   /** De promptformulering van deze strategie. */
   prompt: StrategyPrompt;
 }
@@ -127,6 +134,7 @@ export const REFINE_STRATEGY: ConversationStrategy = {
   hypothesisSmoothing: HYPOTHESIS_SMOOTHING,
   allowNewConcepts: true,
   minUserChoicesBeforePropose: 1,
+  guessTile: false,
   prompt: { goal: GOAL, extraAacRules: [] },
 };
 
@@ -150,6 +158,7 @@ export const EXPLORE_STRATEGY: ConversationStrategy = {
   hypothesisSmoothing: 0.7,
   allowNewConcepts: true,
   minUserChoicesBeforePropose: 1,
+  guessTile: false,
   prompt: {
     goal:
       'Achterhaal wat de gebruiker wil zeggen en kies daarvoor zo snel mogelijk **concrete** ' +
@@ -189,6 +198,7 @@ export const CALM_STRATEGY: ConversationStrategy = {
   hypothesisSmoothing: 0.35,
   allowNewConcepts: true,
   minUserChoicesBeforePropose: 1,
+  guessTile: false,
   prompt: {
     goal:
       'Achterhaal rustig wat de gebruiker wil zeggen. Stel één duidelijke vraag tegelijk en bied maar ' +
@@ -226,6 +236,7 @@ export const CONTEXT_FIRST_STRATEGY: ConversationStrategy = {
   hypothesisSmoothing: HYPOTHESIS_SMOOTHING,
   allowNewConcepts: true,
   minUserChoicesBeforePropose: 1,
+  guessTile: false,
   prompt: {
     goal:
       'Achterhaal wat de gebruiker wil zeggen en vertrek daarbij vanuit zijn eigen dagritme: de mensen, ' +
@@ -271,6 +282,7 @@ export const GUESS_STRATEGY: ConversationStrategy = {
   hypothesisSmoothing: HYPOTHESIS_SMOOTHING,
   allowNewConcepts: true,
   minUserChoicesBeforePropose: 1,
+  guessTile: true,
   prompt: {
     goal:
       'Raad wat de gebruiker wil zeggen. Je krijgt geen keuzelijst: leid uit zijn gekozen pad af wat hij ' +

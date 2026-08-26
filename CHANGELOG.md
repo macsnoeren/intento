@@ -65,6 +65,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   - De beheerpagina toont het als "❌ Nee — de AI ging eerst verfijnen; niets teruggerold of uitgesloten",
     en `correctionCount` telt de verfijnronde mee: ook dát was een druk op ❌.
 
+- **T16.3 De gok als tegel — er een spel van maken.** Bij `guess` is de zekerste aandraging van de AI
+  per definitie een gok. Die verschijnt nu als **gemarkeerde tegel tussen de gewone pictogrammen**
+  ("🎯 Ik denk: …") in plaats van als vroeg boodschapvoorstel. Dat verschil is niet cosmetisch: een
+  voorstel dat de route overslaat legt de onzekerheid van de AI bij de gebruiker — hij moet "klopt dit?"
+  beantwoorden over iets wat hij nooit koos (DESIGN §2). Als tegel is het een aanbod dat hij zelf
+  aantikt; daarna is het een gewone keuze en geldt de voorsteldrempel ongewijzigd. De regel van T15.1
+  wordt er bewust **niet** voor versoepeld: die komt uit de zevende gebruikerstest.
+  De markering is een verwijzing naar één van de aangeboden opties (`question.guess`), geen tweede
+  kanaal — een nieuwe invariant over álle strategieën bewaakt dat een gemarkeerde gok altijd ook echt
+  tussen de opties staat. Ze reist mee in het vastgelegde aanbod en op de stap
+  (`ConversationStep.guessConcept`, migratie), zodat `↩ Terug` hetzelfde scherm teruggeeft in plaats van
+  de tegel stilletjes in een gewone optie te veranderen.
+
 - **T16.2 Strategie `guess`: de AI draagt alles aan.** De vraag was of Intento een aanpak aankan waarin
   de AI *raadt* wat de gebruiker wil zeggen. Dat vroeg geen nieuwe architectuur: die modus bestaat al als
   **vrije ronde** (T10.13) — geen optielijst, wél het pad en de negatieve context, en de opdracht om zelf
