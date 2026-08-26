@@ -65,7 +65,11 @@ describe.each(CONVERSATION_STRATEGIES.map((s) => [s.key, s] as const))(
       expect(strategy.minOffered).toBeGreaterThanOrEqual(1);
       expect(strategy.maxOffered).toBeGreaterThanOrEqual(strategy.minOffered);
       expect(strategy.maxCandidates).toBeGreaterThanOrEqual(strategy.maxOffered);
-      expect(strategy.candidateSources.length).toBeGreaterThan(0);
+      // Géén eis dat er kandidatenbronnen zijn: `guess` (T16.2) heeft ze bewust niet, want dán is elke
+      // beurt een vrije ronde. Dat het scherm ook zónder bronnen gevuld raakt, is geen belofte van een
+      // parameter maar van de flow — en dat wordt hieronder per strategie echt gedraaid ("toont nooit
+      // een leeg scherm"). Wat hier telt is dat een bron niet dubbel staat: dan zou de tweede vermelding
+      // stilletjes niets doen en de volgorde iets anders betekenen dan ze leest.
       expect(new Set(strategy.candidateSources).size).toBe(strategy.candidateSources.length);
     });
 

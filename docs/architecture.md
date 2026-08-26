@@ -144,7 +144,10 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   ontdubbeld en begrensd op `AI_MAX_CANDIDATES`: **boomkinderen** → **kleinkinderen** (de concrete dingen
   achter een abstracte tak) → **retrieval** over de héle bibliotheek (op `searchText`, gevoed door de
   begeleidersvraag, de toegestane persoonlijke context en de labels van het gekozen pad) → **geleerde
-  voorkeuren**. De boom blijft het sterkste signaal, maar is niet langer de grens. De zoekindex zelf
+  voorkeuren** → **tijdsbepalingen** (alleen op een afgeronde vraagroute, T14.4; in de
+  standaardstrategieën staan ze vooraan). Die laatste bron werd tot T16.2 **buiten de strategie om**
+  toegevoegd — een uitzondering die een strategie zonder bronnen (`guess`) juist op een vraagroute liet
+  stilvallen; nu bepaalt de strategie ook hier of en waar de bron meedoet. De boom blijft het sterkste signaal, maar is niet langer de grens. De zoekindex zelf
   staat sinds T16.1 in een eigen module (`aac/search.ts`), omdat hij aan **twee** kanten van het model
   gebruikt wordt: als kandidatenbron vóór de aanroep en als deduplicatie erná (validatielaag, trap 2½).
   Zie [adr/0012](adr/0012-ai-generated-concepts.md).
@@ -198,8 +201,10 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   zijn ingebouwd (code, stabiele sleutel), niet beheerd in de database; de **selectie** loopt gesprek →
   gebruiker → standaard en ligt vast voor de duur van het gesprek. De registry kent **`refine`** (stap
   voor stap verfijnen, de standaard), **`explore`** (concreet vóór abstract, groter aanbod, lagere
-  voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping) en **`context-first`**
-  (voorkeuren en persoonlijke context vóór de boom); de gekozen sleutel wordt bij het starten van een
+  voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping), **`context-first`**
+  (voorkeuren en persoonlijke context vóór de boom) en **`guess`** (T16.2 — *géén* kandidatenbronnen,
+  waardoor elke beurt na de eerste keuze een **vrije ronde** is en de AI zelf begrippen aandraagt; het
+  startscherm houdt zijn intentiecategorieën, want die bodem legt `decision.ts` buiten de strategie om); de gekozen sleutel wordt bij het starten van een
   gesprek vastgelegd op de sessie (`ConversationSession.strategy`), zodat een instelling die halverwege
   wijzigt een lopend gesprek niet van aanpak laat wisselen; de actieve sleutel staat in de
   AI-beslissingslogregel en op de AI-job (`AiJob.strategy`, buiten de prompt om meegereisd via

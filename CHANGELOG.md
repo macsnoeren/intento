@@ -65,6 +65,22 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   - De beheerpagina toont het als "❌ Nee — de AI ging eerst verfijnen; niets teruggerold of uitgesloten",
     en `correctionCount` telt de verfijnronde mee: ook dát was een druk op ❌.
 
+- **T16.2 Strategie `guess`: de AI draagt alles aan.** De vraag was of Intento een aanpak aankan waarin
+  de AI *raadt* wat de gebruiker wil zeggen. Dat vroeg geen nieuwe architectuur: die modus bestaat al als
+  **vrije ronde** (T10.13) — geen optielijst, wél het pad en de negatieve context, en de opdracht om zelf
+  begrippen aan te dragen. Ze was alleen een noodgreep in plaats van een werkwijze. De nieuwe strategie
+  heeft precies één onderscheidende parameter: **geen enkele kandidatenbron**, waardoor elke beurt na de
+  eerste keuze een vrije ronde is, plus een promptdoel dat om een **gok** vraagt in plaats van om een
+  vraag. Geen nieuw codepad, dus de invariant-suite draait er automatisch overheen — inclusief het
+  startscherm, dat zijn intentiecategorieën houdt (de richting kiest de gebruiker, §3.1).
+  Daarvoor moest één uitzondering weg: de **tijdsbepalingen** (T14.4) werden buiten de strategie om aan de
+  kandidaten toegevoegd op een afgeronde vraagroute. Daardoor was `available` daar niet leeg en viel de
+  vrije ronde juist stil op de route waar hij het hardst nodig is. `time` is nu een gewone
+  strategiebron die in de vier bestaande strategieën vooraan staat — dezelfde volgorde als voorheen, maar
+  nu leesbaar in de strategie in plaats van als regel in `candidates.ts`. De invariant "een strategie kan
+  het scherm niet leegmaken" toetst niet langer of er bronnen zíjn (dat is bij `guess` juist de bedoeling)
+  maar wordt per strategie echt gedraaid.
+
 - **T16.1 Deduplicatie zoekt semantisch, niet alleen op naam.** Retrieval was tot nu toe een
   **voorfilter**: het model kreeg bestaande concepten voorgelegd en koos daaruit. Zodra het er zelf één
   mag aandragen — de vrije ronde (T10.13) — bereikte het de bibliotheek nog maar via naamcollisie op

@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../db/prisma.js';
 import { seedAacLibrary } from '../aac/library.js';
 import { AiOrchestrator } from '../ai/orchestrator.js';
-import type { AiProvider, AiQuestionDecision } from '../ai/provider.js';
+import { FREE_ROUND_RULES } from '../ai/prompt.js';
+import type { AiPrompt, AiProvider, AiQuestionDecision } from '../ai/provider.js';
 import { resetAuthData, seedUser } from '../test/auth-helpers.js';
 import { decideNextQuestion } from './decision.js';
 import {
@@ -10,6 +11,7 @@ import {
   CONTEXT_FIRST_STRATEGY,
   CONVERSATION_STRATEGIES,
   EXPLORE_STRATEGY,
+  GUESS_STRATEGY,
   REFINE_STRATEGY,
 } from './strategy.js';
 
@@ -259,6 +261,94 @@ describe('gespreksstrategieën — onderscheidend gedrag', () => {
     for (const child of offeredChildren) {
       expect(offered.indexOf('coffee')).toBeLessThan(offered.indexOf(child));
     }
+  });
+
+  // --- guess: de AI draagt alles zelf aan (T16.2) ---------------------------------------------------
+
+  /** Orchestrator die de ontvangen prompts vasthoudt; zo is te zien wát het model kreeg voorgelegd. */
+  function recording(decision: AiQuestionDecision): {
+    orchestrator: AiOrchestrator;
+    prompts: AiPrompt[];
+  } {
+    const prompts: AiPrompt[] = [];
+    const provider: AiProvider = {
+      name: 'recording',
+      selectNextQuestion: (prompt) => {
+        prompts.push(prompt);
+        return Promise.resolve(decision);
+      },
+    };
+    return { orchestrator: new AiOrchestrator(provider), prompts };
+  }
+
+  const noOptions: AiQuestionDecision = {
+    question: 'Wat bedoel je?',
+    options: [],
+    reason: 'geen voorstel',
+    confidence: 0.3,
+  };
+
+  it('guess maakt van elke beurt na de eerste keuze een vrije ronde', async () => {
+    // De vrije ronde was een noodgreep (er was niets meer over); met `guess` is hij de werkwijze. Het
+    // model krijgt geen optielijst maar wél het pad, en de opdracht zelf begrippen aan te dragen.
+    for (const route of [steps('want'), steps('want', 'do-activity')]) {
+      const { orchestrator, prompts } = recording(noOptions);
+      await decideNextQuestion(prisma, orchestrator, { steps: route, strategy: GUESS_STRATEGY });
+
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0]!.availableSymbols).toEqual([]);
+      expect(prompts[0]!.aacRules).toContain(FREE_ROUND_RULES[0]);
+      // En het pad zelf gaat wél mee: raden zonder context is geen raden maar gokken in het wilde weg.
+      expect(prompts[0]!.conversationContext.map((ref) => ref.concept)).toEqual(
+        route.map((step) => step.selectedConcept),
+      );
+    }
+  });
+
+  it('refine legt op datzelfde punt wél een keuzelijst voor', async () => {
+    const { orchestrator, prompts } = recording(noOptions);
+    await decideNextQuestion(prisma, orchestrator, {
+      steps: steps('want'),
+      strategy: REFINE_STRATEGY,
+    });
+
+    expect(prompts[0]!.availableSymbols.length).toBeGreaterThan(0);
+    expect(prompts[0]!.aacRules).not.toContain(FREE_ROUND_RULES[0]);
+  });
+
+  it('guess valt ook op een afgeronde vraagroute niet stil (de tijdsbron zit onder de strategie)', async () => {
+    // De tijdsbepalingen (T14.4) werden buiten de strategie om toegevoegd. Daardoor was `available` op
+    // "Een vraag stellen → Wat? → Eten" niet leeg en bleef de vrije ronde juist dáár uit.
+    const route = steps('ask', 'ask-what', 'eat');
+
+    const guess = recording(noOptions);
+    await decideNextQuestion(prisma, guess.orchestrator, {
+      steps: route,
+      strategy: GUESS_STRATEGY,
+    });
+    expect(guess.prompts[0]!.availableSymbols).toEqual([]);
+
+    // Bij refine blijft het gedrag van T14.4 staan: de tijdsbepalingen komen als eerste kandidaten.
+    const refine = recording(noOptions);
+    await decideNextQuestion(prisma, refine.orchestrator, {
+      steps: route,
+      strategy: REFINE_STRATEGY,
+    });
+    expect(refine.prompts[0]!.availableSymbols[0]!.concept).toBe('now');
+  });
+
+  it('guess houdt het startscherm ongemoeid: de gebruiker kiest de richting', async () => {
+    // Raden mag pas nadat de gebruiker een richting koos (DESIGN §3.1, §2); de intentiecategorieën zijn
+    // de bodem onder het gesprek en staan buiten de strategie om vast.
+    const { orchestrator, prompts } = recording(noOptions);
+    const decision = await decideNextQuestion(prisma, orchestrator, {
+      steps: steps(),
+      strategy: GUESS_STRATEGY,
+    });
+
+    const intents = await prisma.aacSymbol.findMany({ where: { category: 'intent' } });
+    expect(conceptsOf(decision).sort()).toEqual(intents.map((symbol) => symbol.concept).sort());
+    expect(prompts[0]!.availableSymbols.length).toBe(intents.length);
   });
 
   // --- de uitleg is geen formaliteit ----------------------------------------------------------------

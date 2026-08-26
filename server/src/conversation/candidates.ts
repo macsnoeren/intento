@@ -28,6 +28,8 @@ import { defaultStrategy, type StrategyCandidateSource } from './strategy.js';
  *  3. **Retrieval over de héle bibliotheek** — op de genormaliseerde zoekindex (`searchText`), gevoed
  *     door de begeleidersvraag, de toegestane persoonlijke context en de labels van het gekozen pad.
  *  4. **Geleerde voorkeuren** — wat deze gebruiker vaker bevestigde (leeg als leren uitstaat).
+ *  5. **Tijdsbepalingen** — alleen op een afgeronde vraagroute (T14.4); in de standaardstrategieën staan
+ *     ze vóór de boomkinderen, want "Wat eten we?" wordt scherper van "vandaag", niet van "brood".
  * De volgorde is bewust: de aanroeper (`decision.ts`) laat de AI hierbinnen kiezen en ordenen, en vult
  * bij een te kleine AI-selectie aan in deze volgorde. Zo blijft de boom de ruggengraat van het gesprek
  * terwijl de rest van de bibliotheek bereikbaar wordt.
@@ -108,10 +110,10 @@ const STOP_WORDS = new Set([
 
 /**
  * De herkomst van een kandidaat; puur voor diagnose/logging (T9.15) en de aanvulvolgorde. Dit zijn de
- * strategiebronnen (§7.10) plus twee die géén strategiekeuze zijn: `intent` (de gegarandeerde bodem
- * onder het gesprek, toegevoegd door `decision.ts`) en `time` (T14.4, zie `loadTimeSymbols`).
+ * strategiebronnen (§7.10) plus één die géén strategiekeuze is: `intent` — de gegarandeerde bodem onder
+ * het gesprek, toegevoegd door `decision.ts`.
  */
-export type CandidateSource = StrategyCandidateSource | 'intent' | 'time';
+export type CandidateSource = StrategyCandidateSource | 'intent';
 
 export interface CandidateSet {
   /**
@@ -309,10 +311,19 @@ export async function collectCandidates(
   // query. `children` wordt altijd geladen — `atLeafConcept` hangt ervan af, ongeacht de strategie.
   const sources = input.sources ?? defaultStrategy().candidateSources;
   const wanted = new Set(sources);
-  const [grandchildren, retrieved, preferred] = await Promise.all([
+  // Een **vraag** mag altijd in de tijd geplaatst worden (T14.4): "Wat eten we?" → "Wat eten we
+  // vandaag?". Dat is geen boomrelatie — onder een vraagwoord zouden tijdsbegrippen naast het onderwerp
+  // komen te staan ("Wat is vandaag?") en onder een onderwerp zouden ze ook in een wens opduiken ("Ik
+  // wil vandaag."). Het is een eigenschap van dít soort route, dus staat de voorwaarde hier; of de bron
+  // meedoet en waar ze staat, komt sinds T16.2 uit de strategie.
+  const questionRoute = isCompleteQuestion(
+    steps.map((step) => ({ concept: step.selectedConcept })),
+  );
+  const [grandchildren, retrieved, preferred, times] = await Promise.all([
     wanted.has('descendants') ? loadGrandchildSymbols(prisma, children, limit) : [],
     wanted.has('retrieval') ? retrieveByTerms(prisma, terms, limit) : [],
     wanted.has('preference') ? loadPreferredSymbols(prisma, userId, limit) : [],
+    wanted.has('time') && questionRoute ? loadTimeSymbols(prisma) : [],
   ]);
 
   const candidates: AacSymbolModel[] = [];
@@ -322,8 +333,8 @@ export async function collectCandidates(
     descendants: 0,
     retrieval: 0,
     preference: 0,
-    intent: 0,
     time: 0,
+    intent: 0,
   };
   const seen = new Set<string>();
 
@@ -339,24 +350,17 @@ export async function collectCandidates(
     }
   };
 
+  // De tijdsbepalingen staan in de vier standaardstrategieën **vóór** de boomkinderen. Op een vraagroute
+  // zijn die kinderen namelijk geen natuurlijke verfijning: wie "Wat eten we?" preciezer wil maken,
+  // bedoelt "vandaag" of "vanavond" — kiest hij "brood", dan verandert de bétekenis van de vraag ("Wat
+  // eten we, brood?"). Bij een wens is het andersom, en daar levert de bron sowieso niets op.
   const symbolsBySource: Record<StrategyCandidateSource, AacSymbolModel[]> = {
     children,
     descendants: grandchildren,
     retrieval: retrieved,
     preference: preferred,
+    time: times,
   };
-  // Een **vraag** mag altijd in de tijd geplaatst worden (T14.4): "Wat eten we?" → "Wat eten we
-  // vandaag?". Dat is geen boomrelatie — onder een vraagwoord zouden tijdsbegrippen naast het onderwerp
-  // komen te staan ("Wat is vandaag?") en onder een onderwerp zouden ze ook in een wens opduiken ("Ik
-  // wil vandaag."). Het is een eigenschap van dít soort route, dus staat de regel hier.
-  //
-  // En ze gaan **vóór** de boomkinderen. Op een vraagroute zijn die kinderen namelijk geen natuurlijke
-  // verfijning: wie "Wat eten we?" preciezer wil maken, bedoelt "vandaag" of "vanavond" — kiest hij
-  // "brood", dan verandert de bétekenis van de vraag ("Wat eten we, brood?"). Bij een wens is het
-  // andersom, en daar komt deze bron dan ook niet aan te pas.
-  if (isCompleteQuestion(steps.map((step) => ({ concept: step.selectedConcept })))) {
-    add(await loadTimeSymbols(prisma), 'time');
-  }
 
   for (const source of sources) add(symbolsBySource[source], source);
 

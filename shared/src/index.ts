@@ -309,7 +309,13 @@ export type IconsPerScreen = z.infer<typeof iconsPerScreenSchema>;
  * keuze toont) dezelfde lijst nodig heeft. De **parameters** van een strategie blijven server-intern:
  * de client hoeft niet te weten met welke drempels er gezocht wordt, alleen wát hij kan kiezen.
  */
-export const CONVERSATION_STRATEGY_KEYS = ['refine', 'explore', 'calm', 'context-first'] as const;
+export const CONVERSATION_STRATEGY_KEYS = [
+  'refine',
+  'explore',
+  'calm',
+  'context-first',
+  'guess',
+] as const;
 
 /** Strategiesleutel; een onbekende waarde wordt op de API-grens geweigerd (400). */
 export const conversationStrategySchema = z.enum(CONVERSATION_STRATEGY_KEYS);
@@ -370,6 +376,14 @@ export const CONVERSATION_STRATEGY_CATALOG: readonly {
     description:
       'Begint bij wat deze persoon vaak kiest en bij zijn eigen context (personen, favorieten, vaste ' +
       'plekken) in plaats van bij de begrippenboom. Geschikt voor wie een sterk vast dagritme heeft.',
+  },
+  {
+    key: 'guess',
+    label: 'De AI gokt mee',
+    description:
+      'De AI kiest niet uit de begrippenlijst maar bedenkt elke beurt zélf wat je waarschijnlijk ' +
+      'bedoelt, en zet haar beste gok tussen de pictogrammen. Geschikt voor wie weinig keuzes wil ' +
+      'maken en een verkeerde gok makkelijk wegtikt; de gebruiker kiest en bevestigt nog steeds zelf.',
   },
 ];
 

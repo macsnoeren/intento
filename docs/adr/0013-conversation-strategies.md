@@ -63,6 +63,19 @@ De bestaande waarden worden de strategie **`refine`**. De constanten blijven bes
 van `refine`*, niet als verspreide waarheid; het gedrag verandert daarmee niet, wat de acceptatie van
 die stap is.
 
+### 1b. Naschrift T16.2: `guess` toetst de claim — en kost één uitzondering
+
+De strategie **`guess`** (de AI draagt zelf alles aan, DESIGN §7.10) is de eerste die de belofte
+"configuratie, geen nieuw codepad" op scherp zet: haar enige onderscheidende parameter is een **lege**
+lijst kandidatenbronnen, waardoor de bestaande vrije ronde (§7.6 trap 3) elke beurt aanslaat. Er kwam
+geen regel logica bij, en de invariant-suite draait er ongewijzigd overheen.
+
+Dat werkte alleen niet meteen: de tijdsbepalingen (T14.4) werden **buiten** de strategie om aan de
+kandidaten toegevoegd. Precies het soort uitzondering dat deze ADR wilde uitbannen — met één bron die
+zich niets van de strategie aantrekt, is "geen bronnen" geen garantie meer. `time` is nu een gewone
+strategiebron; dat de bron alleen op een afgeronde vraagroute iets oplevert blijft een eigenschap van de
+route, geen keuze van de strategie.
+
 ### 2. De domeinregels vallen erbuiten, en dat wordt afgedwongen
 
 De lijst uit DESIGN §7.10 ("wat een strategie nooit varieert") is geen belofte in proza maar een

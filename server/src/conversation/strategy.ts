@@ -46,8 +46,16 @@ import { HYPOTHESIS_SMOOTHING } from './hypothesis.js';
  * De kandidatenbronnen die een strategie mag ordenen (DESIGN §7.3). `intent` staat er bewust **niet**
  * bij: de intentiecategorieën zijn de gegarandeerde bodem onder het gesprek ("nooit een leeg scherm") en
  * worden door `decision.ts` beheerd — geen keuze van een strategie.
+ *
+ * `time` (de tijdsbepalingen op een afgeronde vraagroute, T14.4) hoort er sinds T16.2 wél bij. Die bron
+ * werd tot dan **buiten de strategie om** toegevoegd, en dat is precies het soort uitzondering dat een
+ * strategie stilletjes ondermijnt: een strategie die bewust géén kandidaten wil (`guess`) kreeg op een
+ * vraagroute alsnog een gevulde lijst, waardoor de vrije ronde daar niet meer aansloeg. De bron blijft
+ * inhoudelijk gebonden aan het soort route — tijdsbepalingen verschijnen alleen bij een vraag mét
+ * onderwerp — maar of en wanneer ze meedoet, staat nu in de strategie.
  */
-export type StrategyCandidateSource = 'children' | 'descendants' | 'retrieval' | 'preference';
+export type StrategyCandidateSource =
+  'children' | 'descendants' | 'retrieval' | 'preference' | 'time';
 
 /** De promptfragmenten die een strategie vult: de **inhoud** van het doel en de extra AAC-regels. */
 export interface StrategyPrompt {
@@ -110,7 +118,7 @@ function presentationOf(key: ConversationStrategyKey): {
  */
 export const REFINE_STRATEGY: ConversationStrategy = {
   ...presentationOf('refine'),
-  candidateSources: ['children', 'descendants', 'retrieval', 'preference'],
+  candidateSources: ['time', 'children', 'descendants', 'retrieval', 'preference'],
   maxCandidates: 30,
   minOffered: 8,
   maxOffered: 12,
@@ -133,7 +141,7 @@ export const REFINE_STRATEGY: ConversationStrategy = {
  */
 export const EXPLORE_STRATEGY: ConversationStrategy = {
   ...presentationOf('explore'),
-  candidateSources: ['descendants', 'children', 'retrieval', 'preference'],
+  candidateSources: ['time', 'descendants', 'children', 'retrieval', 'preference'],
   maxCandidates: 30,
   minOffered: 10,
   maxOffered: 16,
@@ -172,7 +180,7 @@ export const EXPLORE_STRATEGY: ConversationStrategy = {
  */
 export const CALM_STRATEGY: ConversationStrategy = {
   ...presentationOf('calm'),
-  candidateSources: ['children', 'descendants', 'retrieval', 'preference'],
+  candidateSources: ['time', 'children', 'descendants', 'retrieval', 'preference'],
   maxCandidates: 12,
   minOffered: 2,
   maxOffered: 4,
@@ -209,7 +217,7 @@ export const CALM_STRATEGY: ConversationStrategy = {
  */
 export const CONTEXT_FIRST_STRATEGY: ConversationStrategy = {
   ...presentationOf('context-first'),
-  candidateSources: ['preference', 'retrieval', 'children', 'descendants'],
+  candidateSources: ['time', 'preference', 'retrieval', 'children', 'descendants'],
   maxCandidates: 30,
   minOffered: 6,
   maxOffered: 10,
@@ -233,12 +241,60 @@ export const CONTEXT_FIRST_STRATEGY: ConversationStrategy = {
   },
 };
 
+/**
+ * **De AI gokt mee** — de AI draagt zelf alles aan (T16.2, DESIGN §7.6 trap 3, §7.10).
+ *
+ * De vraag was of Intento een aanpak aankan waarin de AI *raadt* wat de gebruiker wil zeggen: zelf de
+ * volgende pictogrammen bedenken, uit de bibliotheek mogen putten én nieuwe woorden mogen aandragen.
+ * Daar is geen nieuwe architectuur voor nodig — die modus bestaat al als **vrije ronde** (T10.13): geen
+ * optielijst, wél het pad en de negatieve context, en de opdracht om zelf begrippen aan te dragen. Ze was
+ * alleen een noodgreep (er was niets meer over) in plaats van een werkwijze.
+ *
+ * Deze strategie maakt er een werkwijze van, met precies één parameter: **geen enkele kandidatenbron**.
+ * Daarmee is `available` na de eerste keuze altijd leeg en is elke beurt een vrije ronde. Geen nieuw
+ * codepad, dus alle waarborgen (en de invariant-suite) gelden onverkort — inclusief het startscherm, dat
+ * zijn intentiecategorieën houdt omdat `decision.ts` die bodem buiten de strategie om legt.
+ *
+ * De bibliotheek raakt daarmee niet buiten beeld: noemt het model een bestaand begrip, dan zet de
+ * validatielaag het om naar het beheerde symbool — sinds T16.1 ook als het net een andere vorm gebruikt.
+ * Dat is de reden dat deze strategie pas ná T16.1 veilig kon: zonder die stap maakt raden duplicaten.
+ */
+export const GUESS_STRATEGY: ConversationStrategy = {
+  ...presentationOf('guess'),
+  // Leeg — en dat is de hele strategie. Geen boom, geen retrieval, geen voorkeuren, geen tijdsbepalingen.
+  candidateSources: [],
+  maxCandidates: 6,
+  minOffered: 2,
+  maxOffered: 6,
+  confidenceRefine: CONFIDENCE_REFINE,
+  confidencePropose: CONFIDENCE_PROPOSE,
+  hypothesisSmoothing: HYPOTHESIS_SMOOTHING,
+  allowNewConcepts: true,
+  minUserChoicesBeforePropose: 1,
+  prompt: {
+    goal:
+      'Raad wat de gebruiker wil zeggen. Je krijgt geen keuzelijst: leid uit zijn gekozen pad af wat hij ' +
+      'waarschijnlijk bedoelt en zet die **gok** als eerste optie, met de zekerheid die je er zelf aan ' +
+      'geeft. Draag daarnaast een paar concrete begrippen aan die een andere kant op wijzen, zodat de ' +
+      'gebruiker je kan corrigeren zonder vast te lopen. Kijk naar wat hij al koos én naar wat hij ' +
+      'afwees. Formuleer je vraag in het Nederlands, kort en eenvoudig, en richt je rechtstreeks tot de ' +
+      'gebruiker.',
+    extraAacRules: [
+      'Je krijgt per beurt geen bestaande opties: draag ze zelf aan, passend bij het gekozen pad.',
+      'Zet je beste gok vooraan, met de hoogste zekerheid; de gebruiker kiest zelf of hij hem overneemt ' +
+        'en bevestigt zelf de boodschap.',
+      'Gok één ding tegelijk: elk voorstel is één kort begrip, geen halve zin.',
+    ],
+  },
+};
+
 /** Alle ingebouwde strategieën. Volgorde = weergavevolgorde voor de begeleider. */
 export const CONVERSATION_STRATEGIES: readonly ConversationStrategy[] = [
   REFINE_STRATEGY,
   EXPLORE_STRATEGY,
   CALM_STRATEGY,
   CONTEXT_FIRST_STRATEGY,
+  GUESS_STRATEGY,
 ];
 
 /** De sleutel van de standaardstrategie; geldt als een gebruiker/gesprek er geen gekozen heeft. */

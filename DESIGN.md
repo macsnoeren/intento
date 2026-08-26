@@ -290,6 +290,8 @@ Trap 1 en 2 zijn **niet optioneel en gaan altijd voor**: zonder die deduplicatie
 
 **De vrije ronde.** Kennen de relatieboom én de retrieval niets specifiekers meer onder de laatste keuze, dan volgt een **vrije ronde**: de AI krijgt het gekozen pad, de afgewezen concepten en de opdracht om zélf twee tot vijf preciezere begrippen aan te dragen — maar **geen optielijst**. Dat is bewust. Een greep uit de bibliotheek als "keuzeset" leest samen met de AAC-regel *"kies bij voorkeur uit de aangeboden opties"* als een opdracht om iets uit die lijst te kiezen, en dan verschijnen er begrippen op het scherm die niets met het gesprek te maken hebben — in de vijfde gebruikerstest stonden er op het pad "Iets willen → Eten → Brood → Beleg" opties als "pijn" en "nagel", met een vraag over drinken erboven. De bibliotheek blijft zonder lijst gewoon bereikbaar: noemt de AI een bestaand begrip bij naam of synoniem, dan zet trap 1/2 dat om naar het beheerde symbool. Levert de vrije ronde niets op, dan komen de intentiecategorieën terug en pas daarna een boodschapvoorstel.
 
+De vrije ronde is daarmee niet alleen een noodgreep maar een **werkwijze**: een strategie zonder kandidatenbronnen (`guess`, §7.10) maakt er elke beurt één, zodat de AI zelf raadt wat de gebruiker bedoelt. Dat vraagt geen apart codepad — het is dezelfde ronde, alleen niet meer bij toeval. Wat het wél vraagt is de semantische deduplicatie hierboven: zonder die stap maakt raden duplicaten.
+
 > **Ontwerpwijziging (Fase 10).** Tot dan gold: *"de AI mag tijdens communicatie geen vrije concepten verzinnen"* — een onbekend concept werd stilzwijgend weggelaten. Dat is losgelaten. De reden: als het woord van de gebruiker niet in de bibliotheek staat, was er géén uitweg — de gebruiker zat vast in een woordenschat die iemand anders voor hem had bepaald. Het eigenaarschap (§2, §7.8) blijft geborgd doordat een nieuw concept nooit méér is dan een **voorstel**: de gebruiker kiest het zelf en bevestigt de boodschap zelf. Zie [ADR-0012](docs/adr/0012-ai-generated-concepts.md).
 
 ### 7.7 Promptingmodel
@@ -320,7 +322,7 @@ Dat is geen opruimactie maar een ontwerpkeuze: die knoppen coderen een **aanname
 
 | Parameter | Wat het regelt |
 |---|---|
-| Kandidatenbronnen + volgorde/gewicht | Welke van de vier bronnen uit §7.3 meedoen en wat er vooraan staat |
+| Kandidatenbronnen + volgorde/gewicht | Welke bronnen uit §7.3 meedoen en wat er vooraan staat — inclusief géén enkele bron (`guess`), waarmee elke beurt een vrije ronde wordt |
 | Maximum kandidatenset | Hoeveel kandidaten er maximaal aan het model worden voorgelegd |
 | Onder- en bovengrens aanbod | Hoeveel opties de gebruiker minimaal en maximaal per scherm ziet |
 | Verfijn- en voorsteldrempel | De twee grenzen uit het confidence-model (§7.4) |
@@ -348,6 +350,7 @@ Een strategie verandert de **zoekwijze**, niet de **garanties**. Zonder die sche
 | `explore` | Breed verkennen | Wie concrete dingen herkent maar moeilijk categoriseert; slaat abstracte tussenstappen over |
 | `calm` | Rustig en bevestigend | Wie snel overprikkeld raakt: klein aanbod, één duidelijke vraag, later voorstellen |
 | `context-first` | Context eerst | Wie een sterk vast dagritme heeft: voorkeuren en persoonlijke context vóór de begrippenboom |
+| `guess` | De AI gokt mee | Wie weinig keuzes wil maken: de AI draagt zelf alles aan en zet haar beste gok tussen de pictogrammen |
 
 **Selectie: gesprek → gebruiker → standaard.** Een gesprek kan een expliciete strategie meekrijgen (de begeleider die een vraag stelt, §3.2, weet welke situatie dit is); heeft het die niet, dan geldt de instelling van de gebruiker (§5.3); heeft die er geen, dan de standaard uit de registry. De strategie **ligt vast voor de duur van het gesprek**: halverwege wisselen zou het vastgelegde aanbod en de lopende hypothese inconsistent maken. Dat is een expliciete keuze, geen omissie.
 

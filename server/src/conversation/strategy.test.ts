@@ -21,7 +21,11 @@ import {
 describe('strategie refine — de huidige aanpak, benoemd', () => {
   it('draagt de waarden die vóór T11.2 in vijf modules verspreid stonden', () => {
     expect(REFINE_STRATEGY.key).toBe('refine');
+    // `time` (T14.4) staat vooraan sinds T16.2: die bron werd tot dan buiten de strategie om toegevoegd
+    // en stond ook toen al vóór de boomkinderen. De volgorde is dus dezelfde, alleen niet langer een
+    // uitzondering in `candidates.ts` — en de bron levert nog steeds alleen iets op een vraagroute.
     expect(REFINE_STRATEGY.candidateSources).toEqual([
+      'time',
       'children',
       'descendants',
       'retrieval',

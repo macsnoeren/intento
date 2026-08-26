@@ -754,7 +754,7 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   levert onveranderd trap 3 op (bestaande T10.6-tests groen); de drempel waarboven "lijkt op" als
   treffer geldt, staat als benoemde constante met onderbouwing in de code.
 
-- [ ] **T16.2 Strategie `guess`: de AI draagt alles aan**
+- [x] **T16.2 Strategie `guess`: de AI draagt alles aan**
   *DESIGN: §7.3, §7.10; ADR-0013.* Werk: een nieuwe ingebouwde strategie met `candidateSources: []` —
   geen boom, geen retrieval, geen voorkeuren vooraf — zodat elke beurt een vrije ronde is, plus een
   promptdoel dat om een **gok** vraagt in plaats van om een vraag. Meenemen: de `time`-bron in
