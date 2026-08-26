@@ -1,6 +1,7 @@
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AacSymbolModel, ConversationStepModel } from '../generated/prisma/models.js';
 import { normalizeSearch } from '../aac/library.js';
+import { MIN_TERM_LENGTH, retrieveByTerms } from '../aac/search.js';
 import type { AiUserContextItem } from '../ai/provider.js';
 import { loadChildSymbols } from './engine.js';
 import { isCompleteQuestion } from './message.js';
@@ -47,9 +48,6 @@ import { defaultStrategy, type StrategyCandidateSource } from './strategy.js';
 
 /** Maximum aantal termen dat we uit de context destilleren (houdt het aantal queries begrensd). */
 const MAX_RETRIEVAL_TERMS = 12;
-
-/** Minimale lengte van een zoekterm; korter matcht te grof op een `contains`-index. */
-const MIN_TERM_LENGTH = 3;
 
 /**
  * Nederlandse functiewoorden die als zoekterm niets opleveren maar wél ruis matchen ("wil" zit in
@@ -163,41 +161,6 @@ export function retrievalTerms(input: {
     if (terms.length >= MAX_RETRIEVAL_TERMS) break;
   }
   return terms;
-}
-
-/**
- * Zoekt symbolen waarvan de genormaliseerde zoekindex een van de termen bevat. Eén query met een
- * `OR` van `contains`-filters: portabel en hoofdletterongevoelig op SQLite én PostgreSQL, omdat
- * `searchText` al lowercase is opgeslagen (zie `buildSearchText`).
- */
-async function retrieveByTerms(
-  prisma: PrismaClient,
-  terms: string[],
-  limit: number,
-): Promise<AacSymbolModel[]> {
-  if (terms.length === 0 || limit <= 0) return [];
-  // De `contains`-query is een goedkope voorfilter in de database; hij matcht op een **ruwe** substring.
-  const rough = await prisma.aacSymbol.findMany({
-    where: { OR: terms.map((term) => ({ searchText: { contains: term } })) },
-    orderBy: [{ label: 'asc' }],
-  });
-  return rough.filter((symbol) => matchesAtWordStart(symbol.searchText, terms)).slice(0, limit);
-}
-
-/**
- * Komt één van de termen vóór aan het begin van een woord in de zoekindex?
- *
- * Zonder deze controle matcht een ruwe substring midden in een woord, en dat levert onzin op: in de
- * rooktest van T10.10 verscheen bij "Wat wil je eten?" een **voet** tussen de opties, omdat "eten" in
- * "vo*eten*" zit — en "warm", omdat het synoniem "zw*eten*" is. Dat is precies het soort optie dat een
- * gebruiker doet twijfelen aan het hele scherm.
- *
- * Bewust een **woordbegin** en geen exacte match: zo blijft "hand" wél "handen" vinden, wat de retrieval
- * juist bruikbaar maakt.
- */
-function matchesAtWordStart(searchText: string, terms: string[]): boolean {
-  const words = searchText.split(' ');
-  return terms.some((term) => words.some((word) => word.startsWith(term)));
 }
 
 /**

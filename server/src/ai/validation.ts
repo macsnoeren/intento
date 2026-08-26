@@ -2,6 +2,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AacSymbolModel } from '../generated/prisma/models.js';
 import { normalizeSearch } from '../aac/library.js';
 import { createAiConcept } from '../aac/new-concept.js';
+import { findSimilarSymbol } from '../aac/search.js';
 import type { OpenSymbolsClient } from '../aac/opensymbols.js';
 import type { AiOption } from './provider.js';
 
@@ -12,6 +13,11 @@ import type { AiOption } from './provider.js';
  *
  *   1. bestaat het concept exact? → houden;
  *   2. is het een **synoniem** (of label) van een bestaand concept? → omzetten naar dat concept, houden;
+ *   2½. lijkt het genoeg op een bestaand concept om hetzelfde begrip te zijn (T16.1)? → dan is het een
+ *      bijna-duplicaat: omzetten naar dat concept, houden. Deze stap zoekt over de **hele** bibliotheek
+ *      via dezelfde zoekindex als de kandidatenselectie (`aac/search.ts`), zodat er geen tweede begrip
+ *      van "lijkt op" ontstaat: zegt het model "boterhammen" waar de bibliotheek "brood" (synoniem
+ *      "boterham") kent, dan wint het bestaande symbool;
  *   3. is het aantoonbaar nieuw én zijn nieuwe concepten toegestaan? → een symbool aanmaken met herkomst
  *      `ai` en status `PENDING` (inclusief pictogramzoekopdracht, `aac/new-concept.ts`), plus een
  *      `ConceptProposal` voor de beheerder. Het begrip is daarmee **wél** kiesbaar voor de gebruiker,
@@ -19,8 +25,11 @@ import type { AiOption } from './provider.js';
  *   4. staan nieuwe concepten uit (`AI_ALLOW_NEW_CONCEPTS=false`) of is de term onbruikbaar als concept
  *      (te lang, een halve zin)? → alleen een `ConceptProposal` en de optie **weglaten**.
  *
- * Stap 1 en 2 zijn niet optioneel en gaan altijd voor: zonder die deduplicatie loopt de bibliotheek vol
- * met bijna-duplicaten die op elkaar lijken, wat het kiezen voor de gebruiker juist moeilijker maakt.
+ * Stap 1, 2 en 2½ zijn niet optioneel en gaan altijd voor: zonder die deduplicatie loopt de bibliotheek
+ * vol met bijna-duplicaten die op elkaar lijken, wat het kiezen voor de gebruiker juist moeilijker maakt.
+ * Vóór T16.1 was retrieval alléén een voorfilter — het model koos uit bestaande concepten — waardoor een
+ * **vrije ronde** (§7.6 trap 3, T10.13) de bibliotheek nog maar via naamcollisie kon bereiken en zelf
+ * duplicaten maakte. Sindsdien staat de zoekindex aan beide kanten van het model.
  *
  * De functie is idempotent op voorstellen: hetzelfde onbekende concept levert één openstaand
  * `ConceptProposal` op.
@@ -59,10 +68,12 @@ export interface ValidateAiOptionsInput {
 }
 
 /**
- * Zoekt een bestaand symbool voor een door de AI aangedragen term. Eerst een exacte conceptmatch; anders
- * een synoniem-/labelmatch. De synoniemmatch is bewust **exact op een genormaliseerde term** (geen losse
- * `contains`), zodat een korte AI-term niet per ongeluk een onverwant symbool raakt dat het woord ergens
- * in zijn zoekindex heeft.
+ * Zoekt een bestaand symbool voor een door de AI aangedragen term. Eerst een exacte conceptmatch; dan een
+ * synoniem-/labelmatch; en pas als beide niets opleveren de **semantische** stap over de zoekindex
+ * (T16.1). De synoniemmatch is bewust **exact op een genormaliseerde term** (geen losse `contains`),
+ * zodat een korte AI-term niet per ongeluk een onverwant symbool raakt dat het woord ergens in zijn
+ * zoekindex heeft; de stap daarna heeft daar een eigen, benoemde drempel voor
+ * (`SIMILARITY_THRESHOLD`).
  */
 async function resolveSymbol(prisma: PrismaClient, term: string): Promise<AacSymbolModel | null> {
   const concept = normalizeSearch(term);
@@ -87,7 +98,9 @@ async function resolveSymbol(prisma: PrismaClient, term: string): Promise<AacSym
       return candidate;
     }
   }
-  return null;
+
+  // Trap 2½ (T16.1): geen exacte treffer, maar misschien wél hetzelfde begrip in een andere vorm.
+  return findSimilarSymbol(prisma, concept);
 }
 
 /**
@@ -108,7 +121,7 @@ export async function validateAiOptions(
   const proposedSeen = new Set<string>();
 
   for (const option of options) {
-    // Trap 1 + 2: bestaand concept of synoniem/label. Deze deduplicatie gaat áltijd voor.
+    // Trap 1 + 2 (+ 2½): bestaand concept, synoniem/label of bijna-duplicaat. Deduplicatie gaat áltijd voor.
     const symbol = await resolveSymbol(prisma, option.symbol);
     if (symbol) {
       if (!seenSymbolIds.has(symbol.id)) {

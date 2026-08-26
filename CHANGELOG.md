@@ -65,6 +65,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   - De beheerpagina toont het als "❌ Nee — de AI ging eerst verfijnen; niets teruggerold of uitgesloten",
     en `correctionCount` telt de verfijnronde mee: ook dát was een druk op ❌.
 
+- **T16.1 Deduplicatie zoekt semantisch, niet alleen op naam.** Retrieval was tot nu toe een
+  **voorfilter**: het model kreeg bestaande concepten voorgelegd en koos daaruit. Zodra het er zelf één
+  mag aandragen — de vrije ronde (T10.13) — bereikte het de bibliotheek nog maar via naamcollisie op
+  sleutel, label of synoniem. Zegt het model "boterhammen" waar de bibliotheek "brood" (synoniem
+  "boterham") kent, dan ontstond er een tweede broodbegrip: precies het bijna-duplicaat dat §7.6 trap 1/2
+  moet voorkomen. De zoekindex staat nu aan **beide** kanten van het model: nieuwe module
+  `aac/search.ts` (dezelfde index als de kandidatenselectie) en een extra trap 2½ in de validatielaag —
+  geen exacte treffer? dan eerst semantisch zoeken, en pas daarna een nieuw concept. De drempel waarboven
+  "lijkt op" als treffer geldt is een benoemde constante met onderbouwing: verbuigingen vallen samen
+  ("boterhammen" → brood), maar een term die een bestaand begrip alleen *bevat* ("warme soep") niet — dan
+  zou de gebruiker een woord kwijtraken dat hij net aangeboden kreeg. Raakt geen enkele strategie in zijn
+  parameters; een woord dat écht nieuw is loopt onveranderd naar trap 3.
+
 - **T15.1 "Kinderen hebben" is niet hetzelfde als "te vaag".** Zevende gebruikerstest: de route
   🎯 Iets willen → 🚶 Iets doen → 🌳 Buiten → 🚶‍♀️ Wandelen leverde geen voorstel maar de vraag *"Wat wil je
   eten?"*. Nagemeten: de zin stond er al ("Ik wil buiten wandelen.") en de kandidaten klopten ook (hond,

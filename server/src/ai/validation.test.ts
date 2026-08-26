@@ -90,6 +90,45 @@ describe('validateAiOptions — AAC-begrenzing afdwingen', () => {
     expect(await prisma.conceptProposal.count({ where: { concept: 'flauwekul' } })).toBe(1);
   });
 
+  // --- T16.1: semantische deduplicatie (trap 2½) -------------------------------------------------
+
+  it('herkent een bijna-duplicaat en levert het bestaande symbool (T16.1)', async () => {
+    // "boterhammen" staat niet als concept, label of synoniem in de bibliotheek — "boterham" (synoniem
+    // van `bread`) wel. Zonder de retrieval-stap ná het model zou hier een tweede broodbegrip ontstaan.
+    const before = await prisma.aacSymbol.count();
+    const { valid, created, proposed } = await validateOpen([opt('boterhammen')], 'reden');
+
+    expect(valid.map((v) => v.symbol.concept)).toEqual(['bread']);
+    expect(created).toEqual([]);
+    expect(proposed).toEqual([]);
+    expect(
+      await prisma.conceptProposal.findUnique({ where: { concept: 'boterhammen' } }),
+    ).toBeNull();
+    expect(await prisma.aacSymbol.count()).toBe(before);
+  });
+
+  it('houdt een term die een bestaand begrip alleen bevat apart (drempel, T16.1)', async () => {
+    // "warme soep" deelt één van twee woorden met "soep": onder de drempel, dus een eigen begrip. Anders
+    // zou de gebruiker het woord kwijtraken dat hij net aangeboden kreeg.
+    const { valid, created } = await validateOpen([opt('warme soep')], 'reden');
+
+    expect(valid.map((v) => v.symbol.concept)).toEqual(['warme soep']);
+    expect(created).toEqual(['warme soep']);
+
+    await prisma.aacSymbol.delete({ where: { concept: 'warme soep' } });
+  });
+
+  it('voegt een langer, ander woord niet samen met een bestaand begrip (T16.1)', async () => {
+    // "nagelknipper" begint weliswaar met "nagel", maar is een ander ding. De verbuigingsgrens houdt de
+    // deduplicatie bij meervouden en verkleinvormen; hij mag geen begrippen opslokken.
+    const { valid, created } = await validateOpen([opt('nagelknipper')], 'reden');
+
+    expect(valid.map((v) => v.symbol.concept)).toEqual(['nagelknipper']);
+    expect(created).toEqual(['nagelknipper']);
+
+    await prisma.aacSymbol.delete({ where: { concept: 'nagelknipper' } });
+  });
+
   // --- T10.6: nieuwe concepten -------------------------------------------------------------------
 
   it('maakt een aantoonbaar nieuw begrip aan als gemarkeerd nieuw woord (T10.6)', async () => {

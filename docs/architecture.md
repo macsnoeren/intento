@@ -144,8 +144,10 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   ontdubbeld en begrensd op `AI_MAX_CANDIDATES`: **boomkinderen** → **kleinkinderen** (de concrete dingen
   achter een abstracte tak) → **retrieval** over de héle bibliotheek (op `searchText`, gevoed door de
   begeleidersvraag, de toegestane persoonlijke context en de labels van het gekozen pad) → **geleerde
-  voorkeuren**. De boom blijft het sterkste signaal, maar is niet langer de grens. Zie
-  [adr/0012](adr/0012-ai-generated-concepts.md).
+  voorkeuren**. De boom blijft het sterkste signaal, maar is niet langer de grens. De zoekindex zelf
+  staat sinds T16.1 in een eigen module (`aac/search.ts`), omdat hij aan **twee** kanten van het model
+  gebruikt wordt: als kandidatenbron vóór de aanroep en als deduplicatie erná (validatielaag, trap 2½).
+  Zie [adr/0012](adr/0012-ai-generated-concepts.md).
 
 - **Validatielaag + confidence** (`ai/validation.ts`, `ai/thresholds.ts`, `conversation/decision.ts`,
   T5.2, herzien in Fase 10) — de laag tussen provider en gebruiker (DESIGN §7.4–7.6, §7.8). De
@@ -154,8 +156,14 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   uitlokt in plaats van stil te verdwijnen. Elke voorgestelde optie gaat langs de bibliotheek: bestaand
   concept → houden; synoniem/label → omzetten; aantoonbaar nieuw → als `AI_ALLOW_NEW_CONCEPTS` aanstaat
   een symbool aanmaken met herkomst `ai` en status `PENDING` (inclusief pictogramzoekopdracht) plus een
-  `ConceptProposal`, anders alleen het voorstel en weglaten (T10.6). De deduplicatie op trap 1/2 gaat
-  altijd voor — zonder die volgorde loopt de bibliotheek vol met bijna-duplicaten.
+  `ConceptProposal`, anders alleen het voorstel en weglaten (T10.6). Tussen "synoniem" en "nieuw" zit
+  sinds T16.1 een **semantische stap** (trap 2½): een term zonder exacte treffer wordt eerst tegen
+  dezelfde zoekindex gehouden als de kandidatenselectie (`aac/search.ts`), zodat "boterhammen" het
+  bestaande `bread` oplevert in plaats van een tweede broodbegrip. De drempel waarboven "lijkt op" als
+  treffer geldt staat als benoemde constante (`SIMILARITY_THRESHOLD`) met onderbouwing in die module.
+  De deduplicatie op trap 1/2/2½ gaat altijd voor — zonder die volgorde loopt de bibliotheek vol met
+  bijna-duplicaten, en dat gebeurde ook: zolang retrieval alléén een **voorfilter** was, bereikte een
+  vrije ronde de bibliotheek nog uitsluitend via naamcollisie.
   De **interpretatie-zekerheid** (§7.4) bepaalt de fase (`select` <60% / `refine` 60–85% / `propose` >85%
   of eindconcept) en wordt sinds T10.8 over beurten heen **gedempt** via de hypothese, zodat één
   zelfverzekerd modelantwoord geen boodschap forceert. Verder gelden: voorstellen mag pas ná een keuze van

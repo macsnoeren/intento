@@ -742,7 +742,7 @@ kent, dan ontstaat een bijna-duplicaat — precies wat §7.6 wil voorkomen. Retr
 model naar *ná* het model. Dat is de enige echte ontwerpwijziging in deze fase, en ze verbetert de
 bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
 
-- [ ] **T16.1 Deduplicatie zoekt semantisch, niet alleen op naam**
+- [x] **T16.1 Deduplicatie zoekt semantisch, niet alleen op naam**
   *DESIGN: §7.6.* Werk: de validatielaag krijgt tussen trap 2 en trap 3 een **retrieval-stap over de hele
   bibliotheek**: een door de AI aangedragen begrip dat geen exacte sleutel/label/synoniem-match heeft,
   wordt eerst tegen de zoekindex gehouden voordat het een nieuw concept wordt. Dezelfde index als
