@@ -1266,6 +1266,17 @@ export const caregiverMessageSchema = z.object({
   createdAt: z.iso.datetime(),
   /** De letterlijke begeleidersvraag als dit een antwoord in vraagmodus was (§3.2); anders `null`. */
   caregiverQuestion: z.string().nullable(),
+  /**
+   * Wanneer een begeleider deze boodschap als **opgepakt** aftekende (T13.3); `null` = nog open.
+   *
+   * Dit is begeleiders-administratie *over* de boodschap, geen uitspraak van de gebruiker: het zegt
+   * niets over de zin zelf en verandert of verbergt hem nooit (DESIGN §2). De aftekening is gedeeld —
+   * alle gekoppelde begeleiders zien dezelfde stand, want "is hier al iets mee gedaan?" is een
+   * gemeenschappelijke vraag.
+   */
+  acknowledgedAt: z.iso.datetime().nullable(),
+  /** Wie aftekende (naam, anders het e-mailadres van het account); `null` zolang niemand oppakte. */
+  acknowledgedBy: z.string().nullable(),
 });
 export type CaregiverMessage = z.infer<typeof caregiverMessageSchema>;
 
@@ -1273,6 +1284,16 @@ export const caregiverMessageListResponseSchema = z.object({
   messages: z.array(caregiverMessageSchema),
 });
 export type CaregiverMessageListResponse = z.infer<typeof caregiverMessageListResponseSchema>;
+
+/**
+ * Antwoord op het aftekenen/terugdraaien van één boodschap (T13.3). Bewust de **hele** boodschap terug
+ * en niet alleen de nieuwe stand: dan hoeft de lijst in de begeleidersapp niet te raden hoe de regel er
+ * nu uitziet en kan hij de rij één-op-één vervangen tot de volgende verversing.
+ */
+export const caregiverMessageResponseSchema = z.object({
+  message: caregiverMessageSchema,
+});
+export type CaregiverMessageResponse = z.infer<typeof caregiverMessageResponseSchema>;
 
 // --- Gespreksverloop terugzien (T12.1, DESIGN §3.1, §3.6, §9.1, §9.4) ---
 

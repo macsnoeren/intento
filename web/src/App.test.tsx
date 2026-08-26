@@ -376,6 +376,12 @@ function fakeApi(
     listCaregiverMessages() {
       return Promise.resolve({ messages: [] });
     },
+    acknowledgeCaregiverMessage() {
+      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
+    },
+    unacknowledgeCaregiverMessage() {
+      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
+    },
     listConversations() {
       return Promise.resolve({ conversations: [] });
     },

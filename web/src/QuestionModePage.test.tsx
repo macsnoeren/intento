@@ -1,6 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { AacSymbol, AccountPublic, QuestionStartRequest, UserPublic } from '@intento/shared';
+import type {
+  AacSymbol,
+  AccountPublic,
+  CaregiverMessage,
+  QuestionStartRequest,
+  UserPublic,
+} from '@intento/shared';
 import { QuestionModePage } from './QuestionModePage.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
@@ -63,6 +69,8 @@ function fakeApi(
       | 'startQuestion'
       | 'viewUserConversation'
       | 'listCaregiverMessages'
+      | 'acknowledgeCaregiverMessage'
+      | 'unacknowledgeCaregiverMessage'
       | 'getAiStatus'
     >
   > = {},
@@ -318,6 +326,8 @@ describe('begeleiderinterface — vraagmodus', () => {
               message: 'Ik wil brood eten.',
               createdAt: '2026-08-23T12:32:00.000Z',
               caregiverQuestion: null,
+              acknowledgedAt: null,
+              acknowledgedBy: null,
             },
             {
               id: 'm-2',
@@ -327,6 +337,8 @@ describe('begeleiderinterface — vraagmodus', () => {
               message: 'Water.',
               createdAt: '2026-08-23T09:00:00.000Z',
               caregiverQuestion: 'Wat wil je drinken?',
+              acknowledgedAt: null,
+              acknowledgedBy: null,
             },
           ],
         }),
@@ -341,5 +353,108 @@ describe('begeleiderinterface — vraagmodus', () => {
     expect(
       within(paneel).getByText(new Date('2026-08-23T12:32:00.000Z').toLocaleString('nl-NL')),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * Afhandelen in de berichtenlijst (T13.3, DESIGN §2, §3.3).
+ *
+ * De lijst groeide alleen maar: na een dag wist een begeleider niet meer wat nieuw was en wat al was
+ * opgepakt. Hier gaat het om de UI-kant van het antwoord — aftekenen, terugdraaien en tijdelijk filteren
+ * — én om de grens die daarbij hoort: de boodschap van de gebruiker verandert niet en verdwijnt niet.
+ */
+describe('begeleiderinterface — berichten afhandelen (T13.3)', () => {
+  /** Eén bericht in de lijst; `acknowledgedBy` gezet betekent: al opgepakt. */
+  function bericht(
+    id: string,
+    message: string,
+    acknowledgedBy: string | null = null,
+  ): CaregiverMessage {
+    return {
+      id,
+      sessionId: `sess-${id}`,
+      userId: 'u-1',
+      userName: 'Sanne',
+      message,
+      createdAt: '2026-08-23T12:32:00.000Z',
+      caregiverQuestion: null,
+      acknowledgedAt: acknowledgedBy === null ? null : '2026-08-23T12:40:00.000Z',
+      acknowledgedBy,
+    };
+  }
+
+  it('tekent een bericht af en toont daarna wie het oppakte', async () => {
+    const opgepakt: string[] = [];
+    const api = fakeApi({
+      listCaregiverMessages: () => Promise.resolve({ messages: [bericht('m-1', 'Ik wil eten.')] }),
+      acknowledgeCaregiverMessage: (id: string) => {
+        opgepakt.push(id);
+        return Promise.resolve({ message: bericht(id, 'Ik wil eten.', 'Jan') });
+      },
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} watchPollMs={0} />);
+
+    const paneel = await screen.findByRole('region', { name: 'Berichten van je gebruikers' });
+    expect(within(paneel).getByText('1 nog niet opgepakt')).toBeTruthy();
+
+    fireEvent.click(within(paneel).getByRole('button', { name: /^Opgepakt:/ }));
+
+    expect(await within(paneel).findByText('Opgepakt door Jan')).toBeTruthy();
+    expect(opgepakt).toEqual(['m-1']);
+    // De boodschap zelf blijft staan zoals de gebruiker hem bevestigde (DESIGN §2).
+    expect(within(paneel).getByText('Ik wil eten.')).toBeTruthy();
+    expect(within(paneel).getByText('alles opgepakt')).toBeTruthy();
+  });
+
+  it('draait het aftekenen terug', async () => {
+    const api = fakeApi({
+      listCaregiverMessages: () =>
+        Promise.resolve({ messages: [bericht('m-1', 'Ik wil eten.', 'Jan')] }),
+      unacknowledgeCaregiverMessage: (id: string) =>
+        Promise.resolve({ message: bericht(id, 'Ik wil eten.') }),
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} watchPollMs={0} />);
+
+    const paneel = await screen.findByRole('region', { name: 'Berichten van je gebruikers' });
+    fireEvent.click(await within(paneel).findByRole('button', { name: /^Toch niet opgepakt:/ }));
+
+    expect(await within(paneel).findByRole('button', { name: /^Opgepakt:/ })).toBeTruthy();
+    expect(within(paneel).queryByText(/Opgepakt door/)).toBeNull();
+  });
+
+  it('verbergt met het filter alleen de weergave — het bericht blijft bestaan', async () => {
+    const api = fakeApi({
+      listCaregiverMessages: () =>
+        Promise.resolve({
+          messages: [bericht('m-1', 'Ik wil eten.', 'Jan'), bericht('m-2', 'Ik heb pijn.')],
+        }),
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} watchPollMs={0} />);
+
+    const paneel = await screen.findByRole('region', { name: 'Berichten van je gebruikers' });
+    expect(await within(paneel).findByText('Ik wil eten.')).toBeTruthy();
+
+    fireEvent.click(within(paneel).getByLabelText('Alleen nog niet opgepakt'));
+    expect(within(paneel).queryByText('Ik wil eten.')).toBeNull();
+    expect(within(paneel).getByText('Ik heb pijn.')).toBeTruthy();
+
+    // Uitzetten brengt hem terug: het filter is een hulpmiddel van de kijker, geen wisser.
+    fireEvent.click(within(paneel).getByLabelText('Alleen nog niet opgepakt'));
+    expect(within(paneel).getByText('Ik wil eten.')).toBeTruthy();
+  });
+
+  it('meldt een mislukte aftekening zonder de lijst te wissen', async () => {
+    const api = fakeApi({
+      listCaregiverMessages: () => Promise.resolve({ messages: [bericht('m-1', 'Ik wil eten.')] }),
+      acknowledgeCaregiverMessage: () =>
+        Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'Deze boodschap bestaat niet.')),
+    });
+    render(<QuestionModePage api={api} account={caregiver} onLogout={() => {}} watchPollMs={0} />);
+
+    const paneel = await screen.findByRole('region', { name: 'Berichten van je gebruikers' });
+    fireEvent.click(await within(paneel).findByRole('button', { name: /^Opgepakt:/ }));
+
+    expect(await within(paneel).findByText('Deze boodschap bestaat niet.')).toBeTruthy();
+    expect(within(paneel).getByText('Ik wil eten.')).toBeTruthy();
   });
 });

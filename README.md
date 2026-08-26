@@ -369,6 +369,31 @@ vraag stellen; een niet-gekoppelde begeleider krijgt `403`. Het door de begeleid
 is de vaste eerste stap en kan door de gebruiker niet ongedaan worden gemaakt, zodat het gesprek binnen
 de vraag blijft.
 
+## Berichten van je gebruikers — zien en afhandelen (T13.1/T13.2/T13.3)
+
+Onder de vraagmodus staat op de pagina **Begeleiden** de lijst met elke **bevestigde** boodschap van de
+gebruikers waar dit account bij hoort — nieuwste eerst, met tijdstip en naam, en de begeleidersvraag
+erbij als het een antwoord in vraagmodus was. Zonder die lijst stopte de communicatie precies waar ze
+zou moeten beginnen: iemand vraagt om iets en niemand ziet het. Bij het bevestigen gaat er bovendien een
+seintje per e-mail naar elke gekoppelde begeleider — zonder de zin zelf, want e-mail is een extern kanaal
+(`NOTIFY_CAREGIVERS_BY_EMAIL`, `APP_BASE_URL`).
+
+Een lijst die alleen maar groeit wordt ruis, dus kan een begeleider een boodschap **afhandelen**:
+
+```bash
+# Opgepakt aftekenen (en met DELETE weer terugdraaien):
+curl -sb cookies.txt -X POST "http://127.0.0.1:3000/caregiver/messages/<bericht-id>/acknowledge"
+curl -sb cookies.txt -X DELETE "http://127.0.0.1:3000/caregiver/messages/<bericht-id>/acknowledge"
+```
+
+De knop **Opgepakt** legt vast wie hem oppakte en wanneer; **Toch niet** draait dat terug (ook door een
+collega — een misklik moet te herstellen zijn). De stand is **gedeeld**: de vraag is "is hier al iets
+mee gedaan", niet "heb ík het gezien". Wat een begeleider níet kan, is de boodschap zelf aanraken: het
+aftekenen staat in een eigen tabel naast `GeneratedMessage`, dat na het bevestigen nooit meer beschreven
+wordt, en het filter *"alleen nog niet opgepakt"* verbergt hoogstens tijdelijk in de weergave — er
+verdwijnt niets (DESIGN §2). Zie [docs/adr/0014](docs/adr/0014-message-acknowledgement.md) en
+[docs/api.md](docs/api.md).
+
 ## AI-orchestrator, validatielaag en confidence (T5.1/T5.2)
 
 De vraagselectie achter `POST /conversation/{id}/next` draait vanaf **T5.2** op de **AI-orchestrator**

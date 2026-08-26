@@ -1,6 +1,9 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { caregiverMessageListResponseSchema } from '@intento/shared';
+import {
+  caregiverMessageListResponseSchema,
+  caregiverMessageResponseSchema,
+} from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import { seedAacLibrary } from '../aac/library.js';
@@ -186,6 +189,244 @@ describe('berichten voor de begeleider — GET /caregiver/messages (T13.1)', () 
 
   it('weigert zonder sessie met 401', async () => {
     const res = await app.inject({ method: 'GET', url: '/caregiver/messages' });
+    expect(res.statusCode).toBe(401);
+  });
+});
+
+/**
+ * Afhandelen: wat is er al opgepakt? (T13.3, DESIGN §2, §3.3, §3.6).
+ *
+ * Het ijkpunt is dat de administratie van de begeleider en de uitspraak van de gebruiker gescheiden
+ * blijven: aftekenen legt vast wie iets oppakte en wanneer, maar mag de boodschap nooit veranderen of
+ * verbergen. En de stand is gedeeld — de vraag is "is hier al iets mee gedaan", niet "heb ík het gezien".
+ */
+describe('opgepakt aftekenen — /caregiver/messages/:id/acknowledge (T13.3)', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await resetAuthData();
+    app = await buildApp({ env: testEnv() });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  /** Legt een bevestigde boodschap vast en geeft het id terug. */
+  async function seedMessage(userId: string, message: string): Promise<string> {
+    const session = await prisma.conversationSession.create({
+      data: { userId, status: 'COMPLETED' },
+    });
+    const created = await prisma.generatedMessage.create({
+      data: { sessionId: session.id, message, confirmed: true },
+    });
+    return created.id;
+  }
+
+  /** Een organisatie met één gebruiker en één daaraan gekoppelde begeleider. */
+  async function seedTeam(): Promise<{
+    userId: string;
+    messageId: string;
+    organizationId: string;
+    caregiver: { email: string; password: string; accountId: string };
+  }> {
+    const { organizationId } = await seedAccount();
+    const user = await seedUser('Sanne', organizationId);
+    const messageId = await seedMessage(user.id, 'Ik wil naar buiten.');
+    const caregiver = await seedAccount(
+      'zorg@intento.local',
+      'pw-begeleider-gekoppeld',
+      'CAREGIVER',
+      organizationId,
+    );
+    await linkCaregiver(caregiver.accountId, user.id);
+    return { userId: user.id, messageId, organizationId, caregiver };
+  }
+
+  it('tekent een boodschap af met wie en wanneer, en toont dat in de lijst', async () => {
+    const { messageId, caregiver } = await seedTeam();
+    const cookie = await loginCookie(app, caregiver.email, caregiver.password);
+
+    const voor = Date.now();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const { message } = caregiverMessageResponseSchema.parse(res.json());
+    expect(message.acknowledgedBy).toBe(caregiver.email);
+    expect(new Date(message.acknowledgedAt!).getTime()).toBeGreaterThanOrEqual(voor);
+
+    // De lijst toont dezelfde stand: aftekenen is geen los antwoord maar de nieuwe werkelijkheid.
+    const lijst = await app.inject({
+      method: 'GET',
+      url: '/caregiver/messages',
+      headers: { cookie },
+    });
+    const { messages } = caregiverMessageListResponseSchema.parse(lijst.json());
+    expect(messages).toHaveLength(1);
+    expect(messages[0]!.acknowledgedAt).toBe(message.acknowledgedAt);
+    expect(messages[0]!.acknowledgedBy).toBe(caregiver.email);
+  });
+
+  it('laat de boodschap zelf ongemoeid: aftekenen is administratie, geen wijziging (DESIGN §2)', async () => {
+    const { messageId, caregiver } = await seedTeam();
+    const cookie = await loginCookie(app, caregiver.email, caregiver.password);
+    const voor = await prisma.generatedMessage.findUniqueOrThrow({ where: { id: messageId } });
+
+    await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+
+    const na = await prisma.generatedMessage.findUniqueOrThrow({ where: { id: messageId } });
+    expect(na).toEqual(voor);
+    // En hij verdwijnt niet uit de lijst: afgetekend is niet weggehaald.
+    const lijst = await app.inject({
+      method: 'GET',
+      url: '/caregiver/messages',
+      headers: { cookie },
+    });
+    const { messages } = caregiverMessageListResponseSchema.parse(lijst.json());
+    expect(messages.map((entry) => entry.message)).toEqual(['Ik wil naar buiten.']);
+  });
+
+  it('is gedeeld: een tweede gekoppelde begeleider ziet dat het al is opgepakt, en door wie', async () => {
+    const { userId, messageId, organizationId, caregiver } = await seedTeam();
+    const collega = await seedAccount(
+      'collega@intento.local',
+      'pw-begeleider-collega',
+      'CAREGIVER',
+      organizationId,
+    );
+    await linkCaregiver(collega.accountId, userId);
+
+    const eerste = await loginCookie(app, caregiver.email, caregiver.password);
+    await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie: eerste },
+    });
+
+    const tweede = await loginCookie(app, collega.email, collega.password);
+    const lijst = await app.inject({
+      method: 'GET',
+      url: '/caregiver/messages',
+      headers: { cookie: tweede },
+    });
+    const { messages } = caregiverMessageListResponseSchema.parse(lijst.json());
+    expect(messages[0]!.acknowledgedBy).toBe(caregiver.email);
+  });
+
+  it('houdt bij een tweede aftekening de eerste aftekenaar en het eerste tijdstip aan', async () => {
+    const { userId, messageId, organizationId, caregiver } = await seedTeam();
+    const collega = await seedAccount(
+      'collega2@intento.local',
+      'pw-begeleider-collega-2',
+      'CAREGIVER',
+      organizationId,
+    );
+    await linkCaregiver(collega.accountId, userId);
+
+    const eerste = await loginCookie(app, caregiver.email, caregiver.password);
+    const eersteRes = await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie: eerste },
+    });
+    const eersteStand = caregiverMessageResponseSchema.parse(eersteRes.json()).message;
+
+    const tweede = await loginCookie(app, collega.email, collega.password);
+    const tweedeRes = await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie: tweede },
+    });
+    expect(tweedeRes.statusCode).toBe(200);
+    const tweedeStand = caregiverMessageResponseSchema.parse(tweedeRes.json()).message;
+    expect(tweedeStand.acknowledgedBy).toBe(caregiver.email);
+    expect(tweedeStand.acknowledgedAt).toBe(eersteStand.acknowledgedAt);
+  });
+
+  it('draait het aftekenen terug (ook door een ander) en blijft daarbij idempotent', async () => {
+    const { messageId, caregiver } = await seedTeam();
+    const cookie = await loginCookie(app, caregiver.email, caregiver.password);
+    await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(caregiverMessageResponseSchema.parse(res.json()).message.acknowledgedAt).toBeNull();
+
+    // Nog eens terugdraaien is geen fout: de stand is al zoals gevraagd.
+    const nogmaals = await app.inject({
+      method: 'DELETE',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+    expect(nogmaals.statusCode).toBe(200);
+    expect(caregiverMessageResponseSchema.parse(nogmaals.json()).message.acknowledgedBy).toBeNull();
+  });
+
+  it('weigert aftekenen door een begeleider zonder koppeling, ook binnen dezelfde organisatie', async () => {
+    const { messageId, organizationId } = await seedTeam();
+    const ander = await seedAccount(
+      'ander@intento.local',
+      'pw-niet-gekoppeld-hier',
+      'CAREGIVER',
+      organizationId,
+    );
+    const cookie = await loginCookie(app, ander.email, ander.password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(await prisma.messageAcknowledgement.count()).toBe(0);
+  });
+
+  it('weigert aftekenen vanuit een andere organisatie', async () => {
+    const { messageId } = await seedTeam();
+    const vreemd = await seedAccount('admin-b@intento.local', 'pw-organisatie-b');
+    const cookie = await loginCookie(app, vreemd.email, vreemd.password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(await prisma.messageAcknowledgement.count()).toBe(0);
+
+    // Terugdraaien kan een vreemde evenmin.
+    const verwijder = await app.inject({
+      method: 'DELETE',
+      url: `/caregiver/messages/${messageId}/acknowledge`,
+      headers: { cookie },
+    });
+    expect(verwijder.statusCode).toBe(404);
+  });
+
+  it('weigert zonder sessie met 401', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/caregiver/messages/onbekend/acknowledge',
+    });
     expect(res.statusCode).toBe(401);
   });
 });

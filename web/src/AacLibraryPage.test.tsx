@@ -215,6 +215,8 @@ function fakeApi(): Api {
     listAiConversations: notImplemented,
     getAiConversation: notImplemented,
     listCaregiverMessages: notImplemented,
+    acknowledgeCaregiverMessage: notImplemented,
+    unacknowledgeCaregiverMessage: notImplemented,
     listConversations: notImplemented,
     getConversation: notImplemented,
     listOperatorOrganizations: notImplemented,

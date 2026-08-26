@@ -96,6 +96,8 @@ function fakeApi(initial: PreferencePublic[]): {
     listAiConversations: notImplemented,
     getAiConversation: notImplemented,
     listCaregiverMessages: notImplemented,
+    acknowledgeCaregiverMessage: notImplemented,
+    unacknowledgeCaregiverMessage: notImplemented,
     listConversations: notImplemented,
     getConversation: notImplemented,
     listOperatorOrganizations: notImplemented,

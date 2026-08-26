@@ -59,6 +59,8 @@ import {
   type AttachOpenSymbolsRequest,
   type AiConversationDetail,
   type CaregiverMessageListResponse,
+  caregiverMessageResponseSchema,
+  type CaregiverMessageResponse,
   type AiConversationListResponse,
   type AuditLogListResponse,
   type ConversationListResponse,
@@ -247,6 +249,13 @@ export interface Api {
    * Voor een CAREGIVER filtert de server op **gekoppelde** gebruikers.
    */
   listCaregiverMessages(): Promise<CaregiverMessageListResponse>;
+  /**
+   * Tekent één boodschap af als **opgepakt** (T13.3): wie en wanneer. Administratie van de begeleider
+   * over de boodschap — de zin zelf verandert er niet van en verdwijnt niet uit de lijst.
+   */
+  acknowledgeCaregiverMessage(id: string): Promise<CaregiverMessageResponse>;
+  /** Draait het aftekenen terug (T13.3); mag ook door een collega, voor een misklik. */
+  unacknowledgeCaregiverMessage(id: string): Promise<CaregiverMessageResponse>;
   listConversations(userId: string): Promise<ConversationListResponse>;
   getConversation(id: string): Promise<ConversationTranscriptResponse>;
   /**
@@ -603,6 +612,20 @@ export const httpApi: Api & DeviceApi = {
   },
   async listCaregiverMessages() {
     return caregiverMessageListResponseSchema.parse(await request('/caregiver/messages'));
+  },
+  async acknowledgeCaregiverMessage(id) {
+    return caregiverMessageResponseSchema.parse(
+      await request(`/caregiver/messages/${encodeURIComponent(id)}/acknowledge`, {
+        method: 'POST',
+      }),
+    );
+  },
+  async unacknowledgeCaregiverMessage(id) {
+    return caregiverMessageResponseSchema.parse(
+      await request(`/caregiver/messages/${encodeURIComponent(id)}/acknowledge`, {
+        method: 'DELETE',
+      }),
+    );
   },
   async listConversations(userId) {
     return conversationListResponseSchema.parse(

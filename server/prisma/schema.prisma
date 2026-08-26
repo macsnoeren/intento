@@ -196,6 +196,8 @@ model Account {
   caregiverLinks CaregiverAssignment[]
   /// Openstaande/gebruikte e-mailverificatietokens van dit account.
   emailVerificationTokens EmailVerificationToken[]
+  /// Boodschappen die dit account als "opgepakt" heeft afgetekend (T13.3).
+  messageAcknowledgements MessageAcknowledgement[]
 
   @@index([organizationId])
 }
@@ -476,8 +478,41 @@ model GeneratedMessage {
   createdAt DateTime @default(now())
 
   session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  /// De aftekening door een begeleider (T13.3); `null` zolang niemand de boodschap oppakte.
+  acknowledgement MessageAcknowledgement?
 
   @@index([sessionId])
+}
+
+/// Een begeleider tekent een bevestigde boodschap af als **opgepakt** (T13.3, DESIGN §2, §3.3, §3.6).
+///
+/// Waarom een eigen model en geen kolommen op `GeneratedMessage`: de boodschap is een uitspraak van de
+/// **gebruiker** (§2) en ligt vast zodra hij hem bevestigde; dit is begeleiders-administratie eróver. Door
+/// ze te scheiden kan die administratie de boodschap per constructie niet wijzigen — `GeneratedMessage`
+/// wordt na het bevestigen nooit meer beschreven — en is "opgepakt" terug te draaien door de rij te
+/// verwijderen, zonder de boodschap aan te raken.
+///
+/// De aftekening is **gedeeld**, niet per account (`messageId` uniek): de vraag van een begeleider is "is
+/// hier al iets mee gedaan?", en die is gemeenschappelijk. Twee begeleiders die allebei denken dat de
+/// ander het oppakt, is precies het probleem dat dit oplost.
+///
+/// `onDelete: Cascade` op het account: verdwijnt de begeleider, dan verdwijnt zijn aftekening en staat de
+/// boodschap weer open. Bewust die kant op — een boodschap onterecht opnieuw onder ogen krijgen is
+/// hinderlijk, hem onterecht als afgehandeld beschouwen (zonder dat er nog iemand is die weet waarom) is
+/// schadelijk.
+model MessageAcknowledgement {
+  id        String   @id @default(cuid())
+  /// De afgetekende boodschap. Uniek: één aftekening per boodschap, gedeeld door alle begeleiders.
+  messageId String   @unique
+  /// Het account dat aftekende — het "wie" van de administratie.
+  accountId String
+  /// Het moment van aftekenen — het "wanneer".
+  createdAt DateTime @default(now())
+
+  message GeneratedMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  account Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
 }
 
 /// Eén keuze in een gesprek (T4.1, DESIGN §3.1, §6.2). Elke stap legt vast wélke vraag getoond werd

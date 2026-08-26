@@ -510,6 +510,21 @@ boodschap al (T4.3). Dat is meteen de grens van wat hier kan verschijnen: een vo
 |---|---|---|---|
 | GET | `/caregiver/messages?limit=` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageListResponseSchema`: `{ messages[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Per regel: `message`, `createdAt` (het moment van bevestigen), `userId`/`userName`, `sessionId` — zodat het gesprek erachter met `GET /admin/conversations/{id}` (T12.1) te openen is — en `caregiverQuestion` als het een antwoord in vraagmodus was. De grens is dezelfde als bij `GET /question/users`: een CAREGIVER ziet uitsluitend **gekoppelde** gebruikers, een ADMIN de eigen organisatie, en beide altijd tenant-gefilterd. De filtering zit in de query zelf, niet in een controle achteraf, zodat een boodschap van een niet-gekoppelde gebruiker er per constructie niet in kan komen. |
 
+| POST | `/caregiver/messages/{id}/acknowledge` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageResponseSchema`: tekent de boodschap af als **opgepakt** en geeft de bijgewerkte regel terug (`acknowledgedAt`, `acknowledgedBy`). Idempotent: een tweede aftekening laat de **eerste** aftekenaar en het eerste tijdstip staan — de vraag is wie het opgepakt heeft, niet wie er als laatste op de knop drukte. Buiten je grens: `404 NOT_FOUND` (geen 403, om niet te lekken dát de boodschap bestaat). |
+| DELETE | `/caregiver/messages/{id}/acknowledge` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageResponseSchema` met `acknowledgedAt: null`: draait het aftekenen terug. Mag ook door een collega — een misklik moet te herstellen zijn zonder op de aftekenaar te wachten — en is idempotent. |
+
+**Afhandelen (T13.3).** Een lijst die alleen maar groeit wordt ruis. Een begeleider kan een boodschap
+daarom **aftekenen**; wie en wanneer staat vast in een eigen tabel (`MessageAcknowledgement`), níet als
+kolom op `GeneratedMessage`. Drie gevolgen, alle drie uit §2:
+- **De boodschap verandert niet.** `GeneratedMessage` wordt na het bevestigen nooit meer beschreven; de
+  administratie van de begeleider kan de uitspraak van de gebruiker per constructie niet aanraken.
+- **Aftekenen verbergt niets.** `GET /caregiver/messages` geeft afgetekende boodschappen gewoon terug; de
+  begeleidersapp toont ze rustiger en kan ze tijdelijk filteren, maar niets verdwijnt uit het systeem.
+- **De stand is gedeeld, niet persoonlijk** (één aftekening per boodschap). De vraag is "is hier al iets
+  mee gedaan", niet "heb ík het gezien" — twee begeleiders die allebei denken dat de ander het oppakt is
+  precies wat dit voorkomt. Een "nieuw sinds je vorige bezoek"-markering per account loste dat niet op en
+  zou stilzwijgend wissen wat je nog moest doen, alleen omdat je even keek. Zie ADR-0014.
+
 **Melding per e-mail (T13.2).** Bij het bevestigen gaat er een seintje naar elke **gekoppelde**
 begeleider: "‹naam› heeft om ‹tijd› een bericht bevestigd — log in om te kijken". De boodschap zelf staat
 er bewust niet in: e-mail is een extern kanaal (andermans servers, blijft in postvakken staan, wordt

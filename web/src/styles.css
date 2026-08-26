@@ -1070,6 +1070,25 @@ body {
   font-weight: 600;
 }
 
+/* Teller naast een paneeltitel (T13.3): "3 nog niet opgepakt" hoort de titel te dienen, niet ermee te
+   concurreren — dus kleiner en zonder het gewicht van de kop. */
+.panel__count {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--intento-muted);
+}
+
+/* Afgehandelde berichten (T13.3): zichtbaar rustiger, maar nooit weg. Een boodschap van een gebruiker
+   verdwijnt niet omdat een begeleider hem afvinkt — hij zakt alleen naar de achtergrond. */
+.activity-list__item--done {
+  background: var(--intento-bg);
+}
+
+.activity-list__item--done .activity-list__user,
+.activity-list__item--done > span:not(.badge) {
+  opacity: 0.7;
+}
+
 /* Reviewlijst van AI-conceptvoorstellen (T7.3). */
 .review-list {
   list-style: none;

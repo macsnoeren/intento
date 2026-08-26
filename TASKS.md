@@ -601,14 +601,28 @@ een weergave en een seintje.
   de zin (test); een mailfout laat `/confirm` gewoon `200` geven en de boodschap staat in de db (test);
   met `NOTIFY_CAREGIVERS_BY_EMAIL=false` gaat er niets uit (test); `.env.example` bijgewerkt.
 
-- [ ] **T13.3 Afhandelen: wat is er al opgepakt?** *(ontdekt bij T13.1)*
+- [x] **T13.3 Afhandelen: wat is er al opgepakt?** *(ontdekt bij T13.1)*
   *DESIGN: §3.3, §3.6.* Een lijst die alleen maar groeit, wordt ruis: na een dag weet een begeleider niet
   meer wat nieuw is en wat al is opgepakt. Werk: overwegen of `GeneratedMessage` een `acknowledgedAt` +
   `acknowledgedByAccountId` krijgt met een knop "opgepakt", of dat een lichter signaal volstaat (bv. een
   markering "nieuw sinds je vorige bezoek" per account). Afweging expliciet maken: het is een
   begeleiders-administratie, geen uitspraak van de gebruiker — het mag de boodschap zelf nooit wijzigen
   of verbergen (§2).
-  *Acceptatie:* volgt bij het oppakken van de taak.
+  **Gekozen:** een **aftekening in een eigen tabel** (`MessageAcknowledgement`: `messageId` uniek,
+  `accountId`, `createdAt`) met `POST`/`DELETE /caregiver/messages/{id}/acknowledge` en een knop
+  "Opgepakt" / "Toch niet" in de lijst. Niet als kolommen op `GeneratedMessage`: dan zou de rij van de
+  gebruiker beschrijfbaar worden door een begeleider en is "de administratie raakt de boodschap niet aan"
+  nog maar een gewoonte. Niet "nieuw sinds je vorige bezoek": dat beantwoordt de verkeerde vraag (wat *jij*
+  nog niet zag, niet of er al iets mee gedaan is), lost dubbel-oppakken niet op en wist stilzwijgend wat je
+  nog moest doen op het moment dat je even keek. De stand is dus **gedeeld**, één per boodschap, en de
+  eerste aftekenaar blijft staan. Zie ADR-0014.
+  *Acceptatie:* aftekenen legt wie + wanneer vast en verschijnt in de lijst (test); de rij in
+  `GeneratedMessage` is erna **byte-voor-byte gelijk** en de boodschap staat nog in de lijst (test);
+  een tweede aftekening houdt de eerste aftekenaar en het eerste tijdstip aan (test); terugdraaien werkt,
+  ook door een collega, en is idempotent (test); een niet-gekoppelde begeleider en een account uit een
+  andere organisatie krijgen `404` en er ontstaat geen aftekening (isolatie-/tenant-test); de lijst toont
+  de knop, de markering "Opgepakt door …" en het filter "alleen nog niet opgepakt" — dat filter verbergt
+  alleen in de weergave en brengt het bericht bij uitzetten terug (component-tests).
 
 ---
 

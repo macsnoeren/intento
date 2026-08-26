@@ -458,14 +458,18 @@ function ConversationWatch({
 const MESSAGES_POLL_MS = 15000;
 
 /**
- * De boodschappen die gebruikers van deze begeleider hebben bevestigd (T13.1, DESIGN §2, §3.3).
+ * De boodschappen die gebruikers van deze begeleider hebben bevestigd (T13.1, DESIGN §2, §3.3), met de
+ * afhandeling erbij (T13.3).
  *
  * Ververst zichzelf: dit scherm staat naast de tablet open terwijl de gebruiker aan het werk is, dus
  * een boodschap moet vanzelf verschijnen — een begeleider die moet onthouden te verversen, mist hem.
  * Rustiger dan het meekijkpaneel: hier gaat het om wat er *af* is, niet om wat er nú gebeurt.
  *
- * Bewust read-only. Een begeleider kan hier niets veranderen aan wat de gebruiker zei; de boodschap is
- * van de gebruiker (DESIGN §2).
+ * De boodschap zelf blijft read-only: een begeleider kan niets veranderen aan wat de gebruiker zei
+ * (DESIGN §2). Wat hij wél kan, is zijn eigen werk bijhouden — "Opgepakt" tekent een boodschap af zodat
+ * een collega ziet dat er al iets mee gedaan is, en "Toch niet" draait dat terug. Die markering staat
+ * náást de zin, verandert hem niet en haalt hem niet weg: het filter "alleen nog niet opgepakt" is een
+ * hulpmiddel van de kijker, geen wisser. Zonder filter staat alles er nog, afgetekend en al.
  */
 function CaregiverMessages({
   api,
@@ -476,6 +480,8 @@ function CaregiverMessages({
 }): React.JSX.Element {
   const [messages, setMessages] = useState<CaregiverMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [onlyOpen, setOnlyOpen] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -505,9 +511,37 @@ function CaregiverMessages({
     };
   }, [api, pollMs]);
 
+  /**
+   * Tekent een boodschap af of draait dat terug. De server geeft de bijgewerkte regel terug; die zetten
+   * we meteen op de plek van de oude, zodat de begeleider niet tot de volgende verversing hoeft te
+   * wachten om te zien dat zijn klik aankwam.
+   */
+  const setAcknowledged = async (entry: CaregiverMessage, opgepakt: boolean): Promise<void> => {
+    setBusyId(entry.id);
+    try {
+      const { message } = opgepakt
+        ? await api.acknowledgeCaregiverMessage(entry.id)
+        : await api.unacknowledgeCaregiverMessage(entry.id);
+      setMessages((huidig) => huidig.map((item) => (item.id === message.id ? message : item)));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Bijwerken van de status mislukt.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const open = messages.filter((entry) => entry.acknowledgedAt === null);
+  const zichtbaar = onlyOpen ? open : messages;
+
   return (
     <section className="panel" aria-label="Berichten van je gebruikers">
-      <h2 className="panel__subtitle">Berichten</h2>
+      <h2 className="panel__subtitle">
+        Berichten{' '}
+        <span className="panel__count">
+          {open.length === 0 ? 'alles opgepakt' : `${open.length} nog niet opgepakt`}
+        </span>
+      </h2>
       {/* Bewust `status` en geen `alert`: dit paneel ververst zichzelf op de achtergrond, dus een
           mislukte ronde hoort beleefd gemeld te worden en niet het scherm te onderbreken terwijl de
           begeleider een vraag zit te typen. */}
@@ -522,18 +556,65 @@ function CaregiverMessages({
           hier.
         </p>
       ) : (
-        <ul className="activity-list">
-          {messages.map((entry) => (
-            <li key={entry.id} className="activity-list__item">
-              <span className="activity-list__user">{entry.userName}</span>
-              <span>{entry.message}</span>
-              {entry.caregiverQuestion ? (
-                <span className="muted">op je vraag: “{entry.caregiverQuestion}”</span>
-              ) : null}
-              <span className="muted">{new Date(entry.createdAt).toLocaleString('nl-NL')}</span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={onlyOpen}
+              onChange={(event) => setOnlyOpen(event.target.checked)}
+            />
+            <span>Alleen nog niet opgepakt</span>
+          </label>
+          {zichtbaar.length === 0 ? (
+            <p className="muted">Alles is opgepakt.</p>
+          ) : (
+            <ul className="activity-list">
+              {zichtbaar.map((entry) => (
+                <li
+                  key={entry.id}
+                  className={
+                    entry.acknowledgedAt
+                      ? 'activity-list__item activity-list__item--done'
+                      : 'activity-list__item'
+                  }
+                >
+                  <span className="activity-list__user">{entry.userName}</span>
+                  <span>{entry.message}</span>
+                  {entry.caregiverQuestion ? (
+                    <span className="muted">op je vraag: “{entry.caregiverQuestion}”</span>
+                  ) : null}
+                  <span className="muted">{new Date(entry.createdAt).toLocaleString('nl-NL')}</span>
+                  {entry.acknowledgedAt ? (
+                    <>
+                      <span className="badge badge--approved">
+                        Opgepakt door {entry.acknowledgedBy}
+                      </span>
+                      <button
+                        className="button button--link"
+                        type="button"
+                        aria-label={`Toch niet opgepakt: ${entry.userName} — ${entry.message}`}
+                        disabled={busyId === entry.id}
+                        onClick={() => void setAcknowledged(entry, false)}
+                      >
+                        Toch niet
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="button"
+                      type="button"
+                      aria-label={`Opgepakt: ${entry.userName} — ${entry.message}`}
+                      disabled={busyId === entry.id}
+                      onClick={() => void setAcknowledged(entry, true)}
+                    >
+                      Opgepakt
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </section>
   );

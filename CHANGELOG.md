@@ -110,6 +110,21 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   model aankomt. De uitsluiting zelf blijft ongewijzigd: opties die de gebruiker heeft gezien en afgewezen
   opnieuw aanbieden zou erger zijn dan een lege lijst met een duidelijke opdracht.
 
+- **T13.3 Afhandelen: wat is er al opgepakt?** De berichtenlijst uit T13.1 groeide alleen maar: na een dag
+  wist een begeleider niet meer wat nieuw was en wat al was opgepakt, en een lijst die je niet kunt
+  afwerken lees je op den duur niet meer. Nieuw zijn `POST` en `DELETE
+  /caregiver/messages/{id}/acknowledge` plus een knop **Opgepakt** (en **Toch niet**) in de lijst, met een
+  filter *"alleen nog niet opgepakt"*. De afweging expliciet, want dit is begeleiders-administratie en
+  geen uitspraak van de gebruiker: het aftekenen staat in een **eigen tabel** (`MessageAcknowledgement`)
+  naast `GeneratedMessage` in plaats van als kolommen erin, zodat de boodschap na het bevestigen per
+  constructie nooit meer beschreven wordt (DESIGN §2). De stand is **gedeeld** (één aftekening per
+  boodschap, wie het eerst tekent blijft staan): de vraag is "is hier al iets mee gedaan", niet "heb ík
+  het gezien" — twee begeleiders die allebei denken dat de ander het oppakt was het echte risico, en een
+  "nieuw sinds je vorige bezoek"-markering per account zou dat niet oplossen én wissen wat je nog moest
+  doen precies op het moment dat je even keek. Aftekenen **verbergt niets**: de API blijft alles
+  teruggeven en het filter is een hulpmiddel van de kijker. Terugdraaien mag ook een collega (misklik), de
+  grens is dezelfde als bij de lijst (tenant + koppeling; daarbuiten `404`, geen `403`). Zie ADR-0014.
+
 - **T13.2 Een seintje per e-mail.** De berichtenlijst helpt alleen als de begeleider kijkt; bij het
   bevestigen gaat er nu een mail naar elke **gekoppelde** begeleider dat er iets nieuws is. Drie bewuste
   keuzes: de **boodschap staat niet in de mail** (e-mail is een extern kanaal — andermans servers,
