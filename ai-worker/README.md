@@ -72,6 +72,26 @@ een proxy ervoor, zoals bij de `…:cloud`-modellen) wél. Zet in dat geval `OLL
 draagt dan `Authorization: Bearer <token>`. Laat hem leeg voor een lokale Ollama — dan gaat er bewust
 géén header mee. Het token staat alleen in de env: het wordt nooit gelogd en gaat nooit naar de backend.
 
+**Modelkeuze (gemeten, 2026-08-26).** De worker draait tegen de cloudmodellen van een gratis
+Ollama-account. Niet elk model is bruikbaar: het moet het `format`-schema honoreren én de
+**conceptsleutel** (`brood`) teruggeven in plaats van het label (`Brood`), anders valt alles weg in
+`shape_question_result`. Gemeten met de echte prompts uit `prompts.py` (vraagselectie + boodschap):
+
+| Model                        | Uitkomst                                                              |
+| ---------------------------- | --------------------------------------------------------------------- |
+| `gpt-oss:120b-cloud`         | **aanbevolen**: 4/4 geldige JSON, sleutels uit de bibliotheek, ~2-3 s |
+| `nemotron-3-super:cloud`     | terugval: sneller (~1 s), maar 1 op 4 keer kapotte JSON                |
+| `nemotron-3-ultra:cloud`     | correct maar traag en grillig (5-31 s)                                 |
+| `nemotron-3-nano:30b-cloud`  | propt de hele optielijst in de vraagtekst                              |
+| `gpt-oss:20b-cloud`          | geeft labels i.p.v. conceptsleutels; onbruikbaar                       |
+| `gemma4:*-cloud`             | verpakt de JSON in een code-fence; de parser faalt erop (zie TO.2)         |
+| `minimax-m3:cloud`           | levert geen bruikbare JSON                                             |
+
+Deze modellen eisen een betaald Ollama-abonnement (`403 requires a subscription`) en vallen dus af:
+`glm-5.1`/`5.2`/`5.3-flash`, `deepseek-v4-flash`/`-pro`, `kimi-k2.6`/`k3`, `minimax-m2.7`, `qwen3.5`.
+Let op de gebruikslimieten van het gratis plan (sessielimiet per 5 uur, weeklimiet): genoeg voor
+ontwikkelen en gebruikerstests, niet voor productie.
+
 ## Draaien
 
 ```bash

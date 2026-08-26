@@ -792,6 +792,17 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   testconfiguratie ruim boven de looptijd leggen. Niet de productiecode aanpassen — daar is niets mis.
   *Acceptatie:* `job-queue.test.ts` slaagt tien keer achter elkaar, ook los gedraaid en onder belasting.
 
+- [ ] **TO.2 De worker struikelt over JSON in code-fences**
+  *Ontdekt bij het kiezen van een cloudmodel (2026-08-26).* `OllamaClient.generate_structured` doet
+  `json.loads(response)` op de rauwe uitvoer. Modellen die het `format`-schema niet hard afdwingen —
+  precies de cloudmodellen — verpakken hun JSON regelmatig in een code-fence; `gemma4:cloud` doet dat
+  consequent. De worker meldt dan "Ollama leverde geen geldige JSON", terwijl het antwoord inhoudelijk
+  goed is. Werk: in `ollama.py` een fence/omliggende-tekst-strip vóór het parsen (eerste `{` tot laatste
+  `}`), met tests voor kaal, gefencet en met-inleiding. Dit vergroot alleen de tolerantie bij het lezen;
+  de backend blijft de uitvoer opnieuw valideren met zod — dit is geen vertrouwensbasis.
+  *Acceptatie:* `test_ollama_client.py` dekt de drie vormen; `gemma4:cloud` levert een geldig
+  vraagbesluit op in de handmatige rookproef.
+
 ---
 
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
