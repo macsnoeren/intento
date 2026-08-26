@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountPublic, AacSymbol, AiConceptReview, ConceptProposal } from '@intento/shared';
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — beoordelen van begrippen die de AI aandroeg (T7.3/T10.7, DESIGN §5.2, §7.6, FR-016).
@@ -211,7 +212,7 @@ function NewConceptsSection({
 
   return (
     <section className="panel" aria-label="Nieuwe woorden van de AI">
-      <h2 className="panel__title">Nieuwe woorden</h2>
+      <h2 className="panel__subtitle">Nieuwe woorden</h2>
       <p className="muted">
         Begrippen die de AI tijdens een gesprek aandroeg omdat ze nog niet in de bibliotheek
         stonden. Ze zijn meteen bruikbaar — de gebruiker ziet ze met een ✨-markering — maar wachten
@@ -322,20 +323,14 @@ export function ConceptProposalsPage({
   }
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Conceptvoorstellen</h1>
-          <AdminNav active="proposals" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="Conceptvoorstellen"
+      subtitle="Nieuwe begrippen die de AI aandroeg, wachtend op jouw oordeel."
+      active="proposals"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -352,7 +347,7 @@ export function ConceptProposalsPage({
       )}
 
       <section className="panel" aria-label="AI-conceptvoorstellen">
-        <h2 className="panel__title">Conceptvoorstellen</h2>
+        <h2 className="panel__subtitle">Conceptvoorstellen</h2>
         <p className="muted">
           Begrippen die de AI voorstelde en die de gebruiker <strong>niet</strong> bereikten —
           bijvoorbeeld omdat nieuwe woorden uitstaan of omdat de term onbruikbaar was als concept.
@@ -400,6 +395,6 @@ export function ConceptProposalsPage({
           </ul>
         )}
       </section>
-    </main>
+    </AppShell>
   );
 }

@@ -778,6 +778,25 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
 
 ---
 
+## Fase 17 — Ontwerp van de web-applicatie
+
+- [x] **T17.1 Eén huisstijl en een menu in plaats van tien tabs**
+  *DESIGN: §5.1, §5.2.* Werk: het logo omzetten naar web-bruikbare bestanden (transparant beeldmerk,
+  liggende variant, volledig logo, favicons, app-iconen) met een script dat dat reproduceerbaar doet,
+  en de app daaromheen één schil geven: een **zijbalk met een gegroepeerd menu** (het waren tien
+  gelijkwaardige tabs onder de paginatitel), een kopbalk met paginatitel + wie je bent, en één
+  voordeur-opmaak voor inloggen/aanmelden/bevestigen/koppelen. Op de tablet een vaste kopbalk met het
+  merk links en de naam van de gebruiker rechts — die ontbrak, waardoor op een gedeeld apparaat niet te
+  zien was welke app dit is en voor wie hij openstaat. Meegenomen: een **begeleider** had de vraagmodus
+  als énige weergave en kon daardoor niet bij "Mijn account"; hij krijgt nu een kort menu.
+  *Acceptatie:* elk logopad in de code én in `index.html` wijst naar een bestaand bestand (test); het
+  menu toont een beheerder alle bestemmingen gegroepeerd en een begeleider alleen Begeleiden + Mijn
+  account (test); de menuknop op een smal scherm opent en sluit de zijbalk zonder de knoppen uit de DOM
+  te halen (test); de tabletkopbalk toont naam van app én gebruiker en blijft naast de vraag de enige
+  kop op het scherm (test); alle bestaande tests onveranderd groen.
+
+---
+
 ## Onderhoud (ontdekt meerwerk)
 
 - [ ] **TO.1 De wachtrij-tests zijn tijdgevoelig en daardoor wisselvallig**

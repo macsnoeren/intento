@@ -17,6 +17,7 @@ import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
 import type { AdminView } from './AdminNav.tsx';
+import { AuthLayout } from './AuthLayout.tsx';
 
 /**
  * Leest een verificatietoken (`?token=…`) uit de huidige URL (de link uit de verificatiemail,
@@ -109,9 +110,9 @@ export function App({
 
   if (checking) {
     return (
-      <main className="panel panel--narrow">
-        <p className="muted">Laden…</p>
-      </main>
+      <AuthLayout title="Even geduld">
+        <p className="muted">Bezig met laden…</p>
+      </AuthLayout>
     );
   }
 
@@ -141,17 +142,15 @@ export function App({
   // persoon dit wachtwoord.
   if (account.mustChangePassword) {
     return (
-      <main className="panel panel--narrow">
-        <h1 className="panel__title">Kies eerst een eigen wachtwoord</h1>
-        <p>
-          Je bent binnengekomen met een tijdelijk wachtwoord van je beheerder. Die kent het dus ook.
-          Kies hieronder een eigen wachtwoord; daarna staat de rest van Intento voor je open.
-        </p>
+      <AuthLayout
+        title="Kies eerst een eigen wachtwoord"
+        intro="Je kwam binnen met een tijdelijk wachtwoord van je beheerder — die kent het dus ook. Kies hieronder een eigen wachtwoord; daarna staat de rest van Intento voor je open."
+      >
         <ChangePasswordPanel api={api} onChanged={() => void refreshAccount()} />
         <button className="button" type="button" onClick={() => void handleLogout()}>
           Uitloggen
         </button>
-      </main>
+      </AuthLayout>
     );
   }
 
@@ -160,26 +159,43 @@ export function App({
     <VerificationBanner api={api} email={account.email} />
   );
 
-  // Begeleider (CAREGIVER): de begeleiderinterface — nu de vraagmodus (T7.1, DESIGN §3.2, §5.2).
+  // Begeleider (CAREGIVER): de begeleiderinterface (T7.1, DESIGN §3.2, §5.2). Sinds T17.1 met een
+  // eigen — korter — menu: begeleiden en het eigen account. Tot dan was de vraagmodus zijn énige
+  // weergave, waardoor een begeleider zijn tijdelijke wachtwoord alleen kon wisselen via een paneel
+  // onderaan diezelfde pagina.
   if (account.role === 'CAREGIVER') {
     return (
       <>
         {banner}
-        <QuestionModePage api={api} account={account} onLogout={() => void handleLogout()} />
+        {view === 'account' ? (
+          <AccountPage
+            api={api}
+            account={account}
+            onLogout={() => void handleLogout()}
+            onNavigate={setView}
+          />
+        ) : (
+          <QuestionModePage
+            api={api}
+            account={account}
+            onLogout={() => void handleLogout()}
+            onNavigate={setView}
+          />
+        )}
       </>
     );
   }
 
   if (account.role !== 'ADMIN') {
     return (
-      <main className="panel panel--narrow">
+      <>
         {banner}
-        <h1 className="panel__title">Intento</h1>
-        <p>Deze rol heeft nog geen eigen weergave.</p>
-        <button className="button" type="button" onClick={() => void handleLogout()}>
-          Uitloggen
-        </button>
-      </main>
+        <AuthLayout title="Welkom bij Intento" intro="Deze rol heeft nog geen eigen weergave.">
+          <button className="button" type="button" onClick={() => void handleLogout()}>
+            Uitloggen
+          </button>
+        </AuthLayout>
+      </>
     );
   }
 

@@ -7,6 +7,8 @@ import type {
 } from '@intento/shared';
 import { ApiRequestError, httpApi, type Api } from './api.ts';
 import { LoginForm } from './LoginForm.tsx';
+import { AppShell } from './AppShell.tsx';
+import { AuthLayout } from './AuthLayout.tsx';
 
 /**
  * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, §10.4, ADR-0011).
@@ -129,34 +131,24 @@ function OperatorPanel({
 
   if (forbidden) {
     return (
-      <main className="panel panel--narrow">
-        <h1 className="panel__title">Operatorconsole</h1>
-        <p>
-          Dit account heeft geen platform-operatorrechten. De operatorconsole is voorbehouden aan de
-          platformbeheerder; gewoon beheer van je eigen organisatie doe je in de beheeromgeving.
-        </p>
+      <AuthLayout
+        title="Operatorconsole"
+        intro="Dit account heeft geen platform-operatorrechten. De operatorconsole is voorbehouden aan de platformbeheerder; gewoon beheer van je eigen organisatie doe je in de beheeromgeving."
+      >
         <button className="button" type="button" onClick={onLogout}>
           Uitloggen
         </button>
-      </main>
+      </AuthLayout>
     );
   }
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Operatorconsole</h1>
-          <p className="muted">Platformbeheer over alle omgevingen heen.</p>
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="Operatorconsole"
+      subtitle="Platformbeheer over alle omgevingen heen — bewust zonder het menu van één organisatie."
+      onLogout={onLogout}
+    >
       <p className="muted">
         Hier beheer je omgevingen: aanmaken, en stoppen of hervatten bij misbruik. Communicatie,
         persoonlijke context en namen van gebruikers zijn hier bewust niet zichtbaar — die blijven
@@ -304,7 +296,7 @@ function OperatorPanel({
           </ul>
         </section>
       ) : null}
-    </main>
+    </AppShell>
   );
 }
 
@@ -344,9 +336,9 @@ export function OperatorConsole({ api = httpApi }: { api?: Api } = {}): React.JS
 
   if (checking) {
     return (
-      <main className="panel panel--narrow">
-        <p className="muted">Laden…</p>
-      </main>
+      <AuthLayout title="Even geduld">
+        <p className="muted">Bezig met laden…</p>
+      </AuthLayout>
     );
   }
 

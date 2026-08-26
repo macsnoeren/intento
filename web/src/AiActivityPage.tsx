@@ -7,7 +7,8 @@ import {
   type AiJobSummary,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 import { AiStatusBadge } from './AiStatusBadge.tsx';
 
 /** Verversinterval (ms): rustig genoeg om naast een lopend gesprek open te laten staan. */
@@ -156,21 +157,15 @@ export function AiActivityPage({
   }, [refresh, pollMs]);
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">AI-activiteit</h1>
-          <AdminNav active="ai-activity" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <AiStatusBadge api={api} />
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="AI-activiteit"
+      subtitle="Wat de AI op de achtergrond heeft gedaan."
+      active="ai-activity"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+      status={<AiStatusBadge api={api} />}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -273,6 +268,6 @@ export function AiActivityPage({
           </section>
         </>
       )}
-    </main>
+    </AppShell>
   );
 }

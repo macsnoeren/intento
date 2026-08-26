@@ -7,7 +7,8 @@ import type {
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — gespreksverloop (T12.1, DESIGN §3.1, §3.6, §9.1).
@@ -142,25 +143,14 @@ export function ConversationsPage({
   }
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Gesprekken</h1>
-          <AdminNav active="conversations" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
-      <p className="muted">
-        Lees een gesprek terug van begin tot eind: per stap de gestelde vraag, de aangeboden
-        pictogrammen en wat de gebruiker koos.
-      </p>
-
+    <AppShell
+      account={account}
+      title="Gesprekken"
+      subtitle="Per stap: de gestelde vraag, de aangeboden pictogrammen en wat de gebruiker koos."
+      active="conversations"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -226,7 +216,7 @@ export function ConversationsPage({
 
       {transcript ? (
         <section className="panel" aria-label="Gespreksverloop">
-          <h2 className="panel__title">Verloop</h2>
+          <h2 className="panel__subtitle">Verloop</h2>
           <p className="muted">
             {formatDate(transcript.startedAt)}
             {transcript.strategy ? ` · aanpak: ${transcript.strategy.label}` : ''}
@@ -263,6 +253,6 @@ export function ConversationsPage({
           </p>
         </section>
       ) : null}
-    </main>
+    </AppShell>
   );
 }

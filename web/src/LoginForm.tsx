@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { AuthResponse } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
+import { AuthLayout } from './AuthLayout.tsx';
 
 /**
  * Login-scherm voor de beheeromgeving. Roept `POST /auth/login` aan en geeft het ingelogde
@@ -36,8 +37,10 @@ export function LoginForm({
   }
 
   return (
-    <main className="panel panel--narrow">
-      <h1 className="panel__title">Intento — beheer</h1>
+    <AuthLayout
+      title="Inloggen"
+      intro="De beheeromgeving van Intento — voor beheerders en begeleiders."
+    >
       <form className="form" onSubmit={(e) => void handleSubmit(e)} aria-label="Inloggen">
         <label className="field">
           <span className="field__label">E-mail</span>
@@ -71,10 +74,13 @@ export function LoginForm({
         </button>
       </form>
       {onRegister ? (
-        <button className="button" type="button" onClick={onRegister}>
-          Nieuwe omgeving aanmelden
-        </button>
+        <p className="auth__alt">
+          Nog geen omgeving?{' '}
+          <button className="button button--link" type="button" onClick={onRegister}>
+            Nieuwe omgeving aanmelden
+          </button>
+        </p>
       ) : null}
-    </main>
+    </AuthLayout>
   );
 }

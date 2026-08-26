@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountPublic, AuditLogEntry } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — audit-log (T8.2, DESIGN §9.4). Toont het spoor van **gevoelige acties** van de eigen
@@ -74,25 +75,14 @@ export function AuditLogPage({
   }, [refresh]);
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Audit-log</h1>
-          <AdminNav active="audit-logs" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
-      <p className="muted">
-        Spoor van gevoelige acties in deze organisatie. Bevat geen communicatie-inhoud — alleen wie,
-        wat en wanneer.
-      </p>
-
+    <AppShell
+      account={account}
+      title="Audit-log"
+      subtitle="Spoor van gevoelige acties — wie, wat en wanneer, zonder communicatie-inhoud."
+      active="audit-logs"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -126,6 +116,6 @@ export function AuditLogPage({
           </ul>
         </section>
       )}
-    </main>
+    </AppShell>
   );
 }

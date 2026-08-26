@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import type { AccountPublic, WorkerTokenPublic } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — worker-tokenbeheer (T5.8, DESIGN §5.2, §9.4, ADR-0010). Een worker-token is een
@@ -108,20 +109,14 @@ export function WorkerTokensPage({
   }
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Worker-tokens</h1>
-          <AdminNav active="worker-tokens" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="Worker-tokens"
+      subtitle="Toegang voor de AI-workers die het denkwerk doen."
+      active="worker-tokens"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -229,6 +224,6 @@ export function WorkerTokensPage({
           </section>
         </div>
       )}
-    </main>
+    </AppShell>
   );
 }

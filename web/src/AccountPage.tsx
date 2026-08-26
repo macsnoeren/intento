@@ -1,6 +1,7 @@
 import type { AccountPublic } from '@intento/shared';
 import type { Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
 
 /**
@@ -20,20 +21,14 @@ export function AccountPage({
   onNavigate: (view: AdminView) => void;
 }): React.JSX.Element {
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Mijn account</h1>
-          <AdminNav active="account" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="Mijn account"
+      subtitle="Je eigen gegevens en wachtwoord."
+      active="account"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       <section className="panel" aria-label="Accountgegevens">
         <h2 className="panel__subtitle">Gegevens</h2>
         <p className="muted">
@@ -62,6 +57,6 @@ export function AccountPage({
       ) : null}
 
       <ChangePasswordPanel api={api} />
-    </main>
+    </AppShell>
   );
 }

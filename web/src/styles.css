@@ -1,13 +1,48 @@
-/* Tablet-first, rustig ontwerp met grote klikvlakken (DESIGN §5.1). */
+/* Ontwerpsysteem van Intento (T17.1).
+   Tablet-first en rustig (DESIGN §5.1): grote klikvlakken, veel wit, weinig kleur tegelijk. De
+   kleuren komen uit het logo (`web/brand/`): het donkerblauw van het figuurtje is de tekstkleur, het
+   verloop turkoois → blauw → paars van de spraakbel is het accent. */
 :root {
+  /* Merkkleuren, rechtstreeks uit het logo bemonsterd. */
+  --intento-navy: #17255c;
+  --intento-teal: #00c3b4;
+  --intento-blue: #3f7ad9;
+  --intento-violet: #6f63d8;
+  --intento-amber: #f5951f;
+
+  /* Vlakken en tekst. */
   --intento-bg: #f4f6fb;
   --intento-surface: #ffffff;
-  --intento-fg: #1c2536;
-  --intento-muted: #5b6577;
-  --intento-accent: #2f6fed;
+  --intento-surface-alt: #eef2fa;
+  --intento-fg: var(--intento-navy);
+  --intento-muted: #5b6784;
+  --intento-border: #dde4f2;
+  --intento-border-strong: #c3cee6;
+
+  /* Handeling en signaal. Het accentblauw is donker genoeg voor witte tekst erop (WCAG AA). */
+  --intento-accent: #2b5fd0;
+  --intento-accent-hover: #1f4cb3;
+  --intento-accent-soft: #e6edfd;
   --intento-danger: #c8324a;
-  --intento-border: #d7deec;
-  --intento-radius: 12px;
+  --intento-success: #1f7a3d;
+  --intento-warning: #7a4a00;
+
+  /* Het verloop van de spraakbel; alleen als accentlijn, nooit onder tekst. */
+  --intento-gradient: linear-gradient(
+    120deg,
+    var(--intento-teal),
+    var(--intento-blue) 55%,
+    var(--intento-violet)
+  );
+
+  --intento-radius: 14px;
+  --intento-radius-sm: 10px;
+  --intento-radius-lg: 20px;
+  /* Schaduwen blijven zacht: dit is een zorgtoepassing, geen dashboard-showcase. */
+  --intento-shadow: 0 1px 2px rgb(23 37 92 / 6%), 0 8px 24px rgb(23 37 92 / 6%);
+  --intento-shadow-lifted: 0 2px 6px rgb(23 37 92 / 10%), 0 18px 40px rgb(23 37 92 / 12%);
+  --intento-ring: 0 0 0 3px rgb(43 95 208 / 35%);
+
   color-scheme: light;
 }
 
@@ -16,10 +51,16 @@
 }
 
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
+}
+
+/* Kolom: een eventuele meldingsbalk bovenaan, daaronder de app over de volle resthoogte. */
+#root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 body {
@@ -31,7 +72,14 @@ body {
     sans-serif;
   background: var(--intento-bg);
   color: var(--intento-fg);
+  line-height: 1.5;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Eén zichtbare focusring voor de hele app: onmisbaar bij toetsenbord- en schakelbediening. */
+:focus-visible {
+  outline: 3px solid var(--intento-accent);
+  outline-offset: 2px;
 }
 
 /* Panelen en layout */
@@ -40,61 +88,360 @@ body {
   border: 1px solid var(--intento-border);
   border-radius: var(--intento-radius);
   padding: 1.5rem;
-}
-
-.panel--narrow {
-  max-width: 26rem;
-  margin: 4rem auto;
-}
-
-.panel__title {
-  font-size: clamp(1.75rem, 4vw, 2.5rem);
-  margin: 0 0 1rem;
-  color: var(--intento-accent);
+  box-shadow: var(--intento-shadow);
 }
 
 .panel__subtitle {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   margin: 0 0 1rem;
+  color: var(--intento-fg);
 }
 
 .muted {
   color: var(--intento-muted);
 }
 
-.admin {
-  max-width: 60rem;
-  margin: 0 auto;
-  padding: 1.5rem;
+/* ─── Huisstijl ────────────────────────────────────────────────────────────────────────────────
+   De logobestanden zelf staan in `web/public/brand/` (gegenereerd, zie `web/brand/README.md`). */
+.brand__mark,
+.brand__lockup,
+.brand__logo {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+/* ─── App-raamwerk: zijbalk met menu, kopbalk, inhoud (T17.1) ───────────────────────────────── */
+.app-shell {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 17rem 1fr;
+  align-items: start;
+  min-height: 0;
+}
+
+/* Losse weergave (operatorconsole, component-tests): geen menu, dus geen kolom ervoor. */
+.app-shell--bare {
+  grid-template-columns: 1fr;
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.25rem 1rem;
+  background: var(--intento-surface);
+  border-right: 1px solid var(--intento-border);
+  overflow-y: auto;
+}
+
+.app-sidebar__brand {
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--intento-border);
+}
+
+.app-sidebar__payoff {
+  margin: auto 0 0;
+  padding: 0.75rem 0.6rem 0;
+  border-top: 1px solid var(--intento-border);
+  font-size: 0.85rem;
+  color: var(--intento-muted);
+}
+
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.app-nav__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.app-nav__group-label {
+  padding: 0 0.6rem 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--intento-muted);
+}
+
+.app-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem;
+  border: none;
+  border-radius: var(--intento-radius-sm);
+  background: none;
+  color: var(--intento-fg);
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-nav__item:hover {
+  background: var(--intento-surface-alt);
+}
+
+/* De actieve ingang: kleurvlak én een dikkere letter, zodat het verschil niet alleen kleur is. */
+.app-nav__item--active {
+  background: var(--intento-accent-soft);
+  color: var(--intento-accent-hover);
+  font-weight: 700;
+  cursor: default;
+}
+
+.app-nav__icon {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--intento-muted);
+}
+
+.app-nav__item--active .app-nav__icon,
+.app-nav__item:hover .app-nav__icon {
+  color: currentColor;
+}
+
+.app-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.75rem;
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--intento-border);
+}
+
+/* Het merkverloop als dunne lijn onder de kopbalk — het enige plekje waar het logoverloop terugkomt. */
+.app-topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--intento-gradient);
+  opacity: 0.7;
+}
+
+.app-topbar__heading {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.app-topbar__title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
+  line-height: 1.2;
+}
+
+.app-topbar__subtitle {
+  margin: 0.15rem 0 0;
+  color: var(--intento-muted);
+  font-size: 0.95rem;
+}
+
+.app-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.app-topbar__brand-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* De menuknop is alleen nodig zodra de zijbalk wegschuift (smal scherm). */
+.app-topbar__menu {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  min-height: 2.75rem;
+  border: 1px solid var(--intento-border-strong);
+  border-radius: var(--intento-radius-sm);
+  background: var(--intento-surface);
+  color: var(--intento-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-topbar__account {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.app-account {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  text-align: right;
+  min-width: 0;
+}
+
+.app-account__name {
+  font-weight: 600;
+}
+
+.app-account__role {
+  font-size: 0.8rem;
+  color: var(--intento-muted);
+  overflow-wrap: anywhere;
+}
+
+.app-content {
+  flex: 1;
+  width: 100%;
+  max-width: 72rem;
+  padding: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
-.admin__header {
+.app-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  border: none;
+  background: rgb(23 37 92 / 35%);
+}
+
+/* Smal scherm (tablet staand, telefoon): de zijbalk schuift over de pagina heen. De knoppen blijven
+   in de DOM staan — alleen de weergave verandert — zodat toetsenbord en schermlezer hetzelfde menu
+   houden als op een breed scherm. */
+@media (max-width: 60rem) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar {
+    position: fixed;
+    z-index: 9;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(20rem, 84vw);
+    height: 100%;
+    transform: translateX(-102%);
+    transition: transform 160ms ease-out;
+    box-shadow: var(--intento-shadow-lifted);
+  }
+
+  .app-shell--menu-open .app-sidebar {
+    transform: translateX(0);
+  }
+
+  .app-shell--menu-open .app-scrim {
+    display: block;
+  }
+
+  .app-topbar__menu {
+    display: inline-flex;
+  }
+
+  .app-topbar {
+    padding: 0.85rem 1rem;
+  }
+
+  .app-content {
+    padding: 1.25rem 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar {
+    transition: none;
+  }
+}
+
+/* ─── Voordeur: inloggen, aanmelden, bevestigen, koppelen ──────────────────────────────────── */
+.auth {
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem 1rem 3rem;
+  /* Een vleugje van het logoverloop, ver weggezakt: herkenbaar, maar rustig genoeg om op te lezen. */
+  background:
+    radial-gradient(60rem 30rem at 15% -10%, rgb(0 195 180 / 12%), transparent 60%),
+    radial-gradient(50rem 30rem at 95% 10%, rgb(111 99 216 / 12%), transparent 60%),
+    var(--intento-bg);
+}
+
+.auth__card {
+  width: min(30rem, 100%);
+  padding: 2rem;
+  background: var(--intento-surface);
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius-lg);
+  box-shadow: var(--intento-shadow-lifted);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
 }
 
-.admin__account {
+.auth__brand {
   display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  justify-content: center;
+}
+
+.auth__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 3.5vw, 2rem);
+  text-align: center;
+}
+
+.auth__intro {
+  margin: -0.5rem 0 0;
+  text-align: center;
   color: var(--intento-muted);
 }
 
+.auth__alt {
+  margin: 0;
+  text-align: center;
+  color: var(--intento-muted);
+}
+
+/* Rasters binnen een pagina: lijst links, detail rechts. */
 .admin__grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.25rem;
 }
 
-@media (min-width: 48rem) {
+@media (min-width: 60rem) {
   .admin__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
   }
 }
@@ -141,7 +488,7 @@ body {
 }
 
 .form__ok {
-  color: var(--intento-accent);
+  color: var(--intento-success);
 }
 
 .field {
@@ -158,11 +505,19 @@ body {
 }
 
 .field__input {
-  font-size: 1.1rem;
-  padding: 0.75rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
+  font-size: 1.05rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--intento-border-strong);
+  border-radius: var(--intento-radius-sm);
+  background: var(--intento-surface);
+  color: inherit;
   min-height: 3rem;
+}
+
+.field__input:focus {
+  border-color: var(--intento-accent);
+  box-shadow: var(--intento-ring);
+  outline: none;
 }
 
 .form--inline .field__input {
@@ -234,14 +589,21 @@ body {
 
 /* Knoppen */
 .button {
+  font: inherit;
   font-size: 1.05rem;
-  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  padding: 0.7rem 1.15rem;
   min-height: 3rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
+  border: 1px solid var(--intento-border-strong);
+  border-radius: var(--intento-radius-sm);
   background: var(--intento-surface);
   color: var(--intento-fg);
   cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--intento-accent);
+  color: var(--intento-accent-hover);
 }
 
 .button:disabled {
@@ -253,12 +615,24 @@ body {
   background: var(--intento-accent);
   border-color: var(--intento-accent);
   color: #fff;
+  box-shadow: var(--intento-shadow);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--intento-accent-hover);
+  border-color: var(--intento-accent-hover);
+  color: #fff;
 }
 
 .button--danger {
   color: var(--intento-danger);
-  border-color: var(--intento-danger);
+  border-color: var(--intento-border-strong);
   background: var(--intento-surface);
+}
+
+.button--danger:hover:not(:disabled) {
+  border-color: var(--intento-danger);
+  color: var(--intento-danger);
 }
 
 /* Gebruikerslijst */
@@ -294,30 +668,6 @@ body {
   border: none;
   cursor: pointer;
   color: inherit;
-}
-
-/* Beheernavigatie tussen gebruikers en AAC-bibliotheek (T3.2) */
-.admin__nav {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-
-.admin__tab {
-  font-size: 1rem;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  background: var(--intento-surface);
-  color: var(--intento-fg);
-  cursor: pointer;
-}
-
-.admin__tab--active {
-  background: var(--intento-accent);
-  border-color: var(--intento-accent);
-  color: #fff;
-  cursor: default;
 }
 
 /* AAC-symboollijst (T3.2) */
@@ -550,22 +900,53 @@ body {
   color: #b06000;
 }
 
-/* De badge in de tabletkop staat rechts naast de overige indicatoren. */
-.tablet__status {
+/* Vaste kopbalk van de gebruikersapp (T17.1): links het merk, rechts wie er communiceert. Klein en
+   grijs gehouden — het keuzescherm eronder moet de aandacht houden. */
+.tablet__header {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--intento-border);
+}
+
+.tablet__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tablet__brand-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--intento-fg);
+}
+
+.tablet__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.tablet__user {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--intento-muted);
+  overflow-wrap: anywhere;
 }
 
 /* Gebruikersapp op de tablet (T4.2): rustig, grote klikvlakken, één keuze per scherm. */
 .tablet {
+  flex: 1;
+  width: 100%;
   max-width: 60rem;
   margin: 0 auto;
-  padding: 1.5rem;
-  min-height: 100%;
+  padding: 1.25rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .tablet__prompt {
@@ -616,8 +997,27 @@ body {
   cursor: pointer;
 }
 
+.option {
+  box-shadow: var(--intento-shadow);
+  transition: transform 120ms ease-out;
+}
+
 .option:hover:not(:disabled) {
   border-color: var(--intento-accent);
+}
+
+.option:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option {
+    transition: none;
+  }
+
+  .option:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .option:disabled {
@@ -798,17 +1198,16 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  margin: 0 auto 1rem;
-  max-width: 900px;
-  padding: 0.75rem 1rem;
-  border-radius: var(--intento-radius);
+  padding: 0.7rem 1rem;
+  text-align: center;
 }
 
 .banner--warning {
   background: #fff4e5;
-  color: #7a4a00;
-  border: 1px solid #f0c98a;
+  color: var(--intento-warning);
+  border-bottom: 1px solid #f0c98a;
 }
 
 /* Tekstknop (bv. "opnieuw versturen" in de banner) — als link, niet als grote knop. */
@@ -1035,6 +1434,21 @@ body {
   border: 1px solid var(--intento-border);
   border-radius: var(--intento-radius);
   background: var(--intento-surface);
+  box-shadow: var(--intento-shadow);
+}
+
+/* Het merkverloop als accentstreep boven de tegel — het cijfer eronder blijft gewoon zwart-op-wit. */
+.stat-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--intento-gradient);
 }
 
 .stat-tile--action {
@@ -1048,7 +1462,7 @@ body {
 }
 
 .stat-tile__value {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
   line-height: 1;
 }

@@ -14,7 +14,7 @@ de gefaseerde takenlijst.
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1); **platform-operatorconsole** op `/operator` (T8.3). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1); **platform-operatorconsole** op `/operator` (T8.3). Sinds T17.1 in één huisstijl, met een menu in de zijbalk in plaats van een rij tabs; de logobestanden staan in [`web/brand/`](web/brand/README.md). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -577,6 +577,40 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/operator/organizations/<id>/a
 ```
 
 Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
+
+## Ontwerp en huisstijl (T17.1)
+
+De web-applicatie heeft één schil om alle ingelogde pagina's:
+
+- **Zijbalk met menu** — de bestemmingen staan gegroepeerd naar wat je komt doen: *Overzicht*,
+  *Communicatie* (Begeleiden, Gesprekken), *Organisatie* (Gebruikers, AAC-bibliotheek,
+  Conceptvoorstellen), *Platform* (Worker-tokens, AI-activiteit, Audit-log) en *Account*. Een
+  **begeleider** ziet een kort menu: Begeleiden en Mijn account. Op een smal scherm (tablet staand)
+  schuift de zijbalk weg achter een menuknop.
+- **Kopbalk** — de paginatitel met één regel uitleg, en rechts wie je bent (naam, rol) met de
+  uitlogknop. Pagina's die op de AI wachten tonen daar ook de AI-indicator.
+- **Voordeurschermen** — inloggen, aanmelden, e-mailadres bevestigen en het koppelen van een tablet
+  delen één gecentreerde kaart met het logo erboven.
+- **Tablet** — de gebruikersapp heeft een vaste, rustige kopbalk: linksboven het beeldmerk met
+  "Intento", rechtsboven de naam van de gebruiker en de AI-indicator. Bewust klein: het keuzescherm
+  eronder moet de aandacht houden.
+
+De kleuren komen uit het logo (donkerblauw, turkoois, blauw, paars, oranje) en staan als
+CSS-variabelen in `web/src/styles.css`. Het kleurverloop van de spraakbel komt in de interface alleen
+terug als dunne accentlijn — nooit onder tekst.
+
+### Logobestanden
+
+Het bronlogo staat in [`web/brand/`](web/brand/README.md); daar leidt `generate-assets.py` de
+web-bruikbare varianten uit af (transparant beeldmerk, liggende variant, volledig logo, favicons en
+app-iconen) naar `web/public/`. Na een wijziging aan het bronlogo:
+
+```bash
+cd web/brand && python3 generate-assets.py     # vereist Pillow (python3-pil)
+```
+
+De paden staan in de code op één plek (`BRAND_ASSETS` in `web/src/Brand.tsx`); een test controleert
+dat elk pad — ook die uit `index.html` — echt bestaat.
 
 ## MVP — Definition of Done (DESIGN §10.3)
 

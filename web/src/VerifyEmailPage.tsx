@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiRequestError, type Api } from './api.ts';
+import { AuthLayout } from './AuthLayout.tsx';
 
 /**
  * Verificatiepagina (T1.4). De verificatiemail bevat een link naar de web-app met `?token=…`;
@@ -57,8 +58,7 @@ export function VerifyEmailPage({
   }, [api, token]);
 
   return (
-    <main className="panel panel--narrow">
-      <h1 className="panel__title">E-mailadres bevestigen</h1>
+    <AuthLayout title="E-mailadres bevestigen">
       {status === 'busy' ? <p className="muted">Bezig met bevestigen…</p> : null}
       {status === 'ok' ? (
         <p role="status">Je e-mailadres is bevestigd. Je kunt nu alle functies gebruiken.</p>
@@ -82,6 +82,6 @@ export function VerifyEmailPage({
           Doorgaan
         </button>
       ) : null}
-    </main>
+    </AuthLayout>
   );
 }

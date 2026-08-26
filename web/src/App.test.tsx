@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it } from 'vitest';
 import type {
   AccountListResponse,
+  AccountPublic,
   AuthResponse,
   CaregiverLink,
   ChangePasswordResponse,
@@ -71,13 +72,16 @@ function fakeApi(
     mustChangePassword?: boolean;
     /** Simuleer een niet-platform-ADMIN: worker-token-endpoints geven 403 NOT_PLATFORM_ADMIN. */
     workerTokensForbidden?: boolean;
+    /** De rol van het ingelogde account; standaard beheerder. */
+    role?: AccountPublic['role'];
   } = {},
 ): Api {
   let session = options.loggedIn ?? false;
   let emailVerified = options.emailVerified ?? true;
   let mustChangePassword = options.mustChangePassword ?? false;
-  const account = (): typeof adminAccount => ({
+  const account = (): AccountPublic => ({
     ...adminAccount,
+    role: options.role ?? adminAccount.role,
     emailVerified,
     mustChangePassword,
   });
@@ -627,6 +631,22 @@ describe('beheeromgeving-app', () => {
     // Dezelfde vraagmodus-pagina als de begeleider ziet — de server liet ADMIN hier altijd al toe.
     expect(await screen.findByRole('heading', { name: 'Vraag stellen' })).toBeTruthy();
     expect(screen.getByRole('navigation', { name: 'Beheer' })).toBeTruthy();
+  });
+
+  it('geeft een begeleider een menu met zijn eigen account erin (T17.1)', async () => {
+    render(<App api={fakeApi({ loggedIn: true, role: 'CAREGIVER' })} />);
+
+    // Een begeleider komt binnen op zijn werk: de vraagmodus.
+    await screen.findByRole('heading', { name: 'Vraag stellen' });
+
+    // Zijn menu is kort — begeleiden en zijn eigen account, geen organisatiebeheer.
+    const nav = screen.getByRole('navigation', { name: 'Beheer' });
+    expect(within(nav).queryByRole('button', { name: 'Gebruikers' })).toBeNull();
+
+    // Tot T17.1 was de vraagmodus zijn enige weergave en was "Mijn account" onbereikbaar.
+    fireEvent.click(within(nav).getByRole('button', { name: 'Mijn account' }));
+    expect(await screen.findByRole('heading', { name: 'Mijn account' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Wachtwoord wijzigen' })).toBeTruthy();
   });
 
   it('dwingt een account met een tijdelijk wachtwoord eerst naar het wachtwoordscherm (T2.6)', async () => {

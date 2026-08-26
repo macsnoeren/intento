@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccountPublic, DashboardResponse } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — dashboard (T7.3, DESIGN §5.2, FR-016). Een beknopt overzicht van de **eigen
@@ -62,20 +63,14 @@ export function DashboardPage({
   }, [refresh]);
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Dashboard</h1>
-          <AdminNav active="dashboard" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="Dashboard"
+      subtitle="Hoe het er in jouw organisatie voor staat."
+      active="dashboard"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -129,6 +124,6 @@ export function DashboardPage({
           </section>
         </>
       ) : null}
-    </main>
+    </AppShell>
   );
 }

@@ -309,6 +309,34 @@ describe('gebruikersapp op de tablet', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('Koppelcode ongeldig');
   });
 
+  it('zet de naam van de app en van de gebruiker in de kopbalk (T17.1)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    // Uit de gebruikerstest: op een gedeelde tablet was niet te zien wélke app dit is en voor wie
+    // hij openstaat. Beide staan nu bovenaan, op elk scherm van de flow.
+    const header = screen.getByRole('banner');
+    expect(within(header).getByText('Intento')).toBeTruthy();
+    expect(within(header).getByText('Sanne')).toBeTruthy();
+
+    // De vraag op het scherm blijft de enige kop: de balk mag de aandacht niet stelen.
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
+  it('houdt die kopbalk ook op het voorstelscherm (T17.1)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
+    await screen.findByRole('heading', { name: 'Wat wil je duidelijk maken?' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByRole('heading', { name: 'Wat wil je?' });
+    fireEvent.click(screen.getByRole('button', { name: 'Iets doen' }));
+    await screen.findByRole('heading', { name: 'Wat wil je doen?' });
+    fireEvent.click(screen.getByRole('button', { name: 'Buiten' }));
+
+    await screen.findByRole('heading', { name: 'Ik wil buiten.' });
+    expect(within(screen.getByRole('banner')).getByText('Sanne')).toBeTruthy();
+  });
+
   it('doorloopt de gescripte flow en herstelt met Terug de vorige opties', async () => {
     render(<TabletApp api={fakeDeviceApi({ linked: true })} />);
 

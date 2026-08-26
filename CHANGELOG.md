@@ -5,6 +5,34 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Toegevoegd — fase 17: ontwerp van de web-applicatie
+
+- **T17.1 Eén huisstijl, en een menu in plaats van tien tabs.** De beheeromgeving zette al haar
+  bestemmingen als één rij gelijkwaardige tabs onder de paginatitel: "Worker-tokens"
+  (platformonderhoud) stond even groot en even dichtbij als "Gebruikers" (dagelijks werk), en op een
+  tablet in staande stand liep die rij over meerdere regels door. Er is nu één schil om elke ingelogde
+  pagina (`AppShell`): een **zijbalk** met het menu gegroepeerd naar wat iemand komt doen (Overzicht,
+  Communicatie, Organisatie, Platform, Account) en een kopbalk met de paginatitel, één regel uitleg en
+  rechts wie je bent. Op een smal scherm schuift de zijbalk weg achter een menuknop — de knoppen
+  blijven in de DOM, zodat toetsenbord en schermlezer hetzelfde menu houden. Elke pagina bepaalt
+  daardoor nog maar twee dingen: hoe hij heet en wat erin staat; de twintig regels herhaalde kop-JSX
+  per pagina zijn weg (en daarmee het uiteenlopen ervan).
+- **Het logo is nu bruikbaar op het web.** Het bronlogo was 1254×1254 px en 925 kB met een **witte**
+  achtergrond — een wit blok op elk gekleurd vlak, geen favicon, geen liggende variant voor een
+  kopbalk. `web/brand/generate-assets.py` leidt daar reproduceerbaar de bestanden uit af die de app
+  wél kan gebruiken: transparant beeldmerk (met de witte waas van de randpixels weggehaald, zodat het
+  ook op een donkere ondergrond schoon staat), een liggende variant, het volledige logo, een witte
+  tegel voor donkere ondergronden, favicons en app-iconen plus `site.webmanifest`. De kleuren van de
+  interface komen nu uit het logo; het belverloop keert alleen terug als dunne accentlijn.
+- **De tablet zegt wie hij is en voor wie.** De gebruikersapp heeft een vaste kopbalk: linksboven het
+  beeldmerk met "Intento", rechtsboven de naam van de gebruiker en de AI-indicator. Op een gedeeld
+  apparaat was geen van beide te zien. Bewust klein en grijs, en zonder kop-element — de vraag op het
+  scherm blijft de enige `<h1>`.
+- **Een begeleider kan bij zijn eigen account.** De vraagmodus was zijn énige weergave, waardoor
+  "Mijn account" — en dus het wisselen van zijn tijdelijke wachtwoord — alleen bereikbaar was via een
+  paneel onder aan diezelfde pagina. Hij krijgt nu een kort menu: Begeleiden en Mijn account. Het menu
+  is geen beveiliging: de server weigert onveranderd elke call buiten zijn rol.
+
 ### Gerepareerd — vierde gebruikerstest
 
 - **Koppelen weigerde de attributie van OpenSymbols: "licenseUrl: Alleen https-URL’s zijn

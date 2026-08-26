@@ -8,7 +8,40 @@ import type {
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, apiUrl, httpApi, isAiWaitingError, type DeviceApi } from './api.ts';
+import { AuthLayout } from './AuthLayout.tsx';
 import { AiStatusBadge } from './AiStatusBadge.tsx';
+import { BrandMark, BRAND_NAME } from './Brand.tsx';
+
+/**
+ * Vaste kopbalk van de gebruikersapp (T17.1): linksboven het beeldmerk met de naam, rechtsboven wie
+ * er op deze tablet communiceert (en waar van toepassing de AI-indicator).
+ *
+ * Uit de gebruikerstest: op een gedeelde tablet was nergens te zien wélke app dit is en voor wie hij
+ * openstaat. De balk is bewust klein en grijs — het keuzescherm eronder moet de aandacht houden — en
+ * bevat geen kop-element, zodat de vraag op het scherm de enige `<h1>` blijft.
+ */
+function TabletHeader({
+  userName,
+  children,
+}: {
+  /** De gebruiker van deze tablet; ontbreekt op schermen van vóór het koppelen. */
+  userName?: string;
+  /** Extra's rechts in de balk, bv. de AI-indicator. */
+  children?: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <header className="tablet__header">
+      <span className="tablet__brand">
+        <BrandMark size={34} />
+        <span className="tablet__brand-name">{BRAND_NAME}</span>
+      </span>
+      <span className="tablet__identity">
+        {userName ? <span className="tablet__user">{userName}</span> : null}
+        {children}
+      </span>
+    </header>
+  );
+}
 
 /** Wachttijd (ms) waarop we terugvallen als de backend er geen meestuurt. */
 const DEFAULT_WAIT_MS = 3000;
@@ -24,9 +57,16 @@ function delay(ms: number): Promise<void> {
  * (of `AI_WORKER_UNAVAILABLE`); de app toont dan dit scherm en polt de laatste actie automatisch
  * opnieuw tot er een vraag/voorstel terugkomt. `position` (indien bekend) geeft de plek in de rij.
  */
-function WaitingScreen({ position }: { position?: number }): React.JSX.Element {
+function WaitingScreen({
+  position,
+  userName,
+}: {
+  position?: number;
+  userName?: string;
+}): React.JSX.Element {
   return (
     <main className="tablet">
+      <TabletHeader userName={userName} />
       <section className="tablet__waiting" role="status" aria-live="polite">
         <p className="tablet__waiting-icon" aria-hidden="true">
           ⏳
@@ -96,9 +136,9 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
 
   if (checking) {
     return (
-      <main className="panel panel--narrow">
-        <p className="muted">Laden…</p>
-      </main>
+      <AuthLayout title="Even geduld">
+        <p className="muted">Bezig met laden…</p>
+      </AuthLayout>
     );
   }
 
@@ -141,9 +181,10 @@ function DeviceLinkScreen({
   }
 
   return (
-    <main className="panel panel--narrow">
-      <h1 className="panel__title">Intento</h1>
-      <p>Voer de koppelcode in die je in de beheeromgeving hebt aangemaakt.</p>
+    <AuthLayout
+      title="Tablet koppelen"
+      intro="Voer de koppelcode in die je in de beheeromgeving hebt aangemaakt."
+    >
       <form className="form" aria-label="Tablet koppelen" onSubmit={(e) => void submit(e)}>
         <label className="field">
           <span className="field__label">Koppelcode</span>
@@ -171,7 +212,7 @@ function DeviceLinkScreen({
           </button>
         </div>
       </form>
-    </main>
+    </AuthLayout>
   );
 }
 
@@ -286,6 +327,7 @@ function ConversationScreen({
   if (confirmed) {
     return (
       <main className="tablet">
+        <TabletHeader userName={user.name} />
         <section className="tablet__done">
           <h1 className="tablet__prompt">Boodschap bevestigd</h1>
           <p className="tablet__message">{confirmed.message}</p>
@@ -305,12 +347,13 @@ function ConversationScreen({
   // Wachten op een AI-worker (T5.7): rustige wachtstand i.p.v. een fout; de poll-lus in `run`
   // herstelt automatisch zodra er een antwoord is.
   if (waiting) {
-    return <WaitingScreen position={waiting.position} />;
+    return <WaitingScreen position={waiting.position} userName={user.name} />;
   }
 
   if (!state) {
     return (
       <main className="tablet">
+        <TabletHeader userName={user.name} />
         {error ? (
           <p className="form__error" role="alert">
             {error}
@@ -328,6 +371,7 @@ function ConversationScreen({
       <ProposalScreen
         api={api}
         sessionId={state.sessionId}
+        userName={user.name}
         showText={profile.showText}
         supportMode={profile.supportMode}
         onConfirmed={setConfirmed}
@@ -355,11 +399,12 @@ function ConversationScreen({
 
   return (
     <main className="tablet">
-      {/* Zichtbaar of er echt een AI meedenkt (T9.4) — anders is niet te zien dat de app op de
-          deterministische mock draait of dat er geen worker actief is. */}
-      <div className="tablet__status">
+      {/* Naam van de app en van de gebruiker (T17.1), plus zichtbaar of er echt een AI meedenkt
+          (T9.4) — anders is niet te zien dat de app op de deterministische mock draait of dat er
+          geen worker actief is. */}
+      <TabletHeader userName={user.name}>
         <AiStatusBadge api={api} />
-      </div>
+      </TabletHeader>
 
       <SupportModeBanner active={profile.supportMode} />
 
@@ -479,6 +524,7 @@ function ConversationScreen({
 function ProposalScreen({
   api,
   sessionId,
+  userName,
   showText,
   supportMode,
   onConfirmed,
@@ -486,6 +532,8 @@ function ProposalScreen({
 }: {
   api: DeviceApi;
   sessionId: string;
+  /** Voor de kopbalk (T17.1); het voorstelscherm hoort er niet anders uit te zien dan de rest. */
+  userName: string;
   showText: boolean;
   supportMode: boolean;
   onConfirmed: (result: ConversationConfirmResponse) => void;
@@ -544,12 +592,13 @@ function ProposalScreen({
   }
 
   if (waiting) {
-    return <WaitingScreen position={waiting.position} />;
+    return <WaitingScreen position={waiting.position} userName={userName} />;
   }
 
   if (!proposal) {
     return (
       <main className="tablet">
+        <TabletHeader userName={userName} />
         {error ? (
           <p className="form__error" role="alert">
             {error}
@@ -563,6 +612,7 @@ function ProposalScreen({
 
   return (
     <main className="tablet">
+      <TabletHeader userName={userName} />
       <SupportModeBanner active={supportMode} />
 
       <div className="proposal__symbols" aria-hidden="true">

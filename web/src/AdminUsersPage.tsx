@@ -9,7 +9,8 @@ import { DevicePanel } from './DevicePanel.tsx';
 import { PersonalContextPanel } from './PersonalContextPanel.tsx';
 import { PreferencesPanel } from './PreferencesPanel.tsx';
 import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.tsx';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — gebruikersbeheer (T2.1, DESIGN §5.2). Toont de gebruikerslijst van de
@@ -85,20 +86,14 @@ export function AdminUsersPage({
   const selected = users.find((u) => u.id === selectedId) ?? null;
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">Gebruikersbeheer</h1>
-          <AdminNav active="users" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="Gebruikersbeheer"
+      subtitle="De mensen die met Intento communiceren, en wie hen begeleidt."
+      active="users"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -233,6 +228,6 @@ export function AdminUsersPage({
           ) : null}
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }

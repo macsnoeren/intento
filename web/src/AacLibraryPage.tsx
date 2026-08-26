@@ -8,7 +8,8 @@ import {
   type OpenSymbolsResult,
 } from '@intento/shared';
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — AAC-bibliotheek (T3.2, DESIGN §5.2, FR-015). Een beheerder kan hier de
@@ -108,20 +109,14 @@ export function AacLibraryPage({
   const selected = symbols.find((s) => s.id === selectedId) ?? null;
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <div>
-          <h1 className="panel__title">AAC-bibliotheek</h1>
-          <AdminNav active="aac" onNavigate={onNavigate} />
-        </div>
-        <div className="admin__account">
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
+    <AppShell
+      account={account}
+      title="AAC-bibliotheek"
+      subtitle="De pictogrammen waaruit de AI mag putten."
+      active="aac"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -236,7 +231,7 @@ export function AacLibraryPage({
           )}
         </div>
       </div>
-    </main>
+    </AppShell>
   );
 }
 

@@ -9,7 +9,8 @@ import type {
 import { ApiRequestError, type Api } from './api.ts';
 import { AiStatusBadge } from './AiStatusBadge.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
-import { AdminNav, type AdminView } from './AdminNav.tsx';
+import type { AdminView } from './AdminNav.tsx';
+import { AppShell } from './AppShell.tsx';
 
 /**
  * Begeleiderinterface — **vraagmodus** (T7.1, DESIGN §3.2, §5.2, FR-012).
@@ -138,21 +139,15 @@ export function QuestionModePage({
   if (!anchor) missing.push('een onderwerp');
 
   return (
-    <main className="admin">
-      <header className="admin__header">
-        <h1 className="panel__title">Vraag stellen</h1>
-        <div className="admin__account">
-          <AiStatusBadge api={api} />
-          <span>{account.email}</span>
-          <button className="button" type="button" onClick={onLogout}>
-            Uitloggen
-          </button>
-        </div>
-      </header>
-
-      {/* In de beheeromgeving (T9.1) hoort deze pagina bij de andere beheertabs. */}
-      {onNavigate ? <AdminNav active="question" onNavigate={onNavigate} /> : null}
-
+    <AppShell
+      account={account}
+      title="Vraag stellen"
+      subtitle="Stel een vraag; hij verschijnt op de tablet van de gebruiker."
+      active="question"
+      onNavigate={onNavigate}
+      onLogout={onLogout}
+      status={<AiStatusBadge api={api} />}
+    >
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -309,7 +304,7 @@ export function QuestionModePage({
           dat zijn beheerder kent (T2.4); dit is zijn enige weergave, dus staat het paneel hier. In de
           beheeromgeving (T9.1) staat het al op "Mijn account" — dan laten we het hier weg. */}
       {onNavigate ? null : <ChangePasswordPanel api={api} />}
-    </main>
+    </AppShell>
   );
 }
 
@@ -393,7 +388,7 @@ function ConversationWatch({
   return (
     <section className="panel" aria-label="Meekijken met het gesprek">
       <div className="form form--inline">
-        <h2 className="panel__title">Meekijken met het gesprek</h2>
+        <h2 className="panel__subtitle">Meekijken met het gesprek</h2>
         <button className="button" type="button" onClick={() => void refresh()} disabled={busy}>
           Nu verversen
         </button>

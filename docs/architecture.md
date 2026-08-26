@@ -85,6 +85,13 @@ server niet uit elkaar lopen.
   (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
   `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
   `styles.css`.
+- **Schil en huisstijl (T17.1)** — drie componenten die elke ingelogde pagina dezelfde vorm geven:
+  `AppShell.tsx` (zijbalk met menu + kopbalk met paginatitel en account), `AdminNav.tsx` (het menu
+  zelf: gegroepeerd en gefilterd op rol, met `NavIcon.tsx` voor de lijnicoontjes) en `AuthLayout.tsx`
+  (de voordeurschermen: inloggen, aanmelden, bevestigen, tablet koppelen). `Brand.tsx` houdt naam,
+  payoff en logopaden op één plek; de logobestanden zelf staan in `web/public/brand/` en worden uit
+  het bronlogo gegenereerd (`web/brand/README.md`). Een pagina bepaalt daardoor alleen nog zijn titel
+  en inhoud — niet zijn kop, menu of uitlogknop.
 
 ## Interfaces in de web-app
 
@@ -108,7 +115,11 @@ authenticatiepijler:
   wordt niets extra's bewaard om te kunnen terugkijken (§3.6). Het is de enige beheerweergave met
   communicatie-inhoud en draagt daarom de strengste grens: tenant-gefilterd én, voor een begeleider,
   beperkt tot gekoppelde gebruikers.
-- **Begeleiderinterface** — volgt in latere fases (vraag- en ondersteuningsmodus, fase 7).
+- **Begeleiderinterface** — dezelfde route-tak als de beheeromgeving, maar met een **kort menu**
+  (T17.1): Begeleiden en Mijn account. Een begeleider ziet geen ingangen naar beheer dat de server
+  hem toch weigert; dat menu is geen beveiliging, de autorisatie zit in de backend (DESIGN §6.2).
+- **Platform-operatorconsole** — `/operator`, `OperatorConsole.tsx`. Draait in dezelfde schil, maar
+  bewust **zonder menu**: cross-tenant beheer hoort geen knop naast "Gebruikers" te zijn (T8.3).
 
 Deze scheiding is bewust ook in de client zichtbaar: een tablet-token werkt niet op accountroutes
 en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).

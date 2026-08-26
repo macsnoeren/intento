@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { organizationTypeSchema, type AuthResponse, type OrganizationType } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
+import { AuthLayout } from './AuthLayout.tsx';
 
 /**
  * Zelfaanmeldscherm (T1.3, DESIGN §2, §3.7 stap 1). Een nieuwe bezoeker meldt in één keer een
@@ -51,8 +52,10 @@ export function RegisterForm({
   }
 
   return (
-    <main className="panel panel--narrow">
-      <h1 className="panel__title">Intento — nieuwe omgeving</h1>
+    <AuthLayout
+      title="Nieuwe omgeving aanmelden"
+      intro="Je maakt een eigen organisatie aan en wordt daarvan de beheerder."
+    >
       <form className="form" onSubmit={(e) => void handleSubmit(e)} aria-label="Aanmelden">
         <label className="field">
           <span className="field__label">Naam van de organisatie of familie</span>
@@ -124,6 +127,6 @@ export function RegisterForm({
       <button className="button" type="button" onClick={onBackToLogin}>
         Al een account? Inloggen
       </button>
-    </main>
+    </AuthLayout>
   );
 }
