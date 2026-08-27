@@ -590,6 +590,24 @@ describe('beheeromgeving-app', () => {
     expect(screen.queryByRole('region', { name: 'Begeleider aanmaken' })).toBeNull();
   });
 
+  it('laat de focus in het naamveld staan terwijl je typt (T17.5)', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gebruiker toevoegen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Gebruiker toevoegen' });
+    const input = within(dialog).getByLabelText<HTMLInputElement>('Naam van de gebruiker');
+    input.focus();
+
+    // Letter voor letter, zoals iemand typt. De waarde staat in de paginastate, dus de hele pagina
+    // tekent hertekent bij elke aanslag — dat mag de focus niet uit het veld halen.
+    for (const value of ['S', 'Sa', 'San', 'Sann', 'Sanne']) {
+      fireEvent.change(input, { target: { value } });
+      expect(document.activeElement).toBe(input);
+    }
+    expect(input.value).toBe('Sanne');
+  });
+
   it('sluit de dialoog "Gebruiker toevoegen" met Escape zonder aan te maken (T17.2)', async () => {
     render(<App api={fakeApi({ loggedIn: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });

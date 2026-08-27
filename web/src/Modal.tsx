@@ -28,14 +28,57 @@ export function Modal({
 }): React.JSX.Element {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  /*
+   * Het element dat de focus had toen de dialoog verscheen — de knop die 'm opende.
+   *
+   * Bewust vastgelegd tijdens het hertekenen en niet in het effect hieronder. Onder `<StrictMode>`
+   * draait React elk effect twee keer (mount → opruimen → mount); bij die tweede ronde stond de
+   * focus al ín de dialoog, dus onthield het effect de dialoog zelf als "opener". Sluiten gaf de
+   * focus dan aan een element dat net verwijderd was — en in de praktijk aan `body`.
+   */
+  const openerRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
+
+  // De laatste `onClose` in een ref. De effecten hieronder draaien bewust maar één keer (lege
+  // dependency-lijst); zonder deze ref zouden ze de `onClose` van de eerste hertekening vasthouden.
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    onCloseRef.current = onClose;
+  });
+
+  /*
+   * Focus naar binnen bij openen, terug naar de opener bij sluiten.
+   *
+   * Deze mag **niet** opnieuw draaien bij elke hertekening. Stond `onClose` in de dependency-lijst,
+   * dan was dat precies wat er gebeurde: een `onClose={() => …}` is bij elke hertekening een nieuwe
+   * functie, dus draaide de opruiming (focus terug naar de openende knop) en daarna het effect
+   * (focus naar de dialoog) na élke toetsaanslag in een veld waarvan de waarde in de paginastate
+   * staat. Je typte dan één letter en was het veld kwijt.
+   */
+  useEffect(() => {
+    const opener = openerRef.current;
     // Focus naar de dialoog zelf: het eerste veld focussen zou de titel overslaan.
     dialogRef.current?.focus();
+    return () => {
+      if (!opener) return;
+      // Niet meteen: zodra de dialoog uit de DOM verdwijnt zet de browser de focus zelf op `body`,
+      // en dat gebeurt ná deze opruiming. Een `focus()` hier wordt daardoor overschreven — in
+      // Firefox aantoonbaar. Daarom in de volgende beurt, als die verwijdering verwerkt is.
+      queueMicrotask(() => {
+        if (!opener.isConnected) return;
+        // Heeft iets anders inmiddels de focus opgeëist, dan laten we die staan.
+        const active = document.activeElement;
+        if (active === null || active === document.body) opener.focus();
+      });
+    };
+  }, []);
 
+  // Escape sluit, en Tab blijft binnen de dialoog rondlopen.
+  useEffect(() => {
     function handleKey(event: KeyboardEvent): void {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !dialogRef.current) return;
@@ -61,9 +104,8 @@ export function Modal({
     document.addEventListener('keydown', handleKey);
     return () => {
       document.removeEventListener('keydown', handleKey);
-      opener?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal">

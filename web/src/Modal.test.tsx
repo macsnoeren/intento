@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { StrictMode, useState } from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { Modal } from './Modal.tsx';
 
@@ -32,6 +32,27 @@ function Harness({ onOpenChange }: { onOpenChange?: (open: boolean) => void } = 
         >
           <input aria-label="Naam" />
           <button type="button">Opslaan</button>
+        </Modal>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Opstelling waarin de *ouder* hertekent bij elke toetsaanslag — precies wat er gebeurt als het
+ * invoerveld zijn waarde in de paginastate houdt ("Gebruiker toevoegen").
+ */
+function TypingHarness(): React.JSX.Element {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState('');
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Openen
+      </button>
+      {open ? (
+        <Modal title="Gebruiker toevoegen" onClose={() => setOpen(false)}>
+          <input aria-label="Naam" value={value} onChange={(e) => setValue(e.target.value)} />
         </Modal>
       ) : null}
     </>
@@ -78,7 +99,7 @@ describe('dialoogvenster', () => {
     expect(closed.filter((open) => !open).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('zet de focus in de dialoog en geeft hem daarna terug aan de knop die hem opende', () => {
+  it('zet de focus in de dialoog en geeft hem daarna terug aan de knop die hem opende', async () => {
     render(<Harness />);
     const opener = screen.getByRole('button', { name: 'Openen' });
     opener.focus();
@@ -88,8 +109,45 @@ describe('dialoogvenster', () => {
     expect(document.activeElement).toBe(screen.getByRole('dialog'));
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    // Zonder dit staat een schakelgebruiker na het sluiten weer boven aan de pagina.
-    expect(document.activeElement).toBe(opener);
+    // Eén beurt later: de browser zet de focus zelf op `body` zodra de dialoog uit de DOM gaat, dus
+    // het terugzetten gebeurt daarna. Zonder dit staat een schakelgebruiker na het sluiten weer
+    // boven aan de pagina.
+    await waitFor(() => expect(document.activeElement).toBe(opener));
+  });
+
+  it('laat de focus in het veld staan tijdens het typen', () => {
+    render(<TypingHarness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Openen' }));
+
+    const input = screen.getByLabelText<HTMLInputElement>('Naam');
+    input.focus();
+    fireEvent.change(input, { target: { value: 'S' } });
+    fireEvent.change(input, { target: { value: 'Sa' } });
+    fireEvent.change(input, { target: { value: 'San' } });
+
+    // De focusafhandeling mag niet opnieuw draaien bij elke hertekening van de ouder: dan sprong de
+    // focus na elke letter uit het veld en was er niet meer in te typen.
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe('San');
+  });
+
+  it('geeft de focus ook onder StrictMode terug aan de opener', async () => {
+    // React draait onder <StrictMode> elk effect twee keer (mount → opruimen → mount). Wie de
+    // openende knop in het effect vastlegt, onthoudt bij die tweede ronde de dialoog zelf — en geeft
+    // de focus bij sluiten aan een element dat net verwijderd is. De app draait in StrictMode, dus
+    // deze test draait dat na.
+    render(
+      <StrictMode>
+        <Harness />
+      </StrictMode>,
+    );
+    const opener = screen.getByRole('button', { name: 'Openen' });
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(opener));
   });
 
   it('houdt Tab binnen de dialoog', () => {

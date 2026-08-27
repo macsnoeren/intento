@@ -836,6 +836,23 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   bestaande flows (instellen, koppelen, koppelcode, verwijderen) werken via hun onderdeel (tests);
   op een smal scherm vouwt de balk om in plaats van inhoud buiten beeld te schuiven.
 
+- [x] **T17.5 De dialoog liet zich niet in typen**
+  *Gemeld tijdens gebruik van T17.2.* In "Gebruiker toevoegen" sprong de focus na élke letter uit het
+  naamveld. Oorzaak: het focus-effect van `Modal` had `onClose` in zijn dependency-lijst, en dat is
+  bij elke hertekening een nieuwe functie. De waarde van het veld staat in de paginastate, dus tekende
+  de pagina bij elke aanslag opnieuw — waarna het effect zijn opruiming draaide (focus terug naar de
+  openende knop) en zichzelf opnieuw (focus naar de dialoog). Werk: de focusafhandeling draait nu
+  eenmalig (`onClose` in een ref).
+  Bij het naspelen in een echte browser kwam een tweede fout boven: na sluiten kwam de focus op `body`
+  in plaats van op de knop die de dialoog opende. Onder `<StrictMode>` draait React elk effect twee
+  keer (mount → opruimen → mount), en bij die tweede ronde stond de focus al ín de dialoog — dus
+  onthield het effect de dialoog zelf als "opener". De opener wordt nu tijdens het hertekenen
+  vastgelegd, vóór het effect de focus verplaatst, en teruggezet ná het verwijderen van de dialoog
+  (de browser zet de focus daarbij zelf op `body`).
+  *Acceptatie:* letter voor letter typen houdt de focus in het veld (test op component- én
+  app-niveau); de focus keert na sluiten terug naar de openende knop, ook onder `<StrictMode>` (test);
+  beide nagemeten in Firefox tegen de draaiende app.
+
 ---
 
 ## Onderhoud (ontdekt meerwerk)

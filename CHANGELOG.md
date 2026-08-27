@@ -64,6 +64,20 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   paneel onder aan diezelfde pagina. Hij krijgt nu een kort menu: Begeleiden en Mijn account. Het menu
   is geen beveiliging: de server weigert onveranderd elke call buiten zijn rol.
 
+### Gerepareerd — fase 17
+
+- **T17.5 In de dialoog "Gebruiker toevoegen" was niet te typen.** Na elke letter sprong de focus uit
+  het naamveld. Het focus-effect van `Modal` hing aan `onClose` — bij elke hertekening een nieuwe
+  functie — en de waarde van het veld staat in de paginastate, dus hertekende de pagina bij elke
+  aanslag. Het effect ruimde zichzelf dan op (focus terug naar de openende knop) en draaide opnieuw
+  (focus naar de dialoog). De focusafhandeling draait nu eenmalig.
+- **De focus kwam na het sluiten van een dialoog op `body` terecht.** Zichtbaar in Firefox, niet in de
+  tests: onder `<StrictMode>` draait React elk effect twee keer, en bij de tweede ronde stond de focus
+  al ín de dialoog — die werd zo zelf onthouden als "de knop die de dialoog opende". De opener wordt nu
+  tijdens het hertekenen vastgelegd, vóór de focus verplaatst wordt, en teruggezet nadat de dialoog uit
+  de DOM is (de browser zet de focus daarbij zelf op `body`). Een schakel- of toetsenbordgebruiker
+  staat na het sluiten dus weer op de knop waar hij vandaan kwam, niet boven aan de pagina.
+
 ### Gerepareerd — vierde gebruikerstest
 
 - **Koppelen weigerde de attributie van OpenSymbols: "licenseUrl: Alleen https-URL’s zijn
