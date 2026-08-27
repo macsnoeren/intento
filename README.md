@@ -595,7 +595,11 @@ De web-applicatie heeft één schil om alle ingelogde pagina's:
   eerst een **lijst over de volle breedte** (gebruikers als regels met hun profiel erbij, AAC-symbolen
   als tegels met hun pictogram); daar één item openen geeft dat item een **eigen scherm** met alles
   bij elkaar. Toevoegen, importeren en aanmaken zitten achter een knop met een dialoog, zodat het
-  overzicht een overzicht blijft. Verwijderen staat onderaan het detailscherm, apart en met uitleg.
+  overzicht een overzicht blijft.
+- **Onderdelen per detailscherm** (T17.4) — het scherm van één gebruiker heeft bovenaan een
+  keuzebalk: Instellingen · Begeleiders · Persoonlijke context · Voorkeuren · Tablet · Profiel &
+  verwijderen. Eén onderdeel tegelijk, over een leesbare breedte. Verwijderen zit onder het laatste
+  onderdeel, apart en met uitleg over wat er weggaat.
 - **Tablet** — de gebruikersapp heeft een vaste, rustige kopbalk: linksboven het beeldmerk met
   "Intento", rechtsboven de naam van de gebruiker en de AI-indicator. Bewust klein: het keuzescherm
   eronder moet de aandacht houden.

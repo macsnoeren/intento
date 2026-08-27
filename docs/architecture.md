@@ -95,7 +95,9 @@ server niet uit elkaar lopen.
   hetzelfde **overzicht → detail**-patroon: de pagina houdt de selectie in state (`selectedId`) en
   rendert óf de lijst óf het detail, elk met een eigen `AppShell`-titel. Handelingen die je vanaf een
   overzicht begint lopen via `Modal.tsx` (focus erin, Tab rondlopend, Escape sluit, focus terug naar
-  de opener).
+  de opener). Een detailscherm met veel inhoud verdeelt die over onderdelen met
+  `SegmentedTabs.tsx` (echte `tablist`/`tab`/`tabpanel`-semantiek; `tabPanelProps()` koppelt paneel
+  en tab aan elkaar).
 
 ## Interfaces in de web-app
 

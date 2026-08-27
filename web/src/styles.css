@@ -453,15 +453,6 @@ body {
   gap: 1.25rem;
 }
 
-.caregiver-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 /* Formulieren */
 .form {
   display: flex;
@@ -545,6 +536,10 @@ body {
 /* Keuzelijst met uitleg per optie (gespreksstrategie, T11.4): de begeleider moet kunnen zien
    vóór wie een aanpak bedoeld is, dus de uitleg staat naast de keuze en niet erachter verstopt. */
 .choice-list {
+  /* Wordt zowel op een <div> als op een <ul> gebruikt; de lijstopmaak hoort er in beide gevallen af. */
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -655,14 +650,21 @@ body {
 
 /* Schakelaar tussen twee weergaven van hetzelfde overzicht. */
 .segmented {
-  display: inline-flex;
+  display: flex;
+  align-self: flex-start;
+  max-width: 100%;
   padding: 0.25rem;
   gap: 0.25rem;
   background: var(--intento-surface-alt);
   border-radius: var(--intento-radius);
+  /* Zes onderdelen passen niet op elk scherm op één regel. Dan omvouwen en niet horizontaal
+     schuiven: bij schuiven staat een deel van de onderdelen buiten beeld zonder dat je dat ziet. */
+  flex-wrap: wrap;
 }
 
 .segmented__tab {
+  flex: none;
+  white-space: nowrap;
   font: inherit;
   font-weight: 600;
   padding: 0.5rem 1rem;
@@ -757,6 +759,20 @@ body {
   flex: none;
   color: var(--intento-muted);
   font-size: 1.2rem;
+}
+
+/* Eén onderdeel van een detailscherm (T17.4). Wel breed — veel breder dan de halve kolom van
+   voorheen — maar niet grenzeloos: formulierregels van 1100 px leest niemand prettig. */
+.detail-section {
+  width: 100%;
+  max-width: 60rem;
+}
+
+/* Panelen onder elkaar binnen één onderdeel. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 /* Terug naar het overzicht, boven een detailscherm. */

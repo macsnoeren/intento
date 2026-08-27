@@ -15,6 +15,7 @@ import { PersonalContextPanel } from './PersonalContextPanel.tsx';
 import { PreferencesPanel } from './PreferencesPanel.tsx';
 import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.tsx';
 import { Modal } from './Modal.tsx';
+import { SegmentedTabs, tabPanelProps, type SegmentedTab } from './SegmentedTabs.tsx';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 
@@ -36,6 +37,27 @@ import { AppShell } from './AppShell.tsx';
 
 /** Twee soorten "wie" in een organisatie: de mensen die communiceren, en de logins die hen helpen. */
 type UsersTab = 'users' | 'accounts';
+
+const OVERVIEW_TABS: readonly SegmentedTab<UsersTab>[] = [
+  { id: 'users', label: 'Gebruikers' },
+  { id: 'accounts', label: 'Logins' },
+];
+
+/**
+ * De onderdelen van één gebruiker (T17.4). Volgorde is de volgorde waarin je ze nodig hebt: eerst
+ * instellen hoe hij communiceert, dan wie hem begeleidt, dan wat de AI over hem mag weten, en pas
+ * daarna het apparaat en het beheer van zijn profiel.
+ */
+type UserTab = 'settings' | 'caregivers' | 'context' | 'preferences' | 'device' | 'profile';
+
+const USER_TABS: readonly SegmentedTab<UserTab>[] = [
+  { id: 'settings', label: 'Instellingen' },
+  { id: 'caregivers', label: 'Begeleiders' },
+  { id: 'context', label: 'Persoonlijke context' },
+  { id: 'preferences', label: 'Voorkeuren' },
+  { id: 'device', label: 'Tablet' },
+  { id: 'profile', label: 'Profiel & verwijderen' },
+];
 
 /** Welke dialoog openstaat; `null` = geen. */
 type UsersDialog = 'create-user' | 'create-caregiver' | 'import-profile' | null;
@@ -159,30 +181,13 @@ export function AdminUsersPage({
       ) : null}
 
       <div className="toolbar">
-        <div className="segmented" role="tablist" aria-label="Weergave">
-          <button
-            type="button"
-            role="tab"
-            id="tab-users"
-            aria-selected={tab === 'users'}
-            aria-controls="panel-users"
-            className={`segmented__tab${tab === 'users' ? ' segmented__tab--active' : ''}`}
-            onClick={() => setTab('users')}
-          >
-            Gebruikers
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-accounts"
-            aria-selected={tab === 'accounts'}
-            aria-controls="panel-accounts"
-            className={`segmented__tab${tab === 'accounts' ? ' segmented__tab--active' : ''}`}
-            onClick={() => setTab('accounts')}
-          >
-            Logins
-          </button>
-        </div>
+        <SegmentedTabs
+          label="Weergave"
+          prefix="overview"
+          tabs={OVERVIEW_TABS}
+          active={tab}
+          onSelect={setTab}
+        />
 
         <div className="toolbar__actions">
           {tab === 'users' ? (
@@ -211,7 +216,7 @@ export function AdminUsersPage({
       </div>
 
       {tab === 'users' ? (
-        <div id="panel-users" role="tabpanel" aria-labelledby="tab-users">
+        <div {...tabPanelProps('overview', 'users')}>
           <section className="panel" aria-label="Gebruikers">
             {loading ? (
               <p className="muted">Laden…</p>
@@ -253,7 +258,7 @@ export function AdminUsersPage({
           </section>
         </div>
       ) : (
-        <div id="panel-accounts" role="tabpanel" aria-labelledby="tab-accounts">
+        <div {...tabPanelProps('overview', 'accounts')}>
           {/* Accountlijst (T2.6): ververst op de begeleiderteller, zodat een net aangemaakt account
               er meteen — mét zijn "tijdelijk wachtwoord"-markering — in staat. `currentAccountId`
               houdt de resetknop (T2.7) van het eigen account af: je eigen wachtwoord wijzig je onder
@@ -322,10 +327,17 @@ export function AdminUsersPage({
 }
 
 /**
- * Het scherm van één gebruiker (T17.2): communicatieprofiel, begeleiders, persoonlijke context,
- * geleerde voorkeuren, tabletkoppeling en profielexport — naast elkaar in plaats van onder elkaar in
- * een halve kolom. Verwijderen staat onderaan, apart en met uitleg: het is de enige handeling hier
- * die niet terug te draaien is.
+ * Het scherm van één gebruiker (T17.2, in onderdelen sinds T17.4): communicatieprofiel,
+ * begeleiders, persoonlijke context, geleerde voorkeuren, tabletkoppeling en profielbeheer.
+ *
+ * T17.2 zette die panelen naast elkaar in een raster van twee kolommen. Dat was al beter dan de
+ * halve kolom ervoor, maar elk paneel bleef daarmee een halve pagina breed — en juist deze panelen
+ * bevatten formulieren met uitleg, een wizard van vijf stappen en lijsten met knoppen erin. Nu staat
+ * er een **keuzebalk** bovenaan en één onderdeel tegelijk over de volle breedte: je ziet minder in
+ * één blik, maar wat je ziet is te lezen en in te vullen.
+ *
+ * Verwijderen zit onder "Profiel & verwijderen", apart van de instellingen: het is de enige
+ * handeling hier die niet terug te draaien is.
  */
 function UserDetailPage({
   api,
@@ -350,6 +362,8 @@ function UserDetailPage({
   onLogout: () => void;
   onNavigate: (view: AdminView) => void;
 }): React.JSX.Element {
+  const [tab, setTab] = useState<UserTab>('settings');
+
   return (
     <AppShell
       account={account}
@@ -371,67 +385,87 @@ function UserDetailPage({
         </p>
       ) : null}
 
-      <div className="detail-grid">
-        <section className="panel" aria-label="Instellingen">
-          <h2 className="panel__subtitle">Communicatie-instellingen</h2>
-          <SettingsForm key={user.id} user={user} onSave={onSaveSettings} />
-        </section>
+      <SegmentedTabs
+        label={`Onderdelen van ${user.name}`}
+        prefix="user"
+        tabs={USER_TABS}
+        active={tab}
+        onSelect={setTab}
+      />
 
-        <CaregiversPanel
-          key={`caregivers-${user.id}-${caregiverVersion}`}
-          api={api}
-          userId={user.id}
-          userName={user.name}
-        />
+      <div className="detail-section" {...tabPanelProps('user', tab)}>
+        {tab === 'settings' ? (
+          <section className="panel" aria-label="Instellingen">
+            <h2 className="panel__subtitle">Communicatie-instellingen</h2>
+            <p className="muted">
+              Hoe {user.name} communiceert: hoeveel pictogrammen hij tegelijk ziet, of er tekst bij
+              staat, en hoe de AI naar zijn bedoeling zoekt.
+            </p>
+            <SettingsForm key={user.id} user={user} onSave={onSaveSettings} />
+          </section>
+        ) : null}
 
-        <PreferencesPanel
-          key={`preferences-${user.id}`}
-          api={api}
-          userId={user.id}
-          userName={user.name}
-        />
+        {tab === 'caregivers' ? (
+          <CaregiversPanel
+            key={`caregivers-${user.id}-${caregiverVersion}`}
+            api={api}
+            userId={user.id}
+            userName={user.name}
+          />
+        ) : null}
 
-        <DevicePanel key={`device-${user.id}`} api={api} userId={user.id} userName={user.name} />
-
-        <ProfileExportPanel
-          key={`export-${user.id}`}
-          api={api}
-          userId={user.id}
-          userName={user.name}
-        />
-
-        {/* De persoonlijke-contextwizard (T6.2) is de enige met stappen en lange tekst; die krijgt
-            de volle breedte in plaats van een halve kolom. */}
-        <div className="detail-grid__wide">
+        {tab === 'context' ? (
           <PersonalContextPanel
             key={`context-${user.id}`}
             api={api}
             userId={user.id}
             userName={user.name}
           />
-        </div>
+        ) : null}
 
-        <div className="detail-grid__wide">
-          <section
-            className="panel panel--danger"
-            aria-label={`Gebruiker ${user.name} verwijderen`}
-          >
-            <h2 className="panel__subtitle">Gebruiker verwijderen</h2>
-            <p className="muted">
-              Verwijdert {user.name} met zijn communicatieprofiel, persoonlijke context, geleerde
-              voorkeuren en gekoppelde apparaten. Dit is niet terug te draaien. Wil je het profiel
-              bewaren, exporteer het dan eerst hierboven.
-            </p>
-            <button
-              type="button"
-              className="button button--danger"
-              onClick={onDelete}
+        {tab === 'preferences' ? (
+          <PreferencesPanel
+            key={`preferences-${user.id}`}
+            api={api}
+            userId={user.id}
+            userName={user.name}
+          />
+        ) : null}
+
+        {tab === 'device' ? (
+          <DevicePanel key={`device-${user.id}`} api={api} userId={user.id} userName={user.name} />
+        ) : null}
+
+        {tab === 'profile' ? (
+          <div className="stack">
+            <ProfileExportPanel
+              key={`export-${user.id}`}
+              api={api}
+              userId={user.id}
+              userName={user.name}
+            />
+
+            <section
+              className="panel panel--danger"
               aria-label={`Gebruiker ${user.name} verwijderen`}
             >
-              Verwijderen
-            </button>
-          </section>
-        </div>
+              <h2 className="panel__subtitle">Gebruiker verwijderen</h2>
+              <p className="muted">
+                Verwijdert {user.name} met zijn communicatieprofiel, persoonlijke context, geleerde
+                voorkeuren en gekoppelde apparaten. Dit is niet terug te draaien. Wil je het profiel
+                bewaren, exporteer het dan eerst hierboven.
+              </p>
+              <button
+                type="button"
+                className="button button--danger"
+                onClick={onDelete}
+                aria-label={`Gebruiker ${user.name} verwijderen`}
+              >
+                Verwijderen
+              </button>
+            </section>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );

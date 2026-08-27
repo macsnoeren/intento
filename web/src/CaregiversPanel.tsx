@@ -52,9 +52,22 @@ export function CaregiversPanel({
     }
   }
 
+  const linkedCount = caregivers.filter((caregiver) => caregiver.linked).length;
+
   return (
     <section className="panel" aria-label={`Begeleiders voor ${userName}`}>
-      <h2 className="panel__subtitle">Gekoppelde begeleiders</h2>
+      <h2 className="panel__subtitle">
+        Gekoppelde begeleiders{' '}
+        {loading ? null : (
+          <span className="panel__count">
+            {linkedCount} van {caregivers.length} gekoppeld
+          </span>
+        )}
+      </h2>
+      <p className="muted">
+        Een gekoppelde begeleider ziet de bevestigde boodschappen van {userName} en kan hem vragen
+        stellen. Wie hier niet aanstaat, krijgt geen toegang tot deze gebruiker.
+      </p>
       {error ? (
         <p className="form__error" role="alert">
           {error}
@@ -65,14 +78,16 @@ export function CaregiversPanel({
         <p className="muted">Laden…</p>
       ) : caregivers.length === 0 ? (
         <p className="muted">
-          Nog geen begeleider-accounts in deze organisatie. Maak er links één aan onder “Begeleider
-          aanmaken”; daarna verschijnt hij hier om te koppelen.
+          Nog geen begeleider-accounts in deze organisatie. Maak er één aan via Gebruikers → Logins
+          → “Begeleider aanmaken”; daarna verschijnt hij hier om te koppelen.
         </p>
       ) : (
-        <ul className="caregiver-list">
+        // Elke begeleider een eigen regel over de volle breedte (T17.4): een aanvinkvakje van een
+        // paar pixels is op een tablet lastig te raken, de hele regel niet.
+        <ul className="choice-list">
           {caregivers.map((caregiver) => (
-            <li key={caregiver.accountId} className="toggle">
-              <label className="toggle">
+            <li key={caregiver.accountId}>
+              <label className="choice-block">
                 <input
                   type="checkbox"
                   checked={caregiver.linked}

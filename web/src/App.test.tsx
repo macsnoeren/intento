@@ -470,6 +470,11 @@ async function createUser(name: string): Promise<void> {
   await screen.findByRole('heading', { level: 1, name });
 }
 
+/** Opent een onderdeel op het scherm van één gebruiker (T17.4: keuzebalk in plaats van één raster). */
+function openUserTab(label: string): void {
+  fireEvent.click(screen.getByRole('tab', { name: label }));
+}
+
 describe('beheeromgeving-app', () => {
   it('toont het loginscherm wanneer er geen sessie is', async () => {
     render(<App api={fakeApi()} />);
@@ -542,8 +547,9 @@ describe('beheeromgeving-app', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Instellingen opslaan' }));
     expect((await within(form).findByRole('status')).textContent).toContain('Opgeslagen');
 
-    // Verwijderen staat apart onderaan het gebruikersscherm; daarna zijn we terug op het
+    // Verwijderen staat apart, onder "Profiel & verwijderen"; daarna zijn we terug op het
     // overzicht en is de regel weg.
+    openUserTab('Profiel & verwijderen');
     fireEvent.click(screen.getByRole('button', { name: 'Gebruiker Sanne verwijderen' }));
     await screen.findByRole('heading', { level: 1, name: 'Gebruikersbeheer' });
     await waitFor(() => expect(screen.queryByText('Sanne')).toBeNull());
@@ -560,14 +566,24 @@ describe('beheeromgeving-app', () => {
     const row = within(list).getByRole('button', { name: /Sanne/ });
     expect(row.textContent).toContain('pictogrammen per scherm');
 
-    // En vanaf die regel weer naar zijn eigen scherm, met alle panelen bij elkaar.
+    // En vanaf die regel weer naar zijn eigen scherm: een keuzebalk met zijn onderdelen, en
+    // "Instellingen" staat open (T17.4).
     fireEvent.click(row);
     await screen.findByRole('heading', { level: 1, name: 'Sanne' });
     expect(screen.getByRole('form', { name: 'Instellingen voor Sanne' })).toBeTruthy();
-    expect(screen.getByRole('region', { name: 'Tablet koppelen voor Sanne' })).toBeTruthy();
-    // Een verse gebruiker heeft nog geen context, dus dat paneel opent in de wizard (T6.2).
+    expect(screen.getByRole('tab', { name: 'Instellingen' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+
+    // Eén onderdeel tegelijk: naar "Tablet" haalt de instellingen uit beeld.
+    openUserTab('Tablet');
+    expect(await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' })).toBeTruthy();
+    expect(screen.queryByRole('form', { name: 'Instellingen voor Sanne' })).toBeNull();
+
+    // Een verse gebruiker heeft nog geen context, dus dat onderdeel opent in de wizard (T6.2).
+    openUserTab('Persoonlijke context');
     expect(
-      screen.getByRole('region', { name: 'Persoonlijke-contextwizard voor Sanne' }),
+      await screen.findByRole('region', { name: 'Persoonlijke-contextwizard voor Sanne' }),
     ).toBeTruthy();
 
     // De formulieren om iemand toe te voegen staan hier niet meer tussen (T17.2).
@@ -601,7 +617,9 @@ describe('beheeromgeving-app', () => {
 
     await createUser('Sanne');
 
-    // Begeleiderpaneel staat op zijn scherm, met de begeleider nog niet gekoppeld.
+    // Begeleiders zijn een eigen onderdeel van zijn scherm (T17.4); de begeleider staat er nog
+    // ongekoppeld in.
+    openUserTab('Begeleiders');
     const panel = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
     const checkbox = within(panel).getByRole<HTMLInputElement>('checkbox', {
       name: 'begeleider@intento.local',
@@ -619,6 +637,7 @@ describe('beheeromgeving-app', () => {
 
     // Gebruiker aanmaken; de koppelweergave op zijn scherm is nog leeg.
     await createUser('Sanne');
+    openUserTab('Begeleiders');
     const linkPanel = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
     await waitFor(() =>
       expect(linkPanel.textContent).toContain('Nog geen begeleider-accounts in deze organisatie'),
@@ -643,6 +662,7 @@ describe('beheeromgeving-app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sluiten' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Gebruikers' }));
     fireEvent.click(await screen.findByRole('button', { name: /Sanne/ }));
+    openUserTab('Begeleiders');
     const refreshed = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
     const checkbox = await within(refreshed).findByRole<HTMLInputElement>('checkbox', {
       name: 'sam@intento.local',
@@ -658,8 +678,9 @@ describe('beheeromgeving-app', () => {
 
     await createUser('Sanne');
 
-    // Koppelpaneel staat op zijn scherm; code genereren toont de code én het adres waar hij
+    // Het koppelpaneel staat onder "Tablet"; code genereren toont de code én het adres waar hij
     // ingevoerd wordt (T9.2).
+    openUserTab('Tablet');
     const panel = await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Koppelcode genereren' }));
     const result = await within(panel).findByRole('status');

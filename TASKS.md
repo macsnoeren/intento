@@ -821,6 +821,21 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
   aanmaken via de dialoog sluit die dialoog en opent het nieuwe symbool (test); zoeken en filteren
   werken onveranderd (bestaande tests groen).
 
+- [x] **T17.4 Het scherm van één gebruiker in onderdelen**
+  *DESIGN: §5.1, §5.2, §5.3.* Werk: T17.2 zette de zeven panelen van een gebruiker naast elkaar in
+  twee kolommen. Beter dan de halve kolom ervoor, maar elk paneel bleef een halve pagina breed — en
+  juist hier staan formulieren met uitleg per keuze, een wizard van vijf stappen en lijsten met
+  knoppen. Nu een **keuzebalk** bovenaan (Instellingen · Begeleiders · Persoonlijke context ·
+  Voorkeuren · Tablet · Profiel & verwijderen) en één onderdeel tegelijk over een leesbare breedte.
+  De balk is een gedeelde component (`SegmentedTabs`) met echte tab-semantiek, ook gebruikt voor
+  Gebruikers/Logins op het overzicht. Meegenomen: het begeleiderspaneel was een kaal rijtje
+  aanvinkvakjes zonder uitleg wat koppelen betekent, en verwees nog naar een paneel dat sinds T17.2
+  ergens anders staat.
+  *Acceptatie:* de onderdelen staan als tabs met de eerste geselecteerd, en er is er één tegelijk in
+  beeld (test); tab en paneel verwijzen naar elkaar (`aria-controls`/`aria-labelledby`, test); de
+  bestaande flows (instellen, koppelen, koppelcode, verwijderen) werken via hun onderdeel (tests);
+  op een smal scherm vouwt de balk om in plaats van inhoud buiten beeld te schuiven.
+
 ---
 
 ## Onderhoud (ontdekt meerwerk)

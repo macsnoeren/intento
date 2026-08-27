@@ -37,6 +37,19 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   gebruiker openen geeft hem een **eigen scherm** met alle panelen naast elkaar. Aanmaken en
   importeren zitten achter een knop met een **dialoog**, de organisatielogins achter een tabblad, en
   verwijderen staat apart onderaan het detailscherm met uitleg over wat er weggaat.
+- **T17.4 Het scherm van één gebruiker staat nu in onderdelen.** T17.2 zette de panelen naast elkaar
+  in twee kolommen; daarmee bleef elk paneel een halve pagina breed, terwijl juist hier de
+  instellingen met uitleg per keuze, de contextwizard van vijf stappen en de begeleiderslijst staan.
+  Bovenaan staat nu een keuzebalk — Instellingen · Begeleiders · Persoonlijke context · Voorkeuren ·
+  Tablet · Profiel & verwijderen — en er is één onderdeel tegelijk in beeld, op een breedte waarop de
+  tekst te lezen en het formulier in te vullen is. De balk is dezelfde component als op het
+  gebruikersoverzicht (Gebruikers/Logins) en vouwt op smalle schermen om in plaats van onderdelen
+  buiten beeld te schuiven.
+- **Het begeleiderspaneel zegt nu wat koppelen betekent.** Het was een rijtje kale aanvinkvakjes; er
+  staat nu bij dat een gekoppelde begeleider de bevestigde boodschappen van deze gebruiker ziet en
+  hem vragen kan stellen, met de teller "x van y gekoppeld" en een aanklikbare regel per begeleider
+  in plaats van een vakje van een paar pixels. De verwijzing naar het aanmaakpaneel wees nog naar de
+  plek van vóór T17.2.
 - **T17.3 De AAC-bibliotheek toont pictogrammen als tegels.** Dezelfde herindeling, maar met een
   tegelraster: een bibliotheek van pictogrammen scan je op beeld, niet op een lijstje tekst. Het label
   staat altijd bij het pictogram — beeld is nooit de enige aanduiding (DESIGN §5.1). Eén symbool
