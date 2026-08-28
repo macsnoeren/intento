@@ -182,6 +182,27 @@ const envSchema = z
     // zou de prompt met de bibliotheek meegroeien. Ruim genoeg om de AI echt te laten kiezen, klein genoeg
     // om de prompt (en dus latency/kosten) beheersbaar te houden.
     AI_MAX_CANDIDATES: z.coerce.number().int().positive().max(200).default(30),
+    // --- Spraakuitvoer (T18.1, DESIGN §5.3, §9.2, §9.4) ---
+    // De backend praat namens de tablet met de spraakdienst; de tablet nooit rechtstreeks (DESIGN §8.1).
+    // `none` = geen dienst geconfigureerd: de spraakendpoints antwoorden dan met 503 SPEECH_UNAVAILABLE
+    // in plaats van te falen. `http` = de losstaande Piper-dienst uit `speech-service/`.
+    SPEECH_PROVIDER: z.enum(['none', 'http']).default('none'),
+    // Basis-URL van die dienst (bv. http://localhost:5002). Verplicht bij SPEECH_PROVIDER=http; buiten
+    // test moet hij in productie https zijn — het is intern verkeer, maar wel met wat de gebruiker zegt.
+    SPEECH_SERVICE_URL: z.string().default(''),
+    // Gedeeld geheim waarmee de backend zich bij de spraakdienst meldt (Bearer). Leeg = de dienst draait
+    // zonder token (alleen verdedigbaar op een gesloten netwerk).
+    SPEECH_SERVICE_TOKEN: z.string().default(''),
+    // Time-out (ms) voor één synthese-aanroep. Piper doet een zin in ± 100 ms; dit is de noodrem.
+    SPEECH_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
+    // Aantal fragmenten in de geheugencache (sleutel: hash van tekst + stem). De AAC-labels en de
+    // vaste schermteksten herhalen zich constant, dus een kleine cache scheelt al bijna alle synthese.
+    // De cache staat **alleen in het geheugen**: audio van wat de gebruiker zei wordt nooit opgeslagen.
+    SPEECH_CACHE_MAX_ENTRIES: z.coerce.number().int().min(0).max(100_000).default(500),
+    // Rate limiting op de spraakendpoints (per IP). Ruim: een gesprek vraagt makkelijk een paar zinnen
+    // per minuut, en de cache vangt herhaling op. Streng genoeg tegen misbruik als audio-machine.
+    SPEECH_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(10_000).default(120),
+    SPEECH_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
     // Of de AI een concept mag aandragen dat nog niet in de bibliotheek bestaat (DESIGN §7.6 trap 3).
     // Staat standaard aan: zonder deze uitweg zit de gebruiker vast in andermans woordenschat. Uitzetten
     // maakt de bibliotheek weer hard begrenzend (onbekende concepten worden dan alleen een voorstel).
@@ -210,6 +231,25 @@ const envSchema = z
           code: 'custom',
           path: ['AI_MODEL'],
           message: `AI_MODEL is verplicht bij AI_PROVIDER=${value.AI_PROVIDER}.`,
+        });
+      }
+    }
+    // Een geconfigureerde spraakdienst heeft een URL nodig; anders zou de eerste zin stilletjes falen.
+    if (value.SPEECH_PROVIDER === 'http') {
+      if (!value.SPEECH_SERVICE_URL) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SPEECH_SERVICE_URL'],
+          message: 'SPEECH_SERVICE_URL is verplicht bij SPEECH_PROVIDER=http.',
+        });
+      } else if (
+        !/^https:\/\//i.test(value.SPEECH_SERVICE_URL) &&
+        value.NODE_ENV === 'production'
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SPEECH_SERVICE_URL'],
+          message: 'SPEECH_SERVICE_URL moet https zijn in productie.',
         });
       }
     }

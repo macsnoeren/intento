@@ -41,6 +41,9 @@ function user(id: string, name: string): UserPublic {
       supportMode: false,
       contextIndicator: true,
       conversationStrategy: 'refine',
+      speechEnabled: false,
+      speechVoice: 'nl_NL-pim-medium',
+      speechHints: true,
     },
   };
 }

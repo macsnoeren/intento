@@ -18,6 +18,12 @@ de gefaseerde takenlijst.
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
+Buiten de npm-workspaces staat ook [`speech-service/`](speech-service/README.md): een **losstaande
+Python-dienst** (T18.1) die met [Piper](https://github.com/OHF-Voice/piper1-gpl) tekst in spraak omzet,
+lokaal en zonder cloud. De tablet leest daarmee voor wat er op zijn scherm staat; de backend praat namens
+hem met die dienst (`SPEECH_PROVIDER=http`). Zonder dienst blijft alles werken — de tablet valt dan terug
+op de stem van het apparaat zelf. Zie [docs/adr/0015](docs/adr/0015-speech-synthesis-piper.md).
+
 Buiten de npm-workspaces staat [`ai-worker/`](ai-worker/): een **losstaande Python-applicatie** (T5.6) die
 als externe Ollama-worker AI-jobs van de backend-wachtrij verwerkt. Het is bewust geen npm-workspace — het
 is aparte deploybare infrastructuur met een eigen [README](ai-worker/README.md) en `.env`.

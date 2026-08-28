@@ -1,0 +1,22 @@
+[project]
+name = "intento-speech-service"
+version = "0.1.0"
+description = "Losstaande spraakdienst voor Intento (T18.1): zet tekst om in spraak met Piper, lokaal en zonder cloud."
+requires-python = ">=3.10"
+# Eén runtime-dependency: Piper zelf. De HTTP-laag draait op de stdlib, zodat de deploy klein blijft
+# en de tests zonder Piper (en zonder netwerk) kunnen draaien.
+dependencies = ["piper-tts>=1.7"]
+
+[project.scripts]
+intento-speech-service = "speech_service.__main__:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["speech_service"]

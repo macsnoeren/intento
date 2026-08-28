@@ -58,6 +58,9 @@ function makeUser(id: string, name: string): UserPublic {
       supportMode: false,
       contextIndicator: true,
       conversationStrategy: 'refine',
+      speechEnabled: false,
+      speechVoice: 'nl_NL-pim-medium',
+      speechHints: true,
     },
   };
 }
@@ -102,6 +105,10 @@ function fakeApi(
   }
 
   return {
+    speechPreview(): Promise<Blob> {
+      // Beluisteren doet deze nep-API niet; de knop wordt in SettingsForm.test.tsx apart getest.
+      return Promise.resolve(new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/wav' }));
+    },
     me(): Promise<AuthResponse> {
       return session
         ? Promise.resolve({ account: account() })

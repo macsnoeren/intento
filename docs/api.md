@@ -373,6 +373,26 @@ T5.5, zie hieronder) of `ollama` (niet in-process; Ollama draait als worker acht
 Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
 [adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
 
+### Spraakuitvoer (T18.1/T18.2, DESIGN §5.3, §8.1, §9.4)
+
+De tablet laat uitspreken wat er op zijn scherm staat; de backend praat namens hem met de losstaande
+spraakdienst (`speech-service/`, Piper). De client praat **nooit** rechtstreeks met die dienst — wie iets
+mag laten uitspreken is een autorisatievraag. Beide routes antwoorden met **binaire audio** in plaats van
+JSON (`audio/wav`) en met `Cache-Control: no-store`: de zin van een gebruiker hoort niet in een
+tussenliggende cache te blijven hangen. Fouten houden wél de gewone JSON-foutvorm. Zonder geconfigureerde
+dienst (`SPEECH_PROVIDER=none`) antwoorden ze met `503 SPEECH_UNAVAILABLE`; de tablet valt dan terug op de
+stem van het apparaat zelf. Beide zijn rate-limited (`SPEECH_RATE_LIMIT_MAX`) → `429`.
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| POST | `/device/speech` | device-cookie | Body `{ text }` (`speakRequestSchema`, 1–300 tekens na trimmen). Geeft `audio/wav` van díé tekst. De **stem** komt uit het communicatieprofiel van de gebruiker achter de apparaatsessie — de tablet kiest hem niet en kan ook niet namens een andere gebruiker laten spreken. Staat `speechEnabled` uit → `403 SPEECH_DISABLED`. Is de gekozen stem `device` (de tablet spreekt zelf) → `400 SPEECH_VOICE_ON_DEVICE`. Zonder apparaatsessie → `401`. Identieke (tekst, stem) komt uit een **geheugencache** (`hash(tekst + stem)`, `SPEECH_CACHE_MAX_ENTRIES`); er wordt niets op schijf bewaard. |
+| POST | `/admin/users/:id/speech-preview` | cookie (ADMIN, CAREGIVER) | Body `{ text, voice }` (`speechPreviewRequestSchema`). Laat één zin horen met een **expliciete** stem, zodat de begeleider stemmen kan vergelijken vóór hij kiest — het profiel wordt hierbij niet aangeraakt. Tenant-gefilterd; een CAREGIVER moet aan de gebruiker gekoppeld zijn (anders `403`). Onbekende stem (niet in `SPEECH_VOICE_CATALOG`) → `400`. |
+
+De **stemcatalogus** staat in `@intento/shared` (`SPEECH_VOICE_CATALOG`), zodat server en beheer-UI
+dezelfde lijst gebruiken. Een stem-id is de naam van een Piper-model (`nl_NL-pim-medium`), eventueel met
+`#<spreker>` voor een meersprekermodel, of de sleutel `device` voor "de tablet spreekt zelf". Zie
+[ADR-0015](adr/0015-speech-synthesis-piper.md) en [`speech-service/README.md`](../speech-service/README.md).
+
 ### AI-status (T9.4, DESIGN §7.2, §9.2)
 
 | Methode | Pad | Rol | Beschrijving |

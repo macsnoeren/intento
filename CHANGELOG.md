@@ -5,6 +5,46 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Toegevoegd — fase 18: de tablet spreekt
+
+- **T18.1 Een eigen spraakdienst naast de AI-worker.** Nieuw: [`speech-service/`](speech-service/README.md),
+  een losstaande Python-dienst die met Piper tekst in spraak omzet — **lokaal**, op de CPU, zonder cloud
+  en zonder kosten per zin. Gemeten op een i7-6700 zonder GPU: 64–153 ms per zin (real-time factor 0,05),
+  ± 120 ms voor een volledige HTTP-ronde. De backend kreeg er een provider-agnostische spraaklaag bij
+  (`server/src/speech/`) met een **geheugencache** op `hash(tekst + stem)`: herhaalde zinnen — de vaste
+  schermteksten en de AAC-labels — kosten na één keer niets meer (7 ms in de rookproef). De tablet praat
+  nooit rechtstreeks met de spraakdienst; dat is geen formaliteit maar autorisatie, want de tekst is
+  precies wat de gebruiker wil zeggen. Waarom lokaal, en wat de GPL-3.0-licentie van Piper betekent:
+  [ADR-0015](docs/adr/0015-speech-synthesis-piper.md).
+- **T18.2 De stem staat in het communicatieprofiel — en de begeleider hoort hem eerst.** Drie velden erbij
+  (migratie `speech_output`): spraak aan/uit, de stem, en of er af en toe een gesproken zetje klinkt.
+  Standaard staat spraak **uit**, zodat een bestaande tablet niet onaangekondigd begint te praten. In de
+  instellingen kiest de begeleider de stem uit een lijst met een **luisterknop** per stem: een stem kies
+  je op gehoor, niet op een naam. Beluisteren slaat niets op. De spraakinstellingen verhuizen mee bij
+  profielexport (T8.1) — hoe iemand klinkt hoort bij zijn profiel, niet bij deze omgeving.
+- **Geen Nederlandse vrouwenstem, en dat staat er ook zo bij.** Piper heeft formeel tien Nederlandse en
+  Vlaamse stemmen, maar `nl_NL-mls-medium` (52 sprekers, waaronder álle Nederlandse vrouwenstemmen) en de
+  twee `mls_*-low`-modellen komen uit ruwe luisterboekdata: bij het beluisteren sprak geen van die
+  stemmen een zin verstaanbaar uit. Ze zijn daarom uit de catalogus gelaten — een onverstaanbare stem is
+  voor deze doelgroep erger dan geen stem. De catalogus bevat vier servermodellen (Pim, Alex, Ronnie en
+  het Vlaamse Nathalie) plus **"Stem van het apparaat"**: dan spreekt de tablet zelf, wat op Android en
+  iPadOS meestal een goede Nederlandse (vaak vrouwelijke) stem oplevert. Zoeken naar een echte
+  Nederlandse vrouwenstem staat als T18.5 in `TASKS.md`.
+- **T18.3 De tablet leest voor wat er op het scherm staat.** De vraag zodra het keuzescherm verschijnt,
+  de voorgestelde zin op het voorstelscherm, de bevestigde boodschap daarna — letterlijk en ongewijzigd,
+  met overal een knop **🔊 Nog eens**, want één keer horen is vaak te weinig. Na `↩ Terug` klinkt de vraag
+  opnieuw (het is een nieuw scherm), maar een tweede render van hetzelfde scherm blijft stil. Elke tik
+  ontgrendelt het geluid, omdat Safari op iOS het pas ná een aanraking toestaat, en een nieuw scherm
+  breekt de vorige zin af in plaats van eroverheen te stapelen. Is de spraakdienst onbereikbaar, dan
+  neemt de stem van het apparaat het over — beter een minder mooie stem dan stilte.
+- **T18.4 Af en toe een gesproken zetje bij de bediening.** Uit de gebruikerstests bleek dat de knoppen
+  naast de pictogrammen over het hoofd gezien worden. De tablet zegt daarom af en toe — één keer per vier
+  keuzeschermen, nooit twee keer hetzelfde achter elkaar, alleen over knoppen die er op dat moment ook
+  echt staan — iets als "Staat het er niet bij? Tik op Staat er niet bij." De keuze is deterministisch
+  (een teller, geen toeval), dus in een test na te rekenen en voor de gebruiker een herkenbaar ritme.
+  Harde grens: een zetje gaat **alleen over de bediening, nooit over de inhoud** — geen "misschien bedoel
+  je drinken?", want dan zou de app namens de gebruiker gaan praten (DESIGN §7.8).
+
 ### Toegevoegd — fase 17: ontwerp van de web-applicatie
 
 - **T17.1 Eén huisstijl, en een menu in plaats van tien tabs.** De beheeromgeving zette al haar

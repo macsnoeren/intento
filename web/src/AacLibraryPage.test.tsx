@@ -69,6 +69,7 @@ function fakeApi(): Api {
 
   return {
     me: notImplemented,
+    speechPreview: notImplemented,
     login: notImplemented,
     register: notImplemented,
     verifyEmail: notImplemented,

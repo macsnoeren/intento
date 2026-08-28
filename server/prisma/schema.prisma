@@ -133,6 +133,12 @@ model PersonalContext {
 ///   **ingebouwd** (code, stabiele sleutel); hier staat alleen de gekozen sleutel, op de
 ///   API-grens met zod tegen de registry gevalideerd. Standaard `refine`: bestaande
 ///   gebruikers houden daarmee exact het gedrag van vóór deze instelling.
+/// - `speechEnabled`: spreekt de tablet uit wat er op het scherm staat (T18.3)? Standaard **uit**,
+///   zodat een bestaande tablet niet onaangekondigd begint te praten.
+/// - `speechVoice`: met welke stem (T18.2). Een sleutel uit de gedeelde stemcatalogus, op de
+///   API-grens met zod gevalideerd; `device` betekent "de tablet spreekt zelf".
+/// - `speechHints`: af en toe een gesproken zetje over de **bediening** (T18.4) — nooit over de
+///   inhoud van het gesprek. Alleen van kracht als `speechEnabled` aanstaat.
 model UserCommunicationProfile {
   userId               String  @id
   iconsPerScreen       Int     @default(4)
@@ -141,6 +147,9 @@ model UserCommunicationProfile {
   supportMode          Boolean @default(false)
   contextIndicator     Boolean @default(true)
   conversationStrategy String  @default("refine")
+  speechEnabled        Boolean @default(false)
+  speechVoice          String  @default("nl_NL-pim-medium")
+  speechHints          Boolean @default(true)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

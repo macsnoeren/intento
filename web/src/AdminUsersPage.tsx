@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   CONVERSATION_STRATEGY_CATALOG,
+  SPEECH_PREVIEW_SENTENCE,
+  isDeviceVoice,
   type AccountPublic,
   type UpdateSettingsRequest,
   type UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 import { SettingsForm } from './SettingsForm.tsx';
+import { playAudioBlob, speakWithDeviceVoice } from './speech.ts';
 import { AccountsPanel } from './AccountsPanel.tsx';
 import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
@@ -401,7 +404,23 @@ function UserDetailPage({
               Hoe {user.name} communiceert: hoeveel pictogrammen hij tegelijk ziet, of er tekst bij
               staat, en hoe de AI naar zijn bedoeling zoekt.
             </p>
-            <SettingsForm key={user.id} user={user} onSave={onSaveSettings} />
+            <SettingsForm
+              key={user.id}
+              user={user}
+              onSave={onSaveSettings}
+              // Stem beluisteren vóór je hem kiest (T18.2). De keuze "Stem van het apparaat" kan de
+              // server niet synthetiseren; die laten we dít apparaat zeggen — een indicatie, want op
+              // de tablet klinkt de stem van de tablet.
+              onPreviewVoice={async (voice) => {
+                if (isDeviceVoice(voice)) {
+                  speakWithDeviceVoice(SPEECH_PREVIEW_SENTENCE);
+                  return;
+                }
+                await playAudioBlob(
+                  await api.speechPreview(user.id, SPEECH_PREVIEW_SENTENCE, voice),
+                );
+              }}
+            />
           </section>
         ) : null}
 

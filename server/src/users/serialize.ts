@@ -1,6 +1,8 @@
 import {
   DEFAULT_CONVERSATION_STRATEGY,
+  DEFAULT_SPEECH_VOICE,
   toConversationStrategy,
+  toSpeechVoice,
   userPublicSchema,
   type CommunicationProfile,
   type UserPublic,
@@ -21,6 +23,9 @@ export const DEFAULT_PROFILE: CommunicationProfile = {
   supportMode: false,
   contextIndicator: true,
   conversationStrategy: DEFAULT_CONVERSATION_STRATEGY,
+  speechEnabled: false,
+  speechVoice: DEFAULT_SPEECH_VOICE,
+  speechHints: true,
 };
 
 export type UserWithProfile = UserModel & {
@@ -51,6 +56,12 @@ export function userToPublic(user: UserWithProfile): UserPublic {
           // in de registry staat valt terug op de standaard. Een verdwenen strategie mag een profiel
           // nooit onleesbaar maken — dan zou de gebruiker zijn tablet niet meer kunnen koppelen.
           conversationStrategy: toConversationStrategy(profile.conversationStrategy),
+          speechEnabled: profile.speechEnabled,
+          // Zelfde reparatie als bij de strategie: een stem die uit de catalogus verdwijnt (bv. omdat
+          // hij onverstaanbaar bleek) mag het profiel niet onleesbaar maken — dan valt hij terug op de
+          // standaardstem in plaats van de tablet onbruikbaar te maken.
+          speechVoice: toSpeechVoice(profile.speechVoice),
+          speechHints: profile.speechHints,
         }
       : DEFAULT_PROFILE,
   });

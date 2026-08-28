@@ -55,6 +55,7 @@ function fakeApi(initial: PreferencePublic[]): {
 
   const api: Api = {
     me: notImplemented,
+    speechPreview: notImplemented,
     login: notImplemented,
     register: notImplemented,
     verifyEmail: notImplemented,

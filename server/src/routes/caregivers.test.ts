@@ -253,6 +253,9 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
           supportMode: false,
           contextIndicator: true,
           conversationStrategy: 'refine',
+          speechEnabled: false,
+          speechVoice: 'nl_NL-pim-medium',
+          speechHints: true,
         },
       });
       expect(put.statusCode).toBe(403);
@@ -284,6 +287,9 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
           supportMode: true,
           contextIndicator: true,
           conversationStrategy: 'refine',
+          speechEnabled: false,
+          speechVoice: 'nl_NL-pim-medium',
+          speechHints: true,
         },
       });
       expect(put.statusCode).toBe(200);

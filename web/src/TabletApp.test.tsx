@@ -14,6 +14,8 @@ import type {
 } from '@intento/shared';
 import { TabletApp } from './TabletApp.tsx';
 import { ApiRequestError, type DeviceApi } from './api.ts';
+import type { SpeechPort } from './speech.ts';
+import { HINT_TEXTS } from './speech-hints.ts';
 
 /**
  * Web-tests voor de gebruikersapp op de tablet (T4.2). Draaien tegen een in-memory `DeviceApi` met
@@ -71,6 +73,9 @@ function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationPr
     supportMode: false,
     contextIndicator: true,
     conversationStrategy: 'refine',
+    speechEnabled: false,
+    speechVoice: 'nl_NL-pim-medium',
+    speechHints: true,
     ...overrides,
   };
 }
@@ -172,6 +177,10 @@ function fakeDeviceApi(
   }
 
   return {
+    speakText(): Promise<Blob> {
+      // De spraaklaag zelf wordt in deze tests geïnjecteerd; deze nep-API hoeft geen audio te leveren.
+      return Promise.resolve(new Blob([new Uint8Array([1, 2, 3])], { type: 'audio/wav' }));
+    },
     deviceMe(): Promise<DeviceSessionResponse> {
       return linked
         ? Promise.resolve(deviceSession)
@@ -755,5 +764,211 @@ describe('gebruikersapp op de tablet', () => {
     // Terug op het startscherm, met een leeg pad.
     expect(await screen.findByLabelText('Iets willen')).toBeTruthy();
     expect(screen.queryByLabelText('Iets doen')).toBeNull();
+  });
+});
+
+/**
+ * Spraakuitvoer op de tablet (T18.3) en de gesproken bedieningszetjes (T18.4).
+ *
+ * De spraaklaag wordt geïnjecteerd: jsdom speelt geen audio af, en zo is precies te controleren wát
+ * er aangeboden wordt om uit te spreken — letterlijk de tekst die op het scherm staat, niet meer.
+ */
+describe('de tablet leest voor', () => {
+  /** Spraakpoort die niets afspeelt maar onthoudt wat er uitgesproken zou worden. */
+  function recordingSpeech(): {
+    port: SpeechPort;
+    spoken: string[][];
+    stops: () => number;
+    unlocks: () => number;
+  } {
+    const spoken: string[][] = [];
+    let stops = 0;
+    let unlocks = 0;
+    return {
+      spoken,
+      stops: () => stops,
+      unlocks: () => unlocks,
+      port: {
+        speak: (text) => {
+          spoken.push(typeof text === 'string' ? [text] : [...text]);
+        },
+        stop: () => {
+          stops += 1;
+        },
+        unlock: () => {
+          unlocks += 1;
+        },
+      },
+    };
+  }
+
+  /** Een profiel met spraak aan (en desgewenst zonder bedieningszetjes). */
+  function spreekprofiel(overrides: Partial<CommunicationProfile> = {}): CommunicationProfile {
+    return profile({ speechEnabled: true, ...overrides });
+  }
+
+  it('leest de vraag voor zodra het keuzescherm verschijnt', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    // Precies de vraagtekst, ongewijzigd — en niets erbij op het eerste scherm.
+    await waitFor(() => expect(speech.spoken).toEqual([['Wat wil je duidelijk maken?']]));
+  });
+
+  it('blijft stil als spraak uitstaat voor deze gebruiker', async () => {
+    const speech = recordingSpeech();
+    render(<TabletApp api={fakeDeviceApi({ linked: true })} speech={speech.port} />);
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+
+    expect(speech.spoken).toEqual([]);
+    // En de knop om te herhalen hoort er dan ook niet te staan.
+    expect(screen.queryByRole('button', { name: 'Nog een keer voorlezen' })).toBeNull();
+  });
+
+  it('leest op het volgende scherm de nieuwe vraag voor', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+
+    await waitFor(() => expect(speech.spoken.at(-1)).toEqual(['Wat wil je?']));
+    // Elke `speak` breekt af wat er nog klonk; de vorige vraag praat dus niet over de nieuwe heen.
+    expect(speech.spoken).toHaveLength(2);
+  });
+
+  it('herhaalt met "Nog eens" alleen de vraag', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nog een keer voorlezen' }));
+
+    expect(speech.spoken.at(-1)).toEqual(['Wat wil je duidelijk maken?']);
+  });
+
+  it('leest het voorstel voor en daarna de bevestigde boodschap', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+    fireEvent.click(screen.getByRole('button', { name: 'Iets doen' }));
+    await screen.findByText('Wat wil je doen?');
+    fireEvent.click(screen.getByRole('button', { name: 'Buiten' }));
+
+    // Voorstelscherm: de zin die de gebruiker gaat bevestigen.
+    await screen.findByText('Ik wil buiten.');
+    await waitFor(() => expect(speech.spoken.at(-1)).toEqual(['Ik wil buiten.']));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bevestigen' }));
+    await screen.findByText('Boodschap bevestigd');
+
+    // En na bevestigen dezelfde zin nog een keer: dít is het moment waarop de gebruiker iets zegt.
+    await waitFor(() => expect(speech.spoken.at(-1)).toEqual(['Ik wil buiten.']));
+  });
+
+  it('geeft af en toe een zetje over de bediening, ná de vraag', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    // Vier keuzeschermen: heen, terug, heen. Pas op het vierde hoort er een zetje te klinken.
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+    fireEvent.click(screen.getByRole('button', { name: '↩ Terug' }));
+    await screen.findByText('Wat wil je duidelijk maken?');
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+
+    await waitFor(() => expect(speech.spoken).toHaveLength(4));
+    // De eerste drie schermen: alleen de vraag.
+    expect(speech.spoken.slice(0, 3).every((zinnen) => zinnen.length === 1)).toBe(true);
+    // Het vierde: de vraag, en dáárna pas het zetje.
+    expect(speech.spoken[3]?.[0]).toBe('Wat wil je?');
+    expect(speech.spoken[3]?.[1]).toBe(HINT_TEXTS.missing);
+  });
+
+  it('zwijgt over de bediening als die zetjes uitstaan', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel({ speechHints: false }) })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+    fireEvent.click(screen.getByRole('button', { name: '↩ Terug' }));
+    await screen.findByText('Wat wil je duidelijk maken?');
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+
+    await waitFor(() => expect(speech.spoken).toHaveLength(4));
+    expect(speech.spoken.every((zinnen) => zinnen.length === 1)).toBe(true);
+  });
+
+  it('ontgrendelt het geluid bij de eerste tik (iOS staat het pas daarna toe)', async () => {
+    const speech = recordingSpeech();
+    render(
+      <TabletApp
+        api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+        speech={speech.port}
+      />,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Iets willen' }));
+    await screen.findByText('Wat wil je?');
+
+    expect(speech.unlocks()).toBeGreaterThan(0);
+  });
+
+  it('leest onder StrictMode niet dubbel voor', async () => {
+    const speech = recordingSpeech();
+    render(
+      <StrictMode>
+        <TabletApp
+          api={fakeDeviceApi({ linked: true, comm: spreekprofiel() })}
+          speech={speech.port}
+        />
+      </StrictMode>,
+    );
+    await screen.findByText('Wat wil je duidelijk maken?');
+
+    await waitFor(() => expect(speech.spoken).toEqual([['Wat wil je duidelijk maken?']]));
   });
 });

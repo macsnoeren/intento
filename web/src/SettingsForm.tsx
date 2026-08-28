@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import {
   CONVERSATION_STRATEGY_CATALOG,
+  SPEECH_VOICE_CATALOG,
   conversationStrategySchema,
   iconsPerScreenSchema,
+  speechVoiceSchema,
   type IconsPerScreen,
   type UpdateSettingsRequest,
   type UserPublic,
@@ -18,17 +20,42 @@ const ICON_OPTIONS: readonly IconsPerScreen[] = [2, 4, 6, 8];
  * De **gespreksstrategie** (T11.4, DESIGN §7.10) staat er als radiokeuze bij, met per optie de uitleg
  * erbij in plaats van erachter verstopt: de begeleider kiest hier hóe de AI naar de bedoeling van deze
  * persoon zoekt, en dat is alleen een geïnformeerde keuze als hij ziet voor wie een aanpak bedoeld is.
+ *
+ * De **stem** (T18.2, DESIGN §5.3) werkt net zo, maar met een luisterknop erbij: een stem kies je op
+ * gehoor en niet op een naam. Beluisteren verandert niets — de keuze wordt pas bij Opslaan bewaard.
  */
 export function SettingsForm({
   user,
   onSave,
+  onPreviewVoice,
 }: {
   user: UserPublic;
   onSave: (id: string, settings: UpdateSettingsRequest) => Promise<void>;
+  /**
+   * Laat één stem een voorbeeldzin zeggen (T18.2). Ontbreekt hij, dan blijft de luisterknop weg —
+   * handig in schermen waar geen geluid hoort.
+   */
+  onPreviewVoice?: (voice: string) => Promise<void>;
 }): React.JSX.Element {
   const [settings, setSettings] = useState<UpdateSettingsRequest>(user.communicationProfile);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  /** Welke stem er nu klinkt (voor de knoptekst) en wat er misging bij het beluisteren. */
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  async function preview(voice: string): Promise<void> {
+    if (!onPreviewVoice) return;
+    setPreviewError(null);
+    setPreviewing(voice);
+    try {
+      await onPreviewVoice(voice);
+    } catch {
+      setPreviewError('Beluisteren lukte niet. Draait de spraakdienst?');
+    } finally {
+      setPreviewing(null);
+    }
+  }
 
   async function handleSubmit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -127,6 +154,70 @@ export function SettingsForm({
           onChange={(e) => setSettings((s) => ({ ...s, contextIndicator: e.target.checked }))}
         />
         <span>Contextindicator tonen (broodkruimel van het gekozen pad)</span>
+      </label>
+
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={settings.speechEnabled}
+          onChange={(e) => setSettings((s) => ({ ...s, speechEnabled: e.target.checked }))}
+        />
+        <span>De tablet leest voor wat er op het scherm staat</span>
+      </label>
+
+      <fieldset className="field" disabled={!settings.speechEnabled}>
+        <legend className="field__label">Stem</legend>
+        <div className="choice-list">
+          {SPEECH_VOICE_CATALOG.map((voice) => (
+            <label key={voice.id} className="choice-block">
+              <input
+                type="radio"
+                name="speechVoice"
+                value={voice.id}
+                checked={settings.speechVoice === voice.id}
+                onChange={() =>
+                  setSettings((s) => ({ ...s, speechVoice: speechVoiceSchema.parse(voice.id) }))
+                }
+              />
+              <span>
+                <strong>{voice.label}</strong>
+                {voice.voiceType ? (
+                  <small className="choice-block__hint">
+                    {voice.voiceType === 'vrouw' ? 'Vrouwenstem' : 'Mannenstem'}
+                    {voice.region === 'nl_BE' ? ' · Vlaams' : ' · Nederlands'}
+                  </small>
+                ) : null}
+                <small className="choice-block__hint">{voice.description}</small>
+                {onPreviewVoice ? (
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={previewing !== null}
+                    aria-label={`${voice.label} beluisteren`}
+                    onClick={() => void preview(voice.id)}
+                  >
+                    {previewing === voice.id ? '🔊 Klinkt…' : '🔊 Beluister'}
+                  </button>
+                ) : null}
+              </span>
+            </label>
+          ))}
+        </div>
+        {previewError ? (
+          <p className="form__error" role="alert">
+            {previewError}
+          </p>
+        ) : null}
+      </fieldset>
+
+      <label className="toggle">
+        <input
+          type="checkbox"
+          disabled={!settings.speechEnabled}
+          checked={settings.speechHints}
+          onChange={(e) => setSettings((s) => ({ ...s, speechHints: e.target.checked }))}
+        />
+        <span>Af en toe hardop uitleggen hoe de knoppen werken</span>
       </label>
 
       <div className="form__actions">

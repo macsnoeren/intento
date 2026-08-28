@@ -29,9 +29,11 @@ import { registerAuditRoutes } from './routes/audit.js';
 import { registerConversationHistoryRoutes } from './routes/conversation-history.js';
 import { registerMessageRoutes } from './routes/messages.js';
 import { registerOperatorRoutes } from './routes/operator.js';
+import { registerSpeechRoutes } from './routes/speech.js';
 import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createAiOrchestrator, type AiOrchestrator } from './ai/index.js';
+import { createSpeechService, type SpeechService } from './speech/index.js';
 import { createEncryptor } from './crypto/encryption.js';
 
 export interface BuildAppOptions {
@@ -50,6 +52,8 @@ export interface BuildAppOptions {
   mail?: MailTransport;
   /** AI-orchestrator (T5.2); standaard uit de env (mock/echt), injecteerbaar zodat tests een provider mocken. */
   orchestrator?: AiOrchestrator;
+  /** Spraakdienst (T18.1); standaard uit de env, injecteerbaar zodat tests zonder Piper draaien. */
+  speech?: SpeechService;
 }
 
 /**
@@ -64,6 +68,7 @@ export async function buildApp({
   openSymbols = createOpenSymbolsClient(env),
   mail = createMailTransport(env),
   orchestrator = createAiOrchestrator(env, prisma),
+  speech = createSpeechService(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
   // Veldversleuteling at-rest (T6.1): persoonlijke context wordt versleuteld opgeslagen. Eén instantie
   // per app; de sleutel wordt uit `ENCRYPTION_KEY` afgeleid en gedeeld door de context- en gespreksroutes.
@@ -141,6 +146,10 @@ export async function buildApp({
   registerMessageRoutes(app, { prisma });
   // Platform-operatorconsole (T8.3): de enige, apart bewaakte routetak die over tenants heen kijkt.
   registerOperatorRoutes(app, { prisma });
+  // Spraakuitvoer (T18.1): de tablet laat uitspreken wat er op zijn scherm staat; de begeleider
+  // beluistert stemmen vóór hij er één kiest. Altijd geregistreerd — zonder spraakdienst antwoorden
+  // ze met 503 SPEECH_UNAVAILABLE, zodat de app het netjes kan opvangen.
+  registerSpeechRoutes(app, { env, prisma, speech });
 
   return app;
 }

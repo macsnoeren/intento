@@ -136,6 +136,9 @@ describe('gespreksstrategie per gebruiker', () => {
         supportMode: false,
         contextIndicator: true,
         conversationStrategy: 'verzonnen-aanpak',
+        speechEnabled: false,
+        speechVoice: 'nl_NL-pim-medium',
+        speechHints: true,
       },
     });
 
@@ -164,6 +167,9 @@ describe('gespreksstrategie per gebruiker', () => {
         supportMode: false,
         contextIndicator: true,
         conversationStrategy: 'explore',
+        speechEnabled: false,
+        speechVoice: 'nl_NL-pim-medium',
+        speechHints: true,
       },
     });
 

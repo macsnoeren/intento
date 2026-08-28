@@ -617,6 +617,59 @@ python3 testworker.py wrk_<jouw-token>
 
 ---
 
+## Deel F — Spraakuitvoer (T18)
+
+Zonder spraakdienst blijft alles werken: de tablet valt terug op de stem van het apparaat zelf, en de
+spraakendpoints antwoorden met `503 SPEECH_UNAVAILABLE`. Wil je de echte, lokale synthese testen:
+
+```bash
+cd speech-service
+python -m venv .venv && . .venv/bin/activate && pip install piper-tts
+python -m piper.download_voices --data-dir voices nl_NL-pim-medium nl_BE-nathalie-medium
+SERVICE_TOKEN=lokaal-geheim python -m speech_service
+```
+
+- [ ] `curl http://127.0.0.1:5002/health` → **Verwacht:** `{"status":"ok","voices":[…]}` met de
+      gedownloade stemmen.
+
+Start de backend daarnaast met de dienst erachter:
+
+```bash
+SPEECH_PROVIDER=http SPEECH_SERVICE_URL=http://127.0.0.1:5002 \
+  SPEECH_SERVICE_TOKEN=lokaal-geheim npm run dev:server
+```
+
+### F.1 De rookproef in één commando
+
+```bash
+SPEECH_SERVICE_URL=http://127.0.0.1:5002 SPEECH_SERVICE_TOKEN=lokaal-geheim \
+  npx tsx src/scripts/smoke-speech.ts     # vanuit server/
+```
+
+- [ ] **Verwacht:** `status=200 type=audio/wav bytes=… wav=true in ~200 ms`, en een tweede regel
+      `herhaling: status=200 in <10 ms (cache)` — de tweede keer komt uit de geheugencache.
+
+### F.2 Op de tablet
+
+- [ ] Zet in de beheeromgeving bij een gebruiker (Gebruikers → *naam* → Instellingen) **"De tablet leest
+      voor wat er op het scherm staat"** aan.
+- [ ] Klik bij een stem op **🔊 Beluister**. **Verwacht:** je hoort de zin "Ik wil graag water drinken."
+      en er wordt **niets** opgeslagen (het bolletje van de stem verspringt niet).
+- [ ] Kies een stem en sla op. Open `/tablet`. **Verwacht:** de vraag wordt voorgelezen zodra het scherm
+      verschijnt, met een knop **🔊 Nog eens** ernaast.
+- [ ] Tik een pictogram aan. **Verwacht:** de vorige zin stopt en de nieuwe vraag klinkt.
+- [ ] Loop door tot het voorstelscherm en bevestig. **Verwacht:** eerst de voorgestelde zin, na ✅
+      dezelfde zin als bevestigde boodschap.
+- [ ] Ga vier keuzeschermen door (heen, `↩ Terug`, heen). **Verwacht:** op het vierde scherm klinkt ná de
+      vraag een kort zetje over de bediening ("Staat het er niet bij? Tik op Staat er niet bij.").
+- [ ] Zet in de instellingen **"Stem van het apparaat"** en herhaal op een Android-tablet of iPad.
+      **Verwacht:** de tablet spreekt zelf, met de stem van het apparaat — voorlopig de enige weg naar
+      een Nederlandse vrouwenstem (zie T18.5).
+
+> **iOS:** Safari staat geluid pas toe ná een aanraking. Het eerste scherm kan daarom stil blijven tot
+> je één keer tikt; daarna spreekt de app ook uit zichzelf. Dit hoort op een écht apparaat getest te
+> worden, niet in een desktopbrowser.
+
 ## 8. Opruimen
 
 ```bash

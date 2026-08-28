@@ -285,6 +285,11 @@ export interface Api {
   mergeAiConcept(id: string, targetSymbolId: string): Promise<AacSymbolAdmin>;
   /** Verwijderen: het begrip is onbruikbaar; symbool weg en voorstel afgewezen. */
   discardAiConcept(id: string): Promise<void>;
+  /**
+   * Laat één zin uitspreken met een **expliciete** stem, zodat de begeleider stemmen kan vergelijken
+   * vóór hij er één kiest (T18.2). Slaat niets op; de keuze wordt pas bij `updateSettings` bewaard.
+   */
+  speechPreview(userId: string, text: string, voice: string): Promise<Blob>;
   /** Versleuteld profiel van een gebruiker exporteren (T8.1, FR-019). */
   exportProfile(userId: string): Promise<ProfileExportResponse>;
   /** Een eerder geëxporteerd profiel importeren als nieuwe gebruiker in de eigen organisatie (T8.1). */
@@ -337,6 +342,12 @@ export interface DeviceApi {
    * begeleider zien dát er een AI meedenkt — of juist niet.
    */
   getAiStatus(): Promise<AiStatusResponse>;
+  /**
+   * Laat de tekst op het scherm uitspreken (T18.3). De **stem** komt uit het profiel van de gebruiker
+   * achter de apparaatsessie; de tablet stuurt alleen de tekst mee. Werkt de spraakdienst niet, dan
+   * gooit dit — de tablet valt dan terug op de stem van het apparaat zelf.
+   */
+  speakText(text: string): Promise<Blob>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -390,6 +401,37 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
   }
 
   return json;
+}
+
+/**
+ * Zelfde als `request`, maar voor een **binaire** respons (T18.1: gesynthetiseerde spraak). De
+ * backend geeft hier audio terug in plaats van JSON; fouten houden wél de gewone JSON-foutvorm, dus
+ * die worden op dezelfde manier naar `ApiRequestError` vertaald.
+ */
+async function requestAudio(path: string, body: unknown): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { Accept: 'audio/wav', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiRequestError(0, 'NETWORK_ERROR', 'Kan de server niet bereiken.');
+  }
+
+  if (!response.ok) {
+    const json: unknown = await response.json().catch(() => undefined);
+    const parsed = apiErrorSchema.safeParse(json);
+    throw new ApiRequestError(
+      response.status,
+      parsed.success ? parsed.data.error.code : 'REQUEST_ERROR',
+      parsed.success ? parsed.data.error.message : 'Er ging iets mis.',
+    );
+  }
+
+  return response.blob();
 }
 
 /** De echte, op `fetch` gebaseerde client (standaard in productie). */
@@ -700,6 +742,12 @@ export const httpApi: Api & DeviceApi = {
   },
   async discardAiConcept(id) {
     await request(`/admin/aac/new-concepts/${id}`, { method: 'DELETE' });
+  },
+  async speechPreview(userId, text, voice) {
+    return requestAudio(`/admin/users/${userId}/speech-preview`, { text, voice });
+  },
+  async speakText(text) {
+    return requestAudio('/device/speech', { text });
   },
   async exportProfile(userId) {
     return profileExportResponseSchema.parse(await request(`/users/${userId}/export`));

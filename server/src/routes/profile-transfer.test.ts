@@ -35,6 +35,9 @@ describe('profielexport/-import (T8.1)', () => {
     // Bewust niet de standaard (T11.4): een strategie die de overdracht niet overleeft, valt stil terug
     // op "stap voor stap verfijnen" en dan gedraagt het profiel zich na verhuizing anders.
     conversationStrategy: 'calm',
+    speechEnabled: false,
+    speechVoice: 'nl_NL-pim-medium',
+    speechHints: true,
   };
 
   beforeEach(async () => {

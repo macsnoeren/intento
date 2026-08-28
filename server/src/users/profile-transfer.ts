@@ -2,6 +2,7 @@ import {
   PROFILE_EXPORT_VERSION,
   profileExportSchema,
   toConversationStrategy,
+  toSpeechVoice,
   type ProfileExport,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
@@ -63,6 +64,10 @@ export async function buildProfileExport(
           supportMode: profile.supportMode,
           contextIndicator: profile.contextIndicator,
           conversationStrategy: toConversationStrategy(profile.conversationStrategy),
+          // De stem verhuist mee: hoe iemand klinkt hoort bij zijn profiel, niet bij deze omgeving.
+          speechEnabled: profile.speechEnabled,
+          speechVoice: toSpeechVoice(profile.speechVoice),
+          speechHints: profile.speechHints,
         }
       : DEFAULT_PROFILE,
     // De categorie/suggestionStatus komen als `String` uit de db; `profileExportSchema.parse` hieronder

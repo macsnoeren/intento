@@ -855,6 +855,110 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
 
 ---
 
+## Fase 18 — De tablet spreekt
+
+*Verkend op 2026-08-28. Piper (neuraal, ONNX/VITS) draait lokaal op de CPU: gemeten op een i7-6700
+zónder GPU kost een zin 64–153 ms — twintig keer sneller dan realtime — en het kost niets. Er zijn
+tien Nederlandse/Vlaamse stemmodellen; `nl_NL-mls-medium` bevat er zelf nog eens 52 (afzonderlijk
+kiesbaar via `speaker_id`), waaronder ruim twintig vrouwenstemmen. Cloud-TTS valt af: dan zou "ik heb
+pijn in mijn buik" alsnog bij een derde partij belanden (DESIGN §9.4). Spraakuitvoer stond in DESIGN
+§10.1 bij fase 4 — dit haalt het naar voren; die sectie wordt in T18.2 bijgewerkt.*
+
+*Bij het uitvoeren bleek de stemmenlijst kleiner dan gedacht. Van de tien Nederlandse/Vlaamse
+Piper-stemmen zijn er maar vier bruikbaar: `nl_NL-mls-medium` (52 sprekers, waaronder álle Nederlandse
+vrouwenstemmen) en de twee losse `mls_*-low`-modellen komen uit ruwe luisterboekdata en spraken bij het
+beluisteren geen enkele zin verstaanbaar uit. Ze staan daarom niet in de catalogus — een onverstaanbare
+stem is voor deze doelgroep erger dan geen stem. Gevolg: Nathalie (Vlaams) is de enige vrouwenstem die de
+server kan leveren, en er is een vijfde keuze bijgekomen — **"Stem van het apparaat"**, waarbij de tablet
+zelf spreekt (op Android/iPadOS meestal een goede Nederlandse, vaak vrouwelijke stem). Een échte
+Nederlandse vrouwenstem op de server is T18.5.*
+
+- [x] **T18.1 Een eigen spraakdienst naast de AI-worker**
+  *DESIGN: §8.1, §9.1, §9.2, §9.4.* Werk: een **losstaande spraakdienst** rond Piper — net als
+  `ai-worker/` aparte deploybare infrastructuur met eigen README en `.env` — die tekst plus stem-id
+  omzet naar audio. Daarvoor in de backend één endpoint achter de **apparaatsessie**: de tablet vraagt
+  audio, de backend controleert wie het apparaat is, kiest de stem uit het profiel van díé gebruiker en
+  roept de dienst aan. De client praat nooit rechtstreeks met de spraakdienst, dezelfde regel als bij
+  de AI. Validatie op de grens met zod (tekstlengte, stem-id uit een vaste lijst) en strenge rate
+  limiting; het antwoord is audio, nooit een pad of een bestandsnaam. Een cache op
+  `hash(tekst + stem)` maakt herhaling gratis — de pictogramlabels zijn een eindige verzameling en
+  kunnen bij het opwarmen alvast ingesproken worden. De audio is **vluchtig**: geen nieuwe opslag van
+  wat de gebruiker zei (DESIGN §6.4). Stem-id's krijgen de vorm `nl_NL-pim-medium`, en voor het
+  meersprekermodel `nl_NL-mls-medium#5`. Vastleggen als ADR: waarom lokale synthese en geen cloud, en
+  wat de GPL-3.0-licentie van Piper betekent (aanroepen als losse dienst mag; bij uitleveren als
+  apparaat hoort de broncode erbij) — plus naamsvermelding voor `nl_NL-mls` (CC-BY 4.0).
+  *Acceptatie:* de dienst geeft voor een vaste zin een geldig WAV-antwoord (test tegen een draaiende
+  dienst, overgeslagen als hij niet draait); het endpoint weigert zonder apparaatsessie, weigert een
+  onbekend stem-id en een te lange tekst (tests); een tweede aanvraag met dezelfde tekst + stem komt
+  aantoonbaar uit de cache (test); de rookproef speelt op de tablet een zin af.
+
+- [x] **T18.2 De stem staat in het communicatieprofiel — en de begeleider hoort hem eerst**
+  *DESIGN: §5.3, §6.2, §10.1.* Werk: twee velden bij het communicatieprofiel (migratie) — **spraak
+  aan/uit** en **stem** — met een verstandige standaard, ingedeeld bij de bestaande instellingen naast
+  `showText` en `iconsPerScreen`. In de beheeromgeving kiest de begeleider de stem uit een lijst met
+  per stem een **luisterknop**: dezelfde voorbeeldzinnen die de gebruiker straks hoort, zodat de keuze
+  op gehoor gemaakt wordt en niet op een naam. De lijst bevat de losse stemmodellen én een geselecteerd
+  aantal sprekers uit het meersprekermodel, gemarkeerd met wat de begeleider nodig heeft om te kiezen
+  (mannelijk/vrouwelijk, tempo, Nederlands/Vlaams). Voorbeeldaudio loopt via hetzelfde endpoint als
+  T18.1, maar dan achter de begeleiderssessie — dus ook hier: elke aanvraag gefilterd op de gebruiker
+  waar de begeleider aan gekoppeld is. DESIGN §5.3 en §10.1 in dezelfde commit bijwerken.
+  *Acceptatie:* de migratie draait schoon op een lege database; het profiel-endpoint weigert een
+  onbekend stem-id (test); een begeleider kan de stem van zijn eigen gebruiker wijzigen en niet die van
+  een andere (isolatietest); de keuzelijst speelt een voorbeeld af zonder de instelling al op te slaan
+  (componenttest); de gekozen stem komt terug in wat de tablet uitspreekt (test).
+
+- [x] **T18.3 De tablet leest voor wat er op het scherm staat**
+  *DESIGN: §5.1, §5.4, §3.1.* Werk: staat spraak aan, dan spreekt de tablet **de vraag** uit zodra een
+  keuzescherm verschijnt, en de **voorgestelde zin** op het voorstelscherm — precies de tekst die er
+  staat, letterlijk en ongewijzigd; de bevestigde boodschap net zo. Bij elk van die schermen een
+  luidsprekerknop om het te herhalen, want één keer horen is voor deze doelgroep vaak te weinig. Twee
+  dingen om echt op het apparaat te testen: Safari op iOS staat geluid pas toe ná een aanraking (de
+  audio bij de eerste tik van de sessie "ontgrendelen"), en een nieuw scherm moet het vorige fragment
+  afbreken in plaats van erop stapelen. Terugval als de spraakdienst onbereikbaar is: de
+  `speechSynthesis` van de browser — beter een minder mooie stem dan stilte. Spraak staat los van
+  `showText`: wie geen tekst op het scherm wil, kan hem wél willen horen.
+  *Acceptatie:* met spraak aan wordt bij het tonen van een vraag precies de vraagtekst aangeboden aan
+  de spraaklaag (test met een nagebootste speler); een nieuw scherm stopt het lopende fragment (test);
+  met spraak uit gebeurt er niets (test); de luidsprekerknop herhaalt (test); gerookt op een echt
+  tablet-apparaat, inclusief de eerste aanraking op iOS.
+
+- [x] **T18.4 Af en toe een gesproken zetje bij de bediening**
+  *DESIGN: §5.1, §5.4, §7.8.* Werk: veel gebruikers vergeten dat er meer is dan de vier pictogrammen
+  op het scherm. Daarom **af en toe** — nadrukkelijk niet elk scherm — na de vraag een korte
+  bedieningsherinnering: "Wil je andere keuzes? Tik op *Meer keuzes*." of "Staat het er niet bij? Tik
+  op *Staat er niet bij*." De regels zijn belangrijker dan de zinnen zelf: alleen op het keuzescherm,
+  hoogstens één per zoveel schermen (en nooit twee keer dezelfde achter elkaar), alleen over knoppen
+  die op dát moment ook echt zichtbaar zijn, altijd ná de vraag en nooit er doorheen, en met een eigen
+  aan/uit in de instellingen. Harde grens: een zetje gaat **alleen over de bediening**, nooit over de
+  inhoud — geen "misschien bedoel je drinken?". Dat zou de AI namens de gebruiker laten spreken
+  (DESIGN §7.8).
+  *Acceptatie:* de keuze om wél of niet te herinneren is deterministisch testbaar (teller/zaad, niet
+  de echte klok of `Math.random` rechtstreeks); over tien opeenvolgende schermen klinkt hoogstens het
+  afgesproken aantal herinneringen en nooit twee dezelfde na elkaar (test); een herinnering over "Meer
+  keuzes" blijft weg als die knop niet zichtbaar is (test); uitgezet blijft het stil (test); geen enkele
+  herinnering bevat een concept uit de AAC-bibliotheek (test).
+
+- [ ] **T18.5 Een Nederlandse vrouwenstem die wél verstaanbaar is**
+  *DESIGN: §5.3, §9.4. Ontdekt tijdens T18.2.* De server kan nu alleen Vlaams als vrouwenstem, en dat is
+  voor een Nederlandse gebruiker een merkbaar verschil. Alle Nederlandse vrouwenstemmen die Piper heeft
+  zitten in het meersprekermodel `nl_NL-mls-medium` (52 sprekers; grondtoonmeting gaf er 22 boven 175 Hz),
+  maar dat model is op ruwe luisterboekdata getraind en geen van die sprekers is te verstaan — ook de twee
+  losse `mls_*-low`-modellen niet, die bovendien ± 25 tekens per seconde ratelen tegen ± 12 bij Pim.
+  Werk: onderzoeken wat er wél kan. Drie sporen, in volgorde van kosten: (1) een nieuwere Piper-stem uit
+  `OHF-Voice/voice-datasets` zodra die er is; (2) **Chatterbox Multilingual** (MIT, kan Nederlands, kan een
+  stem klonen uit een kort fragment) — vraagt 6 GB+ VRAM, dus alleen zinvol met een GPU-machine naast de
+  bestaande AI-worker, en dan met vooraf ingesproken labels plus de cache uit T18.1; (3) zelf een
+  Piper-stem fijn-afstemmen op een Nederlandse spreekster die daar toestemming voor geeft — het mooiste
+  resultaat en verreweg het meeste werk. Kies pas ná luisteren, en luister mét een gebruiker: een stem is
+  identiteit, geen instelling. Tot die tijd blijft "Stem van het apparaat" de weg naar een Nederlandse
+  vrouwenstem.
+  *Acceptatie:* een gekozen stem is door minstens één begeleider én één gebruiker beluisterd en
+  verstaanbaar bevonden; hij staat in `SPEECH_VOICE_CATALOG` met licentie en herkomst; de spraakdienst kan
+  hem leveren binnen dezelfde latency-orde als nu (of vooraf ingesproken uit de cache); de keuze en de
+  afweging staan in ADR-0015.
+
+---
+
 ## Onderhoud (ontdekt meerwerk)
 
 - [ ] **TO.1 De wachtrij-tests zijn tijdgevoelig en daardoor wisselvallig**
@@ -884,4 +988,4 @@ bestaande strategieën ook: ook nu al maakt de vrije ronde duplicaten.
 
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
-Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · spraakuitvoer · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.
+Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.

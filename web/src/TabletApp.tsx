@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AacSymbol,
   ConversationConfirmResponse,
@@ -8,6 +8,8 @@ import type {
   UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, apiUrl, httpApi, isAiWaitingError, type DeviceApi } from './api.ts';
+import { createBrowserSpeech, silentSpeech, type SpeechPort } from './speech.ts';
+import { hintText, pickHint, type HintKey } from './speech-hints.ts';
 import { AuthLayout } from './AuthLayout.tsx';
 import { AiStatusBadge } from './AiStatusBadge.tsx';
 import { BrandMark, BRAND_NAME } from './Brand.tsx';
@@ -97,6 +99,32 @@ function SupportModeBanner({ active }: { active: boolean }): React.JSX.Element |
 }
 
 /**
+ * "Nog eens" — herhaalt hardop wat er op dit scherm staat (T18.3).
+ *
+ * Eén keer horen is voor deze doelgroep vaak te weinig, en de gebruiker mag niet afhankelijk zijn van
+ * het toeval dat hij op het juiste moment oplette. De knop verschijnt alleen als spraak aanstaat.
+ */
+function SpeakAgainButton({
+  onSpeak,
+  disabled,
+}: {
+  onSpeak: () => void;
+  disabled?: boolean;
+}): React.JSX.Element {
+  return (
+    <button
+      className="button"
+      type="button"
+      disabled={disabled}
+      aria-label="Nog een keer voorlezen"
+      onClick={onSpeak}
+    >
+      🔊 Nog eens
+    </button>
+  );
+}
+
+/**
  * Gebruikersapp op de tablet (T4.2, DESIGN §5.1–5.3, FR-001/003).
  *
  * Dit is de **derde interface** naast de beheeromgeving (`App.tsx`) en de latere
@@ -111,7 +139,17 @@ function SupportModeBanner({ active }: { active: boolean }): React.JSX.Element |
  *
  * `api` is injecteerbaar zodat tests een in-memory backend kunnen meegeven.
  */
-export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JSX.Element {
+export function TabletApp({
+  api = httpApi,
+  speech,
+}: {
+  api?: DeviceApi;
+  /**
+   * Spraakuitvoer (T18.3); standaard de echte browser-spraaklaag, injecteerbaar zodat tests kunnen
+   * controleren wát er uitgesproken wordt zonder een audio-element (dat in jsdom niet speelt).
+   */
+  speech?: SpeechPort;
+} = {}): React.JSX.Element {
   const [session, setSession] = useState<DeviceSessionResponse | null>(null);
   const [checking, setChecking] = useState(true);
 
@@ -146,7 +184,7 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
     return <DeviceLinkScreen api={api} onLinked={setSession} />;
   }
 
-  return <ConversationScreen api={api} user={session.user} />;
+  return <ConversationScreen api={api} user={session.user} speech={speech} />;
 }
 
 /**
@@ -233,11 +271,42 @@ function DeviceLinkScreen({
 function ConversationScreen({
   api,
   user,
+  speech: injectedSpeech,
 }: {
   api: DeviceApi;
   user: UserPublic;
+  speech?: SpeechPort;
 }): React.JSX.Element {
   const profile = user.communicationProfile;
+
+  // Spraakuitvoer (T18.3). De stem komt uit het profiel; staat spraak uit, dan blijft alles stil.
+  // De poort wordt één keer gebouwd per (api, stem): een nieuwe poort per render zou de wachtrij en
+  // de opgehaalde fragmenten telkens weggooien.
+  const speech = useMemo<SpeechPort>(() => {
+    if (injectedSpeech) return injectedSpeech;
+    if (!profile.speechEnabled) return silentSpeech;
+    return createBrowserSpeech({
+      voice: profile.speechVoice,
+      fetchAudio: (text) => api.speakText(text),
+    });
+  }, [injectedSpeech, api, profile.speechEnabled, profile.speechVoice]);
+  const speaks = profile.speechEnabled;
+
+  /** Spreekt uit wat er staat — maar alleen als deze gebruiker dat wil. */
+  function say(text: string | readonly string[]): void {
+    if (speaks) speech.speak(text);
+  }
+
+  // Onthoudt wélke toestand er al voorgelezen is. Bewust de toestand zelf en niet de vraagtekst: elk
+  // antwoord van de server is een nieuw object, dus na "↩ Terug" klinkt dezelfde vraag wél opnieuw
+  // (de gebruiker komt op een nieuw scherm en moet hem weer horen), terwijl een tweede render van
+  // hetzelfde scherm stil blijft — onder `<StrictMode>` mount React elk component twee keer, en dan
+  // zou elke vraag dubbel beginnen.
+  const spokenStateRef = useRef<ConversationStateResponse | null>(null);
+  // Tellers voor de bedieningszetjes (T18.4): hoeveel keuzeschermen er in dit gesprek langskwamen en
+  // welk zetje het laatst klonk. Refs, want ze mogen geen hertekening veroorzaken.
+  const screenCountRef = useRef(0);
+  const lastHintRef = useRef<HintKey | null>(null);
   const [state, setState] = useState<ConversationStateResponse | null>(null);
   const [confirmed, setConfirmed] = useState<ConversationConfirmResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -268,6 +337,9 @@ function ConversationScreen({
   // dan tonen we geen fout maar een rustige wachtstand en proberen we dezelfde actie na de
   // voorgestelde wachttijd automatisch opnieuw, tot er een echt antwoord (vraag/voorstel) komt.
   async function run(action: () => Promise<ConversationStateResponse>): Promise<void> {
+    // Elke actie komt uit een tik van de gebruiker; dat is precies het moment waarop Safari op iOS
+    // geluid toestaat (T18.3). Daarna mag de app ook uit zichzelf spreken.
+    if (speaks) speech.unlock();
     setError(null);
     setBusy(true);
     setConfirmed(null);
@@ -315,6 +387,11 @@ function ConversationScreen({
    */
   function restart(): void {
     setState(null);
+    // Een nieuw gesprek begint ook voor de bedieningszetjes opnieuw (T18.4).
+    screenCountRef.current = 0;
+    lastHintRef.current = null;
+    spokenStateRef.current = null;
+    speech.stop();
     void run(() => beginConversation());
   }
 
@@ -322,6 +399,45 @@ function ConversationScreen({
   useEffect(() => {
     restart();
   }, [api]);
+
+  // De vraag op het scherm voorlezen zodra hij verschijnt (T18.3), en daar af en toe een gesproken
+  // zetje over de bediening achteraan plakken (T18.4). Bewust twee losse zinnen en niet één samengevoegde
+  // tekst: het zetje komt ná de vraag en nooit erdoorheen, en de knop "Nog eens" herhaalt alleen de vraag.
+  const prompt = state?.question?.prompt ?? null;
+  useEffect(() => {
+    if (!speaks || !prompt || !state) return;
+    if (spokenStateRef.current === state) return;
+    spokenStateRef.current = state;
+    screenCountRef.current += 1;
+
+    const zinnen = [prompt];
+    if (profile.speechHints) {
+      const optionCount = state.question?.options.length ?? 0;
+      const hint = pickHint({
+        screenCount: screenCountRef.current,
+        lastHint: lastHintRef.current,
+        // Alleen over knoppen die op dít scherm ook echt staan (zie de opbouw van de balk hieronder).
+        hasMoreChoices: optionCount > Math.max(1, profile.iconsPerScreen),
+        canSkip: Boolean(state.question),
+        canGoBack: state.history.length > 0,
+      });
+      if (hint) {
+        lastHintRef.current = hint;
+        zinnen.push(hintText(hint));
+      }
+    }
+    say(zinnen);
+  }, [prompt, state, speaks, profile.speechHints, profile.iconsPerScreen]);
+
+  // De bevestigde boodschap uitspreken (T18.3): dit is het moment waarop de gebruiker iets zegt.
+  const confirmedMessage = confirmed?.message ?? null;
+  useEffect(() => {
+    if (confirmedMessage) say(confirmedMessage);
+  }, [confirmedMessage, speaks]);
+
+  // Bij het verlaten van het scherm stopt wat er nog klinkt; anders praat de tablet door over een
+  // scherm dat er niet meer is.
+  useEffect(() => () => speech.stop(), [speech]);
 
   // Na bevestiging: de opgeslagen boodschap tonen met de mogelijkheid opnieuw te beginnen.
   if (confirmed) {
@@ -331,14 +447,17 @@ function ConversationScreen({
         <section className="tablet__done">
           <h1 className="tablet__prompt">Boodschap bevestigd</h1>
           <p className="tablet__message">{confirmed.message}</p>
-          <button
-            className="button button--primary"
-            type="button"
-            disabled={busy}
-            onClick={restart}
-          >
-            Opnieuw beginnen
-          </button>
+          <div className="tablet__bar">
+            {speaks ? <SpeakAgainButton onSpeak={() => say(confirmed.message)} /> : null}
+            <button
+              className="button button--primary"
+              type="button"
+              disabled={busy}
+              onClick={restart}
+            >
+              Opnieuw beginnen
+            </button>
+          </div>
         </section>
       </main>
     );
@@ -374,6 +493,8 @@ function ConversationScreen({
         userName={user.name}
         showText={profile.showText}
         supportMode={profile.supportMode}
+        speech={speech}
+        speaks={speaks}
         onConfirmed={setConfirmed}
         onReject={() => void run(() => api.conversationCorrection(state.sessionId))}
       />
@@ -452,6 +573,9 @@ function ConversationScreen({
       ) : null}
 
       <div className="tablet__bar">
+        {speaks && state.question ? (
+          <SpeakAgainButton onSpeak={() => say(state.question?.prompt ?? '')} disabled={busy} />
+        ) : null}
         <button
           className="button"
           type="button"
@@ -527,6 +651,8 @@ function ProposalScreen({
   userName,
   showText,
   supportMode,
+  speech,
+  speaks,
   onConfirmed,
   onReject,
 }: {
@@ -536,6 +662,10 @@ function ProposalScreen({
   userName: string;
   showText: boolean;
   supportMode: boolean;
+  /** Spraakpoort van het gespreksscherm (T18.3), zodat beide schermen dezelfde stem en wachtrij delen. */
+  speech: SpeechPort;
+  /** Staat spraak aan voor deze gebruiker? */
+  speaks: boolean;
   onConfirmed: (result: ConversationConfirmResponse) => void;
   onReject: () => void;
 }): React.JSX.Element {
@@ -580,7 +710,17 @@ function ProposalScreen({
     };
   }, [api, sessionId]);
 
+  // De voorgestelde zin uitspreken zodra hij er staat (T18.3). Dit is de zin die de gebruiker gaat
+  // bevestigen; hem horen is hier belangrijker dan waar ook — wie niet leest, kan hem anders niet
+  // beoordelen.
+  const message = proposal?.message ?? null;
+  useEffect(() => {
+    if (speaks && message) speech.speak(message);
+  }, [speaks, message, speech]);
+
   async function confirm(): Promise<void> {
+    // Binnen de tik: hier mag iOS het geluid nog vrijgeven (T18.3).
+    if (speaks) speech.unlock();
     setError(null);
     setBusy(true);
     try {
@@ -638,6 +778,9 @@ function ProposalScreen({
       ) : null}
 
       <div className="proposal__actions">
+        {speaks ? (
+          <SpeakAgainButton onSpeak={() => speech.speak(proposal.message)} disabled={busy} />
+        ) : null}
         <button
           className="button button--primary"
           type="button"

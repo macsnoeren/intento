@@ -83,6 +83,9 @@ describe('audit-logging — gevoelige acties', () => {
         supportMode: false,
         contextIndicator: true,
         conversationStrategy: 'refine',
+        speechEnabled: false,
+        speechVoice: 'nl_NL-pim-medium',
+        speechHints: true,
       },
     });
     expect(res.statusCode).toBe(200);

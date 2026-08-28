@@ -387,6 +387,139 @@ export const CONVERSATION_STRATEGY_CATALOG: readonly {
   },
 ];
 
+// --- Spraakuitvoer (T18.1/T18.2, DESIGN §5.3, §9.4) ---
+
+/**
+ * De **stemmen** die een begeleider kan kiezen (T18.2). Eén bron voor de server (die valideert en de
+ * spraakdienst aanroept) en de beheer-UI (die de keuze toont met een luisterknop), zodat een stem nooit
+ * onder twee namen rondloopt.
+ *
+ * `kind` splitst de lijst in tweeën:
+ * - `server` — een Piper-stemmodel dat de spraakdienst synthetiseert. Overal identiek, ook op een
+ *   tablet zonder Nederlandse stem.
+ * - `device` — de stem die de tablet zélf heeft (`speechSynthesis`). Klinkt per apparaat anders en is
+ *   dus niet voorspelbaar, maar op een Android-tablet of iPad is dit vaak de natuurlijkste — en het is
+ *   de enige weg naar een Nederlandse **vrouwenstem** (zie hieronder).
+ *
+ * Waarom er maar vier servermodellen in staan terwijl Piper er tien voor het Nederlands heeft: van de
+ * overige zes deugt de verstaanbaarheid niet. `nl_NL-mls-medium` (52 sprekers, waaronder alle
+ * Nederlandse vrouwenstemmen) en de twee losse `mls_*-low`-modellen komen uit ruwe luisterboekdata;
+ * bij het beluisteren op 2026-08-28 bleek geen van die stemmen een zin verstaanbaar uit te spreken. Ze
+ * staan hier daarom bewust **niet** in — een onverstaanbare stem is voor deze doelgroep erger dan geen
+ * stem. Daarmee is Nathalie (Vlaams) de enige vrouwenstem die de server kan leveren; wie een
+ * Nederlandse vrouwenstem wil, kiest voorlopig de stem van het apparaat (zie T18.5).
+ */
+export const SPEECH_VOICE_CATALOG: readonly {
+  id: string;
+  label: string;
+  kind: 'server' | 'device';
+  description: string;
+  region?: 'nl_NL' | 'nl_BE';
+  voiceType?: 'man' | 'vrouw';
+}[] = [
+  {
+    id: 'nl_NL-pim-medium',
+    label: 'Pim',
+    kind: 'server',
+    region: 'nl_NL',
+    voiceType: 'man',
+    description: 'Nederlandse mannenstem, rustig tempo. De standaardstem.',
+  },
+  {
+    id: 'nl_NL-alex-medium',
+    label: 'Alex',
+    kind: 'server',
+    region: 'nl_NL',
+    voiceType: 'man',
+    description: 'Nederlandse mannenstem, duidelijk vlotter dan de andere stemmen.',
+  },
+  {
+    id: 'nl_NL-ronnie-medium',
+    label: 'Ronnie',
+    kind: 'server',
+    region: 'nl_NL',
+    voiceType: 'man',
+    description: 'Nederlandse mannenstem, rustig en laag van toon.',
+  },
+  {
+    id: 'nl_BE-nathalie-medium',
+    label: 'Nathalie',
+    kind: 'server',
+    region: 'nl_BE',
+    voiceType: 'vrouw',
+    description: 'Vlaamse vrouwenstem, vlot tempo. De enige vrouwenstem die de server kan leveren.',
+  },
+  {
+    id: 'device',
+    label: 'Stem van het apparaat',
+    kind: 'device',
+    description:
+      'De tablet spreekt zelf, met de stem die het apparaat heeft. Op een Android-tablet of iPad ' +
+      'is dat meestal een goede Nederlandse stem (vaak een vrouwenstem); op een pc kan hij ' +
+      'blikkerig klinken. Beluister hem daarom op het apparaat zelf.',
+  },
+];
+
+/** De stem-id's uit de catalogus; alles daarbuiten wordt op de API-grens geweigerd (400). */
+export const SPEECH_VOICE_IDS = SPEECH_VOICE_CATALOG.map((voice) => voice.id) as [
+  string,
+  ...string[],
+];
+
+/** Stem-id; onbekende waarden worden op de API-grens geweigerd (400). */
+export const speechVoiceSchema = z.enum(SPEECH_VOICE_IDS);
+export type SpeechVoiceId = z.infer<typeof speechVoiceSchema>;
+
+/** De id van de apparaatstem: geen model, maar "laat de tablet het zelf doen". */
+export const DEVICE_SPEECH_VOICE = 'device';
+
+/** De standaardstem: een rustige Nederlandse mannenstem, gesynthetiseerd door de server. */
+export const DEFAULT_SPEECH_VOICE: SpeechVoiceId = 'nl_NL-pim-medium';
+
+/** Spreekt de tablet deze stem zelf uit (dan is er geen spraakdienst nodig)? */
+export function isDeviceVoice(voice: string): boolean {
+  return voice === DEVICE_SPEECH_VOICE;
+}
+
+/**
+ * Normaliseert een **opgeslagen** stem-id: onbekend → de standaard. Dezelfde tweedeling als bij de
+ * gespreksstrategie: invoer wordt hard geweigerd, opgeslagen data wordt gerepareerd. Verdwijnt een stem
+ * ooit uit de catalogus, dan mag het profiel van die gebruiker daardoor niet onleesbaar worden — dan
+ * zou hij zijn tablet niet meer kunnen gebruiken om iets te zeggen.
+ */
+export function toSpeechVoice(value: unknown): SpeechVoiceId {
+  const parsed = speechVoiceSchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_SPEECH_VOICE;
+}
+
+/**
+ * Maximale lengte (tekens) van een uit te spreken tekst. Ruim boven een AAC-boodschap of een vraag,
+ * streng genoeg om de spraakdienst niet als tekst-naar-audio-machine te laten misbruiken.
+ */
+export const SPEECH_MAX_TEXT_LENGTH = 300;
+
+/**
+ * Verzoek om een tekst uit te spreken (`POST /device/speech`). De stem komt uit het profiel van de
+ * gebruiker achter de apparaatsessie — de tablet kiest die dus **niet** zelf.
+ */
+export const speakRequestSchema = z.object({
+  text: z.string().trim().min(1).max(SPEECH_MAX_TEXT_LENGTH),
+});
+export type SpeakRequest = z.infer<typeof speakRequestSchema>;
+
+/**
+ * Voorbeeldverzoek voor de beheeromgeving (`POST /users/{id}/speech-preview`): dezelfde tekst, maar met
+ * een **expliciete** stem, zodat de begeleider stemmen kan vergelijken zonder de instelling al op te
+ * slaan.
+ */
+export const speechPreviewRequestSchema = speakRequestSchema.extend({
+  voice: speechVoiceSchema,
+});
+export type SpeechPreviewRequest = z.infer<typeof speechPreviewRequestSchema>;
+
+/** De voorbeeldzin bij de stemkeuze: een boodschap zoals de gebruiker hem zou zeggen. */
+export const SPEECH_PREVIEW_SENTENCE = 'Ik wil graag water drinken.';
+
 /**
  * Communicatie-instellingen van een gebruiker (`UserCommunicationProfile`, DESIGN §5.3).
  * Stuurt de gebruikersapp aan: aantal opties, tekst tonen, AI-leren en ondersteuningsmodus.
@@ -407,6 +540,19 @@ export const communicationProfileSchema = z.object({
    * waarborgen — geen enkele keuze hier verandert wie eigenaar is van de boodschap.
    */
   conversationStrategy: conversationStrategySchema,
+  /**
+   * Spreekt de tablet uit wat er op het scherm staat (T18.3, DESIGN §5.3)? Standaard **uit**: een
+   * bestaande gebruiker houdt daarmee exact het gedrag van vóór deze instelling, en een tablet die
+   * onaangekondigd begint te praten is voor deze doelgroep geen kleinigheid.
+   */
+  speechEnabled: z.boolean(),
+  /** De stem waarmee dat gebeurt (T18.2); de begeleider kiest hem op gehoor. */
+  speechVoice: speechVoiceSchema,
+  /**
+   * Af en toe een gesproken zetje over de **bediening** (T18.4) — "wil je andere keuzes? tik op Meer
+   * keuzes". Alleen van kracht als `speechEnabled` aanstaat, en nooit over de inhoud van het gesprek.
+   */
+  speechHints: z.boolean(),
 });
 export type CommunicationProfile = z.infer<typeof communicationProfileSchema>;
 
@@ -605,12 +751,16 @@ export const profileExportSchema = z.object({
   exportedAt: z.iso.datetime(),
   user: z.object({ name: z.string() }),
   /**
-   * Het communicatieprofiel. De **gespreksstrategie** (T11.4) heeft hier bewust een terugval: een
-   * bestand dat vóór die instelling is geëxporteerd bevat het veld niet, en dat is geen reden om een
-   * overdracht te weigeren — die gebruiker had toen de standaardaanpak.
+   * Het communicatieprofiel. De **gespreksstrategie** (T11.4) en de **spraakinstellingen** (T18.2)
+   * hebben hier bewust een terugval: een bestand dat vóór die instellingen is geëxporteerd bevat de
+   * velden niet, en dat is geen reden om een overdracht te weigeren — die gebruiker had toen de
+   * standaardaanpak en een stille tablet.
    */
   communicationProfile: communicationProfileSchema.extend({
     conversationStrategy: conversationStrategySchema.default(DEFAULT_CONVERSATION_STRATEGY),
+    speechEnabled: z.boolean().default(false),
+    speechVoice: speechVoiceSchema.default(DEFAULT_SPEECH_VOICE),
+    speechHints: z.boolean().default(true),
   }),
   personalContexts: z.array(profileExportContextSchema),
   preferences: z.array(profileExportPreferenceSchema),

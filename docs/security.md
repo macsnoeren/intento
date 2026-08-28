@@ -370,6 +370,27 @@
       belofte die deze taak niet mocht breken — dat een operator op de **gewone** endpoints nog steeds niets
       van een andere tenant ziet.
 
+### Spraakuitvoer (T18, DESIGN §9.4)
+
+- **Niets naar buiten.** De synthese draait lokaal (`speech-service/`, Piper). Wat de gebruiker wil
+  zeggen gaat nooit naar een cloudleverancier — dat was de doorslaggevende reden om geen cloud-TTS te
+  gebruiken (ADR-0015).
+- **De client praat nooit met de spraakdienst.** Alleen de backend doet dat, met een gedeeld geheim
+  (`SPEECH_SERVICE_TOKEN` ↔ `SERVICE_TOKEN`). De dienst luistert standaard alleen op localhost.
+- **De stem komt uit het profiel, niet uit het verzoek.** `POST /device/speech` accepteert alleen
+  tekst; de stem hoort bij de gebruiker achter de apparaatsessie. Een apparaat kan dus niet namens een
+  ander laten spreken en geen stem afdwingen.
+- **Autorisatie op beluisteren.** `POST /admin/users/:id/speech-preview` is tenant-gefilterd en voor een
+  CAREGIVER beperkt tot gekoppelde gebruikers — getest.
+- **Validatie op de grens.** Tekst 1–300 tekens (zod), stem alleen uit de gedeelde catalogus. De dienst
+  valideert het stem-id nóg een keer tegen een streng patroon, want dat id wordt een bestandsnaam:
+  zonder die controle zou `../../…` een willekeurig bestand kunnen openen (path traversal, getest).
+- **Niets bewaard.** De audio leeft alleen in een geheugencache met bovengrens (`hash(tekst + stem)` als
+  sleutel, dus geen zin als sleutel) en verdwijnt bij herstart. Antwoorden dragen `Cache-Control:
+  no-store`. De dienst logt lengte, stem en duur — nooit de tekst.
+- **Rate limiting.** Beide endpoints zijn begrensd per IP, zodat de spraakdienst geen gratis
+  audio-machine wordt.
+
 ## Bekende afwegingen / restrisico's
 
 - `server.ts` bindt op `0.0.0.0`; op een gedeeld netwerk zonder firewall is de dev-server

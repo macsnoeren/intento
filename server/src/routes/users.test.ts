@@ -62,6 +62,9 @@ describe('gebruikersbeheer — /users', () => {
       contextIndicator: true,
       // Standaardstrategie (T11.4): bestaande gebruikers houden het gedrag van vóór de instelling.
       conversationStrategy: 'refine',
+      speechEnabled: false,
+      speechVoice: 'nl_NL-pim-medium',
+      speechHints: true,
     });
   });
 
@@ -125,6 +128,9 @@ describe('gebruikersbeheer — /users', () => {
         supportMode: true,
         contextIndicator: false,
         conversationStrategy: 'calm',
+        speechEnabled: false,
+        speechVoice: 'nl_NL-pim-medium',
+        speechHints: true,
       },
     });
     expect(ok.statusCode).toBe(200);
@@ -135,6 +141,9 @@ describe('gebruikersbeheer — /users', () => {
       supportMode: true,
       contextIndicator: false,
       conversationStrategy: 'calm',
+      speechEnabled: false,
+      speechVoice: 'nl_NL-pim-medium',
+      speechHints: true,
     });
 
     // 3 is geen geldige waarde → 400.
@@ -149,6 +158,9 @@ describe('gebruikersbeheer — /users', () => {
         supportMode: false,
         contextIndicator: true,
         conversationStrategy: 'refine',
+        speechEnabled: false,
+        speechVoice: 'nl_NL-pim-medium',
+        speechHints: true,
       },
     });
     expect(bad.statusCode).toBe(400);
@@ -177,6 +189,9 @@ describe('gebruikersbeheer — /users', () => {
         supportMode: false,
         contextIndicator: true,
         conversationStrategy: 'refine',
+        speechEnabled: false,
+        speechVoice: 'nl_NL-pim-medium',
+        speechHints: true,
       },
     });
     expect(put.statusCode).toBe(200);

@@ -125,7 +125,7 @@ Als de AI merkt dat een gebruiker vaak hetzelfde concept kiest, krijgt de begele
 | FR-020 | Privacy | Versleutelde opslag; AI krijgt alleen toegestane context; gecontroleerde toegang |
 
 **MVP-scope:** pictogramcommunicatie, AI-vragen, contextopbouw, boodschap genereren, bevestiging, correctie, basisbeheeromgeving, persoonlijke context.
-**Expliciet géén MVP:** communicatie op afstand, berichten versturen, stemgenerator/spraakuitvoer, agenda-integratie, oogbesturing, externe zorgsystemen, emotieherkenning via camera.
+**Expliciet géén MVP:** communicatie op afstand, berichten versturen, agenda-integratie, oogbesturing, externe zorgsystemen, emotieherkenning via camera. *(Spraakuitvoer stond hier ook, maar is in fase 18 gebouwd: lokale synthese bleek klein genoeg om niet op de productversie te hoeven wachten — zie §5.3 en ADR-0015.)*
 
 **Kwaliteitscriteria:** eenvoudig te bedienen, weinig cognitieve belasting, betrouwbaar, fouten herstelbaar, wordt persoonlijker na gebruik.
 
@@ -153,6 +153,9 @@ Als de AI merkt dat een gebruiker vaak hetzelfde concept kiest, krijgt de begele
 - Contextindicator: aan/uit.
 - AI-leren: aan/uit.
 - Ondersteuningsmodus: aan/uit.
+- **Voorlezen** — aan/uit (standaard **uit**). Staat het aan, dan spreekt de tablet uit wat er op het scherm staat: de vraag, de voorgestelde zin en de bevestigde boodschap, letterlijk en ongewijzigd, met altijd een knop om het te herhalen. Spraak staat los van "tekst tonen": wie geen tekst op het scherm wil, kan hem wél willen horen.
+- **Stem** — een keuze uit de stemcatalogus, door de begeleider **op gehoor** gemaakt (elke stem heeft een luisterknop). De server synthetiseert lokaal, zodat elke tablet hetzelfde klinkt; de keuze "Stem van het apparaat" laat de tablet zelf spreken — minder voorspelbaar, maar op Android en iPadOS vaak natuurlijker, en voorlopig de enige weg naar een Nederlandse vrouwenstem. Een stem is identiteit, geen instelling: een kind hoort niet met de stem van een oude man te spreken.
+- **Gesproken zetjes bij de bediening** — aan/uit (standaard aan, alleen van kracht als voorlezen aanstaat). Af en toe, ná de vraag, een korte herinnering aan een knop die vaak over het hoofd gezien wordt ("Staat het er niet bij? Tik op Staat er niet bij."). Nooit over de inhoud van het gesprek — dat zou de app namens de gebruiker laten meedenken (§7.8).
 - **Gespreksstrategie** — de manier waarop de AI probeert te achterhalen wat de gebruiker bedoelt (§7.10). Een keuze uit de ingebouwde strategieën, standaard **"Stap voor stap verfijnen"**. De begeleider kiest hem, dus elke strategie draagt een korte uitleg in begrijpelijke taal ("Voor wie snel overprikkeld raakt"). Dit is een instelling over de **zoekwijze**, nooit over de waarborgen: geen enkele keuze hier verandert wie eigenaar is van de boodschap of wat de AI mag.
 
 ### 5.4 Foutpreventie en toegankelijkheid
@@ -458,14 +461,14 @@ Van 1 gebruiker naar duizenden; meerdere organisaties (families, zorginstellinge
 | 1 — AI-UX-prototype | Communicatieflow testen | Tabletinterface, pictogramkeuzes, eenvoudige context, boodschapgeneratie |
 | 2 — MVP | Eerste bruikbare versie | Volledige gebruikersapp, basisbeheeromgeving, backend met AI-koppeling en AAC-bibliotheek |
 | 3 — Pilot | Echt gebruik | Families/zorginstellingen; meten: initiatieven, duidelijkheid, frustratie, gesprekken, correcties |
-| 4 — Productversie | Uitbreiden | Persoonlijke AI, uitgebreide AAC, spraakuitvoer, export/import |
+| 4 — Productversie | Uitbreiden | Persoonlijke AI, uitgebreide AAC, export/import (spraakuitvoer is naar voren gehaald, fase 18) |
 | 5 — Geavanceerd | Toekomst | Communicatie op afstand, oogbesturing, sensoren, persoonlijke stem |
 
 ### 10.2 Prioriteiten
 
 **Hoogste:** pictogramkeuzes · AI-vraagstelling · gesprekscontext · correctie · persoonlijk profiel.
 **Middel:** beheeromgeving · leermechanisme · export/import.
-**Laag:** stem · berichten sturen · integraties.
+**Laag:** berichten sturen · integraties. *(Stem stond hier; gebouwd in fase 18 omdat lokale synthese goedkoop en snel bleek.)*
 
 ### 10.3 Definition of Done voor de MVP
 
