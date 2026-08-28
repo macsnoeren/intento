@@ -21,8 +21,17 @@ Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md
 Buiten de npm-workspaces staat ook [`speech-service/`](speech-service/README.md): een **losstaande
 Python-dienst** (T18.1) die met [Piper](https://github.com/OHF-Voice/piper1-gpl) tekst in spraak omzet,
 lokaal en zonder cloud. De tablet leest daarmee voor wat er op zijn scherm staat; de backend praat namens
-hem met die dienst (`SPEECH_PROVIDER=http`). Zonder dienst blijft alles werken — de tablet valt dan terug
-op de stem van het apparaat zelf. Zie [docs/adr/0015](docs/adr/0015-speech-synthesis-piper.md).
+hem met die dienst. Zonder dienst blijft alles werken — de tablet valt dan terug op de stem van het
+apparaat zelf. Zie [docs/adr/0015](docs/adr/0015-speech-synthesis-piper.md).
+
+Aanzetten kost drie regels in `server/.env` (`SPEECH_PROVIDER=http`, `SPEECH_SERVICE_URL` en
+`SPEECH_SERVICE_TOKEN`) plus een draaiende dienst met minstens de standaardstem. Dat
+**`SPEECH_SERVICE_TOKEN`** is geen sleutel die je ergens ophaalt: het is een zelfverzonnen gedeeld
+geheim tussen die twee processen, dat exact gelijk moet zijn aan `SERVICE_TOKEN` in
+`speech-service/.env`. Genereer er een met
+`python -c "import secrets; print('spr_' + secrets.token_hex(24))"`. De volledige opzet — stemmen
+ophalen, het geheim, en wat te doen als beluisteren niet lukt — staat in
+[`speech-service/README.md`](speech-service/README.md).
 
 Buiten de npm-workspaces staat [`ai-worker/`](ai-worker/): een **losstaande Python-applicatie** (T5.6) die
 als externe Ollama-worker AI-jobs van de backend-wachtrij verwerkt. Het is bewust geen npm-workspace — het

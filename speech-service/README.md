@@ -22,10 +22,46 @@ Waarom een aparte dienst en geen bibliotheek in de backend:
 cd speech-service
 python -m venv .venv && . .venv/bin/activate
 pip install piper-tts
-cp .env.example .env          # vul SERVICE_TOKEN in
+cp .env.example .env
 ```
 
-Daarna minstens één stem downloaden. De stemmen die Intento aanbiedt:
+### Het gedeelde geheim (`SERVICE_TOKEN`)
+
+`SERVICE_TOKEN` is **geen sleutel die je ergens ophaalt** — er is geen partij die hem uitgeeft of
+kent. Het is een zelfverzonnen wachtwoord tussen twee processen op jouw machine: de backend stuurt
+hem mee als `Authorization: Bearer …`, deze dienst vergelijkt hem met wat in zijn eigen `.env` staat
+en antwoordt anders met `401`. Verder doet hij niets: hij hoort bij geen gebruiker en geeft geen
+rechten binnen Intento. (Vergelijk het met `WORKER_TOKEN` van `ai-worker/`, met dat verschil dat die
+door de backend wordt uitgegeven en gehasht in de database staat.)
+
+Genereer er zelf een en zet **dezelfde waarde** op twee plekken:
+
+```bash
+# één waarde genereren
+python -c "import secrets; print('spr_' + secrets.token_hex(24))"
+```
+
+| Bestand | Variabele | Wie gebruikt hem |
+|---|---|---|
+| `speech-service/.env` | `SERVICE_TOKEN` | deze dienst — hij verwacht precies deze waarde |
+| `server/.env` | `SPEECH_SERVICE_TOKEN` | de backend — hij stuurt deze waarde mee |
+
+Lopen ze uiteen, dan krijgt de backend `401` van de dienst en meldt de beheeromgeving dat
+beluisteren niet lukte. Na een wijziging moeten **beide** processen opnieuw starten; ze lezen hun
+`.env` alleen bij het opstarten.
+
+**Leeg laten mag, met één voorwaarde.** Is `SERVICE_TOKEN` leeg, dan controleert de dienst niets en
+stuurt de backend ook geen header — handig om snel te beginnen, en verdedigbaar zolang `HOST` op
+`127.0.0.1` staat en dus alleen processen op dezelfde machine erbij kunnen. Zet je `HOST` op
+`0.0.0.0` (dienst op een andere machine), dan is een token verplicht: zonder token kan iedereen die
+de poort bereikt jouw CPU laten praten. `GET /health` blijft altijd zonder token bereikbaar, zodat
+een gezondheidscheck geen geheim nodig heeft.
+
+Beide `.env`-bestanden staan in `.gitignore` en horen nooit in git.
+
+## Stemmen ophalen
+
+Minstens één stem downloaden. De stemmen die Intento aanbiedt:
 
 ```bash
 python -m piper.download_voices --data-dir voices \
@@ -54,13 +90,23 @@ De dienst logt bij het opstarten welke stemmen hij gevonden heeft. Snel controle
 curl http://127.0.0.1:5002/health
 # {"status": "ok", "voices": ["nl_BE-nathalie-medium", "nl_NL-pim-medium", ...]}
 
+SERVICE_TOKEN=$(grep '^SERVICE_TOKEN=' .env | cut -d= -f2)
 curl -X POST http://127.0.0.1:5002/synthesize \
   -H "Authorization: Bearer $SERVICE_TOKEN" -H "Content-Type: application/json" \
   -d '{"text":"Ik wil graag water drinken.","voice":"nl_NL-pim-medium"}' --output zin.wav
 ```
 
-Koppel hem daarna aan de backend met `SPEECH_PROVIDER=http`, `SPEECH_SERVICE_URL` en
-`SPEECH_SERVICE_TOKEN` in `server/.env` (zie de hoofd-`.env.example`).
+Koppel hem daarna aan de backend — drie regels in `server/.env` (zie de hoofd-`.env.example`):
+
+```bash
+SPEECH_PROVIDER=http
+SPEECH_SERVICE_URL=http://127.0.0.1:5002
+SPEECH_SERVICE_TOKEN=…            # exact dezelfde waarde als SERVICE_TOKEN hierboven
+```
+
+Ontbreken die regels, dan draait de backend op `SPEECH_PROVIDER=none` en antwoordt hij met
+`503 SPEECH_UNAVAILABLE`; de tablet valt dan terug op de stem van het apparaat, wat eruitziet alsof
+de stemkeuze niets doet. Herstart de backend na het wijzigen van `.env`.
 
 ## API
 
@@ -97,6 +143,9 @@ Loop deze drie langs — in deze volgorde:
    apparaat, wat eruitziet alsof de stemkeuze niets doet. Nodig zijn `SPEECH_PROVIDER`,
    `SPEECH_SERVICE_URL` en `SPEECH_SERVICE_TOKEN` (dezelfde waarde als `SERVICE_TOKEN` hier).
 2. **Leeft de dienst?** `curl http://127.0.0.1:5002/health` moet de stemmen opsommen.
+   Krijg je wél `health` maar `401` op `/synthesize`, dan lopen `SERVICE_TOKEN` (hier) en
+   `SPEECH_SERVICE_TOKEN` (`server/.env`) uiteen — of is één van beide na een wijziging niet
+   herstart.
 3. **Zijn de stemmodellen compleet?** Een afgebroken download laat een half `.onnx`-bestand achter.
    Een `medium`-stem hoort ± 63 MB te zijn; is hij kleiner, dan meldt de dienst bij het spreken
    "Stemmodel … kon niet geladen worden". Controleer ze in één keer:
