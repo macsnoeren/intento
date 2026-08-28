@@ -81,6 +81,41 @@ curl http://127.0.0.1:3000/health
 # {"status":"ok","service":"intento-server","timestamp":"…"}
 ```
 
+## Draaien in Docker
+
+De vier onderdelen hebben elk een eigen image; `compose.yaml` zet ze samen neer. De database is
+**SQLite op een volume** (zie fase 19 in `TASKS.md`) — bewust, want schema, migratielijn en
+runtime-adapter zijn nu SQLite en de overstap naar PostgreSQL hoort een eigen, zichtbare stap te zijn.
+
+```bash
+cp .env.docker.example .env.docker    # vul de geheimen in (SIGNING_SECRET, ENCRYPTION_KEY, SPEECH_SERVICE_TOKEN)
+npm run docker:build
+npm run docker:up                     # web op http://localhost:8080, API op http://localhost:3000
+npm run docker:logs                   # meekijken
+npm run docker:down                   # stoppen (volumes blijven staan)
+```
+
+De npm-scripts geven `--env-file .env.docker` mee. Draai je `docker compose` met de hand, doe dat dan
+ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig heeft.
+
+**Wat waar draait.** `server` migreert bij elke start automatisch (`prisma migrate deploy`) en draait
+als niet-root; `web` is een nginx met SPA-fallback, zodat een harde refresh op `/tablet` werkt;
+`speech` luistert alleen op het compose-netwerk en krijgt zijn stemmen uit een volume dat een
+eenmalige init-dienst vult. De **AI-worker** staat achter een profiel, want die heeft eerst een token
+nodig:
+
+```bash
+docker compose --env-file .env.docker exec server \
+  node dist/scripts/create-worker-token.js --name docker-worker   # token één keer zichtbaar
+# zet het in .env.docker als WORKER_TOKEN, daarna:
+docker compose --env-file .env.docker --profile ai up -d
+```
+
+De web-app bakt de API-URL in bij de **build** (`VITE_API_URL`): wijs je hem naar een andere host, dan
+hoort daar `npm run docker:build` bij. Dat de API een eigen poort heeft is een bewuste keuze — de SPA
+heeft een route `/operator` en de API een routetak `/operator/*`, dus één origin delen zou botsen (zie
+[docs/adr/0016](docs/adr/0016-containers-en-compose.md)).
+
 ## Database
 
 Prisma met SQLite (dev/test) en een PostgreSQL-compatibel schema. Schema:

@@ -45,6 +45,32 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   Harde grens: een zetje gaat **alleen over de bediening, nooit over de inhoud** — geen "misschien bedoel
   je drinken?", want dan zou de app namens de gebruiker gaan praten (DESIGN §7.8).
 
+### Toegevoegd — fase 19: alles in Docker (op SQLite)
+
+- **`docker compose up` en de hele applicatie staat er.** Vier images — backend, web-app, spraakdienst
+  en AI-worker — met één `compose.yaml` eromheen, een `.dockerignore`, een `.env.docker.example` en
+  `npm run docker:build|up|down|logs`. De backend **migreert bij elke start** (`prisma migrate deploy`
+  in het entrypoint), zodat een leeg volume vanzelf een werkende database wordt, en draait als
+  niet-root. De web-app is een nginx met SPA-fallback: een harde refresh op `/tablet` geeft nu geen 404
+  meer. De spraakdienst luistert alleen op het compose-netwerk en krijgt zijn stemmen uit een volume
+  dat een eenmalige init-dienst vult; de AI-worker staat achter het profiel `ai`, omdat die eerst een
+  token van de backend nodig heeft. Zie [ADR-0016](docs/adr/0016-containers-en-compose.md) voor de
+  afwegingen (waarom vier images, waarom Debian en geen Alpine, waarom de stemmen in een volume, en
+  waarom de API een eigen poort krijgt).
+- **Bewust op SQLite.** DESIGN §9.3 noemt PostgreSQL voor productie, maar schema, migratielijn én
+  runtime-adapter zijn nu SQLite; die overstap hoort een eigen zichtbare taak te zijn en staat op de
+  "na de MVP"-lijst. De database is dus een bestand op een named volume — en overleeft
+  `docker compose down` (nagemeten).
+- **Twee valkuilen die het bouwen opleverden**, allebei vastgelegd in commentaar zodat ze niet
+  terugkomen: `npm ci --ignore-scripts` (nodig om `prisma generate` uit de dependency-laag te houden)
+  zet óók de install-scripts van `argon2` en `better-sqlite3` stil — zonder een expliciete
+  `npm rebuild` geeft `/health` vrolijk 200 terwijl de eerste databasequery omvalt. En Compose leest
+  zijn eigen variabelen alleen uit het bestand dat je met `--env-file` meegeeft; `env_file:` vult
+  alleen de container. Vandaar de npm-scripts.
+- **`prisma` is verhuisd van `devDependencies` naar `dependencies`** in `server/package.json`: in een
+  container draait de CLI bij élke start (`migrate deploy`), dus daar is het runtime-gereedschap. Dat
+  maakt `npm prune --omit=dev` in het image mogelijk — scheelt ± 400 MB.
+
 ### Toegevoegd — `npm run stop`
 
 - **Eén commando dat alle processen van het project stopt** (backend, web-app, spraakdienst en

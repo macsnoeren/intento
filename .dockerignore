@@ -1,0 +1,33 @@
+# Build-context van server/ en web/ is de repo-root (npm-workspaces). Zonder deze lijst gaan er
+# honderden MB's mee die in het image toch opnieuw worden opgebouwd — of daar juist nooit horen.
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.github
+.githooks
+
+# Lokale database en geheimen horen niet in een image.
+**/.env
+**/*.db
+**/*.db-journal
+server/prisma/dev.db*
+
+# Stemmodellen (± 63 MB per stuk) komen in een volume, niet in de context.
+speech-service/voices
+speech-service/.venv
+**/__pycache__
+**/*.pyc
+
+# Documentatie en ontwerp: nuttig in de repo, niet in een image.
+INTENTO-DESIGN
+PROJECT-NODEJS
+docs
+*.md
+!README.md
+
+# Testartefacten en editor-rommel.
+coverage
+.vscode
+.idea

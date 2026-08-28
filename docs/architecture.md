@@ -266,6 +266,21 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   gedeactiveerde omgeving onmiddellijk stopt. In de web-bundel is het een aparte route-tak
   (`routes.tsx` → `/operator`). Zie [adr/0011](adr/0011-platform-operator-console.md).
 
+## Draaien in containers (fase 19)
+
+Vier images, één `compose.yaml` in de repo-root:
+
+| Dienst | Image | Bijzonderheid |
+|---|---|---|
+| `server` | `server/Dockerfile`, Debian + Node 24 | migreert in het entrypoint (`prisma migrate deploy`), draait als niet-root, SQLite op een named volume |
+| `web` | `web/Dockerfile`, nginx-alpine | statische build; `VITE_API_URL` wordt **bij de build** ingebakken |
+| `speech` | `speech-service/Dockerfile`, Python + Piper | alleen op het interne netwerk; stemmen uit een volume dat een eenmalige init-dienst vult |
+| `ai-worker` | `ai-worker/Dockerfile`, Python (stdlib) | achter compose-profiel `ai`; heeft een worker-token van de backend nodig |
+
+Build-context van `server` en `web` is de **repo-root** (npm-workspaces, `shared/`). De database is
+bewust SQLite; het PostgreSQL-pad staat als losse stap op de "na de MVP"-lijst. Afwegingen:
+[adr/0016](adr/0016-containers-en-compose.md); bediening: README, sectie "Draaien in Docker".
+
 ## Gerelateerde documentatie
 
 - Belangrijke keuzes met onderbouwing: [adr/](adr/)

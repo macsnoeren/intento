@@ -1,0 +1,115 @@
+# Intento in Docker (fase 19).
+#
+#   cp .env.docker.example .env.docker   # vul de geheimen in
+#   docker compose up -d --build
+#
+# Vier onderdelen, elk een eigen image: de backend, de web-app, de spraakdienst en de AI-worker. De
+# laatste twee staan achter een profiel of hebben eigen voorwaarden; zie de opmerkingen hieronder.
+#
+# De database is bewust **SQLite op een volume** (zie fase 19 in TASKS.md): het schema, de migratielijn
+# en de runtime-adapter zijn nu SQLite, en die overstap hoort een eigen, zichtbare taak te zijn.
+
+name: intento
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    env_file: [.env.docker]
+    environment:
+      # De database staat op het volume hieronder, niet in het image.
+      DATABASE_URL: file:/data/intento.db
+      # NODE_ENV komt bewust uit `.env.docker` en staat hier niet vast. Het image draait standaard op
+      # `production`, en dan eist de prod-guard in `env.ts` terecht https, echte secrets, een SMTP-URL
+      # en `COOKIE_SECURE=true`. Voor een lokale http://localhost-stack zet je hem in `.env.docker` op
+      # `development`; zodra er TLS voor staat, zet je hem terug op `production` en vul je de rest in.
+      # De spraakdienst is binnen het compose-netwerk bereikbaar op zijn servicenaam.
+      SPEECH_PROVIDER: http
+      SPEECH_SERVICE_URL: http://speech:5002
+    volumes:
+      - intento-db:/data
+    ports:
+      # De API krijgt een eigen poort: de web-app kan hem niet delen (route `/operator` botst met de
+      # API-tak `/operator/*`). Zie ADR-0016.
+      - '${SERVER_PORT:-3000}:3000'
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        # Vite bakt deze URL in de bundel: dit is de API-URL zoals de **browser** hem ziet, niet zoals
+        # de containers elkaar zien. Wijzig je hem, dan hoort daar `--build` bij.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    ports:
+      - '${WEB_PORT:-8080}:8080'
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # --- Spraakuitvoer (T19.2) ---------------------------------------------------------------------
+  # Eenmalige klus die de stemmodellen in het volume zet. Draait bij elke `up` heel even, ziet dat de
+  # bestanden er al staan en stopt meteen; alleen de eerste keer (of na een nieuwe stem in de lijst)
+  # downloadt hij echt. Zo staat de stemkeuze in `.env.docker` en niet in een image.
+  speech-voices:
+    build:
+      context: speech-service
+    user: root
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >
+        python -m piper.download_voices --data-dir /voices ${SPEECH_VOICES:-nl_NL-pim-medium nl_NL-alex-medium nl_NL-ronnie-medium nl_BE-nathalie-medium}
+        && chown -R 1000:1000 /voices
+    volumes:
+      - intento-voices:/voices
+    restart: 'no'
+
+  speech:
+    build:
+      context: speech-service
+    env_file: [.env.docker]
+    environment:
+      # Binnen het compose-netwerk moet hij wél op alle interfaces luisteren; daarom is het gedeelde
+      # geheim hier geen luxe maar voorwaarde (zie speech-service/README.md).
+      HOST: 0.0.0.0
+      VOICES_DIR: /voices
+      SERVICE_TOKEN: '${SPEECH_SERVICE_TOKEN:?SPEECH_SERVICE_TOKEN ontbreekt in .env.docker}'
+    volumes:
+      - intento-voices:/voices
+    depends_on:
+      speech-voices:
+        condition: service_completed_successfully
+    # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen, niet de host of het netwerk.
+    restart: unless-stopped
+
+  # --- AI-worker (T19.3) -------------------------------------------------------------------------
+  # Achter het profiel `ai`: hij heeft een WORKER_TOKEN nodig dat de backend éérst moet uitgeven, en
+  # een bereikbare Ollama. Starten met: docker compose --profile ai up -d
+  ai-worker:
+    build:
+      context: ai-worker
+    profiles: ['ai']
+    env_file: [.env.docker]
+    environment:
+      BACKEND_URL: http://server:3000
+      # Leeg laten mag hier: de worker zelf stopt dan luid met "WORKER_TOKEN is verplicht". Een harde
+      # eis in compose zou ook `docker compose config` en een gewone `up` (zónder profiel `ai`) breken,
+      # want interpolatie geldt voor het hele bestand. Munten doe je zo:
+      #   docker compose exec server node dist/scripts/create-worker-token.js --name docker-worker
+      WORKER_TOKEN: '${WORKER_TOKEN:-}'
+      # Draait Ollama op de host, dan is `host.docker.internal` het adres vanuit de container.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3:4b}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  intento-db:
+  intento-voices:

@@ -10,6 +10,9 @@ build/
 .env
 .env.*
 !.env.example
+# De compose-sjabloon hoort juist wél in git (het bevat geen geheimen, alleen uitleg); het echte
+# `.env.docker` blijft door de regel hierboven buiten.
+!.env.docker.example
 
 # Database (dev/test) — nooit committen; opnieuw op te bouwen via migraties/seed
 *.db
@@ -30,3 +33,7 @@ npm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Compose-omgeving met geheimen (fase 19); het sjabloon `.env.docker.example` staat hierboven expliciet
+# uitgezonderd en hoort wél in git.
+.env.docker

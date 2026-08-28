@@ -670,6 +670,46 @@ SPEECH_SERVICE_URL=http://127.0.0.1:5002 SPEECH_SERVICE_TOKEN=lokaal-geheim \
 > je één keer tikt; daarna spreekt de app ook uit zichzelf. Dit hoort op een écht apparaat getest te
 > worden, niet in een desktopbrowser.
 
+## Deel G — De stack in Docker (fase 19)
+
+Vereist Docker met de Compose-plug-in. Alles hieronder draait naast je gewone ontwikkelopstelling; de
+containers gebruiken hun eigen database (een volume), niet je `server/prisma/dev.db`.
+
+```bash
+cp .env.docker.example .env.docker    # vul SIGNING_SECRET, ENCRYPTION_KEY en SPEECH_SERVICE_TOKEN
+npm run docker:build
+npm run docker:up
+```
+
+- [ ] `docker compose --env-file .env.docker ps` → **Verwacht:** `server`, `web` en `speech` zijn
+      `healthy`; `speech-voices` is `exited (0)` (dat is de eenmalige stemmen-download).
+- [ ] `curl http://localhost:3000/health` → **Verwacht:** `{"status":"ok",…}`.
+- [ ] Open <http://localhost:8080> en meld een organisatie aan. **Verwacht:** het lukt — dat bewijst dat
+      de migraties op het lege volume gedraaid hebben en dat `argon2` en `better-sqlite3` in het image
+      werken.
+- [ ] Ga naar <http://localhost:8080/tablet> en druk op **F5**. **Verwacht:** de pagina laadt (geen 404);
+      dat is de SPA-fallback van nginx.
+- [ ] `docker compose --env-file .env.docker exec server id` → **Verwacht:** `uid=1000(node)`, dus niet
+      root.
+- [ ] `docker compose --env-file .env.docker exec server node dist/scripts/smoke-speech.js` →
+      **Verwacht:** `status=200 type=audio/wav … wav=true`, en een tweede regel met een cachetreffer.
+- [ ] `npm run docker:down && npm run docker:up` → **Verwacht:** je account bestaat nog (inloggen lukt)
+      en de stemmen worden niet opnieuw gedownload (`ls -l /voices` toont dezelfde tijdstempels).
+
+### G.1 Met de AI-worker
+
+```bash
+docker compose --env-file .env.docker exec server \
+  node dist/scripts/create-worker-token.js --name docker-worker
+# zet het token in .env.docker als WORKER_TOKEN en AI_PROVIDER=queue, daarna:
+docker compose --env-file .env.docker --profile ai up -d
+```
+
+- [ ] `GET /ai/status` als ingelogde beheerder → **Verwacht:** `"workersOnline": 1` en `"active": true`.
+- [ ] **Let op:** Ollama luistert standaard alleen op `127.0.0.1` en is dan **niet** bereikbaar vanuit
+      een container. Start hem als `OLLAMA_HOST=0.0.0.0 ollama serve`, of zet `OLLAMA_URL` op een Ollama
+      elders. Zonder bereikbare Ollama draait de worker wel, maar faalt elke job.
+
 ## 8. Opruimen
 
 ```bash

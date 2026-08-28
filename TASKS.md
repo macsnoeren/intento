@@ -959,6 +959,78 @@ Nederlandse vrouwenstem op de server is T18.5.*
 
 ---
 
+## Fase 19 — Alles in Docker (SQLite)
+
+*De vier onderdelen (backend, web-app, spraakdienst, AI-worker) draaien nu elk met een eigen
+opstartcommando, eigen Node/Python-versie en eigen `.env`. Doel van deze fase: `docker compose up` en
+het staat er — reproduceerbaar, zonder dat iemand eerst Node 24, Python 3.10 en Piper op zijn machine
+zet. **Bewust op SQLite.** DESIGN §9.3 noemt PostgreSQL voor productie, maar het schema, de
+migratielijn (`migration_lock.toml`) én de runtime-adapter (`PrismaBetterSqlite3`) zijn nu SQLite;
+overstappen vraagt een eigen migratielijn en hoort niet verstopt te zitten in een containertaak. De
+database is dus een bestand op een volume, en het PostgreSQL-pad staat op de "na de MVP"-lijst.*
+
+*Drie dingen die de vorm bepalen, uit een verkenning van de repo: (1) `argon2` en `better-sqlite3`
+zijn native modules die tegen glibc bouwen — dus een Debian-basis (`bookworm-slim`), geen Alpine;
+(2) `server` en `web` hebben `shared/` nodig, dus hun build-context is de **repo-root** en een strakke
+`.dockerignore` is geen luxe; (3) de web-app en de API kunnen niet zonder meer één origin delen — de
+SPA heeft een route `/operator` en de API een routetak `/operator/*`. De API krijgt daarom een eigen
+poort en de web-app bakt die URL in bij de build (`VITE_API_URL`).*
+
+- [x] **T19.1 Backend en web-app in een image, samen in compose**
+  *DESIGN: §9.2, §9.3.* Werk: `.dockerignore` (zonder die is de build-context honderden MB's aan
+  `node_modules`, `dev.db` en stemmodellen), `server/Dockerfile` en `web/Dockerfile` — beide
+  multi-stage met de repo-root als context vanwege de npm-workspaces. De backend bouwt in een
+  builder-stage (`npm ci` → `shared` → `prisma generate` → `tsc`) en draait in een slanke stage als
+  **non-root**, met een entrypoint dat éérst `prisma migrate deploy` doet en dan pas de server start:
+  een verse database hoort vanzelf goed te komen (CLAUDE.md kernprincipe 9). De web-app bouwt met
+  `VITE_API_URL` als build-arg en wordt door nginx geserveerd met SPA-fallback, anders geeft een harde
+  refresh op `/tablet` een 404. Daarnaast een `compose.yaml` met beide diensten, een **named volume**
+  voor het SQLite-bestand en een `.env.docker.example` met álle variabelen die nodig zijn.
+  *Acceptatie:* `docker compose up -d --build` op een schone machine geeft twee gezonde containers;
+  de database wordt bij de eerste start automatisch gemigreerd (aantoonbaar op een leeg volume);
+  `/health` antwoordt; in de browser kun je inloggen/registreren, een gebruiker aanmaken en een tablet
+  koppelen; een harde refresh op `/tablet` werkt; het serverproces draait niet als root (aantoonbaar
+  met `docker compose exec server id`).
+
+- [x] **T19.2 De spraakdienst in een image, met de stemmen in een volume**
+  *DESIGN: §5.3, §9.2, ADR-0015.* Werk: `speech-service/Dockerfile` (`python:3.12-slim`, alleen
+  `piper-tts` als dependency) plus een eenmalige init-dienst die de stemmen naar een **named volume**
+  haalt. Bewust niet in het image bakken: dat zijn ± 63 MB per stem, het maakt de stemkeuze een
+  build-tijdbeslissing, en bij een afgebroken download zit je met een kapot image in plaats van een
+  volume dat je opnieuw vult (zie de fix van 2026-08-28). De backend krijgt de dienst via
+  `SPEECH_PROVIDER=http` en het gedeelde geheim uit hetzelfde `.env`-bestand; de dienst luistert alleen
+  op het compose-netwerk, niet op de host.
+  *Acceptatie:* na `docker compose up` somt de healthcheck van de dienst de stemmen op; de tablet in de
+  browser spreekt een zin uit met de gekozen stem; het volume overleeft `docker compose down` (zonder
+  `-v`) en de stemmen worden dan niet opnieuw gedownload.
+
+- [x] **T19.3 De AI-worker in een image, achter een profiel**
+  *DESIGN: §7.2, §9.2, ADR-0010.* Werk: `ai-worker/Dockerfile` (stdlib-only, dus vrijwel leeg) en een
+  compose-**profiel** `ai`, zodat de standaard-`up` niet struikelt over een worker die nog geen token
+  heeft. De worker heeft namelijk twee dingen nodig die de basis-stack niet kan leveren: een
+  `WORKER_TOKEN` dat de backend éérst moet uitgeven, en een bereikbare Ollama (meestal op een andere
+  machine, met GPU). Beide horen in de documentatie als expliciete bootstrap-stap, inclusief hoe je het
+  token in het draaiende systeem mint.
+  *Acceptatie:* `docker compose --profile ai up -d` start de worker; hij meldt zich bij de backend en
+  `GET /ai/status` toont een actieve worker; zonder profiel start de rest gewoon en meldt de AI-status
+  netjes dat er geen worker is.
+
+- [x] **T19.4 Afronden: gezondheid, geheimen en documentatie**
+  *DESIGN: §9.4, §9.5.* Werk: healthchecks en `restart: unless-stopped` op alles wat een poort heeft,
+  `depends_on` met `condition: service_healthy` zodat de web-app niet vóór de backend praat, en de
+  containers alleen publiceren wat naar buiten hoort (de spraakdienst en de database dus niet). Alle
+  geheimen via `env_file` — nooit in een image of in `compose.yaml`, en de bestaande prod-guard in
+  `env.ts` (`COOKIE_SECURE`, echte secrets) moet ook in een container kloppen. Verder `npm run
+  docker:build|up|down|logs` als korte weg, een README-sectie die de hele weg beschrijft (bouwen,
+  starten, bootstrappen, stoppen, bijwerken), en **ADR-0016** met de vier beslissingen die je later niet
+  wilt herleiden: vier images i.p.v. één, Debian i.p.v. Alpine, stemmen in een volume, en een aparte
+  poort voor de API vanwege de `/operator`-botsing.
+  *Acceptatie:* `docker compose config` valideert; een container die omvalt komt vanzelf terug; `docker
+  compose down && docker compose up -d` behoudt gebruikers en stemmen; de README-weg is één keer van
+  begin tot eind gevolgd op een schone `docker compose down -v`.
+
+---
+
 ## Onderhoud (ontdekt meerwerk)
 
 - [ ] **TO.1 De wachtrij-tests zijn tijdgevoelig en daardoor wisselvallig**
@@ -988,4 +1060,4 @@ Nederlandse vrouwenstem op de server is T18.5.*
 
 ## Na de MVP (fase 4–5 uit DESIGN §10.1 — nog niet uitwerken)
 
-Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.
+**PostgreSQL-pad** (adapter `@prisma/adapter-pg`, provider omzetten, eigen migratielijn, testsuite tegen beide draaien) — DESIGN §9.3 noemt PostgreSQL voor productie; sinds fase 19 draait de containerstack bewust op SQLite met een volume, dus dit is een losse, zichtbare stap · Eigen gespreksstrategieën per organisatie (beheerbaar in de database i.p.v. ingebouwd — vraagt tenant-isolatie op de strategie-tabel en een beheer-UI met veiligheidsgrenzen per parameter) · communicatie op afstand (events/notificaties/queue) · offline-modus · oogbesturing · uitgebreide AAC-relaties · integraties met zorgsystemen.
