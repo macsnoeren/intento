@@ -9,6 +9,7 @@ import {
   type UpdateSettingsRequest,
   type UserPublic,
 } from '@intento/shared';
+import { ApiRequestError } from './api.ts';
 
 const ICON_OPTIONS: readonly IconsPerScreen[] = [2, 4, 6, 8];
 
@@ -50,8 +51,15 @@ export function SettingsForm({
     setPreviewing(voice);
     try {
       await onPreviewVoice(voice);
-    } catch {
-      setPreviewError('Beluisteren lukte niet. Draait de spraakdienst?');
+    } catch (err) {
+      // Toon wát er misging in plaats van alleen "lukte niet": de server weet of de spraakdienst
+      // ontbreekt, een stemmodel stuk is of de aanvraag te lang duurde, en zonder die zin gaat een
+      // beheerder op zoek naar een dienst die gewoon draait.
+      setPreviewError(
+        err instanceof ApiRequestError
+          ? `Beluisteren lukte niet: ${err.message}`
+          : 'Beluisteren lukte niet. Draait de spraakdienst?',
+      );
     } finally {
       setPreviewing(null);
     }

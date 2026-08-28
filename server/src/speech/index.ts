@@ -93,7 +93,19 @@ export class HttpSpeechSynthesizer implements SpeechSynthesizer {
       };
     } catch (error) {
       if (error instanceof HttpError) throw error;
-      throw new HttpError(504, 'SPEECH_TIMEOUT', 'De spraakdienst antwoordde niet op tijd.');
+      // Onderscheid de time-out van "de dienst deed iets anders raars". Alles op één hoop gooien
+      // leverde een misleidende melding op: bij een kapot stemmodel viel de verbinding weg en las de
+      // begeleider "de spraakdienst antwoordde niet op tijd", terwijl de dienst gewoon draaide.
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new HttpError(504, 'SPEECH_TIMEOUT', 'De spraakdienst antwoordde niet op tijd.');
+      }
+      throw new HttpError(
+        502,
+        'SPEECH_FAILED',
+        `De spraakdienst is niet bereikbaar of gaf een onverwacht antwoord (${
+          error instanceof Error ? error.message : 'onbekende fout'
+        }).`,
+      );
     } finally {
       clearTimeout(timer);
     }

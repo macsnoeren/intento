@@ -45,6 +45,20 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   Harde grens: een zetje gaat **alleen over de bediening, nooit over de inhoud** — geen "misschien bedoel
   je drinken?", want dan zou de app namens de gebruiker gaan praten (DESIGN §7.8).
 
+### Gerepareerd — spraakuitvoer, direct na de eerste echte opstelling
+
+- **Een afgebroken download van een stemmodel liet de verbinding wegvallen.** Bij de eerste opstelling
+  bleek `nl_NL-pim-medium.onnx` half gedownload (39 van 63 MB) — net de standaardstem. Piper gooide bij
+  het laden een `onnxruntime`-fout die ongefilterd uit de handler kwam: de dienst verbrak de verbinding,
+  de backend zag dat als een **time-out** en de begeleider las "Beluisteren lukte niet. Draait de
+  spraakdienst?" — terwijl die gewoon draaide. Drie dingen aangepast: de dienst vangt een onlaadbaar
+  model af als een gewone fout en zegt erbij dat de download waarschijnlijk is afgebroken (mét het
+  commando om hem opnieuw op te halen); de backend houdt een echte time-out (504) apart van een
+  onbereikbare of onverwacht antwoordende dienst (502 mét reden); en de beheer-UI toont die reden in
+  plaats van alleen "lukte niet". Wie een fout leest, hoort te weten waar hij moet zoeken.
+- **`speech-service/README.md`** heeft er een sectie "Als het niet werkt" bij, met een controle die alle
+  stemmodellen in één keer probeert te laden.
+
 ### Toegevoegd — fase 17: ontwerp van de web-applicatie
 
 - **T17.1 Eén huisstijl, en een menu in plaats van tien tabs.** De beheeromgeving zette al haar

@@ -87,6 +87,36 @@ python -m unittest discover -t . -s . -p "test_*.py"
 De tests dekken de stem-id's (inclusief de grens tegen path traversal), de configuratie, en een echte
 HTTP-round-trip tegen een server op een vrije poort: token, invoervalidatie, WAV-antwoord en foutvorm.
 
+## Als het niet werkt
+
+**"Beluisteren lukte niet" in de beheeromgeving, of de tablet blijft op de apparaatstem.**
+Loop deze drie langs — in deze volgorde:
+
+1. **Staat de koppeling in `server/.env`?** Zonder `SPEECH_PROVIDER=http` draait de backend op `none`
+   en antwoordt hij met `503 SPEECH_UNAVAILABLE` — de tablet valt dan terug op de stem van het
+   apparaat, wat eruitziet alsof de stemkeuze niets doet. Nodig zijn `SPEECH_PROVIDER`,
+   `SPEECH_SERVICE_URL` en `SPEECH_SERVICE_TOKEN` (dezelfde waarde als `SERVICE_TOKEN` hier).
+2. **Leeft de dienst?** `curl http://127.0.0.1:5002/health` moet de stemmen opsommen.
+3. **Zijn de stemmodellen compleet?** Een afgebroken download laat een half `.onnx`-bestand achter.
+   Een `medium`-stem hoort ± 63 MB te zijn; is hij kleiner, dan meldt de dienst bij het spreken
+   "Stemmodel … kon niet geladen worden". Controleer ze in één keer:
+
+   ```bash
+   python - <<'PY'
+   from pathlib import Path
+   from piper import PiperVoice
+   for f in sorted(Path("voices").glob("*.onnx")):
+       try:
+           PiperVoice.load(str(f), config_path=str(f) + ".json")
+           print(f"{f.name}: OK ({f.stat().st_size} bytes)")
+       except Exception as exc:
+           print(f"{f.name}: STUK ({f.stat().st_size} bytes) — {type(exc).__name__}")
+   PY
+   ```
+
+   Haal een kapot model opnieuw op met `python -m piper.download_voices --data-dir voices <naam>`
+   (verwijder het halve bestand eerst; de downloader slaat een bestaand bestand over).
+
 ## Prestaties
 
 Gemeten op een Intel i7-6700 (8 threads, **geen GPU**), `piper-tts` 1.7.0:

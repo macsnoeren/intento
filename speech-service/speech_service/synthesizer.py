@@ -60,7 +60,18 @@ class PiperSynthesizer:
                 raise SynthesisError(
                     "Piper is niet geïnstalleerd. Installeer het met: pip install piper-tts"
                 ) from exc
-            model = PiperVoice.load(str(path), config_path=str(path) + ".json")
+            try:
+                model = PiperVoice.load(str(path), config_path=str(path) + ".json")
+            except Exception as exc:  # noqa: BLE001 - onnxruntime gooit van alles
+                # Meestal een **afgebroken download**: een half `.onnx`-bestand laadt niet en
+                # onnxruntime meldt dat als "Protobuf parsing failed". Zonder deze vangst kwam die
+                # fout ongefilterd uit de handler en viel de verbinding weg — de backend zag dan een
+                # time-out en de begeleider las "draait de spraakdienst?", terwijl hij wél draaide.
+                raise SynthesisError(
+                    f"Stemmodel {path.name} kon niet geladen worden ({type(exc).__name__}). "
+                    f"Waarschijnlijk is de download afgebroken; haal hem opnieuw op met: "
+                    f"python -m piper.download_voices --data-dir {self._voices_dir} {voice.model}"
+                ) from exc
             self._models[voice.key] = model
             return model
 

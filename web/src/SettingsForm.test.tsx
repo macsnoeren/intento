@@ -8,6 +8,7 @@ import {
   type UserPublic,
 } from '@intento/shared';
 import { SettingsForm } from './SettingsForm.tsx';
+import { ApiRequestError } from './api.ts';
 
 /**
  * Instellingenformulier (DESIGN §5.3), met de nadruk op de **stemkeuze** (T18.2): de begeleider kiest
@@ -106,6 +107,30 @@ describe('instellingen — stemkeuze', () => {
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
       'Beluisteren lukte niet. Draait de spraakdienst?',
+    );
+  });
+
+  it('laat de reden van de server zien in plaats van alleen "lukte niet"', async () => {
+    // Een beheerder die "draait de spraakdienst?" leest terwijl die draait, gaat op de verkeerde plek
+    // zoeken. De server weet wat er mis is (bv. een stuk stemmodel); die zin hoort op het scherm.
+    const onPreviewVoice = vi
+      .fn()
+      .mockRejectedValue(
+        new ApiRequestError(500, 'SPEECH_FAILED', 'Stemmodel nl_NL-pim-medium.onnx is stuk.'),
+      );
+    render(
+      <SettingsForm
+        user={user({ speechEnabled: true })}
+        onSave={vi.fn()}
+        onPreviewVoice={onPreviewVoice}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pim beluisteren' }));
+
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      'Beluisteren lukte niet: Stemmodel nl_NL-pim-medium.onnx is stuk.',
     );
   });
 
