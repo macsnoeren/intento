@@ -45,6 +45,18 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   Harde grens: een zetje gaat **alleen over de bediening, nooit over de inhoud** — geen "misschien bedoel
   je drinken?", want dan zou de app namens de gebruiker gaan praten (DESIGN §7.8).
 
+### Toegevoegd — `npm run stop`
+
+- **Eén commando dat alle processen van het project stopt** (backend, web-app, spraakdienst en
+  AI-worker) en de rest met rust laat — Ollama blijft dus draaien. Aanleiding: na een dag ontwikkelen
+  bleek er een `tsx watch` van 32 uur oud rond te lopen die zijn poort allang kwijt was, en de
+  AI-worker (`python3 ./run.py`) is met geen enkel voor de hand liggend patroon te vinden. Het script
+  (`scripts/stop.sh`) eist twee dingen tegelijk voordat het iets stopt: het proces draait **in deze
+  repo** én zijn commandoregel is herkenbaar een van ónze processen. Die tweede voorwaarde is er niet
+  voor niets — je editor, je terminals en je AI-assistent hebben de projectmap óók als werkmap, en een
+  patroon als `tsx` zou een terminal treffen waarin iemand een `.tsx`-bestand bewerkt. Het script slaat
+  bovendien zichzelf en al zijn voorouders over, en gebruikt SIGTERM met SIGKILL als laatste redmiddel.
+
 ### Gerepareerd — spraakuitvoer, direct na de eerste echte opstelling
 
 - **Een afgebroken download van een stemmodel liet de verbinding wegvallen.** Bij de eerste opstelling

@@ -22,6 +22,7 @@
     "dev": "concurrently --raw \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm run dev --workspace=server",
     "dev:web": "npm run dev --workspace=web",
+    "stop": "bash scripts/stop.sh",
     "build": "npm run build --workspace=shared && npm run build --workspace=server && npm run build --workspace=web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",

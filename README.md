@@ -61,6 +61,19 @@ npm run dev:web      # alleen de web-app
 npm run build        # alle workspaces bouwen (shared → server → web)
 ```
 
+Alles weer stoppen:
+
+```bash
+npm run stop         # backend, web-app, spraakdienst en AI-worker
+```
+
+Dat stopt precies de processen van dit project — herkenbaar aan hun commando **én** aan het feit dat ze
+in deze repo draaien — en laat de rest met rust: je editor, je terminals, en **Ollama** (poort 11434),
+dat een losse dienst is die je meestal juist wilt laten staan. Handig omdat een `tsx watch` of `vite`
+die zijn poort al kwijt is anders stilletjes blijft hangen. Gebruik het liever dan `pkill -f intento`:
+dat patroon staat ook in je eigen commandoregel, dus daarmee sluit je je eigen shell af. Het script
+staat in [`scripts/stop.sh`](scripts/stop.sh); een dienst toevoegen is één regel in `TARGETS`.
+
 Snel controleren of de server leeft:
 
 ```bash
