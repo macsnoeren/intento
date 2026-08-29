@@ -92,11 +92,13 @@ cp .env.docker.example .env.docker    # vul de geheimen in (SIGNING_SECRET, ENCR
 npm run docker:build
 npm run docker:up                     # web op http://localhost:8080, API op http://localhost:3000
 npm run docker:logs                   # meekijken
-npm run docker:down                   # stoppen (volumes blijven staan)
+npm run docker:down                   # stoppen, óók de AI-worker (volumes blijven staan)
 ```
 
 De npm-scripts geven `--env-file .env.docker` mee. Draai je `docker compose` met de hand, doe dat dan
-ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig heeft.
+ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig heeft. `docker:down` en
+`docker:logs` geven daarnaast `--profile ai` mee: zonder dat blijft de AI-worker draaien terwijl de
+rest al gestopt is, want een `down` raakt standaard geen diensten uit een profiel.
 
 **Wat waar draait.** `server` migreert bij elke start automatisch (`prisma migrate deploy`) en draait
 als niet-root; `web` is een nginx met SPA-fallback, zodat een harde refresh op `/tablet` werkt;
