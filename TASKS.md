@@ -957,6 +957,22 @@ Nederlandse vrouwenstem op de server is T18.5.*
   hem leveren binnen dezelfde latency-orde als nu (of vooraf ingesproken uit de cache); de keuze en de
   afweging staan in ADR-0015.
 
+- [x] **T18.6 Een gewijzigde instelling bereikt ook een tablet die al openstaat**
+  *DESIGN: §5.3, §8.1. Gemeld tijdens het gebruik.* De stem stond in de beheeromgeving op Nathalie, maar
+  de tablet bleef de stem van het apparaat gebruiken. Uitgezocht in plaats van gegokt: de spraakdienst
+  leverde Nathalie foutloos, en `POST /device/speech` gaf voor deze gebruiker een echte WAV (49 kB, 200) —
+  ook vanuit een echte Firefox met de apparaatcookie, waar `audio.play()` gewoon lukte. De oorzaak zat in
+  de tablet zelf: die haalde de apparaatsessie **alleen bij het opstarten** op en bleef daarna tot een
+  herlaad op het profiel van dát moment staan. Werk: het profiel opnieuw ophalen op de twee natuurlijke
+  momenten — bij "Opnieuw beginnen" (een nieuw gesprek) en zodra de tablet weer op de voorgrond komt
+  (`visibilitychange`); mislukt dat, dan houdt de tablet het profiel dat hij heeft, want doorpraten met
+  oude instellingen is beter dan een gesprek afbreken. Daarnaast logt de terugval van de serverstem naar
+  de apparaatstem nu waaróm hij terugvalt: die terugval was volledig stil, en dat maakte "hij pakt mijn
+  stem niet" van buitenaf niet te onderscheiden van een spraakdienst die uitstond.
+  *Acceptatie:* een profielwijziging is na "Opnieuw beginnen" van kracht zonder de pagina te verversen
+  (test); idem zodra de tablet weer op de voorgrond komt (test); beide tests falen op de oude code; de
+  keten backend → spraakdienst is met de gekozen stem end-to-end gerookt.
+
 ---
 
 ## Fase 19 — Alles in Docker (SQLite)

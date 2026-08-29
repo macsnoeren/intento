@@ -83,6 +83,22 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
   patroon als `tsx` zou een terminal treffen waarin iemand een `.tsx`-bestand bewerkt. Het script slaat
   bovendien zichzelf en al zijn voorouders over, en gebruikt SIGTERM met SIGKILL als laatste redmiddel.
 
+### Gerepareerd — de tablet bleef op het profiel van het moment van laden
+
+- **T18.6 Een gewijzigde stem kwam niet aan op een tablet die al openstond.** In de beheeromgeving stond
+  Nathalie geselecteerd, maar de tablet bleef de stem van het apparaat gebruiken. De keten erachter bleek
+  gezond: de spraakdienst leverde Nathalie, en `POST /device/speech` gaf voor deze gebruiker een echte
+  WAV — ook in een echte Firefox met de apparaatcookie, waar het afspelen gewoon lukte. De tablet haalde
+  de apparaatsessie alleen bij het **opstarten** op en werkte dus tot een herlaad met het profiel van dat
+  moment. Hij ververst het profiel nu bij "Opnieuw beginnen" en zodra hij weer op de voorgrond komt; lukt
+  dat even niet, dan blijft het huidige profiel staan in plaats van het gesprek te onderbreken. Een
+  wijziging tijdens een lópend gesprek geldt vanaf het volgende gesprek — een gesprek dat halverwege van
+  stem of schermindeling wisselt is verwarrender dan een gesprek dat afmaakt waar het aan begon.
+- **De terugval op de apparaatstem was volledig stil.** Mislukt de serverstem (spraak staat uit, backend
+  onbereikbaar, of de browser laat het geluid nog niet toe), dan neemt de stem van het apparaat het over —
+  goed gedrag, maar zonder enig spoor. De tablet logt nu waaróm hij terugvalt, zodat "hij pakt mijn stem
+  niet" te onderscheiden is van een spraakdienst die niet draait.
+
 ### Gerepareerd — spraakuitvoer, direct na de eerste echte opstelling
 
 - **Een afgebroken download van een stemmodel liet de verbinding wegvallen.** Bij de eerste opstelling

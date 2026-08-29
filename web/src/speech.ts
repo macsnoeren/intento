@@ -97,7 +97,11 @@ export function createBrowserSpeech({ voice, fetchAudio }: BrowserSpeechOptions)
         audio.onerror = () => resolve();
       });
       return true;
-    } catch {
+    } catch (err) {
+      // Niet stil terugvallen. Een mislukking hier is precies wat de gebruiker hoort als "hij pakt mijn
+      // stem niet": een 403 omdat spraak uitstaat, een onbereikbare backend, of een browser die het
+      // geluid nog niet toestaat. Zonder dit spoor is van buitenaf niet te zien wélke van de drie het is.
+      console.warn('[intento] serverstem mislukt, terug naar de stem van het apparaat:', err);
       return false;
     }
   }

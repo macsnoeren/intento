@@ -136,7 +136,7 @@ HTTP-round-trip tegen een server op een vrije poort: token, invoervalidatie, WAV
 ## Als het niet werkt
 
 **"Beluisteren lukte niet" in de beheeromgeving, of de tablet blijft op de apparaatstem.**
-Loop deze drie langs — in deze volgorde:
+Loop deze vier langs — in deze volgorde:
 
 1. **Staat de koppeling in `server/.env`?** Zonder `SPEECH_PROVIDER=http` draait de backend op `none`
    en antwoordt hij met `503 SPEECH_UNAVAILABLE` — de tablet valt dan terug op de stem van het
@@ -165,6 +165,12 @@ Loop deze drie langs — in deze volgorde:
 
    Haal een kapot model opnieuw op met `python -m piper.download_voices --data-dir voices <naam>`
    (verwijder het halve bestand eerst; de downloader slaat een bestaand bestand over).
+
+4. **Kent de tablet de nieuwe stem al?** De tablet werkt met het profiel dat hij bij het laden ophaalde
+   en ververst dat bij "Opnieuw beginnen" en zodra hij weer op de voorgrond komt (T18.6). Een wijziging
+   tijdens een lópend gesprek geldt dus vanaf het volgende gesprek. Blijft hij daarna de apparaatstem
+   gebruiken, kijk dan in de browserconsole van de tablet: bij elke terugval staat daar waarom de
+   serverstem niet lukte.
 
 ## Prestaties
 

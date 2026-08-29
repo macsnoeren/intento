@@ -765,6 +765,64 @@ describe('gebruikersapp op de tablet', () => {
     expect(await screen.findByLabelText('Iets willen')).toBeTruthy();
     expect(screen.queryByLabelText('Iets doen')).toBeNull();
   });
+
+  /**
+   * Gemeld tijdens het gebruik (T18.6): een begeleider zette de stem op Nathalie terwijl de tablet
+   * openstond, en de tablet bleef de vorige keuze gebruiken. De sessie — en dus het communicatieprofiel —
+   * werd alleen bij het opstarten opgehaald. `showText` staat hier model voor elke profielwijziging: die
+   * is in de DOM te zien, de stem niet (de spraaklaag wordt geïnjecteerd).
+   */
+  function apiWithChangingProfile(second: CommunicationProfile): {
+    api: DeviceApi;
+    calls: () => number;
+  } {
+    const base = fakeDeviceApi({ linked: true, comm: profile({ showText: true }) });
+    const user = makeUser(second);
+    let calls = 0;
+    return {
+      calls: () => calls,
+      api: {
+        ...base,
+        deviceMe(): Promise<DeviceSessionResponse> {
+          calls += 1;
+          if (calls === 1) return base.deviceMe();
+          return Promise.resolve({
+            device: { id: 'd-1', userId: user.id, type: 'tablet', lastActive: user.createdAt },
+            user,
+          });
+        },
+      },
+    };
+  }
+
+  it('haalt het profiel opnieuw op bij een nieuw gesprek (T18.6)', async () => {
+    const { api, calls } = apiWithChangingProfile(profile({ showText: false }));
+    render(<TabletApp api={api} />);
+
+    // Eerste gesprek: het profiel van het moment van laden, dus mét tekstlabels.
+    expect(await screen.findByText('Iets willen')).toBeTruthy();
+    expect(calls()).toBe(1);
+
+    fireEvent.click(screen.getByText('🔄 Opnieuw beginnen'));
+
+    // Het nieuwe gesprek draait op het zojuist opgehaalde profiel: labels weg, pictogrammen blijven.
+    await waitFor(() => expect(screen.queryByText('Iets willen')).toBeNull());
+    expect(screen.getByLabelText('Iets willen')).toBeTruthy();
+    expect(calls()).toBe(2);
+  });
+
+  it('haalt het profiel opnieuw op zodra de tablet weer op de voorgrond komt (T18.6)', async () => {
+    const { api, calls } = apiWithChangingProfile(profile({ showText: false }));
+    render(<TabletApp api={api} />);
+
+    expect(await screen.findByText('Iets willen')).toBeTruthy();
+
+    // De tablet wordt neergelegd en weer opgepakt.
+    fireEvent(document, new Event('visibilitychange'));
+
+    await waitFor(() => expect(screen.queryByText('Iets willen')).toBeNull());
+    expect(calls()).toBe(2);
+  });
 });
 
 /**

@@ -666,6 +666,14 @@ SPEECH_SERVICE_URL=http://127.0.0.1:5002 SPEECH_SERVICE_TOKEN=lokaal-geheim \
       **Verwacht:** de tablet spreekt zelf, met de stem van het apparaat — voorlopig de enige weg naar
       een Nederlandse vrouwenstem (zie T18.5).
 
+- [ ] Verander in de beheeromgeving de stem terwijl `/tablet` openstaat, en tik op de tablet op **🔄
+      Opnieuw beginnen**. **Verwacht:** het volgende gesprek klinkt in de nieuwe stem, zonder de pagina
+      te verversen (T18.6). Hetzelfde gebeurt als je de tablet naar een ander tabblad/app wegzet en weer
+      terugkomt. Midden in een lopend gesprek verandert er bewust niets.
+- [ ] Blijft de tablet de apparaatstem gebruiken terwijl er een servertem gekozen is? Open de
+      browserconsole van de tablet. **Verwacht:** bij elke terugval staat daar de reden (`serverstem
+      mislukt, …`) — een 403 (spraak staat uit), een onbereikbare backend, of geblokkeerd geluid.
+
 > **iOS:** Safari staat geluid pas toe ná een aanraking. Het eerste scherm kan daarom stil blijven tot
 > je één keer tikt; daarna spreekt de app ook uit zichzelf. Dit hoort op een écht apparaat getest te
 > worden, niet in een desktopbrowser.

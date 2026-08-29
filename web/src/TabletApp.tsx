@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AacSymbol,
   ConversationConfirmResponse,
@@ -172,6 +172,34 @@ export function TabletApp({
     };
   }, [api]);
 
+  /**
+   * De apparaatsessie (en dus het communicatieprofiel) opnieuw ophalen (T18.6).
+   *
+   * De sessie werd alleen bij het opstarten geladen, waarna de tablet tot een herlaad van de pagina op
+   * dát profiel bleef staan. Uit de praktijk: een begeleider zette de stem op Nathalie terwijl de tablet
+   * openstond; de tablet bleef de oude keuze gebruiken ("Stem van het apparaat") en het leek alsof de
+   * stemkeuze niet werkte. Mislukt het ophalen (even geen netwerk), dan houden we het profiel dat we
+   * hebben: doorgaan met oude instellingen is beter dan een gesprek afbreken.
+   */
+  const refreshSession = useCallback(async (): Promise<void> => {
+    try {
+      setSession(await api.deviceMe());
+    } catch (err) {
+      if (!(err instanceof ApiRequestError)) throw err;
+    }
+  }, [api]);
+
+  // Een tablet wordt neergelegd en weer opgepakt; dat is het tweede natuurlijke moment om te kijken of
+  // de begeleider iets aan de instellingen veranderd heeft. (Het eerste is een nieuw gesprek, hieronder.)
+  useEffect(() => {
+    if (!session || typeof document === 'undefined') return;
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'visible') void refreshSession();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [session, refreshSession]);
+
   if (checking) {
     return (
       <AuthLayout title="Even geduld">
@@ -184,7 +212,14 @@ export function TabletApp({
     return <DeviceLinkScreen api={api} onLinked={setSession} />;
   }
 
-  return <ConversationScreen api={api} user={session.user} speech={speech} />;
+  return (
+    <ConversationScreen
+      api={api}
+      user={session.user}
+      speech={speech}
+      onRefreshSession={refreshSession}
+    />
+  );
 }
 
 /**
@@ -272,10 +307,13 @@ function ConversationScreen({
   api,
   user,
   speech: injectedSpeech,
+  onRefreshSession,
 }: {
   api: DeviceApi;
   user: UserPublic;
   speech?: SpeechPort;
+  /** Haalt het communicatieprofiel opnieuw op bij een nieuw gesprek (T18.6). */
+  onRefreshSession?: () => void | Promise<void>;
 }): React.JSX.Element {
   const profile = user.communicationProfile;
 
@@ -395,6 +433,16 @@ function ConversationScreen({
     void run(() => beginConversation());
   }
 
+  /**
+   * "Opnieuw beginnen" zoals de gebruiker hem aantikt. Een nieuw gesprek is het natuurlijke moment om
+   * ook het profiel opnieuw op te halen (T18.6): wijzigt een begeleider de stem of het aantal opties,
+   * dan geldt dat vanaf het volgende gesprek — zonder dat iemand de tablet hoeft te verversen.
+   */
+  function restartByUser(): void {
+    void onRefreshSession?.();
+    restart();
+  }
+
   // Eenmalig bij binnenkomst (of bij een nieuwe `api`) een gesprek beginnen.
   useEffect(() => {
     restart();
@@ -453,7 +501,7 @@ function ConversationScreen({
               className="button button--primary"
               type="button"
               disabled={busy}
-              onClick={restart}
+              onClick={restartByUser}
             >
               Opnieuw beginnen
             </button>
@@ -631,7 +679,12 @@ function ConversationScreen({
             een gesprek vastliep had geen uitweg: "↩ Terug" gaat één stap, maar niet terug naar af. Een
             gebruiker die merkt dat het spoor bijster is, moet niet eerst een boodschap hoeven bevestigen
             die hij niet bedoelt. Rechts in de balk, weg van de keuzeknoppen. */}
-        <button className="button tablet__bar-end" type="button" disabled={busy} onClick={restart}>
+        <button
+          className="button tablet__bar-end"
+          type="button"
+          disabled={busy}
+          onClick={restartByUser}
+        >
           🔄 Opnieuw beginnen
         </button>
       </div>

@@ -33,6 +33,11 @@ geheim tussen die twee processen, dat exact gelijk moet zijn aan `SERVICE_TOKEN`
 ophalen, het geheim, en wat te doen als beluisteren niet lukt — staat in
 [`speech-service/README.md`](speech-service/README.md).
 
+Wijzigt een begeleider de stem (of een andere instelling) terwijl de tablet openstaat, dan pakt de tablet
+dat op bij het **volgende gesprek** ("Opnieuw beginnen") of zodra hij weer op de voorgrond komt — niet
+midden in een lopend gesprek, want halverwege van stem of schermindeling wisselen is verwarrender dan
+afmaken waar je aan begon.
+
 Buiten de npm-workspaces staat [`ai-worker/`](ai-worker/): een **losstaande Python-applicatie** (T5.6) die
 als externe Ollama-worker AI-jobs van de backend-wachtrij verwerkt. Het is bewust geen npm-workspace — het
 is aparte deploybare infrastructuur met een eigen [README](ai-worker/README.md) en `.env`.
