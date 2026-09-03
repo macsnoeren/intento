@@ -24,9 +24,17 @@ in dezelfde vorm als de OpenSymbols-client (ADR-0006) en de latere AI-provider:
 - Een `MailTransport`-interface (`send(message)`) met drie implementaties: `SmtpMailTransport`
   (nodemailer, productie), `LogMailTransport` (dev — logt de mail incl. link) en
   `MemoryMailTransport` (tests — vangt de mail op zodat een test de link kan uitlezen).
-  `createMailTransport(env)` kiest SMTP als `SMTP_URL` is gezet, anders het log-transport; via
+  `createMailTransport(env)` kiest SMTP als `SMTP_URL` óf `SMTP_HOST` is gezet, anders het log-transport; via
   `buildApp({ mail })` injecteren tests het geheugen-transport.
-- Een **prod-guard** dwingt af dat `SMTP_URL` in productie niet leeg is (anders zou daar niemand een
+- De verbinding is op **twee manieren** op te schrijven: `SMTP_URL` (één string) of de losse velden
+  `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_TIMEOUT_SECONDS`. De
+  losse vorm bestaat omdat een hostingpakket zijn gegevens zo opgeeft én omdat een URL het
+  wachtwoord aan percent-codering onderwerpt — een `/` of `#` erin is een stille misconfiguratie
+  die pas opvalt als er geen mail aankomt. `smtpSettingsFromEnv()` vertaalt de ene keuze
+  `SMTP_SECURE` naar de twee nodemailer-vlaggen die er samen over gaan (`secure` en `requireTLS`),
+  omdat `secure: false` "niet vanaf de eerste byte" betekent en niet "onversleuteld". Beide vormen
+  tegelijk is een fout, niet een voorrangsregel.
+- Een **prod-guard** dwingt af dat er in productie een mailserver staat (anders zou daar niemand een
   mail krijgen) en dat `EMAIL_VERIFICATION_URL_BASE` https is.
 - **TLS is niet optioneel.** `SmtpMailTransport` zet `requireTLS`, zodat een `smtp://`-URL
   (STARTTLS, meestal poort 587) de upgrade naar TLS afdwingt en de verzending laat falen als die

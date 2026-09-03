@@ -14,6 +14,15 @@ const DEV_SECRET_DEFAULTS = new Set(['dev-only-change-me', 'dev-only-change-me-3
 
 const booleanFromString = z.enum(['true', 'false']).transform((value) => value === 'true');
 
+/**
+ * Behandelt een lege waarde als "niet gezet", zodat het schema zijn default of `optional()` mag
+ * doen. Nodig omdat een env-variabele in een `.env`-bestand of in `env_file:` niet weggelaten maar
+ * leeggelaten wordt (`SMTP_PORT=`), en `z.coerce.number()` van een lege string een 0 maakt — die
+ * dan afketst op `.positive()` met een foutmelding over een 0 die nergens staat.
+ */
+const blankAsUnset = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((value) => (value === '' ? undefined : value), schema);
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -28,8 +37,32 @@ const envSchema = z
     ENCRYPTION_KEY: z.string().min(1),
     // `Secure`-vlag op cookies; true in productie (HTTPS).
     COOKIE_SECURE: booleanFromString.default(false),
-    // Aantal proxy-hops voor correcte client-IP-bepaling achter een reverse proxy.
-    TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+    // Welke proxy's vóór de app het `X-Forwarded-For`-adres mogen bepalen.
+    //
+    // Was ooit een aantal hops (`TRUST_PROXY=1`). Die vorm bestaat niet meer: fastify heeft hem
+    // verwijderd omdat hij te vertrouwen viel te misleiden — een client kan zelf extra
+    // `X-Forwarded-For`-waarden meesturen, en met een hop-telling telt de app er dan één van de
+    // client als "de proxy" (GHSA-3m5p-2c4r-xxw2). Sindsdien wijs je proxy's aan op ADRES:
+    //
+    //   false        niets vertrouwen — het adres van de verbinding is het client-IP. Standaard.
+    //   true         alles vertrouwen. Alleen veilig als niets buiten je proxy de app kan bereiken.
+    //   loopback     127.0.0.1/::1
+    //   uniquelocal  de privéranges (10/8, 172.16/12, 192.168/16, fc00::/7). Wat je wilt als de
+    //                app achter een reverse proxy in hetzelfde container- of privénetwerk staat
+    //                en er geen poort van buitenaf op openstaat.
+    //   een IP, CIDR of komma-gescheiden lijst, bv. "172.18.0.0/16".
+    //
+    // Zet dit alleen als er ECHT een proxy voor staat: met `true` zonder proxy mag elke bezoeker
+    // zijn eigen IP opgeven, en dat adres komt in de rate limiter en het audit-log terecht.
+    TRUST_PROXY: z
+      .string()
+      .default('false')
+      .transform((value) => {
+        const trimmed = value.trim();
+        if (trimmed === 'true') return true;
+        if (trimmed === 'false' || trimmed === '') return false;
+        return trimmed;
+      }),
     // Levensduur van een login-sessie in uren (sessietoken-cookie + db-record).
     SESSION_TTL_HOURS: z.coerce
       .number()
@@ -72,6 +105,18 @@ const envSchema = z
       .positive()
       .max(60)
       .default(15),
+    // Bootstrap: krijgt de ALLEREERSTE zelfaanmelding op een lege database de platform-operatorrol?
+    //
+    // Staat uit, en die stand is de veilige. Zelfaanmelding is publiek, dus met deze vlag aan is de
+    // rol "platformbeheerder van deze hele installatie" van wie hem als eerste opeist — op een verse,
+    // bereikbare omgeving is dat niet per se jij. Zet hem aan, meld jezelf aan, klaar: vanaf dat
+    // moment is er een account en doet de vlag niets meer. Hij ontwapent zichzelf.
+    //
+    // Wat er dan gebeurt is precies wat `db/bootstrap-seed.ts` doet: het account krijgt `isOperator`
+    // en zijn organisatie `isPlatform`. Beide zijn nodig — zie de dubbele voorwaarde in
+    // `auth/operator.ts` — en deze vlag is de enige andere plek waar ze gezet worden. Er is nog
+    // steeds geen API waarmee iemand zichzelf of een ander tot operator promoveert.
+    BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR: booleanFromString.default(false),
     // Strenge rate limiting op de zelfaanmelding (T1.3, publiek): tegen massaal aanmaken van
     // organisaties/accounts en account-enumeratie. Streng, want registreren is zeldzaam.
     REGISTER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(5),
@@ -111,10 +156,36 @@ const envSchema = z
     // E-mailverificatie (T1.4, DESIGN §2, §9.4). Provider-agnostische mail-service.
     // Afzenderadres van systeemmails (verificatiemail). RFC 5322-vorm mag ("Naam <adres>").
     MAIL_FROM: z.string().min(1).default('Intento <no-reply@intento.local>'),
-    // SMTP-verbindingsstring (bv. smtps://user:pass@smtp.host:465). LEEG = log-transport: mails
-    // worden niet echt verstuurd maar gelogd (dev/test), zodat de app zonder mailserver draait
-    // (T1.3 blijft functioneren). In productie wordt een niet-lege SMTP_URL afgedwongen.
+    // --- Mailserver: twee schrijfwijzen, kies er één -------------------------------------------
+    // LEEG (allebei) = log-transport: mails worden niet echt verstuurd maar gelogd (dev/test),
+    // zodat de app zonder mailserver draait (T1.3 blijft functioneren). In productie wordt
+    // afgedwongen dat er één van beide staat.
+    //
+    // 1. SMTP_URL — één verbindingsstring (bv. smtps://user:pass@smtp.host:465). Compact, maar
+    //    alles moet URL-geldig zijn: een wachtwoord met een `@`, `/`, `:`, `#` of `?` erin moet
+    //    percent-gecodeerd worden, en dat is precies de fout die je pas merkt als er geen mail
+    //    aankomt.
     SMTP_URL: z.string().default(''),
+    // 2. SMTP_HOST en de velden hieronder — dezelfde gegevens los, zoals een hostingpakket ze
+    //    opgeeft. Geen codeerregels: het wachtwoord gaat letterlijk mee, tekens en al.
+    //    Zet je allebei, dan weigert de app te starten in plaats van er één te kiezen.
+    SMTP_HOST: z.string().default(''),
+    // Leeg = afgeleid van SMTP_SECURE: 465 bij `ssl`, 587 bij `tls`, 25 bij `none`. Leeglaten is
+    // hier een gedocumenteerde keuze, vandaar `blankAsUnset`.
+    SMTP_PORT: blankAsUnset(z.coerce.number().int().positive().max(65535).optional()),
+    // Hoe de verbinding beveiligd wordt:
+    //   tls   STARTTLS — verbinding begint onversleuteld en wordt verplicht ge-upgrade
+    //         (poort 587). Het gangbaarst, en de standaard hier.
+    //   ssl   implicit TLS — versleuteld vanaf de eerste byte (poort 465).
+    //   none  geen TLS. Alleen toegestaan ZONDER inloggegevens; zie de controle onderaan.
+    SMTP_SECURE: z.enum(['tls', 'ssl', 'none']).default('tls'),
+    // Meestal het volledige e-mailadres van een bestaande mailbox op het domein.
+    SMTP_USER: z.string().default(''),
+    SMTP_PASSWORD: z.string().default(''),
+    // Seconden voordat een niet-reagerende mailserver wordt opgegeven. Geldt voor het verbinden,
+    // voor de begroeting en voor de stilte daarna — één getal, want een mailserver die op één van
+    // de drie blijft hangen houdt de aanroeper even lang op.
+    SMTP_TIMEOUT_SECONDS: blankAsUnset(z.coerce.number().int().positive().max(300).default(15)),
     // Basis-URL waarnaar de verificatielink in de mail wijst; de server hangt er `?token=…` achter.
     // Wijst naar de web-app, die het token inwisselt via de API. Buiten test moet dit https zijn.
     EMAIL_VERIFICATION_URL_BASE: z.url().default('http://localhost:5173/verify-email'),
@@ -193,6 +264,18 @@ const envSchema = z
     // Gedeeld geheim waarmee de backend zich bij de spraakdienst meldt (Bearer). Leeg = de dienst draait
     // zonder token (alleen verdedigbaar op een gesloten netwerk).
     SPEECH_SERVICE_TOKEN: z.string().default(''),
+    // Staat plain http naar de spraakdienst toe in productie. Uit, en dat hoort het te blijven zodra
+    // de dienst over een netwerk bereikbaar is dat niet van jou is.
+    //
+    // Het bestaat voor één opstelling: backend en spraakdienst als containers op hetzelfde gesloten
+    // netwerk, waar de dienst geen poort publiceert en dus alleen door zijn buren bereikt kan worden.
+    // Daar is TLS tussen twee processen op dezelfde machine een certificaat dat je moet uitgeven,
+    // roteren en bewaken, zonder dat er verkeer is dat iemand onderweg kan zien.
+    //
+    // De prijs staat hieronder in de controle: zet je hem aan, dan is SPEECH_SERVICE_TOKEN verplicht.
+    // Zonder TLS is dat gedeelde geheim namelijk het enige dat de dienst nog afschermt, en wat er
+    // over die verbinding gaat is precies wat de gebruiker wil zeggen.
+    SPEECH_ALLOW_INSECURE_HTTP: booleanFromString.default(false),
     // Time-out (ms) voor één synthese-aanroep. Piper doet een zin in ± 100 ms; dit is de noodrem.
     SPEECH_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
     // Aantal fragmenten in de geheugencache (sleutel: hash van tekst + stem). De AAC-labels en de
@@ -246,10 +329,68 @@ const envSchema = z
         !/^https:\/\//i.test(value.SPEECH_SERVICE_URL) &&
         value.NODE_ENV === 'production'
       ) {
+        if (!value.SPEECH_ALLOW_INSECURE_HTTP) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['SPEECH_SERVICE_URL'],
+            message:
+              'SPEECH_SERVICE_URL moet https zijn in productie. Staat de spraakdienst als container op een gesloten netwerk zonder gepubliceerde poort, zet dan SPEECH_ALLOW_INSECURE_HTTP=true en vul SPEECH_SERVICE_TOKEN.',
+          });
+        } else if (!value.SPEECH_SERVICE_TOKEN) {
+          // Zonder TLS én zonder token is de dienst open voor alles wat hem kan bereiken, en dat is
+          // precies de aanname die SPEECH_ALLOW_INSECURE_HTTP maakt. Eén van de twee moet er zijn.
+          ctx.addIssue({
+            code: 'custom',
+            path: ['SPEECH_SERVICE_TOKEN'],
+            message:
+              'SPEECH_SERVICE_TOKEN is verplicht bij SPEECH_ALLOW_INSECURE_HTTP=true: zonder TLS is het gedeelde geheim het enige dat de spraakdienst nog afschermt.',
+          });
+        }
+      }
+    }
+    // Een oude hop-telling (`TRUST_PROXY=1`) is nu een adres dat op niets slaat. Fastify zou hem
+    // stilzwijgend als "geen enkele proxy vertrouwd" behandelen, en dan staat er in elke logregel
+    // en elke rate-limitteller het adres van de proxy in plaats van dat van de bezoeker. Zeg het
+    // dus, met de vervanging erbij.
+    if (typeof value.TRUST_PROXY === 'string' && /^\d+$/.test(value.TRUST_PROXY)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TRUST_PROXY'],
+        message:
+          "TRUST_PROXY is geen aantal hops meer (die vorm is verwijderd omdat hij te misleiden was). Gebruik 'false', 'true', 'loopback', 'uniquelocal' of een IP/CIDR — achter een reverse proxy in hetzelfde privé- of containernetwerk is 'uniquelocal' de juiste keuze.",
+      });
+    }
+
+    // Twee schrijfwijzen voor dezelfde mailserver, en geen voorrangsregel die je kunt onthouden:
+    // wie beide invult heeft er één bedoeld en de andere laten staan. Zeg dat, in plaats van er
+    // stilletjes één te kiezen en de andere te negeren.
+    if (value.SMTP_URL && value.SMTP_HOST) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMTP_HOST'],
+        message:
+          'SMTP_URL en SMTP_HOST zijn allebei gezet; kies er één (de losse velden óf de URL).',
+      });
+    }
+    if (value.SMTP_HOST) {
+      // Inloggegevens horen bij elkaar: één van de twee is een typefout of een half ingevulde
+      // configuratie, en beide gevallen eindigen in een AUTH die de server weigert.
+      if (Boolean(value.SMTP_USER) !== Boolean(value.SMTP_PASSWORD)) {
         ctx.addIssue({
           code: 'custom',
-          path: ['SPEECH_SERVICE_URL'],
-          message: 'SPEECH_SERVICE_URL moet https zijn in productie.',
+          path: [value.SMTP_USER ? 'SMTP_PASSWORD' : 'SMTP_USER'],
+          message: 'SMTP_USER en SMTP_PASSWORD horen samen: vul ze allebei in, of allebei niet.',
+        });
+      }
+      // De regel van transport.ts, hier al afgedwongen: de env kiest wélke TLS-variant je
+      // gebruikt, nooit óf er TLS is zodra er een wachtwoord over de lijn moet. `none` bestaat
+      // voor een relay zonder authenticatie op een gesloten netwerk, en voor niets anders.
+      if (value.SMTP_SECURE === 'none' && value.SMTP_USER) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SMTP_SECURE'],
+          message:
+            "SMTP_SECURE=none mag niet samen met SMTP_USER: dat zou het wachtwoord in platte tekst versturen. Gebruik 'tls' (STARTTLS, poort 587) of 'ssl' (poort 465).",
         });
       }
     }
@@ -271,13 +412,14 @@ const envSchema = z
       });
     }
     // In productie mag e-mailverificatie niet stilletjes op het log-transport draaien: dan zou
-    // niemand ooit een mail krijgen. Een echte SMTP_URL is verplicht.
-    if (!value.SMTP_URL) {
+    // niemand ooit een mail krijgen. Er moet dus een mailserver staan — in welke van de twee
+    // schrijfwijzen dan ook.
+    if (!value.SMTP_URL && !value.SMTP_HOST) {
       ctx.addIssue({
         code: 'custom',
         path: ['SMTP_URL'],
         message:
-          'SMTP_URL is verplicht in productie (anders worden verificatiemails niet verstuurd).',
+          'SMTP_URL of SMTP_HOST is verplicht in productie (anders worden verificatiemails niet verstuurd).',
       });
     }
     // De verificatielink moet in productie https zijn (token gaat niet over plain HTTP).

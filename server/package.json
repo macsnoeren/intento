@@ -25,12 +25,12 @@
     "@fastify/multipart": "^10.1.0",
     "@fastify/rate-limit": "^11.1.0",
     "@intento/shared": "*",
-    "@prisma/adapter-better-sqlite3": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "argon2": "^0.44.0",
-    "fastify": "^5.10.0",
+    "fastify": "^5.12.1",
     "nodemailer": "^9.0.3",
-    "prisma": "^7.8.0",
+    "prisma": "^7.10.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

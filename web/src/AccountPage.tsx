@@ -50,7 +50,10 @@ export function AccountPage({
             Dit account is platform-operator. De operatorconsole beheert omgevingen over
             organisaties heen en staat los van dit beheerscherm.
           </p>
-          <a className="button" href="/operator">
+          {/* `import.meta.env.BASE_URL` en niet "/operator": onder een reverse-proxy-prefix
+              (`https://host/intento/`) wijst een root-absolute link naast de app. BASE_URL eindigt
+              altijd op een slash, dus hier geen tweede. */}
+          <a className="button" href={`${import.meta.env.BASE_URL}operator`}>
             Operatorconsole openen
           </a>
         </section>

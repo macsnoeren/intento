@@ -11,18 +11,29 @@
  * een alt-tekst per plek zegt een schermlezer op de ene pagina "Intento" en op de andere niets.
  */
 
-/** Paden naar de gegenereerde logobestanden. Eén plek, zodat een hernoeming niet door de app lekt. */
+/**
+ * Paden naar de gegenereerde logobestanden. Eén plek, zodat een hernoeming niet door de app lekt.
+ *
+ * De paden beginnen bij `import.meta.env.BASE_URL` en niet bij `/`. Dat is het pad waaronder de app
+ * gepubliceerd is (zie `vite.config.ts`), en het eindigt altijd op een slash — vandaar dat er hier
+ * geen tweede staat. Vite herschrijft dit soort verwijzingen NIET: in `index.html` doet hij dat wel,
+ * maar een pad in de code is voor hem gewoon een string. Met een hardgecodeerde `/` vraagt een app
+ * onder `https://host/intento/` zijn plaatjes dus op bij `https://host/brand/…`, waar niets staat —
+ * en de pagina laadt verder prima, met alleen kapotte afbeeldingen.
+ */
+const asset = (file: string) => `${import.meta.env.BASE_URL}brand/${file}`;
+
 export const BRAND_ASSETS = {
   /** Beeldmerk voor kopbalken (128 px bron — klein bestand, scherp tot ~64 px weergave). */
-  mark: '/brand/intento-mark-128.png',
+  mark: asset('intento-mark-128.png'),
   /** Beeldmerk op ware grootte, voor grote weergaven. */
-  markLarge: '/brand/intento-mark.png',
+  markLarge: asset('intento-mark.png'),
   /** Beeldmerk + woordmerk naast elkaar: de vorm die in een kopbalk past. */
-  lockup: '/brand/intento-lockup.png',
+  lockup: asset('intento-lockup.png'),
   /** Het volledige logo (beeldmerk, woordmerk, payoff) — voor inlog- en welkomstschermen. */
-  logo: '/brand/intento-logo.png',
+  logo: asset('intento-logo.png'),
   /** Beeldmerk op een wit, afgerond vlak — voor donkere ondergronden. */
-  tile: '/brand/intento-tile.png',
+  tile: asset('intento-tile.png'),
 } as const;
 
 export const BRAND_NAME = 'Intento';

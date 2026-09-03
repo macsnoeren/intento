@@ -64,7 +64,8 @@
       (`/auth/verify-email/resend`) is publiek, streng per-IP rate-limited (`RESEND_RATE_LIMIT_*`)
       en antwoordt **altijd** neutraal — of het adres bestaat, al geverifieerd is of onbekend
       (geen account-enumeratie). De mail-service is provider-agnostisch (`mail/transport.ts`):
-      SMTP in productie (verplicht via prod-guard), log-transport in dev, geheugen-transport in
+      SMTP in productie (verplicht via prod-guard: `SMTP_URL` óf de losse `SMTP_*`-velden),
+      log-transport in dev, geheugen-transport in
       tests. **SMTP-verkeer is altijd versleuteld:** het transport zet `requireTLS`, dus bij een
       STARTTLS-poort (`smtp://`, 587) wordt de upgrade afgedwongen en faalt de verzending als die
       niet lukt — SMTP-inloggegevens gaan nooit in platte tekst over de lijn. Bij `smtps://` (465)
@@ -317,7 +318,10 @@
       **Restrisico/afweging:** de export gebruikt de omgevings-`ENCRYPTION_KEY`, dus cross-deployment-
       overdracht vereist dat beide omgevingen dezelfde sleutel delen; een wachtwoordgebaseerde exportsleutel
       is toekomstig werk. Getest in `routes/profile-transfer.test.ts`.
-- [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY` (hop-count).
+- [ ] **Transport** — HTTPS/WSS in productie; `trustProxy` via `TRUST_PROXY`, dat proxy's op
+      **adres** aanwijst (`false` | `true` | `loopback` | `uniquelocal` | IP/CIDR). De oude
+      hop-telling is verwijderd: die viel te misleiden door een client die zelf
+      `X-Forwarded-For`-waarden meestuurt (GHSA-3m5p-2c4r-xxw2).
 - [x] **Audit-logging (T8.2, DESIGN §9.4)** — een herbruikbare `recordAudit(...)` (`server/src/audit/`)
       schrijft een **append-only** spoor over gevoelige acties: login (geslaagd én mislukt, brute-force-
       detectie), logout, registratie, e-mailverificatie, wachtwoordwijziging (T2.5), begeleider-accounts aanmaken (T2.4), een nieuw tijdelijk wachtwoord uitgeven (T2.7),
@@ -340,8 +344,16 @@
       `organizationId` filtert. Die doorbreking is als volgt ingekaderd:
       - **Twee onafhankelijke voorwaarden.** `Account.isOperator` **én** een organisatie met
         `isPlatform=true`. Eén vlag alleen (een geïmporteerde of geknoeide rij) ontgrendelt niets.
-      - **De vlag is niet uit te delen.** Alleen `db/bootstrap-seed.ts` zet `isOperator`; er is geen
-        endpoint om iemand tot operator te promoveren. Een tenant-ADMIN kan zichzelf dus niet promoveren.
+      - **De vlag is niet uit te delen.** Er is geen endpoint, beheerscherm of rol waarmee een
+        bestaand account iemand tot operator maakt — ook zichzelf niet. Hij wordt alleen gezet bij het
+        in gebruik nemen van een installatie: door `db/bootstrap-seed.ts`, en door de allereerste
+        zelfaanmelding op een **lege** database wanneer `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan staat
+        (`auth/register.ts`). Die vlag staat standaard **uit**, en dat is de veilige stand: met de vlag
+        aan is de zwaarste rol van het platform voor wie zich als eerste aanmeldt, en op een verse,
+        publiek bereikbare omgeving hoeft dat jij niet te zijn. Hij ontwapent zichzelf — zodra er één
+        account bestaat doet hij niets meer — dus de bedoeling is: aanzetten, jezelf aanmelden, klaar.
+        De toekenning gaat naar het audit-log (`auth.register` met `grantedOperator`) en levert een
+        `warn`-regel in de serverlog op, want er komt geen menselijke handeling aan te pas.
       - **Eigen guard, eigen routetak, eigen request-veld.** `/operator/*` hangt achter
         `operatorAuthorize(...)` (`auth/operator.ts`), niet achter `authorize()`. De guard zet
         `request.operator` en laat `request.account` **leeg**, zodat `requireAccount`/`tenantScope`/
@@ -376,7 +388,14 @@
   zeggen gaat nooit naar een cloudleverancier — dat was de doorslaggevende reden om geen cloud-TTS te
   gebruiken (ADR-0015).
 - **De client praat nooit met de spraakdienst.** Alleen de backend doet dat, met een gedeeld geheim
-  (`SPEECH_SERVICE_TOKEN` ↔ `SERVICE_TOKEN`). De dienst luistert standaard alleen op localhost.
+  (`SPEECH_SERVICE_TOKEN`, dat de dienst ook onder die naam leest naast zijn eigen `SERVICE_TOKEN` —
+  één waarde in een deployment, niets om uit de pas te laten lopen). De dienst luistert standaard
+  alleen op localhost.
+- **TLS naar de spraakdienst, of een uitzondering die je opschrijft.** In productie eist de backend
+  `https` voor `SPEECH_SERVICE_URL`. `SPEECH_ALLOW_INSECURE_HTTP=true` zet dat af voor één vorm:
+  backend en dienst als containers op een gesloten netwerk zonder gepubliceerde poort. Dan is
+  `SPEECH_SERVICE_TOKEN` **verplicht** — zonder TLS is dat geheim het enige dat de dienst nog
+  afschermt, en wat over die verbinding gaat is precies wat de gebruiker wil zeggen.
 - **De stem komt uit het profiel, niet uit het verzoek.** `POST /device/speech` accepteert alleen
   tekst; de stem hoort bij de gebruiker achter de apparaatsessie. Een apparaat kan dus niet namens een
   ander laten spreken en geen stem afdwingen.

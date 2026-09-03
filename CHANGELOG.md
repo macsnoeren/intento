@@ -5,6 +5,104 @@ Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 
 ## [Unreleased]
 
+### Toegevoegd — een verse installatie zonder seed in gebruik nemen
+
+- **`BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` (standaard uit).** Staat hij aan, dan krijgt de allereerste
+  zelfaanmelding op een **lege** database niet alleen zijn eigen organisatie maar ook de
+  platform-operatorrol: `isOperator` op het account én `isPlatform` op de organisatie, want los van
+  elkaar geven die niets (de dubbele voorwaarde in `auth/operator.ts`). Aanleiding: het seed-script
+  draait niet in het productie-image — `prisma db seed` gaat via `tsx`, een dev-dependency die
+  `npm prune --omit=dev` eruit haalt — dus zonder dit is er op een gedeployde node geen weg naar de
+  operatorconsole behalve met de hand in de database.
+- **Waarom standaard uit.** Zelfaanmelding is publiek. Met de vlag aan is de zwaarste rol van de
+  installatie voor wie zich als eerste aanmeldt, en op een verse, bereikbare omgeving hoeft dat jij
+  niet te zijn. Bedoeld gebruik: aanzetten, jezelf aanmelden, klaar — de vlag ontwapent zichzelf
+  zodra er één account bestaat, dus hem daarna laten staan is onschadelijk.
+- **Het tellen en het claimen zitten in dezelfde transactie** als het aanmaken van organisatie en
+  account. Op SQLite is dat sluitend (één schrijver tegelijk); op PostgreSQL zouden twee
+  gelijktijdige áállereerste registraties allebei nul kunnen tellen, en dan hoort er SERIALIZABLE
+  bij. Dat staat zo in de code, in plaats van gesuggereerd dat het overal waterdicht is.
+- **Het is terug te vinden.** De toekenning gaat naar het audit-log (`auth.register` met
+  `grantedOperator`) en levert een `warn`-regel op, juist omdat er geen menselijke handeling achter
+  zit. De belofte die overeind blijft: **geen bestaand account kan de rol uitdelen** — er is nog
+  steeds geen endpoint, beheerscherm of rol waarmee iemand zichzelf of een ander promoveert. De
+  docblock in `auth/operator.ts`, `docs/security.md` en de schema-commentaren zeggen nu precies dat,
+  in plaats van "alleen de seed".
+
+### Gerepareerd — de logo's onder een pad-prefix
+
+- **De huisstijlplaatjes werden bij de site-root opgehaald.** `BRAND_ASSETS` in `Brand.tsx` bevatte
+  paden als `/brand/intento-logo.png`. Vite herschrijft zulke verwijzingen in `index.html` wel met
+  `base`, maar niet in de code — daar is het een gewone string. Onder `https://host/intento/` vroeg
+  de app zijn logo's dus op bij `https://host/brand/…`, en dat is precies het soort fout dat niets
+  laat merken: de pagina laadt, alleen de plaatjes zijn stuk. De paden hangen nu aan
+  `import.meta.env.BASE_URL`.
+- **En een test die de hele foutklasse afvangt**, niet alleen deze vijf paden: hij scant de bron op
+  string-literals die met `/` beginnen en op een bestandsextensie eindigen. Een assertie op de
+  wáárden zou niets waard zijn — onder vitest is `BASE_URL` gewoon `/`, dus daar ziet een fout er
+  goed uit.
+
+### Toegevoegd — de spraakdienst achter een reverse proxy te draaien
+
+- **`SPEECH_ALLOW_INSECURE_HTTP` (standaard uit).** De prod-guard eiste `https` voor
+  `SPEECH_SERVICE_URL`, wat de dienst onmogelijk maakte in de vorm waarvoor hij gebouwd is: backend
+  en spraakdienst als containers op één gesloten netwerk, waar de dienst geen poort publiceert en er
+  geen verkeer is dat de machine verlaat. TLS tussen twee processen op dezelfde host is daar een
+  certificaat om uit te geven, te roteren en te bewaken zonder dat iemand onderweg meekijkt. De vlag
+  zet die eis af voor precies die opstelling — en maakt in ruil `SPEECH_SERVICE_TOKEN` **verplicht**:
+  zonder TLS is dat gedeelde geheim het enige dat de dienst nog afschermt.
+- **De spraakdienst leest het token ook onder de backend-naam.** Naast `SERVICE_TOKEN` accepteert
+  `speech-service` nu `SPEECH_SERVICE_TOKEN`, zodat backend en dienst in een deployment één regel
+  in hetzelfde env-bestand delen. Dat is geen kosmetiek: met twee namen voor dezelfde waarde levert
+  het vergeten van de ene een dienst **zonder tokencontrole** op, terwijl de backend keurig een
+  Bearer blijft meesturen — het soort verschil dat werkt en niets zegt.
+
+### Beveiliging — `npm audit` terug naar 0, en `TRUST_PROXY` op adres in plaats van hop-telling
+
+- **Vijf openstaande advisories opgeruimd.** `fastify` 5.10.0 → 5.12.1, `prisma`/`@prisma/client`/
+  `@prisma/adapter-better-sqlite3` 7.8.0 → 7.10.0, en `fast-uri` (3.1.5 → 3.1.7 en 4.1.4) volgt mee
+  uit fastify's ajv-keten. Voor `mysql2` is er geen prisma-release die het oplost — ook 7.10.0 pint
+  nog `3.15.3` — dus staat er nu een `overrides`-regel naar `^3.24.3`. `npm audit fix --force`
+  stelde `prisma@6.19.3` voor: een **major downgrade**, en dus niet gedaan. Prisma 8 is nog een
+  release candidate en valt daarmee buiten kernprincipe 3 (nieuwste **stabiele** versie).
+- **De `overrides` in de root deden niets, en nu wel.** `@prisma/dev` en `deepmerge-ts` stonden er
+  al in, maar de lockfile was ooit vanuit een bestaande `node_modules` opgebouwd en npm heeft de
+  overrides toen niet toegepast — `deepmerge-ts` stond nog op de kwetsbare 7.1.5. De lockfile is
+  daarom schoon opnieuw opgelost (`rm -rf node_modules package-lock.json && npm install`). Wie een
+  override toevoegt en het effect niet terugziet: dát is de reden.
+- **`TRUST_PROXY` is geen aantal hops meer.** Dit is geen opruimwerk maar de kern van
+  GHSA-3m5p-2c4r-xxw2: een client kan zelf `X-Forwarded-For`-waarden meesturen, en bij een
+  hop-telling neemt de app er dan één van de client als "de proxy" — het adres in de rate limiter
+  en het audit-log is dan door de bezoeker gekozen. Fastify 5.12.1 heeft de vorm daarom verwijderd
+  en de variabele wijst proxy's nu op **adres** aan: `false` (standaard), `true`, `loopback`,
+  `uniquelocal` of een IP/CIDR. Een oude numerieke waarde wordt **geweigerd** met de vervanging
+  erbij, want fastify zou "1" stil als een adres lezen dat nergens op slaat en dan staat de proxy
+  in plaats van de bezoeker in elke logregel. Achter een reverse proxy in hetzelfde container- of
+  privénetwerk is `uniquelocal` de juiste waarde.
+
+### Toegevoegd — de mailserver los invulbaar, en de app onder een pad
+
+- **De SMTP-gegevens mogen nu los, zoals een hostingpakket ze opgeeft.** Naast `SMTP_URL` kent de env
+  `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` en `SMTP_TIMEOUT_SECONDS`.
+  Aanleiding: een URL onderwerpt het wachtwoord aan percent-codering, en een `/`, `?` of `#` erin is
+  een stille misconfiguratie die pas opvalt als er geen mail aankomt. In de losse vorm gaat het
+  wachtwoord er letterlijk in. `SMTP_SECURE` is de keuze die een hoster noemt — `tls` (STARTTLS,
+  587), `ssl` (implicit TLS, 465) of `none` (25) — en `smtpSettingsFromEnv()` vertaalt hem naar de
+  twee nodemailer-vlaggen die er samen over gaan; `SMTP_PORT` leeglaten laat de poort eruit volgen.
+  De TLS-garantie is ongewijzigd en geldt voor beide vormen: `requireTLS` staat aan, en een test
+  langs de nieuwe route bewijst dat een server zonder STARTTLS geen inloggegevens te zien krijgt.
+  `SMTP_SECURE=none` mag daarom alleen zónder `SMTP_USER` — anders weigert de app te starten, net
+  als bij beide schrijfwijzen tegelijk of een half ingevulde inlog. Zie
+  [ADR-0007](docs/adr/0007-email-verification-and-mail-transport.md).
+- **De web-app kan onder een pad draaien in plaats van op de site-root.** `VITE_BASE` (build-time,
+  ook als build-arg in `web/Dockerfile`) zet Vite's `base`, zodat `index.html` zijn assets onder dat
+  pad opvraagt. De twee plekken die een root-absoluut pad hardcodeerden — de link naar de
+  operatorconsole en het tabletadres bij een koppelcode — gebruiken nu `import.meta.env.BASE_URL`,
+  en `site.webmanifest` heeft relatieve paden gekregen zodat `start_url`, `scope` en de iconen
+  meebewegen. Zonder dit serveert een installatie achter een reverse proxy een blanco pagina met
+  404's op `/assets/…`. De routedispatch kon blijven zoals hij was: die matcht al op het eind van
+  het pad.
+
 ### Toegevoegd — fase 18: de tablet spreekt
 
 - **T18.1 Een eigen spraakdienst naast de AI-worker.** Nieuw: [`speech-service/`](speech-service/README.md),

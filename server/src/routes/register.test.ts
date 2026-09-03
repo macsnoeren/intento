@@ -47,6 +47,109 @@ describe('register-routes', () => {
     return app.inject({ method: 'POST', url: '/auth/register', payload: body });
   }
 
+  it('geeft de eerste aanmelding standaard GEEN platformrol', async () => {
+    // De vlag staat uit tenzij je hem aanzet, en zelfaanmelding is publiek: zonder deze stand zou
+    // op elke verse installatie de zwaarste rol van het platform zijn voor wie hem als eerste
+    // opeist.
+    const res = await register(validBody);
+
+    expect(res.statusCode).toBe(201);
+    const body = authResponseSchema.parse(res.json());
+    expect(body.account.isOperator).toBe(false);
+    const org = await prisma.organization.findUnique({
+      where: { id: body.account.organizationId },
+      select: { isPlatform: true },
+    });
+    expect(org?.isPlatform).toBe(false);
+  });
+
+  describe('met BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR aan', () => {
+    beforeEach(async () => {
+      await app.close();
+      await resetAuthData();
+      app = await buildApp({
+        env: testEnv({
+          REGISTER_RATE_LIMIT_MAX: '100',
+          LOGIN_RATE_LIMIT_MAX: '100',
+          BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR: 'true',
+        }),
+        mail,
+      });
+    });
+
+    it('maakt van de allereerste aanmelding een werkende platform-operator', async () => {
+      const res = await register(validBody);
+      expect(res.statusCode).toBe(201);
+      const body = authResponseSchema.parse(res.json());
+
+      // Beide helften van de dubbele voorwaarde uit `auth/operator.ts` — één ervan alleen levert
+      // een account op dat operator heet en het niet is.
+      expect(body.account.isOperator).toBe(true);
+      const org = await prisma.organization.findUnique({
+        where: { id: body.account.organizationId },
+        select: { isPlatform: true },
+      });
+      expect(org?.isPlatform).toBe(true);
+
+      // En dan de assertie die er echt toe doet: komt hij de console ook binnen? Twee booleans in
+      // een tabel zeggen niets als de guard ze anders leest. E-mail eerst bevestigen, want de
+      // operatorguard blokkeert een onbevestigd adres — juist hier.
+      await prisma.account.update({
+        where: { id: body.account.id },
+        data: { emailVerifiedAt: new Date() },
+      });
+      const login = await app.inject({
+        method: 'POST',
+        url: '/auth/login',
+        payload: { email: validBody.email, password: validBody.password },
+      });
+      const console_ = await app.inject({
+        method: 'GET',
+        url: '/operator/organizations',
+        headers: { cookie: sessionCookieHeader(login) ?? '' },
+      });
+      expect(console_.statusCode).toBe(200);
+
+      // Terug te vinden zijn hoort erbij: er komt geen menselijke handeling aan te pas, dus dit is
+      // het enige spoor dat de zwaarste rol van het platform is uitgedeeld.
+      const audit = await prisma.auditLog.findFirst({
+        where: { action: 'auth.register', accountId: body.account.id },
+        select: { metadataJson: true },
+      });
+      expect(audit?.metadataJson).toContain('grantedOperator');
+    });
+
+    it('geeft de TWEEDE aanmelding niets — de vlag ontwapent zichzelf', async () => {
+      await register(validBody);
+
+      const second = await register({
+        ...validBody,
+        email: 'tweede@intento.local',
+        organizationName: 'Familie Jansen',
+      });
+      expect(second.statusCode).toBe(201);
+      const body = authResponseSchema.parse(second.json());
+      expect(body.account.isOperator).toBe(false);
+
+      const org = await prisma.organization.findUnique({
+        where: { id: body.account.organizationId },
+        select: { isPlatform: true },
+      });
+      expect(org?.isPlatform).toBe(false);
+
+      // En er is er precies één, niet twee.
+      expect(await prisma.organization.count({ where: { isPlatform: true } })).toBe(1);
+    });
+
+    it('doet niets meer zodra er al een account bestaat, ook niet in een lege organisatie', async () => {
+      await seedAccount('bestaand@intento.local');
+
+      const res = await register(validBody);
+      expect(res.statusCode).toBe(201);
+      expect(authResponseSchema.parse(res.json()).account.isOperator).toBe(false);
+    });
+  });
+
   it('maakt een organisatie + admin, zet een sessie-cookie en logt meteen in', async () => {
     const res = await register(validBody);
 

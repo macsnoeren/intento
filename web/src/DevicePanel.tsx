@@ -3,12 +3,17 @@ import type { DeviceCodeResponse } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Het adres waarop de gebruikersapp draait: hetzelfde web-adres met `/tablet` erachter (zie
+ * Het adres waarop de gebruikersapp draait: hetzelfde web-adres met `tablet` erachter (zie
  * `routes.tsx`). Injecteerbaar in tests. Buiten de browser (SSR/test zonder DOM) valt hij terug op het
  * pad alleen, zodat er nooit een half adres wordt getoond.
+ *
+ * Het pad komt uit `import.meta.env.BASE_URL` en is niet hardgecodeerd: staat de app achter een
+ * reverse proxy onder een prefix (`https://host/intento/`), dan hoort de begeleider dát adres op de
+ * tablet in te tikken en niet `https://host/tablet`. BASE_URL eindigt altijd op een slash.
  */
 export function tabletUrl(origin: string | undefined = globalThis.location?.origin): string {
-  return origin ? `${origin.replace(/\/+$/, '')}/tablet` : '/tablet';
+  const path = `${import.meta.env.BASE_URL}tablet`;
+  return origin ? `${origin.replace(/\/+$/, '')}${path}` : path;
 }
 
 /**

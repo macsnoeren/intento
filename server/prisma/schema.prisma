@@ -35,8 +35,10 @@ model Organization {
   type      String
   /// Platform-/operatororganisatie (T5.8): alléén ADMINs van zo'n org mogen platform-brede
   /// infrastructuur beheren (worker-tokens). Standaard `false`; de bootstrap-seed zet dit op
-  /// `true` en publieke zelfaanmelding (T1.3) nooit. Zo kan een zelf-aangemelde familie/zorg-
-  /// admin geen infra-credentials munten die jobs van álle tenants zouden verwerken (DESIGN §9.4).
+  /// `true`, en zelfaanmelding (T1.3) alleen bij de allereerste aanmelding op een lege database
+  /// mét `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan. Elke aanmelding daarna krijgt `false`. Zo kan een
+  /// zelf-aangemelde familie/zorg-admin geen infra-credentials munten die jobs van álle tenants
+  /// zouden verwerken (DESIGN §9.4).
   isPlatform Boolean @default(false)
   /// Of de omgeving actief is (T8.3). Een platform-operator kan een organisatie **deactiveren** om
   /// misbruik te stoppen: dat is bewust geen verwijdering (gegevens blijven staan, herstel is één
@@ -194,8 +196,10 @@ model Account {
   /// vlag naast `role`, niet een vierde rol: de rol bepaalt wat je binnen je eigen organisatie mag
   /// (en blijft overal tenant-gefilterd), terwijl deze vlag een tweede, expliciet gescheiden
   /// bevoegdheid ontgrendelt op een eigen `/operator`-routetak met een eigen guard. De vlag telt
-  /// alléén binnen een organisatie met `isPlatform=true` (dubbele voorwaarde) en wordt uitsluitend
-  /// door de bootstrap-seed gezet — nooit via een API. Zie ADR-0011 en docs/security.md.
+  /// alléén binnen een organisatie met `isPlatform=true` (dubbele voorwaarde) en wordt op twee
+  /// plekken gezet, allebei bootstrap: de seed, en — als `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan
+  /// staat — de allereerste zelfaanmelding op een lege database. Er is geen API waarmee een
+  /// bestaand account de vlag uitdeelt of krijgt. Zie ADR-0011 en docs/security.md.
   isOperator     Boolean @default(false)
   createdAt      DateTime @default(now())
 

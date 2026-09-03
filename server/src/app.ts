@@ -75,7 +75,7 @@ export async function buildApp({
   const encryptor = createEncryptor(env);
   const app = Fastify({
     logger,
-    // Vertrouw op het opgegeven aantal proxy-hops voor correcte client-IP-bepaling.
+    // Welke proxy's het client-IP mogen bepalen; op ADRES, niet op aantal hops (zie `env.ts`).
     trustProxy: env.TRUST_PROXY,
   });
 

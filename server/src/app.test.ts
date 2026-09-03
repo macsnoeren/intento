@@ -111,7 +111,80 @@ describe('loadEnv prod-guards', () => {
     ).toThrow(/COOKIE_SECURE/);
   });
 
-  it('eist een SMTP_URL in productie (anders geen verificatiemails)', () => {
+  it('eist https voor de spraakdienst in productie', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SIGNING_SECRET: 'een-echte-secret',
+        ENCRYPTION_KEY: 'een-echte-sleutel',
+        COOKIE_SECURE: 'true',
+        SMTP_HOST: 'mail.intento.test',
+        EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+        APP_BASE_URL: 'https://app.intento.test',
+        SPEECH_PROVIDER: 'http',
+        SPEECH_SERVICE_URL: 'http://intento-speech:5002',
+      }),
+    ).toThrow(/SPEECH_SERVICE_URL moet https zijn/);
+  });
+
+  it('laat plain http toe op een gesloten netwerk, maar dan mét gedeeld geheim', () => {
+    const base = {
+      NODE_ENV: 'production',
+      SIGNING_SECRET: 'een-echte-secret',
+      ENCRYPTION_KEY: 'een-echte-sleutel',
+      COOKIE_SECURE: 'true',
+      SMTP_HOST: 'mail.intento.test',
+      EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+      APP_BASE_URL: 'https://app.intento.test',
+      SPEECH_PROVIDER: 'http',
+      SPEECH_SERVICE_URL: 'http://intento-speech:5002',
+      SPEECH_ALLOW_INSECURE_HTTP: 'true',
+    };
+
+    // Zonder TLS is het token het enige dat de dienst nog afschermt; de vlag alleen is niet genoeg.
+    expect(() => loadEnv(base)).toThrow(/SPEECH_SERVICE_TOKEN is verplicht/);
+    expect(() => loadEnv({ ...base, SPEECH_SERVICE_TOKEN: 'spr_geheim' })).not.toThrow();
+  });
+
+  it('vertrouwt standaard geen enkele proxy', () => {
+    expect(
+      loadEnv({
+        NODE_ENV: 'test',
+        SIGNING_SECRET: 'test-signing-secret',
+        ENCRYPTION_KEY: 'test-encryption-key',
+      }).TRUST_PROXY,
+    ).toBe(false);
+  });
+
+  it('neemt een adresvorm over zoals fastify hem verwacht', () => {
+    const env = (value: string) =>
+      loadEnv({
+        NODE_ENV: 'test',
+        SIGNING_SECRET: 'test-signing-secret',
+        ENCRYPTION_KEY: 'test-encryption-key',
+        TRUST_PROXY: value,
+      }).TRUST_PROXY;
+
+    expect(env('true')).toBe(true);
+    expect(env('uniquelocal')).toBe('uniquelocal');
+    expect(env('172.18.0.0/16')).toBe('172.18.0.0/16');
+  });
+
+  it('weigert de oude hop-telling in plaats van hem als adres door te geven', () => {
+    // `TRUST_PROXY=1` was jarenlang de manier om "één proxy ervoor" te zeggen. Fastify heeft die
+    // vorm verwijderd (GHSA-3m5p-2c4r-xxw2) en zou "1" nu als adres lezen dat op niets slaat —
+    // stilzwijgend, met de proxy in plaats van de bezoeker in elke logregel. Dus: hard falen.
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'test',
+        SIGNING_SECRET: 'test-signing-secret',
+        ENCRYPTION_KEY: 'test-encryption-key',
+        TRUST_PROXY: '1',
+      }),
+    ).toThrow(/geen aantal hops meer/);
+  });
+
+  it('eist een mailserver in productie (anders geen verificatiemails)', () => {
     expect(() =>
       loadEnv({
         NODE_ENV: 'production',
@@ -120,7 +193,61 @@ describe('loadEnv prod-guards', () => {
         COOKIE_SECURE: 'true',
         EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
       }),
-    ).toThrow(/SMTP_URL/);
+    ).toThrow(/SMTP_URL of SMTP_HOST/);
+  });
+
+  it('neemt in productie ook genoegen met de losse SMTP-velden', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SIGNING_SECRET: 'een-echte-secret',
+        ENCRYPTION_KEY: 'een-echte-sleutel',
+        COOKIE_SECURE: 'true',
+        SMTP_HOST: 'mail.mijndomein.nl',
+        SMTP_USER: 'noreply@jmnl.nl',
+        SMTP_PASSWORD: 'wachtwoord',
+        EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+        APP_BASE_URL: 'https://app.intento.test',
+      }),
+    ).not.toThrow();
+  });
+
+  it('weigert beide schrijfwijzen tegelijk in plaats van er stilletjes één te kiezen', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'test',
+        SIGNING_SECRET: 'test-signing-secret',
+        ENCRYPTION_KEY: 'test-encryption-key',
+        SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
+        SMTP_HOST: 'mail.mijndomein.nl',
+      }),
+    ).toThrow(/allebei gezet/);
+  });
+
+  it('weigert SMTP_SECURE=none zodra er een wachtwoord over de lijn zou gaan', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'test',
+        SIGNING_SECRET: 'test-signing-secret',
+        ENCRYPTION_KEY: 'test-encryption-key',
+        SMTP_HOST: 'mail.mijndomein.nl',
+        SMTP_SECURE: 'none',
+        SMTP_USER: 'noreply@jmnl.nl',
+        SMTP_PASSWORD: 'wachtwoord',
+      }),
+    ).toThrow(/SMTP_SECURE/);
+  });
+
+  it('weigert een half ingevulde inlog (wel gebruiker, geen wachtwoord)', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'test',
+        SIGNING_SECRET: 'test-signing-secret',
+        ENCRYPTION_KEY: 'test-encryption-key',
+        SMTP_HOST: 'mail.mijndomein.nl',
+        SMTP_USER: 'noreply@jmnl.nl',
+      }),
+    ).toThrow(/SMTP_PASSWORD/);
   });
 
   it('eist een https-verificatielink in productie', () => {

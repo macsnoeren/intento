@@ -4,7 +4,8 @@
 #
 #   docker build -f web/Dockerfile --build-arg VITE_API_URL=http://localhost:3000 -t intento-web .
 #
-# `VITE_API_URL` is een **build**-argument, geen runtime-variabele: Vite bakt de waarde in de bundel.
+# `VITE_API_URL` en `VITE_BASE` zijn **build**-argumenten, geen runtime-variabelen: Vite bakt beide
+# waarden in de bundel.
 # Wijs je de app naar een andere API-host, dan hoort daar een nieuwe build bij. Dat de API op een
 # eigen host/poort staat is bewust — de SPA heeft een route `/operator` en de API een routetak
 # `/operator/*`, dus één origin delen zou botsen (zie ADR-0016).
@@ -25,6 +26,11 @@ COPY web/ web/
 
 ARG VITE_API_URL=http://localhost:3000
 ENV VITE_API_URL=${VITE_API_URL}
+# Onder welk pad de app komt te hangen. Standaard de site-root; achter een reverse proxy die hem onder
+# een prefix zet (`https://host/intento/`) hoort hier dat pad te staan, mét sluitende slash. Zie
+# `web/vite.config.ts`.
+ARG VITE_BASE=/
+ENV VITE_BASE=${VITE_BASE}
 RUN npm run build --workspace=shared \
     && npm run build --workspace=web
 

@@ -136,7 +136,9 @@ export function registerAuthRoutes(
     async (request, reply): Promise<AuthResponse> => {
       const input = registerRequestSchema.parse(request.body);
 
-      const result = await registerOrganization(prisma, input);
+      const result = await registerOrganization(prisma, input, {
+        grantOperatorIfFirst: env.BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR,
+      });
 
       if (!result.ok) {
         // Bewust generiek: geen bevestiging dat de e-mail al bestaat (geen account-enumeratie).
@@ -159,7 +161,19 @@ export function registerAuthRoutes(
         organizationId: result.account.organizationId,
         targetType: 'organization',
         targetId: result.account.organizationId,
+        // Kreeg deze aanmelding de platformrol? Dat gebeurt hoogstens één keer per installatie en
+        // het is de zwaarste rol die er is, dus het hoort terug te vinden te zijn — juist omdat er
+        // verder geen handeling van een beheerder aan te pas komt.
+        ...(result.grantedOperator ? { metadata: { grantedOperator: true } } : {}),
       });
+
+      if (result.grantedOperator) {
+        request.log.warn(
+          { accountId: result.account.id, organizationId: result.account.organizationId },
+          'Eerste aanmelding op een lege database: platform-operatorrol toegekend ' +
+            '(BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR). Zet die vlag uit als dit niet de bedoeling was.',
+        );
+      }
 
       // Verificatiemail versturen (T1.4). Bewust best-effort: een falende mailserver mag de
       // registratie niet laten mislukken — de gebruiker is al ingelogd en kan later "opnieuw

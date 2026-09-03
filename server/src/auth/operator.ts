@@ -31,9 +31,17 @@ import { readSessionToken } from './request.js';
  *    platform. Bewust letterlijk herhaald in plaats van hergebruikt: deze guard moet los te lezen en
  *    los te reviewen zijn.
  *
- * De operatorrol wordt **nooit via een API uitgedeeld**; alleen de bootstrap-seed zet `isOperator`
- * (zie `db/bootstrap-seed.ts`). Er is dus geen weg waarlangs een tenant-ADMIN zichzelf of een ander
- * account naar de console kan promoveren.
+ * De operatorrol wordt **nooit uitgedeeld door een bestaand account**: er is geen API, geen
+ * beheerscherm en geen rol die hem aan iemand kan geven, dus een tenant-ADMIN kan zichzelf noch een
+ * ander naar de console promoveren. Hij wordt alleen bij het in gebruik nemen van een installatie
+ * gezet, op twee plekken:
+ *
+ * - `db/bootstrap-seed.ts` — het seed-script;
+ * - `auth/register.ts` — de allereerste zelfaanmelding op een lege database, en dan alleen als
+ *   `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan staat. Die vlag staat standaard uit en ontwapent
+ *   zichzelf: zodra er één account bestaat, doet hij niets meer.
+ *
+ * Beide zetten `isOperator` én `isPlatform` samen, want los van elkaar geven ze geen toegang.
  */
 
 // Module-augmentatie: de geverifieerde operator leeft op de request tijdens de handler —

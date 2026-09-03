@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -33,6 +33,38 @@ describe('huisstijl', () => {
   it('verwijst naar logobestanden die echt bestaan', () => {
     for (const path of Object.values(BRAND_ASSETS)) {
       expect(existsSync(publicFile(path)), `ontbreekt: web/public${path}`).toBe(true);
+    }
+  });
+
+  it('verwijst nergens in de bron met een root-absoluut pad naar een bestand', () => {
+    // De app kan onder een prefix gepubliceerd worden (`VITE_BASE`, bv. `/intento/`). Vite
+    // herschrijft dan wél de verwijzingen in `index.html`, maar NIET een pad dat als string in de
+    // code staat — voor hem is dat gewoon tekst. Een hardgecodeerde `/brand/logo.png` vraagt de
+    // browser dus op bij de site-root, waar niets staat, en de pagina laadt verder prima met alleen
+    // een gebroken plaatje. Geen enkele andere test ziet dat.
+    //
+    // Vandaar deze scan op de bron in plaats van een assertie op de waarden: onder vitest is
+    // `BASE_URL` gewoon `/`, dus aan de uitkomst is een fout hier niet te zien.
+    const sourceDir = join(webRoot(), 'src');
+    const offenders: string[] = [];
+    for (const name of readdirSync(sourceDir)) {
+      if (!/\.(ts|tsx|css)$/.test(name) || name.includes('.test.')) continue;
+      const source = readFileSync(join(sourceDir, name), 'utf8');
+      for (const match of source.matchAll(
+        /['"`(](\/[^'"`()\s]*\.(?:png|jpe?g|svg|webp|gif|ico|webmanifest|woff2?))/g,
+      )) {
+        offenders.push(`${name}: ${match[1]}`);
+      }
+    }
+    expect(
+      offenders,
+      'gebruik `${import.meta.env.BASE_URL}…` in plaats van een pad dat met / begint',
+    ).toEqual([]);
+  });
+
+  it('hangt de logopaden aan de basis-URL van de app', () => {
+    for (const path of Object.values(BRAND_ASSETS)) {
+      expect(path.startsWith(import.meta.env.BASE_URL)).toBe(true);
     }
   });
 

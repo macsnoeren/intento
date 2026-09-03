@@ -29,6 +29,19 @@ class ServiceConfigTest(unittest.TestCase):
         self.assertEqual(config.port, 6000)
         self.assertEqual(config.service_token, "uit-omgeving")
 
+    def test_token_mag_ook_onder_de_backend_naam(self) -> None:
+        # In een deployment lezen backend en dienst hetzelfde env-bestand. Zonder dit alias zou daar
+        # tweemaal hetzelfde geheim onder twee namen staan, en zou vergeten van de ene naam een
+        # dienst zonder tokencontrole opleveren die het verder prima doet.
+        config = ServiceConfig.from_env({"SPEECH_SERVICE_TOKEN": "spr_geheim"}, env_file=None)
+        self.assertEqual(config.service_token, "spr_geheim")
+
+    def test_eigen_naam_wint_van_de_backend_naam(self) -> None:
+        config = ServiceConfig.from_env(
+            {"SERVICE_TOKEN": "eigen", "SPEECH_SERVICE_TOKEN": "backend"}, env_file=None
+        )
+        self.assertEqual(config.service_token, "eigen")
+
     def test_ongeldige_poort_faalt_luid(self) -> None:
         for waarde in ("geen-getal", "0", "-1"):
             with self.subTest(waarde=waarde), self.assertRaises(ConfigError):

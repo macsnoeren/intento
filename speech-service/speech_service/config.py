@@ -56,6 +56,13 @@ class ServiceConfig:
 
     # Gedeeld geheim dat de backend als `Authorization: Bearer …` meestuurt. Leeg = geen controle;
     # alleen verdedigbaar als de dienst op localhost of een gesloten netwerk staat.
+    #
+    # Te zetten als `SERVICE_TOKEN` of als `SPEECH_SERVICE_TOKEN` — de naam die de backend voor
+    # dezelfde waarde gebruikt. Dat scheelt in een deployment één variabele: backend en dienst lezen
+    # dan hetzelfde env-bestand en er is niets om uit de pas te laten lopen. En dat is geen
+    # schoonheidsfoutje maar de gevaarlijke kant: staat alleen de backend-naam gevuld, dan zou deze
+    # dienst zónder controle draaien terwijl de backend keurig een Bearer meestuurt — precies het
+    # soort verschil dat werkt en niets zegt.
     service_token: str
 
     # Bovengrens op de tekstlengte, gelijk aan die van de backend (SPEECH_MAX_TEXT_LENGTH).
@@ -92,6 +99,6 @@ class ServiceConfig:
             host=optional("HOST", "127.0.0.1"),
             port=positive_int("PORT", 5002),
             voices_dir=Path(optional("VOICES_DIR", "voices")).expanduser(),
-            service_token=optional("SERVICE_TOKEN", ""),
+            service_token=optional("SERVICE_TOKEN", optional("SPEECH_SERVICE_TOKEN", "")),
             max_text_length=positive_int("MAX_TEXT_LENGTH", 300),
         )

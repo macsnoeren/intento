@@ -153,7 +153,7 @@ curl -sc cookies.txt -X POST http://127.0.0.1:3000/auth/register \
   -d '{"organizationName":"Familie De Vries","organizationType":"family","adminName":"Kim","email":"kim@intento.local","password":"sterk-wachtwoord-123"}'
 ```
 
-Na registratie stuurt de server een **verificatiemail** (T1.4). Zonder `SMTP_URL` draait een
+Na registratie stuurt de server een **verificatiemail** (T1.4). Zonder mailserver draait een
 log-transport: de mail (met verificatielink) verschijnt in de serverlog i.p.v. echt verstuurd te
 worden, zodat je lokaal zonder mailserver kunt verifiëren. Klik op de link (`.../verify-email?token=…`)
 of wissel het token direct in via `POST /auth/verify-email`. Onbevestigde accounts mogen inloggen,
@@ -161,11 +161,34 @@ maar het aanmaken van gebruikers (`POST /users`) is geblokkeerd tot verificatie
 (`403 EMAIL_NOT_VERIFIED`). Opnieuw versturen kan via `POST /auth/verify-email/resend` (neutraal,
 rate-limited). Zie [docs/api.md](docs/api.md) en [docs/adr/0007](docs/adr/0007-email-verification-and-mail-transport.md).
 
-Met een echte mailserver moeten schema en poort in `SMTP_URL` bij elkaar passen:
-`smtp://…:587` voor STARTTLS, `smtps://…:465` voor TLS vanaf de eerste byte. De combinatie
-`smtps://` met een STARTTLS-poort geeft de misleidende fout `wrong version number`. TLS is in
-beide gevallen verplicht (`requireTLS`): lukt de STARTTLS-upgrade niet, dan faalt de verzending
-in plaats van in platte tekst door te gaan.
+### Een echte mailserver instellen
+
+Twee schrijfwijzen, en je kiest er één — allebei invullen en de app weigert te starten in plaats
+van er stilletjes één te kiezen.
+
+**De losse velden**, zoals een hostingpakket ze opgeeft. Dit is de makkelijkste weg: er zijn geen
+codeerregels, dus een wachtwoord met `@`, `/`, `:`, `#` of `?` erin gaat er letterlijk in.
+
+```ini
+SMTP_HOST=mail.mijndomein.nl
+SMTP_PORT=587           # leeglaten mag: de poort volgt dan uit SMTP_SECURE
+SMTP_SECURE=tls         # tls (STARTTLS, 587) | ssl (implicit TLS, 465) | none (25)
+SMTP_USER=noreply@jouwdomein.nl
+SMTP_PASSWORD=het-wachtwoord-van-die-mailbox
+SMTP_TIMEOUT_SECONDS=15
+```
+
+`SMTP_SECURE=tls` is het gangbaarst en de standaard; werkt dat niet, probeer dan `ssl`.
+`none` schakelt TLS uit en mag **alleen zonder `SMTP_USER`** — met inloggegevens erbij zou het het
+wachtwoord in platte tekst versturen, en daar weigert de app op te starten.
+
+**Of alles in één `SMTP_URL`**: `smtp://…:587` voor STARTTLS, `smtps://…:465` voor TLS vanaf de
+eerste byte. Schema en poort moeten bij elkaar passen; `smtps://` met een STARTTLS-poort geeft de
+misleidende fout `wrong version number`. Let op dat een `/`, `?` of `#` in het wachtwoord hier
+percent-gecodeerd moet worden — heb je zo'n wachtwoord, neem dan de losse velden.
+
+TLS is bij beide manieren verplicht zodra er wordt ingelogd (`requireTLS`): lukt de
+STARTTLS-upgrade niet, dan faalt de verzending in plaats van in platte tekst door te gaan.
 
 Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account (meteen als
 geverifieerd aangemaakt; herseeden verifieert een nog ongeverifieerde bootstrap-admin alsnog en laat het
