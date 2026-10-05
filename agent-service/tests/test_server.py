@@ -11,7 +11,9 @@ from typing import Any
 
 from agent_service.auth import is_authorized
 from agent_service.config import ServiceConfig
+from agent_service.contracts import TurnRequest, TurnResponse
 from agent_service.server import AgentServer
+from tests.builders import START, YES, request
 
 TOKEN = "agt_" + "y" * 32
 
@@ -80,6 +82,61 @@ class HealthTest(ServerTestCase):
         status, body = self.request("GET", "/bestaat-niet")
         self.assertEqual(status, 404)
         self.assertEqual(body["error"]["code"], "NOT_FOUND")
+
+
+def body(req: TurnRequest) -> bytes:
+    return req.model_dump_json().encode("utf-8")
+
+
+class TurnEndpointTest(ServerTestCase):
+    def test_zonder_key_401(self) -> None:
+        status, payload = self.request("POST", "/v1/turn", body(request(START)), token=None)
+        self.assertEqual(status, 401)
+        self.assertEqual(payload["error"]["code"], "UNAUTHORIZED")
+
+    def test_verkeerde_key_401(self) -> None:
+        status, _ = self.request("POST", "/v1/turn", body(request(START)), token="agt_fout" * 4)
+        self.assertEqual(status, 401)
+
+    def test_ongeldige_body_400(self) -> None:
+        status, payload = self.request("POST", "/v1/turn", b"{niet: json")
+        self.assertEqual((status, payload["error"]["code"]), (400, "INVALID_BODY"))
+        status, payload = self.request("POST", "/v1/turn", b'{"contract_version": 2}')
+        self.assertEqual((status, payload["error"]["code"]), (400, "INVALID_REQUEST"))
+
+    def test_foutmelding_lekt_geen_inhoud(self) -> None:
+        req = request(START).model_dump(mode="json")
+        req["vocabulary"][0]["labels"] = ["geheim-woord" * 50]  # te lang
+        status, payload = self.request("POST", "/v1/turn", json.dumps(req).encode("utf-8"))
+        self.assertEqual(status, 400)
+        self.assertNotIn("geheim-woord", payload["error"]["message"])
+
+    def test_geldige_start_geeft_een_geldige_turnresponse(self) -> None:
+        status, payload = self.request("POST", "/v1/turn", body(request(START)))
+        self.assertEqual(status, 200)
+        response = TurnResponse.model_validate(payload)
+        self.assertEqual(response.presentation.text, "Pijn?")
+        self.assertEqual(response.state.phase, "clarify")
+
+    def test_protocolfout_409(self) -> None:
+        status, payload = self.request("POST", "/v1/turn", body(request(YES)))
+        self.assertEqual((status, payload["error"]["code"]), (409, "PROTOCOL_ERROR"))
+
+
+class TurnFailureTest(ServerTestCase):
+    def make_server(self) -> AgentServer:
+        def boom(_: TurnRequest) -> TurnResponse:
+            raise RuntimeError("stuk")
+
+        return AgentServer(
+            ServiceConfig(host="127.0.0.1", port=0, service_token=TOKEN), handle_turn=boom
+        )
+
+    def test_onverwachte_fout_500_zonder_details(self) -> None:
+        with self.assertLogs("agent_service", level="ERROR"):
+            status, payload = self.request("POST", "/v1/turn", body(request(START)))
+        self.assertEqual((status, payload["error"]["code"]), (500, "INTERNAL_ERROR"))
+        self.assertNotIn("stuk", payload["error"]["message"])
 
 
 if __name__ == "__main__":

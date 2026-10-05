@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.6 — `POST /v1/turn`
+
+- Het endpoint van de agentdienst: achter de API-key, body gevalideerd met pydantic, `step()` aanroepen,
+  `TurnResponse` terug. Fouten in de vorm `{ "error": { "code", "message" } }` (401, 400, 409, 500); een
+  validatiefout noemt alleen veldnamen, nooit waarden. Het log bevat alleen gebeurtenis, fase,
+  presentatie en duur.
+
 ### N1.5 — orchestrator-skelet met regelgebaseerde agents
 
 - `orchestrator.py`: `step(request) -> TurnResponse` als zuivere functie met de fasen `clarify`,

@@ -114,7 +114,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests per overgang (start, NEE → volgend startconcept, JA → voorstel, JA → klaar,
   NEE op voorstel → terug naar `clarify`).
 
-- [ ] **N1.6 `POST /v1/turn`**
+- [x] **N1.6 `POST /v1/turn`**
   *ONTWERP: §51.* Het endpoint achter de API-key: body valideren met pydantic, `step()` aanroepen,
   `TurnResponse` teruggeven. Fouten in de vorm `{ "error": { "code", "message" } }`. Logt nooit inhoud,
   alleen fase, duur en status.

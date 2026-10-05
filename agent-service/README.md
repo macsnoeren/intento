@@ -14,9 +14,20 @@ De agentdienst bevat de **orchestrator** en de **agents** van Intento (INTENTO-N
 | Methode | Pad | Token | Doel |
 |---|---|---|---|
 | GET | `/health` | nee | Leeft de dienst? |
+| POST | `/v1/turn` | ja | Eén beurt: `TurnRequest` → `TurnResponse` ([contracten](../contracts/README.md)). |
 
-`POST /v1/turn` (één beurt) en `POST /v1/experience` volgen in latere taken. Fouten hebben dezelfde vorm
-als in de backend: `{ "error": { "code": "…", "message": "…" } }`.
+Fouten hebben dezelfde vorm als in de backend: `{ "error": { "code": "…", "message": "…" } }`.
+
+| Status | Code | Wanneer |
+|---|---|---|
+| 401 | `UNAUTHORIZED` | Geen of een verkeerde API-key. |
+| 400 | `INVALID_BODY` | Geen JSON, of groter dan 8 MB. |
+| 400 | `INVALID_REQUEST` | Geen geldig `TurnRequest`; de melding noemt alleen de velden, nooit de waarden. |
+| 409 | `PROTOCOL_ERROR` | De gebeurtenis past niet bij de toestand (bv. een antwoord op een afgelopen gesprek). |
+| 500 | `INTERNAL_ERROR` | Onverwachte fout; de details staan alleen in het log van de dienst. |
+
+`POST /v1/experience` volgt in N12.4. Het log bevat per beurt alleen de gebeurtenis, de fase, de soort
+presentatie en de duur.
 
 ## Opzet en draaien
 
