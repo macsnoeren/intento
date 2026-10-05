@@ -83,7 +83,7 @@ const envSchema = z
     // Strenge rate limiting op de login-route: max verzoeken per IP per venster.
     LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
-    // Rate limiting op het wijzigen van het eigen wachtwoord (T2.5). De route is al
+    // Rate limiting op het wijzigen van het eigen wachtwoord. De route is al
     // geauthenticeerd, maar elke poging kost een argon2-verificatie én raadt effectief het
     // huidige wachtwoord — streng begrenzen dus, zonder het account te blokkeren (dat zou een
     // gekaapte sessie een makkelijke DoS op de eigenaar geven).
@@ -95,7 +95,7 @@ const envSchema = z
       .max(60)
       .default(15),
     // Rate limiting op het opnieuw uitgeven van een tijdelijk wachtwoord door een beheerder
-    // (T2.7). ADMIN-only en tenant-gebonden, dus geen raadaanval — maar elke aanroep trekt alle
+    //. ADMIN-only en tenant-gebonden, dus geen raadaanval — maar elke aanroep trekt alle
     // sessies van een collega in en zet een wachtwoord dat die collega niet kent. Een ruimer
     // venster dan bij login volstaat; het is een zeldzame, bewuste beheeractie.
     PASSWORD_RESET_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
@@ -117,11 +117,11 @@ const envSchema = z
     // `auth/operator.ts` — en deze vlag is de enige andere plek waar ze gezet worden. Er is nog
     // steeds geen API waarmee iemand zichzelf of een ander tot operator promoveert.
     BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR: booleanFromString.default(false),
-    // Strenge rate limiting op de zelfaanmelding (T1.3, publiek): tegen massaal aanmaken van
+    // Strenge rate limiting op de zelfaanmelding (publiek): tegen massaal aanmaken van
     // organisaties/accounts en account-enumeratie. Streng, want registreren is zeldzaam.
     REGISTER_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(5),
     REGISTER_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
-    // Tabletkoppeling (T2.3, FR-018). Levensduur van een koppelcode in minuten — kort, want de
+    // Tabletkoppeling. Levensduur van een koppelcode in minuten — kort, want de
     // beheerder voert 'm direct op de tablet in.
     DEVICE_CODE_TTL_MINUTES: z.coerce
       .number()
@@ -152,7 +152,7 @@ const envSchema = z
     OPENSYMBOLS_SECRET: z.string().default(''),
     // Time-out (ms) voor externe OpenSymbols-aanroepen, zodat een trage dienst de app niet ophoudt.
     OPENSYMBOLS_TIMEOUT_MS: z.coerce.number().int().positive().max(60_000).default(10_000),
-    // E-mailverificatie (T1.4, DESIGN §2, §9.4). Provider-agnostische mail-service.
+    // E-mailverificatie (INTENTO-NEW-DESIGN §49, §53). Provider-agnostische mail-service.
     // Afzenderadres van systeemmails (verificatiemail). RFC 5322-vorm mag ("Naam <adres>").
     MAIL_FROM: z.string().min(1).default('Intento <no-reply@intento.local>'),
     // --- Mailserver: twee schrijfwijzen, kies er één -------------------------------------------
@@ -203,8 +203,8 @@ const envSchema = z
     // aftasten van adressen. Streng, want opnieuw versturen hoort zelden nodig te zijn.
     RESEND_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(3),
     RESEND_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
-    // --- Spraakuitvoer (T18.1, DESIGN §5.3, §9.2, §9.4) ---
-    // De backend praat namens de tablet met de spraakdienst; de tablet nooit rechtstreeks (DESIGN §8.1).
+    // --- Spraakuitvoer (INTENTO-NEW-DESIGN §50, §53) ---
+    // De backend praat namens de tablet met de spraakdienst; de tablet nooit rechtstreeks (INTENTO-NEW-DESIGN §51).
     // `none` = geen dienst geconfigureerd: de spraakendpoints antwoorden dan met 503 SPEECH_UNAVAILABLE
     // in plaats van te falen. `http` = de losstaande Piper-dienst uit `speech-service/`.
     SPEECH_PROVIDER: z.enum(['none', 'http']).default('none'),

@@ -3,12 +3,12 @@ import type { AccountPublic, ResetAccountPasswordResponse } from '@intento/share
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Accountlijst van de organisatie (T2.6/T2.7, DESIGN §2, §5.2, §9.4).
+ * Accountlijst van de organisatie (INTENTO-NEW-DESIGN §49, §53, T2.6/T2.7).
  *
- * De beheerder maakt begeleiders aan met een **tijdelijk** wachtwoord (T2.4) dat hij zelf te zien
+ * De beheerder maakt begeleiders aan met een **tijdelijk** wachtwoord dat hij zelf te zien
  * krijgt. Zolang de begeleider dat niet vervangt, kennen twee mensen die login — en tot T2.6 was
  * dat nergens zichtbaar. Deze lijst maakt het zichtbaar: per login een markering "tijdelijk
- * wachtwoord" (blijft tot de houder zelf een wachtwoord kiest) en "e-mail niet bevestigd" (T1.4).
+ * wachtwoord" (blijft tot de houder zelf een wachtwoord kiest) en "e-mail niet bevestigd".
  *
  * **T2.7 voegt de weg terug toe.** Raakt iemand zijn tijdelijke wachtwoord kwijt (of loopt hij vast
  * op de lockout), dan kan hij niets meer: inloggen lukt niet en zonder sessie is "wachtwoord
@@ -27,15 +27,15 @@ export function AccountsPanel({
   currentAccountId,
 }: {
   api: Api;
-  /** Wijzigt zodra er elders een account is aangemaakt (T2.4), zodat de lijst meteen klopt. */
+  /** Wijzigt zodra er elders een account is aangemaakt, zodat de lijst meteen klopt. */
   refreshToken: number;
-  /** Het eigen account — krijgt geen resetknop (T2.7); zie de toelichting hierboven. */
+  /** Het eigen account — krijgt geen resetknop; zie de toelichting hierboven. */
   currentAccountId: string;
 }): React.JSX.Element {
   const [accounts, setAccounts] = useState<AccountPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Account waarvoor de resetknop op "Weet je het zeker?" staat (T2.7).
+  // Account waarvoor de resetknop op "Weet je het zeker?" staat.
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [issued, setIssued] = useState<ResetAccountPasswordResponse | null>(null);

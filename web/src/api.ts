@@ -1,6 +1,5 @@
 import {
   accountListResponseSchema,
-  aiWaitingErrorSchema,
   apiErrorSchema,
   auditLogListResponseSchema,
   authResponseSchema,
@@ -49,7 +48,7 @@ import {
 /**
  * API-client voor de web-app.
  *
- * De client praat via de backend (nooit rechtstreeks met de AI of db, DESIGN §8.1). Alle
+ * De client praat via de backend (INTENTO-NEW-DESIGN §51, nooit rechtstreeks met de AI of db). Alle
  * requests sturen de sessie-cookie mee (`credentials: 'include'`) en alle responses worden
  * met de gedeelde zod-schema's gevalideerd, zodat client en server nooit uit elkaar lopen.
  *
@@ -57,19 +56,12 @@ import {
  * tests een in-memory implementatie kunnen meegeven zonder echte netwerkcalls.
  */
 
-/** Foutstructuur van de backend (DESIGN §8.1), als gooibare Error met code + HTTP-status. */
+/** Foutstructuur van de backend (INTENTO-NEW-DESIGN §51), als gooibare Error met code + HTTP-status. */
 export class ApiRequestError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
     message: string,
-    /**
-     * Voorgestelde wachttijd (ms) bij een "even wachten"-503 van de AI-wachtrij
-     * (`AI_WORKER_BUSY`/`AI_WORKER_UNAVAILABLE`, T5.7). Spiegelt de `Retry-After`-header.
-     */
-    readonly retryAfterMs?: number,
-    /** Positie in de AI-wachtrij (1-based) bij `AI_WORKER_BUSY`. */
-    readonly position?: number,
   ) {
     super(message);
     this.name = 'ApiRequestError';
@@ -82,23 +74,23 @@ export interface Api {
   register(body: RegisterRequest): Promise<AuthResponse>;
   verifyEmail(token: string): Promise<VerifyEmailResponse>;
   resendVerification(email: string): Promise<ResendVerificationResponse>;
-  /** Wisselt het **eigen** wachtwoord (T2.5); de server pakt het account uit de sessie. */
+  /** Wisselt het **eigen** wachtwoord; de server pakt het account uit de sessie. */
   changePassword(body: ChangePasswordRequest): Promise<ChangePasswordResponse>;
   logout(): Promise<void>;
   listUsers(): Promise<UserListResponse>;
   createUser(body: CreateUserRequest): Promise<UserPublic>;
   updateSettings(id: string, body: UpdateSettingsRequest): Promise<UserPublic>;
   deleteUser(id: string): Promise<void>;
-  /** Begeleider-account aanmaken binnen de eigen organisatie (T2.4). ADMIN-only. */
+  /** Begeleider-account aanmaken binnen de eigen organisatie. ADMIN-only. */
   createCaregiverAccount(body: CreateCaregiverRequest): Promise<CreateCaregiverResponse>;
   /**
-   * Logins van de eigen organisatie (T2.6). ADMIN-only en tenant-gefilterd op de server. De
+   * Logins van de eigen organisatie. ADMIN-only en tenant-gefilterd op de server. De
    * beheerder ziet hier per account of het e-mailadres bevestigd is en of het nog op het
    * tijdelijke wachtwoord uit T2.4 draait.
    */
   listAccounts(): Promise<AccountListResponse>;
   /**
-   * Geeft een **nieuw** tijdelijk wachtwoord uit voor een account in de eigen organisatie (T2.7).
+   * Geeft een **nieuw** tijdelijk wachtwoord uit voor een account in de eigen organisatie.
    * ADMIN-only, nooit voor het eigen account (dat loopt via `changePassword`). Het wachtwoord komt
    * hier één keer terug; alle sessies van dat account zijn daarna ingetrokken.
    */
@@ -106,12 +98,12 @@ export interface Api {
   listCaregivers(userId: string): Promise<CaregiverListResponse>;
   linkCaregiver(userId: string, accountId: string, linked: boolean): Promise<CaregiverListResponse>;
   generateDeviceCode(userId: string): Promise<DeviceCodeResponse>;
-  /** Beheerdashboard: tenant-overzicht (gebruikers/begeleiders/activiteit) + openstaande voorstellen (T7.3). */
+  /** Beheerdashboard: tenant-overzicht (gebruikers/begeleiders/activiteit) + openstaande voorstellen. */
   getDashboard(): Promise<DashboardResponse>;
-  /** Audit-log van gevoelige acties van de eigen organisatie (nieuwste eerst) (T8.2, DESIGN §9.4). */
+  /** Audit-log van gevoelige acties van de eigen organisatie (nieuwste eerst) (INTENTO-NEW-DESIGN §53). */
   listAuditLogs(): Promise<AuditLogListResponse>;
   /**
-   * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4). Deze vijf calls gaan naar de aparte
+   * Platform-operatorconsole (INTENTO-NEW-DESIGN §53). Deze vijf calls gaan naar de aparte
    * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
    * erdoorheen (403 `NOT_OPERATOR` voor al het andere). Ze leveren uitsluitend beheermetadata —
    * nooit communicatie-inhoud of persoonlijke context.
@@ -125,17 +117,17 @@ export interface Api {
   activateOperatorOrganization(id: string): Promise<OperatorOrganization>;
   /**
    * Laat één zin uitspreken met een **expliciete** stem, zodat de begeleider stemmen kan vergelijken
-   * vóór hij er één kiest (T18.2). Slaat niets op; de keuze wordt pas bij `updateSettings` bewaard.
+   * vóór hij er één kiest. Slaat niets op; de keuze wordt pas bij `updateSettings` bewaard.
    */
   speechPreview(userId: string, text: string, voice: string): Promise<Blob>;
-  /** Versleuteld profiel van een gebruiker exporteren (T8.1, FR-019). */
+  /** Versleuteld profiel van een gebruiker exporteren. */
   exportProfile(userId: string): Promise<ProfileExportResponse>;
-  /** Een eerder geëxporteerd profiel importeren als nieuwe gebruiker in de eigen organisatie (T8.1). */
+  /** Een eerder geëxporteerd profiel importeren als nieuwe gebruiker in de eigen organisatie. */
   importProfile(body: ProfileImportRequest): Promise<UserPublic>;
 }
 
 /**
- * API-client voor de **gebruikersapp op de tablet** (T4.2). Bewust losgekoppeld van de
+ * API-client voor de **gebruikersapp op de tablet**. Bewust losgekoppeld van de
  * beheer-`Api`: een gekoppeld apparaat werkt op device-auth (aparte cookie) en heeft alléén
  * toegang tot de eigen gebruiker en zijn gesprek — nooit tot beheer- of accountroutes. Zo hoeft
  * de tablet-UI geen beheermethodes te kennen en omgekeerd.
@@ -146,7 +138,7 @@ export interface DeviceApi {
   /** Koppelcode inwisselen voor een apparaat-token (cookie) en de sessie teruggeven. */
   linkDevice(code: string): Promise<DeviceSessionResponse>;
   /**
-   * Laat de tekst op het scherm uitspreken (T18.3). De **stem** komt uit het profiel van de gebruiker
+   * Laat de tekst op het scherm uitspreken. De **stem** komt uit het profiel van de gebruiker
    * achter de apparaatsessie; de tablet stuurt alleen de tekst mee. Werkt de spraakdienst niet, dan
    * gooit dit — de tablet valt dan terug op de stem van het apparaat zelf.
    */
@@ -191,16 +183,7 @@ async function request(path: string, init: RequestInit = {}): Promise<unknown> {
     const parsed = apiErrorSchema.safeParse(json);
     const code = parsed.success ? parsed.data.error.code : 'REQUEST_ERROR';
     const message = parsed.success ? parsed.data.error.message : 'Er ging iets mis.';
-    // Bij de AI-wachtrij-503's (T5.7) draagt het body extra velden (retryAfterMs/position) die de
-    // UI gebruikt om te wachten en te pollen; anders blijven ze simpelweg undefined.
-    const waiting = aiWaitingErrorSchema.safeParse(json);
-    throw new ApiRequestError(
-      response.status,
-      code,
-      message,
-      waiting.success ? waiting.data.retryAfterMs : undefined,
-      waiting.success ? waiting.data.position : undefined,
-    );
+    throw new ApiRequestError(response.status, code, message);
   }
 
   return json;

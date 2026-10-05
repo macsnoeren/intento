@@ -5,7 +5,7 @@ import { AppShell } from './AppShell.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
 
 /**
- * Beheeromgeving — **eigen account** (T2.5, DESIGN §5.2, §9.4). De plek waar een ingelogd account
+ * Beheeromgeving — **eigen account** (INTENTO-NEW-DESIGN §49, §53). De plek waar een ingelogd account
  * zijn eigen gegevens beheert; nu alleen het wachtwoord. Bewust een eigen tab en niet verstopt in
  * het gebruikersbeheer: dat gaat over *andere* mensen, dit over jezelf.
  */
@@ -38,7 +38,7 @@ export function AccountPage({
         </p>
       </section>
 
-      {/* Platform-operator (T8.3): de console is een aparte routetak (`/operator`) en staat bewust
+      {/* Platform-operator: de console is een aparte routetak (`/operator`) en staat bewust
           níét als tab tussen het tenant-beheer — cross-tenant beheer hoort geen klik naast
           "Gebruikers" te zijn. Wel één expliciete link voor wie de bevoegdheid heeft, anders is de
           console onvindbaar. De link is geen beveiliging: de server weigert elke operator-call van

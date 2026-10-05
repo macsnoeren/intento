@@ -5,7 +5,7 @@ import { hashPassword, verifyPassword } from './password.js';
 import { hashSessionToken } from './session.js';
 
 /**
- * Eigen wachtwoord wijzigen (T2.5, DESIGN §2, §6.2 Account, §9.4).
+ * Eigen wachtwoord wijzigen (INTENTO-NEW-DESIGN §49, §39, §53).
  *
  * Nodig omdat een begeleider die met het **tijdelijke** wachtwoord uit T2.4 inlogt dat anders niet
  * kan vervangen: het zou onbeperkt geldig blijven én bekend zijn bij de beheerder die het aanmaakte.
@@ -50,7 +50,7 @@ export async function changeOwnPassword(
     where: { id: account.id },
     // Ook de lockout-boekhouding schoonvegen: wie zijn wachtwoord aantoonbaar kent, hoort niet
     // met een halfvolle pogingenteller of een lopende blokkade achter te blijven. En de
-    // tijdelijk-wachtwoord-markering (T2.6) valt hier weg: vanaf nu kent alleen de houder zelf het
+    // tijdelijk-wachtwoord-markering valt hier weg: vanaf nu kent alleen de houder zelf het
     // wachtwoord, dus de gate die hem tot deze route beperkte is niet langer van toepassing.
     data: {
       passwordHash,

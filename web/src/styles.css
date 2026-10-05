@@ -1,5 +1,5 @@
 /* Ontwerpsysteem van Intento (T17.1).
-   Tablet-first en rustig (DESIGN §5.1): grote klikvlakken, veel wit, weinig kleur tegelijk. De
+   Tablet-first en rustig (INTENTO-NEW-DESIGN §48): grote klikvlakken, veel wit, weinig kleur tegelijk. De
    kleuren komen uit het logo (`web/brand/`): het donkerblauw van het figuurtje is de tekstkleur, het
    verloop turkoois → blauw → paars van de spraakbel is het accent. */
 :root {
@@ -684,7 +684,7 @@ body {
 }
 
 /* Lijst van aanklikbare regels (gebruikers, symbolen). Eén regel = één klikvlak over de volle
-   breedte: geen knopje van een paar pixels om precies te raken (DESIGN §5.1). */
+   breedte: geen knopje van een paar pixels om precies te raken (INTENTO-NEW-DESIGN §48). */
 .record-list {
   list-style: none;
   margin: 0;
@@ -1170,26 +1170,6 @@ body {
   color: var(--intento-fg);
 }
 
-/* Contextindicator: het afgelegde pad van keuzes (DESIGN §5.2). */
-.breadcrumb {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: center;
-  color: var(--intento-muted);
-}
-
-.breadcrumb__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--intento-border);
-  border-radius: 999px;
-  background: var(--intento-surface);
-  font-size: 1.05rem;
-}
-
 /* Keuzeraster: grote pictogramknoppen, vloeiend van 2 tot 8 opties. */
 .option-grid {
   display: grid;
@@ -1317,20 +1297,7 @@ body {
   max-width: 40rem;
 }
 
-/* Ondersteuningsmodus-indicator (T7.2, DESIGN §3.3): rustige, duidelijk zichtbare band bovenaan zodat
-   iedereen ziet dat de begeleider aantikt namens de gebruiker. Geen foutkleur — het is een normale modus. */
-.tablet__support {
-  margin: 0 auto 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  background: var(--intento-accent-soft, #e3edff);
-  color: var(--intento-fg);
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-  font-weight: 600;
-  text-align: center;
-}
-
-/* Wachtstand terwijl een AI-worker de aanvraag oppakt (T5.7): rustig en centraal, geen foutkleur. */
+/* Rustig, centraal statusscherm op de tablet (bv. "Nog niet beschikbaar"): geen foutkleur. */
 .tablet__waiting {
   display: flex;
   flex-direction: column;

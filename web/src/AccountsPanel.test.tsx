@@ -5,7 +5,7 @@ import { AccountsPanel } from './AccountsPanel.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor de accountlijst (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7).
+ * Web-tests voor de accountlijst en het uitgeven van een nieuw tijdelijk wachtwoord.
  * Draaien tegen een in-memory `Api`. De echte garanties (ADMIN-only, tenant-isolatie, sessies
  * intrekken, audit) zitten server-side (`server/src/routes/accounts.test.ts`); hier bewaken we dat
  * de beheerder de markering ziet, het wachtwoord één keer getoond krijgt, de actie pas ná

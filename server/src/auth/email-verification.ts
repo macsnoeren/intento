@@ -5,7 +5,7 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import type { MailMessage, MailTransport } from '../mail/transport.js';
 
 /**
- * E-mailverificatie (T1.4, DESIGN §2, §9.4, CLAUDE.md security-checklist).
+ * E-mailverificatie (INTENTO-NEW-DESIGN §49, §53, CLAUDE.md security-checklist).
  *
  * Net als bij sessie- en apparaat-tokens gaat het rauwe verificatietoken alléén naar de
  * accounthouder (per e-mail) en staat het in de db **uitsluitend gehasht** (SHA-256). Tokens

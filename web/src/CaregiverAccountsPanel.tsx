@@ -3,7 +3,7 @@ import type { CreateCaregiverResponse } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Begeleider-account aanmaken (T2.4, DESIGN §2, §5.2, FR-017).
+ * Begeleider-account aanmaken (INTENTO-NEW-DESIGN §49).
  *
  * Tot nu toe ontstonden er alleen ADMIN-accounts (seed + zelfaanmelding), waardoor de
  * koppelweergave van T2.2 leeg bleef met de tekst "maak eerst een begeleider aan" — zonder plek om
@@ -19,7 +19,7 @@ export function CaregiverAccountsPanel({
   onCreated,
 }: {
   api: Api;
-  /** Meldt de beheeromgeving dat de begeleiderlijst (koppelweergave, T2.2) ververst moet worden. */
+  /** Meldt de beheeromgeving dat de begeleiderlijst (koppelweergave) ververst moet worden. */
   onCreated: () => void;
 }): React.JSX.Element {
   const [name, setName] = useState('');

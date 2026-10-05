@@ -5,7 +5,7 @@ import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.t
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor profielexport/-import (T8.1). Draaien tegen een in-memory `Api`: de exportknop
+ * Web-tests voor profielexport/-import. Draaien tegen een in-memory `Api`: de exportknop
  * downloadt de versleutelde payload als bestand, het importpaneel leest een gekozen bestand en maakt
  * er een nieuwe gebruiker mee aan. De versleuteling/roundtrip zelf is server-side gedekt.
  */
@@ -30,7 +30,7 @@ const importedUser: UserPublic = {
   },
 };
 
-describe('ProfileExportPanel (T8.1)', () => {
+describe('ProfileExportPanel', () => {
   beforeEach(() => {
     // jsdom kent geen createObjectURL; stub het zodat de download-flow werkt.
     Object.assign(URL, {
@@ -65,7 +65,7 @@ describe('ProfileExportPanel (T8.1)', () => {
   });
 });
 
-describe('ProfileImportPanel (T8.1)', () => {
+describe('ProfileImportPanel', () => {
   it('leest het bestand en importeert het profiel als nieuwe gebruiker', async () => {
     let received: ProfileImportRequest | null = null;
     const importProfile = vi.fn((body: ProfileImportRequest) => {

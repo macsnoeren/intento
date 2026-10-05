@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import type { Env } from '../env.js';
 
 /**
- * Symmetrische veldversleuteling at-rest (T6.1, DESIGN §9.4, CLAUDE.md security-checklist).
+ * Symmetrische veldversleuteling at-rest (INTENTO-NEW-DESIGN §53, CLAUDE.md security-checklist).
  *
  * Gevoelige, vrij-tekst PII (persoonlijke context: namen, relaties) mag NOOIT plaintext in de db staan.
  * Deze module versleutelt zulke velden met **AES-256-GCM** — authenticated encryption, zodat geknoei met

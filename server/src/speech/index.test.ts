@@ -4,7 +4,7 @@ import { HttpError } from '../errors.js';
 import { loadEnv } from '../env.js';
 
 /**
- * De spraaklaag zelf (T18.1): de HTTP-client naar de spraakdienst en de cache ervoor.
+ * De spraaklaag zelf: de HTTP-client naar de spraakdienst en de cache ervoor.
  *
  * Deze tests bestaan vooral om **misleidende foutmeldingen** te voorkomen. Toen een stemmodel stuk
  * bleek (een afgebroken download), liet de dienst de verbinding vallen en meldde de backend "de

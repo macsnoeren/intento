@@ -6,7 +6,7 @@ import { prisma } from '../db/prisma.js';
 import { loginCookie, resetAuthData, seedAccount, testEnv } from '../test/auth-helpers.js';
 
 /**
- * Tijdelijk-wachtwoord-markering en -gate (T2.6, DESIGN §2, §6.2 Account, §9.4).
+ * Tijdelijk-wachtwoord-markering en -gate (INTENTO-NEW-DESIGN §49, §39, §53).
  *
  * Een begeleider die het tijdelijke wachtwoord uit T2.4 nooit vervangt, blijft draaien op een
  * wachtwoord dat zijn beheerder kent — het account is dan feitelijk van twee mensen. Deze tests
@@ -34,7 +34,7 @@ describe('tijdelijk wachtwoord — markering en gate', () => {
   });
 
   /**
-   * Doorloopt de echte flow: een ADMIN maakt een begeleider aan (T2.4) en die logt in met het
+   * Doorloopt de echte flow: een ADMIN maakt een begeleider aan en die logt in met het
    * server-gegenereerde wachtwoord. Geeft de cookie van beide terug plus het tijdelijke wachtwoord.
    */
   async function createCaregiverAndLogin(): Promise<{
@@ -66,7 +66,7 @@ describe('tijdelijk wachtwoord — markering en gate', () => {
     };
   }
 
-  it('markeert een nieuw begeleider-account (T2.4) als "tijdelijk wachtwoord"', async () => {
+  it('markeert een nieuw begeleider-account als "tijdelijk wachtwoord"', async () => {
     const { caregiverId } = await createCaregiverAndLogin();
 
     const stored = await prisma.account.findUniqueOrThrow({ where: { id: caregiverId } });
@@ -150,7 +150,7 @@ describe('tijdelijk wachtwoord — markering en gate', () => {
   });
 
   it('markeert een zelf gekozen wachtwoord niet en zet die accounts dus niet achter de gate', async () => {
-    // Zelfaanmelding (T1.3): de admin kiest zijn eigen wachtwoord — dat kent niemand anders.
+    // Zelfaanmelding: de admin kiest zijn eigen wachtwoord — dat kent niemand anders.
     const res = await app.inject({
       method: 'POST',
       url: '/auth/register',

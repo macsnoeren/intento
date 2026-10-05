@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { PrismaClient } from '../generated/prisma/client.js';
 
 /**
- * Sessiebeheer (DESIGN §9.4, CLAUDE.md security-checklist).
+ * Sessiebeheer (INTENTO-NEW-DESIGN §53, CLAUDE.md security-checklist).
  *
  * Het rauwe sessietoken gaat als httpOnly+Secure cookie naar de client en wordt **nooit**
  * plaintext opgeslagen. In de db bewaren we alleen de SHA-256-hash (`tokenHash`). Bij een

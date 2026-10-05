@@ -10,7 +10,7 @@ import {
 import { testEnv } from '../test/auth-helpers.js';
 
 /**
- * Unit-tests voor de e-mailverificatie-kern (T1.4): token-generatie/hashing, aanmaken (met het
+ * Unit-tests voor de e-mailverificatie-kern: token-generatie/hashing, aanmaken (met het
  * ongeldig maken van een vorig token) en inwisselen (eenmalig, verlopend, neutraal bij fout).
  */
 describe('email-verification module', () => {

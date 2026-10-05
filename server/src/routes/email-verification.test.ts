@@ -7,7 +7,7 @@ import { MemoryMailTransport } from '../mail/transport.js';
 import { resetAuthData, sessionCookieHeader, testEnv } from '../test/auth-helpers.js';
 
 /**
- * Tests voor de e-mailverificatie-routes (T1.4): inwisselen via POST én GET, opnieuw versturen
+ * Tests voor de e-mailverificatie-routes: inwisselen via POST én GET, opnieuw versturen
  * (rate-limited, neutraal), en de verificatie-gate op gevoelige acties (gebruiker aanmaken).
  */
 

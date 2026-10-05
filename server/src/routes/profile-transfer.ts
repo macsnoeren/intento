@@ -21,7 +21,7 @@ import { AUDIT_ACTIONS } from '../audit/actions.js';
 
 export interface ProfileTransferRoutesDeps {
   prisma: PrismaClient;
-  /** Veldversleuteling at-rest (T6.1): de export-payload wordt hiermee versleuteld/ontsleuteld. */
+  /** Veldversleuteling at-rest: de export-payload wordt hiermee versleuteld/ontsleuteld. */
   encryptor: Encryptor;
 }
 
@@ -29,9 +29,9 @@ export interface ProfileTransferRoutesDeps {
 const userParamsSchema = z.object({ id: z.string().min(1) });
 
 /**
- * Profielexport en -import (T8.1, DESIGN §6.4, §8.2, FR-019).
+ * Profielexport en -import (INTENTO-NEW-DESIGN §53, §51).
  *
- * Gegevenseigenaarschap (DESIGN §4): een beheerder kan het volledige communicatieprofiel van een gebruiker
+ * Gegevenseigenaarschap (INTENTO-NEW-DESIGN §1): een beheerder kan het volledige communicatieprofiel van een gebruiker
  * exporteren als **versleuteld** bestand (onleesbaar zonder de omgevingssleutel) en het in een andere
  * omgeving weer importeren als nieuwe gebruiker. Bewust **ADMIN-only** en tenant-gebonden: het is een
  * eigenaarschaps-/beheeractie die alle persoonlijke context (PII) in één bestand bundelt, en import maakt

@@ -16,7 +16,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Spraakuitvoer (T18.1/T18.2, DESIGN §5.3, §8.1, §9.4).
+ * Spraakuitvoer (INTENTO-NEW-DESIGN §50, §51, §53, T18.1/T18.2).
  *
  * De tests draaien met een **nagebootste synthesizer**: de echte spraakdienst (Piper) hoort niet in
  * een unittest thuis, en zo is precies te controleren wat de backend hem vraagt — vooral welke stem,

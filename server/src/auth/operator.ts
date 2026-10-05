@@ -6,7 +6,7 @@ import { findAccountBySessionToken } from './session.js';
 import { readSessionToken } from './request.js';
 
 /**
- * Guard voor de **platform-operatorconsole** (T8.3, DESIGN §9.1, §9.4, ADR-0011).
+ * Guard voor de **platform-operatorconsole** (INTENTO-NEW-DESIGN §53, ADR-0011).
  *
  * De operatorconsole is de enige plek in Intento die bewust **door de tenant-grens heen kijkt**:
  * organisaties en accounts van álle omgevingen naast elkaar, om een omgeving aan te maken of een
@@ -26,8 +26,8 @@ import { readSessionToken } from './request.js';
  * 3. **Dubbele voorwaarde.** Het account moet `isOperator` hebben **én** in een organisatie met
  *    `isPlatform=true` zitten. Eén vlag alleen is niet genoeg: een gekopieerde/geïmporteerde rij of
  *    een verkeerd gezette vlag in een gewone tenant levert zo nog steeds geen console-toegang.
- * 4. **Dezelfde accountgates als elders.** Een tijdelijk wachtwoord (T2.6) of een onbevestigd
- *    e-mailadres (T1.4) blokkeert ook hier — juist hier, want dit is het krachtigste account van het
+ * 4. **Dezelfde accountgates als elders.** Een tijdelijk wachtwoord of een onbevestigd
+ *    e-mailadres blokkeert ook hier — juist hier, want dit is het krachtigste account van het
  *    platform. Bewust letterlijk herhaald in plaats van hergebruikt: deze guard moet los te lezen en
  *    los te reviewen zijn.
  *
@@ -70,7 +70,7 @@ export function operatorAuthorize(prisma: PrismaClient): preHandlerAsyncHookHand
     if (!account.isOperator) {
       throw new HttpError(403, 'NOT_OPERATOR', 'Alleen een platformbeheerder heeft hier toegang.');
     }
-    // Tijdelijk wachtwoord: tot de houder zelf een wachtwoord koos kent een tweede persoon het (T2.6).
+    // Tijdelijk wachtwoord: tot de houder zelf een wachtwoord koos kent een tweede persoon het.
     if (account.mustChangePassword) {
       throw new HttpError(
         403,

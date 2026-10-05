@@ -14,7 +14,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Begeleiders koppelen (T2.2, DESIGN §2, §8.2, FR-017).
+ * Begeleiders koppelen (INTENTO-NEW-DESIGN §49, §51).
  *
  * Dekt de koppel-/ontkoppelflow (ADMIN), de afgeleide toegangsregel (een CAREGIVER ziet
  * alléén gekoppelde gebruikers — niet-gekoppeld = 403) en de harde randen: rolcontrole en
@@ -101,7 +101,7 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
     expect(await prisma.caregiverAssignment.count({ where: { userId: user.id } })).toBe(0);
   });
 
-  it('toont in het overzicht de CAREGIVER- én ADMIN-accounts van de eigen organisatie (T9.1)', async () => {
+  it('toont in het overzicht de CAREGIVER- én ADMIN-accounts van de eigen organisatie', async () => {
     const org = await seedOrganization('Org');
     const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
     await seedAccount('cg1@intento.local', 'pw', 'CAREGIVER', org);
@@ -133,7 +133,7 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
     ]);
   });
 
-  it('koppelt een ADMIN-account als begeleider aan een gebruiker (T9.1)', async () => {
+  it('koppelt een ADMIN-account als begeleider aan een gebruiker', async () => {
     const org = await seedOrganization('Org');
     const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
     const user = await seedUser('Sanne', org);

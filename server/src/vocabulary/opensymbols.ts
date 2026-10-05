@@ -15,7 +15,7 @@ import { HttpError } from '../errors.js';
  *  - `assertSafeImageUrl`: de SSRF/`https`-guard die vóór elke download draait.
  *
  * Alle externe input wordt met zod gevalideerd en gesaneerd (alleen `https`-afbeeldings-URL's
- * passeren); een externe worker/dienst wordt nooit vertrouwd.
+ * passeren); een externe dienst wordt nooit vertrouwd.
  */
 
 /** Het resultaat van het ophalen van een externe afbeelding: het genormaliseerde mime-type + bytes. */

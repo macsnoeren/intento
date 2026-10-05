@@ -3,7 +3,7 @@ import { ApiRequestError, type Api } from './api.ts';
 import { AuthLayout } from './AuthLayout.tsx';
 
 /**
- * Verificatiepagina (T1.4). De verificatiemail bevat een link naar de web-app met `?token=…`;
+ * Verificatiepagina. De verificatiemail bevat een link naar de web-app met `?token=…`;
  * deze pagina wisselt dat token in via `POST /auth/verify-email` en toont het resultaat. Zo
  * gebeurt de statuswijziging op een POST (niet op de kale GET van de linkklik zelf), terwijl de
  * gebruiker toch gewoon op de link in de mail kan klikken.

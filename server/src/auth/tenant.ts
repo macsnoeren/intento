@@ -2,7 +2,7 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 
 /**
- * Tenant-isolatie-helpers (T1.2, DESIGN §9.4).
+ * Tenant-isolatie-helpers (INTENTO-NEW-DESIGN §53).
  *
  * Kernregel: **elke query wordt gefilterd op `organizationId`**. In plaats van dat overal
  * met de hand te herhalen (en te vergeten) geven deze helpers één plek waar de tenant-grens
@@ -11,7 +11,7 @@ import { HttpError } from '../errors.js';
  * - `tenantScope(account)` levert het `where`-fragment voor lees-/lijstqueries, zodat data
  *   van een andere organisatie nooit in het resultaat komt.
  * - `assertSameTenant(account, resource)` bewaakt directe toegang op id: hoort een gevonden
- *   record bij een andere organisatie, dan 403 (consistente foutstructuur, DESIGN §8.1).
+ *   record bij een andere organisatie, dan 403 (INTENTO-NEW-DESIGN §51, consistente foutstructuur).
  */
 
 /**

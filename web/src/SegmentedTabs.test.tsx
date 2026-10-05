@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { SegmentedTabs, tabPanelProps, type SegmentedTab } from './SegmentedTabs.tsx';
 
 /**
- * Tests voor de keuzebalk tussen de onderdelen van een scherm (T17.4). Het punt van deze component
+ * Tests voor de keuzebalk tussen de onderdelen van een scherm. Het punt van deze component
  * is dat tab en paneel naar elkáár verwijzen: zonder die koppeling hoort een schermlezer wel een
  * rij knoppen, maar niet dat er inhoud bij hoort en waar je bent.
  */

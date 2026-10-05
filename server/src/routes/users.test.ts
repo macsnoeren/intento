@@ -14,7 +14,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Gebruikersbeheer-tests (T2.1, DESIGN §2, §5.3, §6.2, FR-017).
+ * Gebruikersbeheer-tests (INTENTO-NEW-DESIGN §49, §50, §39).
  *
  * Dekt de volledige CRUD-slice: aanmaken met standaardprofiel, lijst, ophalen, instellingen
  * (zod-validatie op 2/4/6/8), en verwijderen. Plus de twee harde eisen: rolcontrole
@@ -52,7 +52,7 @@ describe('gebruikersbeheer — /users', () => {
     expect(user.name).toBe('Sanne');
     expect(user.active).toBe(true);
     expect(user.organizationId).toBe(admin.organizationId);
-    // Standaardwaarden (DESIGN §5.3): 4 opties, tekst aan, leren aan, ondersteuning uit,
+    // Standaardwaarden (INTENTO-NEW-DESIGN §50): 4 opties, tekst aan, leren aan, ondersteuning uit,
     // contextindicator aan.
     expect(user.communicationProfile).toEqual({
       showText: true,
@@ -147,12 +147,12 @@ describe('gebruikersbeheer — /users', () => {
     await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
     const caregiver = await seedAccount('caregiver@intento.local', 'pw-c', 'CAREGIVER', org);
     const user = await seedUser('Sanne', org);
-    // Begeleider moet aan de gebruiker gekoppeld zijn om die te mogen beheren (T2.2).
+    // Begeleider moet aan de gebruiker gekoppeld zijn om die te mogen beheren.
     await linkCaregiver(caregiver.accountId, user.id);
 
     const cookie = await loginCookie(app, caregiver.email, caregiver.password);
 
-    // Caregiver mag instellingen beheren (DESIGN §2).
+    // Caregiver mag instellingen beheren (INTENTO-NEW-DESIGN §49).
     const put = await app.inject({
       method: 'PUT',
       url: `/users/${user.id}/settings`,

@@ -71,7 +71,7 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
   }, [api]);
 
   /**
-   * De apparaatsessie (en dus het communicatieprofiel) opnieuw ophalen (T18.6).
+   * De apparaatsessie (en dus het communicatieprofiel) opnieuw ophalen.
    *
    * De sessie werd alleen bij het opstarten geladen, waarna de tablet tot een herlaad van de pagina op
    * dát profiel bleef staan. Uit de praktijk: een begeleider zette de stem op Nathalie terwijl de tablet
@@ -133,7 +133,7 @@ function NotYetAvailableScreen({ userName }: { userName: string }): React.JSX.El
 
 /**
  * Koppelscherm: de tablet is nog niet gekoppeld. De begeleider genereert een koppelcode in de
- * beheeromgeving (T2.3); die wordt hier ingewisseld voor een apparaat-token. Na succes start de
+ * beheeromgeving; die wordt hier ingewisseld voor een apparaat-token. Na succes start de
  * gebruikersapp direct.
  */
 function DeviceLinkScreen({

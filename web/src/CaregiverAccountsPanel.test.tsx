@@ -5,7 +5,7 @@ import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor het aanmaken van begeleider-accounts (T2.4). Draaien tegen een in-memory `Api`:
+ * Web-tests voor het aanmaken van begeleider-accounts. Draaien tegen een in-memory `Api`:
  * de beheerder vult naam + e-mail in, het tijdelijke wachtwoord komt één keer in beeld, en een
  * geweigerd e-mailadres levert een nette (niet-lekkende) melding. De rol/tenant-garanties zitten
  * server-side (`server/src/routes/accounts.test.ts`) — de UI stuurt bewust géén rol mee.
@@ -42,7 +42,7 @@ function fillAndSubmit(name = 'Sam', email = 'sam@intento.local'): void {
   fireEvent.click(screen.getByRole('button', { name: 'Begeleider aanmaken' }));
 }
 
-describe('CaregiverAccountsPanel (T2.4)', () => {
+describe('CaregiverAccountsPanel', () => {
   it('maakt een begeleider aan en toont het tijdelijke wachtwoord één keer', async () => {
     const create = vi.fn().mockResolvedValue(response());
     const onCreated = vi.fn();
@@ -54,7 +54,7 @@ describe('CaregiverAccountsPanel (T2.4)', () => {
     // De UI stuurt alléén naam + e-mail; rol en organisatie bepaalt de server.
     expect(create).toHaveBeenCalledWith({ name: 'Sam', email: 'sam@intento.local' });
     expect(screen.getByRole('status').textContent).toContain('tijdelijk-wachtwoord-123');
-    // De beheeromgeving ververst hierop de koppelweergave (T2.2).
+    // De beheeromgeving ververst hierop de koppelweergave.
     expect(onCreated).toHaveBeenCalledTimes(1);
     // Het formulier is leeg voor een volgende begeleider.
     expect(screen.getByLabelText<HTMLInputElement>('Naam').value).toBe('');

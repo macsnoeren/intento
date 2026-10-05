@@ -63,7 +63,7 @@ async function buildDeviceSession(
 }
 
 /**
- * Tabletkoppeling (T2.3, DESIGN §6.2, §8.2, FR-018).
+ * Tabletkoppeling (INTENTO-NEW-DESIGN §39, §51).
  *
  * Flow: een **beheerder** genereert een koppelcode voor een gebruiker
  * (`POST /admin/users/{id}/device-code`). De **tablet** wisselt die code eenmalig in voor een

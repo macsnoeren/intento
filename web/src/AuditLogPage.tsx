@@ -5,7 +5,7 @@ import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 
 /**
- * Beheeromgeving — audit-log (T8.2, DESIGN §9.4). Toont het spoor van **gevoelige acties** van de eigen
+ * Beheeromgeving — audit-log (INTENTO-NEW-DESIGN §53). Toont het spoor van **gevoelige acties** van de eigen
  * organisatie (login, instellingen, persoonlijke context, export/import, beheer). Bewust **zonder
  * communicatie-inhoud**: alleen wie-wat-wanneer (actie, uitkomst, actor, doelobject). De backend filtert
  * op `organizationId`, dus een beheerder ziet nooit het spoor van een andere organisatie.
@@ -24,15 +24,8 @@ const ACTION_LABELS: Record<string, string> = {
   'caregiver.link': 'Begeleider gekoppeld',
   'caregiver.unlink': 'Begeleider ontkoppeld',
   'device.code.create': 'Koppelcode aangemaakt',
-  'context.create': 'Context toegevoegd',
-  'context.update': 'Context bewerkt',
-  'context.delete': 'Context verwijderd',
   'profile.export': 'Profiel geëxporteerd',
   'profile.import': 'Profiel geïmporteerd',
-  'worker_token.create': 'Worker-token aangemaakt',
-  'worker_token.revoke': 'Worker-token ingetrokken',
-  'concept_proposal.approve': 'Conceptvoorstel goedgekeurd',
-  'concept_proposal.reject': 'Conceptvoorstel afgewezen',
 };
 
 function actionLabel(action: string): string {

@@ -3,7 +3,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AuditAction } from './actions.js';
 
 /**
- * Audit-logging voor gevoelige acties (T8.2, DESIGN §9.4).
+ * Audit-logging voor gevoelige acties (INTENTO-NEW-DESIGN §53).
  *
  * Eén herbruikbaar `recordAudit(...)` schrijft een append-only regel over wie-wat-wanneer op
  * beveiligings-/beheerrelevante handelingen. Ontwerpuitgangspunten:

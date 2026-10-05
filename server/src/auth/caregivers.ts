@@ -3,13 +3,13 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../errors.js';
 
 /**
- * Begeleider-toegangshelper (T2.2, DESIGN §2, FR-017).
+ * Begeleider-toegangshelper (INTENTO-NEW-DESIGN §49).
  *
  * Aanvulling op de tenant-isolatie (`tenant.ts`): naast "zelfde organisatie" geldt voor een
  * **CAREGIVER** de extra regel dat hij alléén de gebruikers mag zien/beheren waaraan hij
  * expliciet gekoppeld is. `assertCaregiverAccess` dwingt dat af op elke gebruiker-gebonden
  * route die ook voor begeleiders openstaat: is de rol CAREGIVER en ontbreekt de koppeling,
- * dan 403 (consistente foutstructuur, DESIGN §8.1). Voor ADMIN is dit een no-op — een
+ * dan 403 (INTENTO-NEW-DESIGN §51, consistente foutstructuur). Voor ADMIN is dit een no-op — een
  * beheerder ziet alle gebruikers binnen de eigen organisatie.
  *
  * Aanname: de tenant-grens is al bewaakt (bv. via `assertSameTenant`) vóór deze aanroep, zodat

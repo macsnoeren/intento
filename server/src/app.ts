@@ -33,14 +33,14 @@ export interface BuildAppOptions {
    * in plaats van ze naar stdout te laten verdwijnen.
    */
   logger?: FastifyServerOptions['logger'];
-  /** Mail-transport (T1.4); standaard uit de env (log/SMTP), injecteerbaar zodat tests de mail opvangen. */
+  /** Mail-transport; standaard uit de env (log/SMTP), injecteerbaar zodat tests de mail opvangen. */
   mail?: MailTransport;
-  /** Spraakdienst (T18.1); standaard uit de env, injecteerbaar zodat tests zonder Piper draaien. */
+  /** Spraakdienst; standaard uit de env, injecteerbaar zodat tests zonder Piper draaien. */
   speech?: SpeechService;
 }
 
 /**
- * `buildApp()`-factory (DESIGN §9.3): bouwt een volledig geconfigureerde, maar
+ * `buildApp()`-factory: bouwt een volledig geconfigureerde, maar
  * niet-luisterende Fastify-instantie. Herbruikbaar in tests via `app.inject()`
  * zonder een echte poort te openen.
  */
@@ -63,7 +63,7 @@ export async function buildApp({
   await app.register(helmet);
 
   // De web-client (andere origin tijdens ontwikkeling) mag met cookies praten.
-  // `methods` staat er expliciet bij (T8.4): @fastify/cors v11 versmalde de default naar
+  // `methods` staat er expliciet bij: @fastify/cors v11 versmalde de default naar
   // `GET,HEAD,POST`, waardoor de browser-preflight elke cross-origin DELETE/PUT/PATCH blokkeerde
   // (gebruiker/context/pictogram verwijderen, instellingen opslaan). Server-tests merkten dat niet:
   // `app.inject()` doet geen preflight, dus alleen een expliciete OPTIONS-test dekt dit af.
@@ -98,15 +98,15 @@ export async function buildApp({
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
-  // Profielexport/-import (T8.1): eigenaarschap — versleuteld profiel exporteren en elders importeren.
+  // Profielexport/-import: eigenaarschap — versleuteld profiel exporteren en elders importeren.
   registerProfileTransferRoutes(app, { prisma, encryptor });
   // Beheerdashboard: tenant-overzicht (gebruikers en begeleiders).
   registerDashboardRoutes(app, { prisma });
-  // Audit-log-inzage (T8.2): ADMIN bekijkt het spoor van gevoelige acties van de eigen organisatie.
+  // Audit-log-inzage: ADMIN bekijkt het spoor van gevoelige acties van de eigen organisatie.
   registerAuditRoutes(app, { prisma });
-  // Platform-operatorconsole (T8.3): de enige, apart bewaakte routetak die over tenants heen kijkt.
+  // Platform-operatorconsole: de enige, apart bewaakte routetak die over tenants heen kijkt.
   registerOperatorRoutes(app, { prisma });
-  // Spraakuitvoer (T18.1): de tablet laat uitspreken wat er op zijn scherm staat; de begeleider
+  // Spraakuitvoer: de tablet laat uitspreken wat er op zijn scherm staat; de begeleider
   // beluistert stemmen vóór hij er één kiest. Altijd geregistreerd — zonder spraakdienst antwoorden
   // ze met 503 SPEECH_UNAVAILABLE, zodat de app het netjes kan opvangen.
   registerSpeechRoutes(app, { env, prisma, speech });

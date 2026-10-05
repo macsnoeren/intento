@@ -4,7 +4,7 @@ import type { AccountPublic } from '@intento/shared';
 import { AppShell } from './AppShell.tsx';
 
 /**
- * Tests voor het vaste raamwerk om elke ingelogde pagina (T17.1): menu, kopbalk, inhoud.
+ * Tests voor het vaste raamwerk om elke ingelogde pagina: menu, kopbalk, inhoud.
  */
 
 function account(overrides: Partial<AccountPublic> = {}): AccountPublic {

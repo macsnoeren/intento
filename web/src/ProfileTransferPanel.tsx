@@ -3,13 +3,13 @@ import type { UserPublic } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Profielexport/-import in de beheeromgeving (T8.1, DESIGN §6.4, §8.2, FR-019).
+ * Profielexport/-import in de beheeromgeving (INTENTO-NEW-DESIGN §53, §51).
  *
- * Gegevenseigenaarschap (DESIGN §4): een beheerder kan het volledige communicatieprofiel van een gebruiker
+ * Gegevenseigenaarschap (INTENTO-NEW-DESIGN §1): een beheerder kan het volledige communicatieprofiel van een gebruiker
  * als **versleuteld** bestand downloaden (`ProfileExportPanel`, per gebruiker) en elders weer importeren als
  * nieuwe gebruiker (`ProfileImportPanel`, op paginaniveau — import maakt immers een nieuwe gebruiker aan).
  * Het bestand is onleesbaar zonder de omgevingssleutel; de client leest/schrijft alleen de ondoorzichtige
- * payload en praat nooit rechtstreeks met de db (DESIGN §8.1).
+ * payload en praat nooit rechtstreeks met de db (INTENTO-NEW-DESIGN §51).
  */
 
 /** Triggert een browserdownload van een tekstbestand (de versleutelde export-payload). */

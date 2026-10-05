@@ -2,7 +2,7 @@ import type { CookieSerializeOptions } from '@fastify/cookie';
 import type { Env } from '../env.js';
 
 /**
- * Cookie-instellingen voor het sessietoken (DESIGN §9.4, CLAUDE.md security-checklist).
+ * Cookie-instellingen voor het sessietoken (INTENTO-NEW-DESIGN §53, CLAUDE.md security-checklist).
  *
  * - `httpOnly`: niet leesbaar vanuit JS → beschermt tegen token-diefstal via XSS.
  * - `secure`: alleen over HTTPS (verplicht in productie via de env-prod-guard).
@@ -23,7 +23,7 @@ export function sessionCookieOptions(env: Env, maxAgeSeconds: number): CookieSer
 }
 
 /**
- * Cookie voor het langlevende apparaat-token (T2.3, FR-018). Bewust een aparte cookie naast de
+ * Cookie voor het langlevende apparaat-token. Bewust een aparte cookie naast de
  * sessie-cookie: een gekoppelde tablet start direct in de gebruikersapp zonder dagelijkse login,
  * met een veel langere `maxAge`. Dezelfde harde beveiliging als de sessie-cookie
  * (httpOnly + Secure + signed + sameSite lax), zodat het token niet via JS leesbaar of te

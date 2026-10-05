@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createEncryptor } from './encryption.js';
 
 /**
- * Encryptor-tests (T6.1, DESIGN §9.4). Toetsen de kern-eigenschappen van de veldversleuteling: een
+ * Encryptor-tests (INTENTO-NEW-DESIGN §53). Toetsen de kern-eigenschappen van de veldversleuteling: een
  * roundtrip levert de plaintext terug, de cijfertekst bevat de plaintext niet, elke versleuteling is uniek
  * (random IV), en geknoei/een verkeerde sleutel wordt gedetecteerd (AES-GCM auth-tag).
  */

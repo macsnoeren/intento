@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AdminNav, groupsForRole, labelForView, type AdminView } from './AdminNav.tsx';
 
 /**
- * Menutests (T17.1). Het menu is de plattegrond van de app: mist een rol een ingang, dan is die
+ * Menutests. Het menu is de plattegrond van de app: mist een rol een ingang, dan is die
  * bestemming onbereikbaar; staat er een ingang te veel, dan loopt iemand tegen een 403 aan.
  */
 describe('hoofdmenu', () => {

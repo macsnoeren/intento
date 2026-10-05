@@ -2,7 +2,7 @@ import { BrandLogo } from './Brand.tsx';
 
 /**
  * De "voordeur"-schermen: inloggen, aanmelden, e-mailadres bevestigen, en de blokkerende schermen
- * die daarop lijken (T17.1). Eén rustige, gecentreerde kaart met het logo erboven.
+ * die daarop lijken. Eén rustige, gecentreerde kaart met het logo erboven.
  *
  * Waarom het logo hier groot mag: dit is het enige moment waarop iemand nog niet in de app zit. Wie
  * een link uit een mail volgt of een gedeelde tablet aanzet, moet in één oogopslag zien wáár hij

@@ -32,7 +32,7 @@ export interface AccountRoutesDeps {
 const accountParamsSchema = z.object({ id: z.string().min(1) });
 
 /**
- * Account-routes (T1.2, T2.4, DESIGN §2, §5.2, §9.4). Beheer van de **logins** binnen één
+ * Account-routes (INTENTO-NEW-DESIGN §49, §53). Beheer van de **logins** binnen één
  * organisatie — tenant-gebonden en ADMIN-only:
  *
  * `GET  /admin/accounts` — lijst van logins **binnen de eigen organisatie**. De query wordt via
@@ -40,10 +40,10 @@ const accountParamsSchema = z.object({ id: z.string().min(1) });
  * een andere organisatie.
  *
  * `POST /admin/accounts` — maakt een **begeleider-account** (rol vast op CAREGIVER) in de eigen
- * organisatie en geeft het server-gegenereerde tijdelijke wachtwoord één keer terug (T2.4).
+ * organisatie en geeft het server-gegenereerde tijdelijke wachtwoord één keer terug.
  *
  * `POST /admin/accounts/{id}/password` — geeft een **nieuw** tijdelijk wachtwoord uit voor een
- * vastgelopen account in de eigen organisatie en trekt al zijn sessies in (T2.7).
+ * vastgelopen account in de eigen organisatie en trekt al zijn sessies in.
  */
 export function registerAccountRoutes(
   app: FastifyInstance,
@@ -62,7 +62,7 @@ export function registerAccountRoutes(
     },
   );
 
-  // Begeleider aanmaken — ADMIN, én e-mail geverifieerd (T1.4). Dezelfde gate als `POST /users`:
+  // Begeleider aanmaken — ADMIN, én e-mail geverifieerd. Dezelfde gate als `POST /users`:
   // een nieuw account is een toegangsverlening tot privacygevoelige gegevens van echte personen,
   // dus de beheerder moet eerst zijn eigen adres hebben bevestigd.
   app.post(
@@ -77,7 +77,7 @@ export function registerAccountRoutes(
       const result = await createCaregiverAccount(prisma, admin.organizationId, input);
 
       if (!result.ok) {
-        // Bewust generiek (zoals bij registratie, T1.3): geen bevestiging dat dit e-mailadres al
+        // Bewust generiek (zoals bij registratie): geen bevestiging dat dit e-mailadres al
         // ergens een account heeft — dat zou account-enumeratie over tenants heen opleveren.
         throw new HttpError(
           409,
@@ -94,7 +94,7 @@ export function registerAccountRoutes(
         metadata: { role: result.account.role },
       });
 
-      // Verificatiemail voor de nieuwe begeleider (T1.4). Best-effort: een falende mailserver mag
+      // Verificatiemail voor de nieuwe begeleider. Best-effort: een falende mailserver mag
       // het aanmaken niet laten mislukken — de beheerder heeft het tijdelijke wachtwoord al en de
       // begeleider kan later "opnieuw versturen" gebruiken.
       try {
@@ -113,11 +113,11 @@ export function registerAccountRoutes(
     },
   );
 
-  // --- Nieuw tijdelijk wachtwoord uitgeven (T2.7) ---
+  // --- Nieuw tijdelijk wachtwoord uitgeven ---
 
   // Enige weg terug voor een account dat vastzit: het tijdelijke wachtwoord uit T2.4 kwijt, of
   // buitengesloten door de lockout. Inloggen lukt dan niet, en zonder sessie is `POST /auth/password`
-  // (T2.5) onbereikbaar. De beheerder geeft hier een nieuw server-gegenereerd tijdelijk wachtwoord
+  // onbereikbaar. De beheerder geeft hier een nieuw server-gegenereerd tijdelijk wachtwoord
   // uit; hij kiest het dus niet zelf en het is meteen weer aan `mustChangePassword` gebonden.
   //
   // Dezelfde gates als bij aanmaken (ADMIN + geverifieerd adres) plus rate limiting: de actie is
@@ -138,7 +138,7 @@ export function registerAccountRoutes(
       const { id } = accountParamsSchema.parse(request.params);
 
       // Nooit het eigen account: een beheerder die zijn wachtwoord wil wisselen doet dat via
-      // `POST /auth/password` (T2.5, mét huidig wachtwoord). Hier zou hij zichzelf zonder
+      // `POST /auth/password` (mét huidig wachtwoord). Hier zou hij zichzelf zonder
       // her-authenticatie een nieuw wachtwoord kunnen geven — precies wat T2.5 uitsluit — en
       // zichzelf bovendien uit zijn eigen sessie werken.
       if (id === admin.id) {

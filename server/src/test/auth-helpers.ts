@@ -21,7 +21,7 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
 
 /** Verwijdert alle auth-/gebruikersdata (koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
-  // Audit-log (T8.2) staat los van de tenant-boom (geen FK's); apart legen zodat tests schoon starten.
+  // Audit-log staat los van de tenant-boom (geen FK's); apart legen zodat tests schoon starten.
   await prisma.auditLog.deleteMany();
   await prisma.deviceLinkCode.deleteMany();
   await prisma.device.deleteMany();
@@ -52,7 +52,7 @@ export async function seedOrganization(name = 'Testorganisatie'): Promise<string
  * een nieuwe organisatie aangemaakt; geef er één mee om meerdere accounts in dezélfde
  * organisatie te zetten (nodig om tenant-isolatie tussen twee organisaties aan te tonen).
  *
- * Standaard **geverifieerd** (T1.4): geseede accounts staan voor reeds ingerichte omgevingen,
+ * Standaard **geverifieerd**: geseede accounts staan voor reeds ingerichte omgevingen,
  * zodat bestaande tests niet op de verificatie-gate lopen. Zet `emailVerified: false` om een
  * vers-aangemeld, nog niet bevestigd account na te bootsen.
  */
@@ -78,7 +78,7 @@ export async function seedAccount(
 
 /**
  * Maakt de **platformorganisatie** (`isPlatform`) met een ADMIN-account daarin — de basis voor de
- * platform-gebonden tests (worker-tokens T5.8, operatorconsole T8.3). Met `isOperator: true` krijg je
+ * platform-gebonden tests (operatorconsole, platformitems van de Vocabulary). Met `isOperator: true` krijg je
  * een volwaardige platform-operator; zonder is het een gewone ADMIN die toevallig in de platform-org
  * zit (precies het geval dat op `/operator` een 403 hoort te krijgen).
  */
@@ -148,7 +148,7 @@ export function sessionCookieHeader(response: LightMyRequestResponse): string | 
   return cookieHeader(response, SESSION_COOKIE_NAME);
 }
 
-/** Idem voor de device-cookie (T2.3), zodat een gekoppeld apparaat 1-op-1 kan terugsturen. */
+/** Idem voor de device-cookie, zodat een gekoppeld apparaat 1-op-1 kan terugsturen. */
 export function deviceCookieHeader(response: LightMyRequestResponse): string | undefined {
   return cookieHeader(response, DEVICE_COOKIE_NAME);
 }

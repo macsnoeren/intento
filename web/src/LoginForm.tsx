@@ -15,7 +15,7 @@ export function LoginForm({
 }: {
   api: Api;
   onLoggedIn: (auth: AuthResponse) => void;
-  /** Optioneel: schakelt naar het zelfaanmeldscherm (T1.3). */
+  /** Optioneel: schakelt naar het zelfaanmeldscherm. */
   onRegister?: () => void;
 }): React.JSX.Element {
   const [email, setEmail] = useState('');

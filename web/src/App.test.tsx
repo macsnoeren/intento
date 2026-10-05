@@ -22,7 +22,7 @@ import { App } from './App.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor de beheeromgeving (T2.1). Draaien tegen een in-memory `Api`, zodat de
+ * Web-tests voor de beheeromgeving. Draaien tegen een in-memory `Api`, zodat de
  * volledige beheerflow (inloggen → gebruiker aanmaken → instellingen → verwijderen) zonder
  * netwerk getest wordt. De echte HTTP-client wordt server-side gedekt door de API-tests.
  */
@@ -59,10 +59,8 @@ function fakeApi(
     loggedIn?: boolean;
     caregivers?: CaregiverLink[];
     emailVerified?: boolean;
-    /** Simuleer een account dat nog op zijn tijdelijke wachtwoord uit T2.4 zit (T2.6). */
+    /** Simuleer een account dat nog op zijn tijdelijke wachtwoord uit T2.4 zit. */
     mustChangePassword?: boolean;
-    /** Simuleer een niet-platform-ADMIN: worker-token-endpoints geven 403 NOT_PLATFORM_ADMIN. */
-    workerTokensForbidden?: boolean;
     /** De rol van het ingelogde account; standaard beheerder. */
     role?: AccountPublic['role'];
   } = {},
@@ -78,8 +76,6 @@ function fakeApi(
   });
   const users: UserPublic[] = [];
   let counter = 0;
-  // In-memory worker-tokenstore (T5.8).
-  // In-memory persoonlijke-contextstore per gebruiker (T6.2).
   // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
   const caregiverSeed = options.caregivers ?? [];
   let caregiverCounter = caregiverSeed.length;
@@ -110,7 +106,7 @@ function fakeApi(
       return Promise.resolve({ account: account() });
     },
     register(): Promise<AuthResponse> {
-      // Zelfaanmelding maakt een nieuwe omgeving + admin en logt meteen in (T1.3).
+      // Zelfaanmelding maakt een nieuwe omgeving + admin en logt meteen in.
       session = true;
       return Promise.resolve({ account: account() });
     },
@@ -122,7 +118,7 @@ function fakeApi(
       return Promise.resolve({ message: 'Als het adres bekend is, is er een mail verstuurd.' });
     },
     changePassword(): Promise<ChangePasswordResponse> {
-      // Zoals de server (T2.6): een geslaagde wijziging heft de tijdelijk-wachtwoord-markering op.
+      // Zoals de server: een geslaagde wijziging heft de tijdelijk-wachtwoord-markering op.
       mustChangePassword = false;
       return Promise.resolve({ revokedSessions: 0 });
     },
@@ -150,7 +146,7 @@ function fakeApi(
       return Promise.resolve();
     },
     createCaregiverAccount(body: CreateCaregiverRequest): Promise<CreateCaregiverResponse> {
-      // Server-gedrag nagebootst (T2.4): rol vast op CAREGIVER, eigen organisatie, tijdelijk
+      // Server-gedrag nagebootst: rol vast op CAREGIVER, eigen organisatie, tijdelijk
       // wachtwoord uit de backend. Het account komt meteen in de organisatiebrede begeleiderlijst.
       const account = {
         id: `cg-${++caregiverCounter}`,
@@ -159,7 +155,7 @@ function fakeApi(
         organizationId: adminAccount.organizationId,
         name: body.name,
         emailVerified: false,
-        // Een vers account draait nog op het tijdelijke wachtwoord dat de server teruggaf (T2.6).
+        // Een vers account draait nog op het tijdelijke wachtwoord dat de server teruggaf.
         mustChangePassword: true,
         isOperator: false,
       };
@@ -191,7 +187,7 @@ function fakeApi(
       });
     },
     resetAccountPassword(accountId: string): Promise<ResetAccountPasswordResponse> {
-      // Server-gedrag nagebootst (T2.7): nieuw server-gegenereerd wachtwoord, account weer
+      // Server-gedrag nagebootst: nieuw server-gegenereerd wachtwoord, account weer
       // gemarkeerd, alle sessies van dat account ingetrokken.
       const caregiver = caregiverSeed.find((c) => c.accountId === accountId);
       return Promise.resolve({
@@ -226,7 +222,7 @@ function fakeApi(
     generateDeviceCode(): Promise<DeviceCodeResponse> {
       return Promise.resolve({ code: 'ABCD2345', expiresAt: '2026-07-08T10:15:00.000Z' });
     },
-    // Dashboard + conceptvoorstellen (T7.3) — apart gedekt in eigen tests; hier stubs zodat de app
+    // Dashboard + conceptvoorstellen — apart gedekt in eigen tests; hier stubs zodat de app
     // tegen de volledige `Api` compileert.
     getDashboard() {
       return Promise.resolve({
@@ -237,7 +233,7 @@ function fakeApi(
     listAuditLogs() {
       return Promise.resolve({ entries: [] });
     },
-    // Operatorconsole (T8.3) — eigen routetak met eigen test; hier stubs zodat de beheer-app
+    // Operatorconsole — eigen routetak met eigen test; hier stubs zodat de beheer-app
     // tegen de volledige `Api` compileert.
     listOperatorOrganizations() {
       return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
@@ -254,7 +250,7 @@ function fakeApi(
     activateOperatorOrganization() {
       return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
     },
-    // Profielexport/-import (T8.1) — apart gedekt in ProfileTransfer-tests; hier stubs zodat de app
+    // Profielexport/-import — apart gedekt in ProfileTransfer-tests; hier stubs zodat de app
     // tegen de volledige `Api` compileert.
     exportProfile() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
@@ -266,7 +262,7 @@ function fakeApi(
 }
 
 /**
- * Maakt via de gebruikersdialoog een gebruiker aan (T17.2). De app opent daarna zijn eigen scherm,
+ * Maakt via de gebruikersdialoog een gebruiker aan. De app opent daarna zijn eigen scherm,
  * want een verse gebruiker heeft nog een communicatieprofiel nodig.
  */
 async function createUser(name: string): Promise<void> {
@@ -357,7 +353,7 @@ describe('beheeromgeving-app', () => {
     await waitFor(() => expect(screen.queryByText('Sanne')).toBeNull());
   });
 
-  it('opent vanuit het overzicht het scherm van één gebruiker en gaat terug (T17.2)', async () => {
+  it('opent vanuit het overzicht het scherm van één gebruiker en gaat terug', async () => {
     render(<App api={fakeApi({ loggedIn: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
     await createUser('Sanne');
@@ -369,7 +365,7 @@ describe('beheeromgeving-app', () => {
     expect(row.textContent).toContain('Voorlezen uit');
 
     // En vanaf die regel weer naar zijn eigen scherm: een keuzebalk met zijn onderdelen, en
-    // "Instellingen" staat open (T17.4).
+    // "Instellingen" staat open.
     fireEvent.click(row);
     await screen.findByRole('heading', { level: 1, name: 'Sanne' });
     expect(screen.getByRole('form', { name: 'Instellingen voor Sanne' })).toBeTruthy();
@@ -386,11 +382,11 @@ describe('beheeromgeving-app', () => {
     expect(screen.queryByRole('tab', { name: 'Persoonlijke context' })).toBeNull();
     expect(screen.queryByRole('tab', { name: 'Voorkeuren' })).toBeNull();
 
-    // De formulieren om iemand toe te voegen staan hier niet meer tussen (T17.2).
+    // De formulieren om iemand toe te voegen staan hier niet meer tussen.
     expect(screen.queryByRole('region', { name: 'Begeleider aanmaken' })).toBeNull();
   });
 
-  it('laat de focus in het naamveld staan terwijl je typt (T17.5)', async () => {
+  it('laat de focus in het naamveld staan terwijl je typt', async () => {
     render(<App api={fakeApi({ loggedIn: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
 
@@ -408,7 +404,7 @@ describe('beheeromgeving-app', () => {
     expect(input.value).toBe('Sanne');
   });
 
-  it('sluit de dialoog "Gebruiker toevoegen" met Escape zonder aan te maken (T17.2)', async () => {
+  it('sluit de dialoog "Gebruiker toevoegen" met Escape zonder aan te maken', async () => {
     render(<App api={fakeApi({ loggedIn: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
 
@@ -435,7 +431,7 @@ describe('beheeromgeving-app', () => {
 
     await createUser('Sanne');
 
-    // Begeleiders zijn een eigen onderdeel van zijn scherm (T17.4); de begeleider staat er nog
+    // Begeleiders zijn een eigen onderdeel van zijn scherm; de begeleider staat er nog
     // ongekoppeld in.
     openUserTab('Begeleiders');
     const panel = await screen.findByRole('region', { name: 'Begeleiders voor Sanne' });
@@ -449,7 +445,7 @@ describe('beheeromgeving-app', () => {
     await waitFor(() => expect(checkbox.checked).toBe(true));
   });
 
-  it('laat een beheerder een begeleider-account aanmaken dat meteen koppelbaar is (T2.4)', async () => {
+  it('laat een beheerder een begeleider-account aanmaken dat meteen koppelbaar is', async () => {
     render(<App api={fakeApi({ loggedIn: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
 
@@ -461,7 +457,7 @@ describe('beheeromgeving-app', () => {
       expect(linkPanel.textContent).toContain('Nog geen begeleider-accounts in deze organisatie'),
     );
 
-    // Begeleiders maak je aan op het overzicht, onder "Logins" (T17.2). Het tijdelijke wachtwoord
+    // Begeleiders maak je aan op het overzicht, onder "Logins". Het tijdelijke wachtwoord
     // komt daar één keer in beeld.
     fireEvent.click(screen.getByRole('button', { name: 'Alle gebruikers' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Logins' }));
@@ -476,7 +472,7 @@ describe('beheeromgeving-app', () => {
       'tijdelijk-wachtwoord-123',
     );
 
-    // …en het account is meteen aan de gebruiker te koppelen (T2.2).
+    // …en het account is meteen aan de gebruiker te koppelen.
     fireEvent.click(screen.getByRole('button', { name: 'Sluiten' }));
     fireEvent.click(await screen.findByRole('tab', { name: 'Gebruikers' }));
     fireEvent.click(await screen.findByRole('button', { name: /Sanne/ }));
@@ -497,7 +493,7 @@ describe('beheeromgeving-app', () => {
     await createUser('Sanne');
 
     // Het koppelpaneel staat onder "Tablet"; code genereren toont de code én het adres waar hij
-    // ingevoerd wordt (T9.2).
+    // ingevoerd wordt.
     openUserTab('Tablet');
     const panel = await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' });
     fireEvent.click(within(panel).getByRole('button', { name: 'Koppelcode genereren' }));
@@ -506,7 +502,7 @@ describe('beheeromgeving-app', () => {
     expect(result.textContent).toContain('/tablet');
   });
 
-  it('geeft een begeleider een menu met zijn eigen account erin (T17.1)', async () => {
+  it('geeft een begeleider een menu met zijn eigen account erin', async () => {
     render(<App api={fakeApi({ loggedIn: true, role: 'CAREGIVER' })} />);
 
     // De vraagmodus is vervallen (N0.3); een begeleider komt binnen op zijn account.
@@ -519,7 +515,7 @@ describe('beheeromgeving-app', () => {
     expect(screen.getByRole('region', { name: 'Wachtwoord wijzigen' })).toBeTruthy();
   });
 
-  it('dwingt een account met een tijdelijk wachtwoord eerst naar het wachtwoordscherm (T2.6)', async () => {
+  it('dwingt een account met een tijdelijk wachtwoord eerst naar het wachtwoordscherm', async () => {
     render(<App api={fakeApi({ loggedIn: true, mustChangePassword: true })} />);
 
     // Geen beheeromgeving: alleen het blokkerende scherm met de enige toegestane actie.
@@ -542,11 +538,11 @@ describe('beheeromgeving-app', () => {
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
   });
 
-  it('toont de beheerder welke logins nog op een tijdelijk wachtwoord zitten (T2.6)', async () => {
+  it('toont de beheerder welke logins nog op een tijdelijk wachtwoord zitten', async () => {
     render(<App api={fakeApi({ loggedIn: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
 
-    // De loginlijst zit achter het tabblad "Logins" (T17.2).
+    // De loginlijst zit achter het tabblad "Logins".
     fireEvent.click(screen.getByRole('tab', { name: 'Logins' }));
 
     // Alleen de beheerder zelf: geen markering op zijn regel (hij koos zijn eigen wachtwoord).
@@ -555,7 +551,7 @@ describe('beheeromgeving-app', () => {
     expect(adminRow.textContent).toContain('admin@intento.local');
     expect(adminRow.textContent).not.toContain('tijdelijk wachtwoord');
 
-    // Begeleider aanmaken (T2.4) → verschijnt gemarkeerd in de lijst.
+    // Begeleider aanmaken → verschijnt gemarkeerd in de lijst.
     fireEvent.click(screen.getByRole('button', { name: 'Begeleider aanmaken' }));
     const createPanel = await screen.findByRole('region', { name: 'Begeleider aanmaken' });
     fireEvent.change(within(createPanel).getByLabelText('Naam'), { target: { value: 'Sam' } });
@@ -575,7 +571,7 @@ describe('beheeromgeving-app', () => {
     );
   });
 
-  it('toont een verificatiebanner voor een onbevestigd account en verstuurt opnieuw (T1.4)', async () => {
+  it('toont een verificatiebanner voor een onbevestigd account en verstuurt opnieuw', async () => {
     render(<App api={fakeApi({ loggedIn: true, emailVerified: false })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
 
@@ -595,7 +591,7 @@ describe('beheeromgeving-app', () => {
     expect(screen.queryByRole('button', { name: 'Verificatiemail opnieuw versturen' })).toBeNull();
   });
 
-  it('wisselt een token uit de e-maillink in via de verificatiepagina (T1.4)', async () => {
+  it('wisselt een token uit de e-maillink in via de verificatiepagina', async () => {
     render(
       <App
         api={fakeApi({ loggedIn: true, emailVerified: false })}

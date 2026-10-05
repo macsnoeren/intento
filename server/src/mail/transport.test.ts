@@ -11,7 +11,7 @@ import {
 import { loadEnv } from '../env.js';
 
 /**
- * Tests voor het SMTP-transport (T1.4). De kern is één security-eigenschap: het transport mag
+ * Tests voor het SMTP-transport. De kern is één security-eigenschap: het transport mag
  * inloggegevens nooit over een onversleutelde verbinding versturen. Bij een STARTTLS-poort
  * (`smtp://`, meestal 587) moet de upgrade naar TLS dus verplicht zijn — mislukt die, dan hoort de
  * verzending te falen in plaats van door te gaan in platte tekst.

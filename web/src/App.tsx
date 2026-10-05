@@ -25,7 +25,7 @@ function readVerificationToken(search: string = window.location.search): string 
 /**
  * Beheeromgeving (fase 2). Regelt de sessie-toestand: eerst `GET /auth/me`; bij een geldige
  * sessie de juiste weergave, anders het login-scherm. Het gebruikersbeheer is voor
- * beheerders (DESIGN §2, §5.2). De gebruikersapp en begeleiderinterface volgen in latere fases.
+ * beheerders (INTENTO-NEW-DESIGN §49). De gebruikersapp en begeleiderinterface volgen in latere fases.
  *
  * `api` is injecteerbaar zodat tests een in-memory backend kunnen meegeven.
  */
@@ -34,15 +34,15 @@ export function App({
   initialVerificationToken = readVerificationToken(),
 }: {
   api?: Api;
-  /** Verificatietoken uit de URL (T1.4); injecteerbaar in tests. */
+  /** Verificatietoken uit de URL; injecteerbaar in tests. */
   initialVerificationToken?: string | null;
 } = {}): React.JSX.Element {
   const [account, setAccount] = useState<AccountPublic | null>(null);
   const [checking, setChecking] = useState(true);
   const [view, setView] = useState<AdminView>('users');
-  // Ongeauthenticeerde weergave: inloggen of zelf een nieuwe omgeving aanmelden (T1.3).
+  // Ongeauthenticeerde weergave: inloggen of zelf een nieuwe omgeving aanmelden.
   const [authScreen, setAuthScreen] = useState<'login' | 'register'>('login');
-  // Verificatietoken uit de e-maillink (T1.4): zolang gezet tonen we de verificatiepagina.
+  // Verificatietoken uit de e-maillink: zolang gezet tonen we de verificatiepagina.
   const [verificationToken, setVerificationToken] = useState<string | null>(
     initialVerificationToken,
   );
@@ -83,7 +83,7 @@ export function App({
     }
   }
 
-  // Verificatielink uit de mail (T1.4): eerst het token inwisselen, daarna terug naar de app.
+  // Verificatielink uit de mail: eerst het token inwisselen, daarna terug naar de app.
   if (verificationToken) {
     return (
       <VerifyEmailPage
@@ -129,8 +129,8 @@ export function App({
     );
   }
 
-  // Tijdelijk wachtwoord (T2.6): dit account draait nog op het wachtwoord dat de beheerder bij het
-  // aanmaken (T2.4) te zien kreeg. De server laat dan alleen `GET /auth/me` en `POST /auth/password`
+  // Tijdelijk wachtwoord: dit account draait nog op het wachtwoord dat de beheerder bij het
+  // aanmaken te zien kreeg. De server laat dan alleen `GET /auth/me` en `POST /auth/password`
   // toe, dus elke gewone weergave zou vol 403's staan. Daarom één blokkerend scherm met precies de
   // uitweg erin — geen zachte banner die je kunt wegkijken, want tot de wissel kent een tweede
   // persoon dit wachtwoord.
@@ -148,7 +148,7 @@ export function App({
     );
   }
 
-  // Herinneringsbanner zolang het e-mailadres niet is bevestigd (T1.4).
+  // Herinneringsbanner zolang het e-mailadres niet is bevestigd.
   const banner = account.emailVerified ? null : (
     <VerificationBanner api={api} email={account.email} />
   );

@@ -1,7 +1,7 @@
 import argon2 from 'argon2';
 
 /**
- * Wachtwoord-hashing met **argon2id** (CLAUDE.md security-checklist, DESIGN §9.4).
+ * Wachtwoord-hashing met **argon2id** (INTENTO-NEW-DESIGN §53, CLAUDE.md security-checklist).
  *
  * argon2id is de aanbevolen variant voor wachtwoordopslag: memory-hard tegen GPU-brute-force
  * én bestand tegen side-channels. De `argon2`-library genereert per hash een eigen salt en

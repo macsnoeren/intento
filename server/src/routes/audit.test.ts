@@ -14,7 +14,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Audit-logging-tests (T8.2, DESIGN §9.4).
+ * Audit-logging-tests (INTENTO-NEW-DESIGN §53).
  *
  * Toont dat gevoelige acties (login, instellingen, context, export/import, beheer) **aantoonbaar**
  * worden gelogd, zonder communicatie-inhoud, en dat de inzage-lijst ADMIN-only en tenant-geïsoleerd is.

@@ -6,7 +6,7 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import { hashPassword } from './password.js';
 
 /**
- * Begeleider-accounts aanmaken (T2.4, DESIGN §2, §5.2, §6.2, FR-017).
+ * Begeleider-accounts aanmaken (INTENTO-NEW-DESIGN §49, §39).
  *
  * Tot nu toe ontstonden er alleen ADMIN-accounts (seed + zelfaanmelding T1.3), waardoor de
  * koppelweergave van T2.2 nooit iets te kiezen had. Een beheerder maakt hier een `Account` met rol
@@ -20,10 +20,10 @@ import { hashPassword } from './password.js';
  *   - Het wachtwoord komt **niet** van de beheerder: die zou een zwak of hergebruikt wachtwoord
  *     kunnen kiezen voor iemand anders. De server genereert 256 bit entropie.
  *   - Het rauwe wachtwoord bestaat alleen in het antwoord op deze ene call — in de db staat
- *     uitsluitend de argon2id-hash, precies zoals bij koppelcodes (T2.3) en worker-tokens (T5.8).
+ *     uitsluitend de argon2id-hash, precies zoals bij koppelcodes.
  * Het account start **ongeverifieerd**; de route stuurt best-effort een verificatiemail zodat de
  * begeleider zijn adres alsnog bevestigt (zie `docs/security.md` voor de verificatie-gate). Het start
- * óók met `mustChangePassword` (T2.6): zolang het tijdelijke wachtwoord geldt, kent de beheerder het
+ * óók met `mustChangePassword`: zolang het tijdelijke wachtwoord geldt, kent de beheerder het
  * wachtwoord van de begeleider — het account mag dan niets anders dan zijn eigen wachtwoord wisselen.
  */
 
@@ -44,7 +44,7 @@ export type CreateCaregiverResult =
  * Maakt een CAREGIVER-account binnen `organizationId`. De rol en de organisatie komen bewust
  * **niet** uit de invoer (geen privilege-escalatie, geen account in een andere tenant).
  *
- * Net als bij registratie (T1.3) leunt de uniciteit van de e-mail op de db-constraint
+ * Net als bij registratie leunt de uniciteit van de e-mail op de db-constraint
  * (`Account.email @unique`) in plaats van een losse "bestaat al?"-check: dat sluit een race tussen
  * twee gelijktijdige aanmaakverzoeken uit en laat de responstijd niet verraden of het adres al
  * bestaat. Bij een botsing komt er een **generieke** faalreden terug die de route naar een
@@ -66,7 +66,7 @@ export async function createCaregiverAccount(
         passwordHash,
         role: 'CAREGIVER',
         organizationId,
-        // Tijdelijk-wachtwoord-markering (T2.6): dit wachtwoord is bij de beheerder bekend, dus het
+        // Tijdelijk-wachtwoord-markering: dit wachtwoord is bij de beheerder bekend, dus het
         // account is pas echt van de begeleider alleen zodra hij het zelf vervangt. Tot dan laat
         // `authorize()` alleen het eigen account bekijken en het wachtwoord wijzigen toe.
         mustChangePassword: true,

@@ -23,7 +23,7 @@ export function SettingsForm({
   user: UserPublic;
   onSave: (id: string, settings: UpdateSettingsRequest) => Promise<void>;
   /**
-   * Laat één stem een voorbeeldzin zeggen (T18.2). Ontbreekt hij, dan blijft de luisterknop weg —
+   * Laat één stem een voorbeeldzin zeggen. Ontbreekt hij, dan blijft de luisterknop weg —
    * handig in schermen waar geen geluid hoort.
    */
   onPreviewVoice?: (voice: string) => Promise<void>;

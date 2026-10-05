@@ -1,7 +1,7 @@
 import { isDeviceVoice } from '@intento/shared';
 
 /**
- * Spraakuitvoer in de browser (T18.3, DESIGN §5.1, §5.4).
+ * Spraakuitvoer in de browser (INTENTO-NEW-DESIGN §48).
  *
  * De tablet spreekt uit **wat er op het scherm staat** — letterlijk en ongewijzigd. Deze laag weet
  * daar verder niets van; ze krijgt zinnen en zorgt dat ze in de juiste volgorde te horen zijn.
@@ -149,7 +149,7 @@ export function createBrowserSpeech({ voice, fetchAudio }: BrowserSpeechOptions)
 }
 
 /**
- * Speelt een fragment van de spraakdienst af (T18.2, beheeromgeving). Losse functie, zodat de
+ * Speelt een fragment van de spraakdienst af (beheeromgeving). Losse functie, zodat de
  * beheer-UI een stem kan laten horen zonder de hele spraakpoort van de tablet op te tuigen.
  */
 export async function playAudioBlob(blob: Blob): Promise<void> {
@@ -168,7 +168,7 @@ export async function playAudioBlob(blob: Blob): Promise<void> {
 }
 
 /**
- * Laat het **huidige apparaat** een zin uitspreken (T18.2). Gebruikt bij het beluisteren van de keuze
+ * Laat het **huidige apparaat** een zin uitspreken. Gebruikt bij het beluisteren van de keuze
  * "Stem van het apparaat": op de computer van de begeleider klinkt dan de stem van díé computer — een
  * indicatie, geen belofte, want de tablet heeft zijn eigen stemmen.
  */

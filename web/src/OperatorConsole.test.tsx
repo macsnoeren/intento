@@ -9,7 +9,7 @@ import { OperatorConsole } from './OperatorConsole.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor de platform-operatorconsole (T8.3). Draaien tegen een in-memory `Api`; de echte
+ * Web-tests voor de platform-operatorconsole. Draaien tegen een in-memory `Api`; de echte
  * grens (wie mag erbij, wat komt eruit) is met de server-tests gedekt. Hier gaat het om het gedrag
  * van het scherm: ziet een operator alle omgevingen, kan hij er één stoppen en hervatten, en — even
  * belangrijk — krijgt een niet-operator een nette uitleg in plaats van een lege lijst.

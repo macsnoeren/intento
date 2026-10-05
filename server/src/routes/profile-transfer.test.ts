@@ -21,7 +21,7 @@ import {
  * Dekt de acceptatie: een roundtrip (export in org A → import in org B) levert een **identiek** profiel;
  * het exportbestand is onleesbaar zonder de omgevingssleutel; en de actie is ADMIN-only en tenant-gebonden.
  */
-describe('profielexport/-import (T8.1)', () => {
+describe('profielexport/-import', () => {
   let app: FastifyInstance;
 
   /** Een bewust niet-standaard profiel, zodat de roundtrip elk veld aantoonbaar meeneemt. */

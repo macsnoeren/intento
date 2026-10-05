@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Herinneringsbanner (T1.4) voor een ingelogd account dat zijn e-mailadres nog niet heeft
+ * Herinneringsbanner voor een ingelogd account dat zijn e-mailadres nog niet heeft
  * bevestigd. Toont een "opnieuw versturen"-knop die `POST /auth/verify-email/resend` aanroept.
  * De backend antwoordt altijd neutraal (geen account-enumeratie), dus we tonen een generieke
  * bevestiging ongeacht de uitkomst.

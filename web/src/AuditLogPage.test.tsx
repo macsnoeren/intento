@@ -5,7 +5,7 @@ import { AuditLogPage } from './AuditLogPage.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor de audit-log-pagina (T8.2). Draaien tegen een in-memory `Api` (de server-kant is met
+ * Web-tests voor de audit-log-pagina. Draaien tegen een in-memory `Api` (de server-kant is met
  * API-tests gedekt). Toetst dat acties leesbaar tonen, een mislukking als zodanig gemarkeerd wordt en
  * de lege staat netjes is.
  */

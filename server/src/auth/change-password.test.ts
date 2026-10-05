@@ -6,7 +6,7 @@ import { prisma } from '../db/prisma.js';
 import { loginCookie, resetAuthData, seedAccount, testEnv } from '../test/auth-helpers.js';
 
 /**
- * Eigen wachtwoord wijzigen (T2.5, DESIGN §2, §6.2 Account, §9.4).
+ * Eigen wachtwoord wijzigen (INTENTO-NEW-DESIGN §49, §39, §53).
  *
  * De aanleiding is de begeleider uit T2.4: die logt in met een **tijdelijk** wachtwoord dat de
  * beheerder kent. Deze tests bewaken de drie eigenschappen die dat pas veilig maken:
@@ -44,7 +44,7 @@ describe('POST /auth/password — eigen wachtwoord wijzigen', () => {
   }
 
   it('wisselt het wachtwoord: het nieuwe werkt, het oude wordt geweigerd', async () => {
-    // Een begeleider met een tijdelijk wachtwoord (T2.4) — precies het scenario uit de taak.
+    // Een begeleider met een tijdelijk wachtwoord — precies het scenario uit de taak.
     const { email, password } = await seedAccount(
       'begeleider@intento.local',
       'tijdelijk-wachtwoord-uit-t24',

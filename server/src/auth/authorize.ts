@@ -8,19 +8,19 @@ import { readSessionToken } from './request.js';
 import { assertOrganizationActive } from './organization-status.js';
 
 /**
- * Autorisatie-middleware (T1.2, DESIGN §2, §9.4).
+ * Autorisatie-middleware (INTENTO-NEW-DESIGN §49, §53).
  *
  * Elke beschermde route hangt hetzelfde `authorize(...)`-preHandler ervoor. Dat doet drie
  * dingen, in deze volgorde:
  *   1. **Authenticatie** — sessietoken uit de cookie omzetten naar een account; ontbreekt
  *      dat (of is de sessie verlopen/geknoeid), dan 401.
  *   2. **Rolcontrole** — als de route rollen opgeeft en de rol van het account zit er niet
- *      bij, dan 403 (met de consistente foutstructuur uit DESIGN §8.1).
- *   3. **Tijdelijk-wachtwoord-gate (T2.6)** — draait het account nog op het wachtwoord dat de
+ *      bij, dan 403 (met de consistente foutstructuur uit INTENTO-NEW-DESIGN §51).
+ *   3. **Tijdelijk-wachtwoord-gate** — draait het account nog op het wachtwoord dat de
  *      server bij het aanmaken genereerde en aan de beheerder toonde (`mustChangePassword`), dan
  *      403 `PASSWORD_CHANGE_REQUIRED`, behalve op de routes die expliciet
  *      `allowPendingPasswordChange` zetten (`GET /auth/me`, `POST /auth/password`).
- *   4. **Organisatiestatus (T8.3)** — is de organisatie door een platform-operator gedeactiveerd,
+ *   4. **Organisatiestatus** — is de organisatie door een platform-operator gedeactiveerd,
  *      dan 403 `ORGANIZATION_SUSPENDED`. Bewust hier en niet alleen bij login: zo stopt een
  *      lopende sessie meteen in plaats van pas als hij verloopt (zie `organization-status.ts`).
  *
@@ -41,7 +41,7 @@ export interface AuthorizeOptions {
   /** Toegestane rollen. Leeg/weggelaten = elk ingelogd account mag erbij (alleen 401-guard). */
   roles?: readonly AccountRole[];
   /**
-   * Laat een account met een nog niet vervangen **tijdelijk** wachtwoord (T2.6) door. Bewust
+   * Laat een account met een nog niet vervangen **tijdelijk** wachtwoord door. Bewust
    * andersom dan de verificatie-gate van T1.4: die is een opt-in guard op een handvol gevoelige
    * routes (`requireVerifiedEmail`), deze is **default-deny** met een opt-out op precies twee
    * routes. Reden voor het verschil: een onbevestigd e-mailadres is een onbewezen adres, maar een
@@ -78,14 +78,14 @@ export function authorize(
         'Kies eerst zelf een wachtwoord; je tijdelijke wachtwoord is ook bij je beheerder bekend.',
       );
     }
-    // Gedeactiveerde omgeving (T8.3): ook een geldige sessie komt er niet meer in.
+    // Gedeactiveerde omgeving: ook een geldige sessie komt er niet meer in.
     await assertOrganizationActive(prisma, account.organizationId);
     request.account = account;
   };
 }
 
 /**
- * Extra preHandler dat een **geverifieerd e-mailadres** eist (T1.4). Hangt ná `authorize(...)`
+ * Extra preHandler dat een **geverifieerd e-mailadres** eist. Hangt ná `authorize(...)`
  * (die `request.account` vult) en geeft 403 `EMAIL_NOT_VERIFIED` als het account nog niet
  * geverifieerd is. Bewust een aparte, expliciete guard op alléén gevoelige acties: inloggen en
  * de eigen gegevens bekijken mag ongeverifieerd, maar bv. gebruikers (echte personen) aanmaken

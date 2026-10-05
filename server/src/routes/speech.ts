@@ -11,7 +11,7 @@ import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import type { SpeechAudio, SpeechService } from '../speech/index.js';
 
 /**
- * Spraakuitvoer (T18.1, DESIGN §5.1, §5.3, §8.1, §9.4).
+ * Spraakuitvoer (INTENTO-NEW-DESIGN §48, §50, §51, §53).
  *
  * Twee routes, één dienst erachter:
  *
@@ -19,11 +19,11 @@ import type { SpeechAudio, SpeechService } from '../speech/index.js';
  *   van de gebruiker achter de apparaatsessie; de tablet kiest die dus niet zelf, en kan ook niet
  *   namens een andere gebruiker laten spreken. Staat spraak uit, dan komt er niets uit de server.
  * - `POST /admin/users/:id/speech-preview` — de **begeleider** beluistert een stem vóór hij hem kiest
- *   (T18.2), met een expliciete stem en zonder de instelling al op te slaan. Zelfde grens als de rest
+ *  , met een expliciete stem en zonder de instelling al op te slaan. Zelfde grens als de rest
  *   van de gebruikersroutes: eigen organisatie, en voor een CAREGIVER alleen gekoppelde gebruikers.
  *
  * Beide antwoorden met audio en `Cache-Control: no-store`: de zin van een gebruiker hoort niet in een
- * tussenliggende cache te blijven hangen (DESIGN §9.4). Server-side leeft hij alleen in het geheugen.
+ * tussenliggende cache te blijven hangen (INTENTO-NEW-DESIGN §53). Server-side leeft hij alleen in het geheugen.
  */
 
 const userParamsSchema = z.object({ id: z.string().min(1) });

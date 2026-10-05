@@ -4,7 +4,7 @@ import { ApiRequestError, type Api } from './api.ts';
 import { AuthLayout } from './AuthLayout.tsx';
 
 /**
- * Zelfaanmeldscherm (T1.3, DESIGN §2, §3.7 stap 1). Een nieuwe bezoeker meldt in één keer een
+ * Zelfaanmeldscherm (INTENTO-NEW-DESIGN §49). Een nieuwe bezoeker meldt in één keer een
  * organisatie/familie aan én maakt het eerste ADMIN-account. Roept `POST /auth/register` aan; bij
  * succes is de bezoeker meteen ingelogd en geeft de bovenliggende app het account door.
  *

@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { Modal } from './Modal.tsx';
 
 /**
- * Tests voor het dialoogvenster (T17.2). De inhoud is per dialoog anders; wat hier getest wordt is
- * de bediening eromheen — die moet met toetsenbord en schakelbediening te doen zijn (DESIGN §5.1).
+ * Tests voor het dialoogvenster. De inhoud is per dialoog anders; wat hier getest wordt is
+ * de bediening eromheen — die moet met toetsenbord en schakelbediening te doen zijn (INTENTO-NEW-DESIGN §48).
  */
 
 /** Kleine testopstelling: een knop die de dialoog opent, zoals in de echte schermen. */

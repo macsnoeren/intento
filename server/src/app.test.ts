@@ -37,7 +37,7 @@ describe('buildApp', () => {
     expect(response.headers).toHaveProperty('content-security-policy');
   });
 
-  it('staat de schrijfmethoden DELETE/PUT/PATCH toe in de CORS-preflight (T8.4)', async () => {
+  it('staat de schrijfmethoden DELETE/PUT/PATCH toe in de CORS-preflight', async () => {
     // @fastify/cors v11 versmalde de default `methods` naar GET,HEAD,POST; zonder expliciete
     // lijst blokkeert de browser elke cross-origin DELETE/PUT/PATCH nog vóór de route draait.
     for (const method of ['DELETE', 'PUT', 'PATCH'] as const) {
@@ -263,7 +263,7 @@ describe('loadEnv prod-guards', () => {
     ).toThrow(/EMAIL_VERIFICATION_URL_BASE/);
   });
 
-  it('eist een https-app-URL in productie (T13.2)', () => {
+  it('eist een https-app-URL in productie', () => {
     // De meldingsmail aan de begeleider bevat een link naar de app; die mag niet over plain HTTP.
     expect(() =>
       loadEnv({

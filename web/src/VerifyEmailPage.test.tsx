@@ -6,7 +6,7 @@ import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor de verificatiepagina (T1.4). Het verificatietoken is **eenmalig**: de pagina mag
+ * Web-tests voor de verificatiepagina. Het verificatietoken is **eenmalig**: de pagina mag
  * het daarom hooguit één keer inwisselen. Ging dat mis, dan slaagde de eerste POST (account
  * geverifieerd) en kreeg de tweede terecht "ongeldig of verlopen" — de gebruiker zag een fout
  * terwijl de verificatie gelukt was.

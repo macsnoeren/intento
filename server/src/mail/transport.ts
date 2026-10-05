@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import type { Env } from '../env.js';
 
 /**
- * Provider-agnostische mail-service (T1.4, DESIGN §2, §9.4).
+ * Provider-agnostische mail-service (INTENTO-NEW-DESIGN §49, §53).
  *
  * De rest van de app kent alléén de `MailTransport`-interface; de concrete implementatie
  * (SMTP in productie, log in dev, geheugen in tests) wordt via `createMailTransport(env)`

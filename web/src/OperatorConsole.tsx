@@ -11,7 +11,7 @@ import { AppShell } from './AppShell.tsx';
 import { AuthLayout } from './AuthLayout.tsx';
 
 /**
- * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, §10.4, ADR-0011).
+ * Platform-operatorconsole (INTENTO-NEW-DESIGN §53, ADR-0011).
  *
  * Bewust een **aparte routetak** naast de beheeromgeving en de tablet-app: `/operator` heeft een
  * eigen scherm, eigen navigatie en geen enkele knop naar het gewone beheer. Reden is dezelfde als
@@ -22,7 +22,7 @@ import { AuthLayout } from './AuthLayout.tsx';
  * Wat je hier ziet is **beheermetadata**: welke omgevingen er zijn, hoe groot ze zijn, of ze actief
  * zijn, en welke logins erin zitten. Geen boodschappen, geen gesprekken, geen persoonlijke context,
  * en zelfs geen namen van gebruikers — de communicerende persoon blijft binnen zijn eigen omgeving
- * (DESIGN §2, §9.4). De server dwingt dat af; de UI toont domweg niet meer dan ze krijgt.
+ * (INTENTO-NEW-DESIGN §49, §53). De server dwingt dat af; de UI toont domweg niet meer dan ze krijgt.
  *
  * De ingang is niet de beveiliging: `isOperator` op het account bepaalt alleen of we de console
  * tonen. De echte grens is `operatorAuthorize` op de server, die elke call apart weigert (403

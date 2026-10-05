@@ -7,7 +7,7 @@ import { findDeviceByToken, readDeviceToken } from './device.js';
 
 /**
  * Toegangsguard voor **gedeelde, niet-tenant-gebonden app-data**: een ingelogd account óf een
- * gekoppeld apparaat mag erbij (T3.1, uitgebreid in T9.4/T9.7).
+ * gekoppeld apparaat mag erbij.
  *
  * Gebruikt door de AAC-bibliotheek (`/aac/search`, `/aac/topics`) en de AI-status (`/ai/status`): dat
  * zijn geen persoonsgegevens, maar bewust ook niet publiek — alleen geauthenticeerde clients (beheer-UI,

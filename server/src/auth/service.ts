@@ -3,7 +3,7 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import { hashPassword, verifyPassword } from './password.js';
 
 /**
- * Login-service met account-lockout (DESIGN §9.4, CLAUDE.md security-checklist).
+ * Login-service met account-lockout (INTENTO-NEW-DESIGN §53, CLAUDE.md security-checklist).
  *
  * - Wachtwoorden worden met argon2id geverifieerd; nooit plaintext vergeleken.
  * - Bij een onbekende e-mail draaien we tóch een argon2-verify tegen een dummy-hash, zodat

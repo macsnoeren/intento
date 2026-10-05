@@ -4,11 +4,11 @@ import { generateTemporaryPassword } from './caregiver-account.js';
 import { hashPassword } from './password.js';
 
 /**
- * Nieuw tijdelijk wachtwoord uitgeven voor een vastgelopen account (T2.7, DESIGN §2, §6.2 Account,
+ * Nieuw tijdelijk wachtwoord uitgeven voor een vastgelopen account (T2.7, INTENTO-NEW-DESIGN §49, §6.2 Account,
  * §9.4).
  *
  * Sinds T2.6 zit een begeleider die zijn tijdelijke wachtwoord kwijtraakt (of het nooit ontving)
- * volledig klem: inloggen lukt niet, en zonder sessie is `POST /auth/password` (T2.5) onbereikbaar.
+ * volledig klem: inloggen lukt niet, en zonder sessie is `POST /auth/password` onbereikbaar.
  * Hetzelfde geldt voor een account dat door de lockout is buitengesloten. Er was geen enkele weg
  * terug — geen "wachtwoord vergeten"-flow en geen manier voor de beheerder om opnieuw uit te geven.
  *
@@ -40,7 +40,7 @@ export interface ResetTemporaryPasswordResult {
  * Zet een vers server-gegenereerd tijdelijk wachtwoord op `accountId` en trekt **alle** sessies van
  * dat account in.
  *
- * Anders dan bij het zelf wijzigen (T2.5, waar de huidige sessie bewust blijft) is hier niets te
+ * Anders dan bij het zelf wijzigen (waar de huidige sessie bewust blijft) is hier niets te
  * sparen: de aanroeper is de beheerder, niet de houder. Elke lopende sessie van het doelaccount is
  * per definitie met het oude wachtwoord opgezet — of door iemand die dat wachtwoord ook kende — dus
  * die moeten allemaal dood, anders overleeft een gekaapte sessie juist de reset.
@@ -60,7 +60,7 @@ export async function resetTemporaryPassword(
     where: { id: accountId },
     data: {
       passwordHash,
-      // Weer gemarkeerd (T2.6): dit wachtwoord kent de beheerder óók, dus het account mag straks
+      // Weer gemarkeerd: dit wachtwoord kent de beheerder óók, dus het account mag straks
       // niets anders dan zijn eigen wachtwoord wisselen tot de houder dat gedaan heeft.
       mustChangePassword: true,
       failedLoginAttempts: 0,

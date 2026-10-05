@@ -11,25 +11,25 @@ export const AUDIT_ACTIONS = {
   AUTH_LOGOUT: 'auth.logout',
   AUTH_REGISTER: 'auth.register',
   AUTH_EMAIL_VERIFIED: 'auth.email_verified',
-  // Eigen wachtwoord wijzigen (T2.5) — nooit het wachtwoord zelf, alleen dát het gewijzigd is
+  // Eigen wachtwoord wijzigen — nooit het wachtwoord zelf, alleen dát het gewijzigd is
   AUTH_PASSWORD_CHANGE: 'auth.password_change',
-  // Accountbeheer binnen de organisatie (T2.4)
+  // Accountbeheer binnen de organisatie
   ACCOUNT_CREATE: 'account.create',
-  // Nieuw tijdelijk wachtwoord uitgegeven door een beheerder (T2.7) — nooit het wachtwoord zelf
+  // Nieuw tijdelijk wachtwoord uitgegeven door een beheerder — nooit het wachtwoord zelf
   ACCOUNT_PASSWORD_RESET: 'account.password_reset',
-  // Gebruikersbeheer + instellingen (T2.1)
+  // Gebruikersbeheer + instellingen
   USER_CREATE: 'user.create',
   USER_DELETE: 'user.delete',
   USER_SETTINGS_UPDATE: 'user.settings.update',
-  // Begeleider-koppelingen (T2.2)
+  // Begeleider-koppelingen
   CAREGIVER_LINK: 'caregiver.link',
   CAREGIVER_UNLINK: 'caregiver.unlink',
-  // Tabletkoppeling (T2.3)
+  // Tabletkoppeling
   DEVICE_CODE_CREATE: 'device.code.create',
-  // Profielexport/-import (T8.1)
+  // Profielexport/-import
   PROFILE_EXPORT: 'profile.export',
   PROFILE_IMPORT: 'profile.import',
-  // Platform-operatorconsole (T8.3) — cross-tenant beheer, altijd met de operator als actor
+  // Platform-operatorconsole — cross-tenant beheer, altijd met de operator als actor
   OPERATOR_ORGANIZATION_CREATE: 'operator.organization.create',
   OPERATOR_ORGANIZATION_DEACTIVATE: 'operator.organization.deactivate',
   OPERATOR_ORGANIZATION_ACTIVATE: 'operator.organization.activate',

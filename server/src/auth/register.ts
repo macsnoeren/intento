@@ -5,7 +5,7 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import { hashPassword } from './password.js';
 
 /**
- * Zelfaanmelding van een organisatie/familie (T1.3, DESIGN §2, §3.7 stap 1).
+ * Zelfaanmelding van een organisatie/familie (INTENTO-NEW-DESIGN §49).
  *
  * Maakt in **één transactie** een nieuwe `Organization` plus het eerste `Account` met rol
  * ADMIN (argon2id-wachtwoordhash). Slaagt of faalt als geheel: bij een dubbele e-mail rolt de

@@ -4,10 +4,10 @@ import type { Env } from '../env.js';
 import { HttpError } from '../errors.js';
 
 /**
- * Spraakuitvoer (T18.1, DESIGN §5.3, §9.2, §9.4).
+ * Spraakuitvoer (INTENTO-NEW-DESIGN §50, §53).
  *
  * De backend praat namens de tablet met een **losstaande spraakdienst** (`speech-service/`, Piper op
- * de CPU); de tablet nooit rechtstreeks — dezelfde regel als bij de AI (DESIGN §8.1). Dat is hier geen
+ * de CPU); de tablet nooit rechtstreeks — dezelfde regel als bij de AI (INTENTO-NEW-DESIGN §51). Dat is hier geen
  * formaliteit: de tekst die uitgesproken wordt is precies wat de gebruiker wil zeggen, dus wie hem mag
  * horen is een autorisatievraag en die hoort in de backend.
  *
@@ -16,7 +16,7 @@ import { HttpError } from '../errors.js';
  * bepaalt de env.
  */
 
-/** Eén gesynthetiseerd fragment. Blijft in het geheugen; het wordt nooit opgeslagen (DESIGN §6.4). */
+/** Eén gesynthetiseerd fragment. Blijft in het geheugen; het wordt nooit opgeslagen (INTENTO-NEW-DESIGN §53). */
 export interface SpeechAudio {
   audio: Buffer;
   /** Altijd een concreet audioformaat, zodat de route het onveranderd kan doorgeven. */
@@ -134,7 +134,7 @@ function cacheKey(text: string, voice: string): string {
  * bedieningszinnen herhalen zich constant; een cachetreffer scheelt de hele synthese en het netwerk.
  *
  * Bewust alleen in het geheugen, met een harde bovengrens en zonder tekst in de sleutel: audio van wat
- * de gebruiker zei hoort niet op schijf (DESIGN §6.4). Herstart de server, dan is hij weg — dat is de
+ * de gebruiker zei hoort niet op schijf (INTENTO-NEW-DESIGN §53). Herstart de server, dan is hij weg — dat is de
  * bedoeling.
  */
 export function createSpeechService(

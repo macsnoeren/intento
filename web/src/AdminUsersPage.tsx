@@ -20,7 +20,7 @@ import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 
 /**
- * Beheeromgeving — gebruikersbeheer (T2.1, DESIGN §5.2), heringericht in T17.2.
+ * Beheeromgeving — gebruikersbeheer (INTENTO-NEW-DESIGN §49), heringericht in T17.2.
  *
  * Tot T17.2 stond alles op één scherm in twee smalle kolommen: links de gebruikerslijst mét de
  * formulieren voor aanmaken, importeren en begeleider-accounts, rechts de zeven detailpanelen van de
@@ -44,7 +44,7 @@ const OVERVIEW_TABS: readonly SegmentedTab<UsersTab>[] = [
 ];
 
 /**
- * De onderdelen van één gebruiker (T17.4). Volgorde is de volgorde waarin je ze nodig hebt: eerst
+ * De onderdelen van één gebruiker. Volgorde is de volgorde waarin je ze nodig hebt: eerst
  * instellen hoe hij communiceert, dan wie hem begeleidt, dan wat de AI over hem mag weten, en pas
  * daarna het apparaat en het beheer van zijn profiel.
  */
@@ -88,7 +88,7 @@ export function AdminUsersPage({
   const [newName, setNewName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  // Telt op na elk nieuw begeleider-account (T2.4); zit in de `key` van de koppelweergave zodat die
+  // Telt op na elk nieuw begeleider-account; zit in de `key` van de koppelweergave zodat die
   // opnieuw laadt en het verse account meteen aan te vinken is.
   const [caregiverVersion, setCaregiverVersion] = useState(0);
 
@@ -251,9 +251,9 @@ export function AdminUsersPage({
         </div>
       ) : (
         <div {...tabPanelProps('overview', 'accounts')}>
-          {/* Accountlijst (T2.6): ververst op de begeleiderteller, zodat een net aangemaakt account
+          {/* Accountlijst: ververst op de begeleiderteller, zodat een net aangemaakt account
               er meteen — mét zijn "tijdelijk wachtwoord"-markering — in staat. `currentAccountId`
-              houdt de resetknop (T2.7) van het eigen account af: je eigen wachtwoord wijzig je onder
+              houdt de resetknop van het eigen account af: je eigen wachtwoord wijzig je onder
               "Mijn account", mét je huidige wachtwoord. */}
           <AccountsPanel api={api} refreshToken={caregiverVersion} currentAccountId={account.id} />
         </div>
@@ -319,7 +319,7 @@ export function AdminUsersPage({
 }
 
 /**
- * Het scherm van één gebruiker (T17.2, in onderdelen sinds T17.4): communicatieprofiel,
+ * Het scherm van één gebruiker (in onderdelen sinds T17.4): communicatieprofiel,
  * begeleiders, persoonlijke context, geleerde voorkeuren, tabletkoppeling en profielbeheer.
  *
  * T17.2 zette die panelen naast elkaar in een raster van twee kolommen. Dat was al beter dan de
@@ -397,7 +397,7 @@ function UserDetailPage({
               key={user.id}
               user={user}
               onSave={onSaveSettings}
-              // Stem beluisteren vóór je hem kiest (T18.2). De keuze "Stem van het apparaat" kan de
+              // Stem beluisteren vóór je hem kiest. De keuze "Stem van het apparaat" kan de
               // server niet synthetiseren; die laten we dít apparaat zeggen — een indicatie, want op
               // de tablet klinkt de stem van de tablet.
               onPreviewVoice={async (voice) => {

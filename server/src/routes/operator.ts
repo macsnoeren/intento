@@ -23,12 +23,12 @@ export interface OperatorRoutesDeps {
 const idParamsSchema = z.object({ id: z.string().min(1) });
 
 /**
- * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, §10.4, ADR-0011).
+ * Platform-operatorconsole (INTENTO-NEW-DESIGN §53, ADR-0011).
  *
  * Eén tenant per organisatie werkt prima tot er iemand *boven* de tenants moet staan: wie zet een
  * nieuwe omgeving neer, wie stopt een omgeving die misbruikt wordt, wie ziet hoe het platform
- * ervoor staat? Tot nu toe kon niemand dat — elke ADMIN zit vast in zijn eigen organisatie (T1.2) en
- * `isPlatform` ontgrendelde alléén worker-tokenbeheer (T5.8). Deze routetak vult dat gat.
+ * ervoor staat? Tot nu toe kon niemand dat — elke ADMIN zit vast in zijn eigen organisatie en
+ * `isPlatform` alleen markeert de platformorganisatie. Deze routetak vult dat gat.
  *
  * Dit is de enige plek in Intento waar **niet** op `organizationId` gefilterd wordt. Die
  * doorbreking is met opzet ingekaderd:
@@ -40,13 +40,13 @@ const idParamsSchema = z.object({ id: z.string().min(1) });
  * - **Beheermetadata, geen inhoud.** De responses dragen naam/soort/status/aantallen en, in het
  *   detail, accounts (e-mail, rol, status) en gebruikers **zonder naam**. Geen boodschappen, geen
  *   gesprekken, geen persoonlijke context, geen voorkeuren — een operator beheert het platform, hij
- *   leest niet mee met de mensen erin (DESIGN §2, §9.4).
+ *   leest niet mee met de mensen erin (INTENTO-NEW-DESIGN §49, §53).
  * - **Beperkte werkwoorden.** Organisaties: lijst, detail, aanmaken, (de)activeren. Accounts en
  *   gebruikers: alleen inzien. Er is bewust geen "log in als", geen wachtwoord-reset in andermans
  *   tenant en geen eerste-admin-aanmaak: dat zou een operator stilzwijgend toegang tot communicatie
- *   geven. Een nieuwe omgeving krijgt haar beheerder via zelfaanmelding (T1.3).
+ *   geven. Een nieuwe omgeving krijgt haar beheerder via zelfaanmelding.
  * - **Alles geaudit.** Elke muterende actie schrijft een audit-regel met de operator als actor.
- *   `organizationId` blijft daarbij `null` (net als bij worker-tokens, T5.8): dit zijn
+ *   `organizationId` blijft daarbij `null`: dit zijn
  *   platform-acties, en zo verschijnen ze niet in de tenant-audit-lijst van een organisatie die er
  *   zelf niets aan kon doen. De betrokken organisatie staat in `targetId`/`metadata`.
  *
@@ -167,7 +167,7 @@ export function registerOperatorRoutes(app: FastifyInstance, { prisma }: Operato
         prisma.user.findMany({
           where: { organizationId: id },
           orderBy: { createdAt: 'asc' },
-          // Bewust zónder `name`: de communicerende persoon blijft binnen de tenant (DESIGN §9.4).
+          // Bewust zónder `name`: de communicerende persoon blijft binnen de tenant (INTENTO-NEW-DESIGN §53).
           select: { id: true, active: true, createdAt: true },
         }),
       ]);
@@ -201,7 +201,7 @@ export function registerOperatorRoutes(app: FastifyInstance, { prisma }: Operato
       const { id } = idParamsSchema.parse(request.params);
       const organization = await loadOrganization(id);
 
-      // De platformorganisatie stoppen zou de console (en het worker-tokenbeheer) buitensluiten —
+      // De platformorganisatie stoppen zou de console buitensluiten —
       // inclusief de operator die het net deed. Bewust geblokkeerd i.p.v. "weet je het zeker?".
       if (organization.isPlatform) {
         throw new HttpError(

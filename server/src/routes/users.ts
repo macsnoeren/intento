@@ -23,18 +23,18 @@ export interface UserRoutesDeps {
 const userParamsSchema = z.object({ id: z.string().min(1) });
 
 /**
- * Gebruikersbeheer (T2.1, DESIGN §2, §5.3, §6.2, FR-017).
+ * Gebruikersbeheer (INTENTO-NEW-DESIGN §49, §50, §39).
  *
  * CRUD op gebruikers + hun communicatieprofiel, volledig tenant-gebonden: elke query wordt op
  * `organizationId` gefilterd (`tenantScope`) en directe toegang op id via `assertSameTenant`
  * bewaakt (403 bij een andere organisatie — bestaan lekt niet). Rolverdeling:
- *   - aanmaken/verwijderen: **ADMIN** (beheerderstaak, FR-017);
+ *   - aanmaken/verwijderen: **ADMIN** (beheerderstaak);
  *   - bekijken/instellingen aanpassen: **ADMIN + CAREGIVER** (begeleider mag instellingen
- *     beheren, DESIGN §2). Een CAREGIVER ziet en beheert echter alléén de gebruikers waaraan
- *     hij gekoppeld is (`assertCaregiverAccess`, T2.2); een ADMIN alle van de eigen organisatie.
+ *     beheren, INTENTO-NEW-DESIGN §49). Een CAREGIVER ziet en beheert echter alléén de gebruikers waaraan
+ *     hij gekoppeld is (`assertCaregiverAccess`); een ADMIN alle van de eigen organisatie.
  */
 export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesDeps): void {
-  // Aanmaken — ADMIN, én e-mail geverifieerd (T1.4): voor je echte personen (privacygevoelig)
+  // Aanmaken — ADMIN, én e-mail geverifieerd: voor je echte personen (privacygevoelig)
   // toevoegt, moet de admin zijn adres hebben bevestigd. Bekijken/inloggen mag wél ongeverifieerd.
   app.post(
     '/users',
@@ -91,7 +91,7 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
         include: { communicationProfile: true },
       });
       const safeUser = assertSameTenant(account, user);
-      // Begeleider ziet alléén gekoppelde gebruikers (T2.2); voor ADMIN een no-op.
+      // Begeleider ziet alléén gekoppelde gebruikers; voor ADMIN een no-op.
       await assertCaregiverAccess(prisma, account, id);
       return toPublic(safeUser);
     },

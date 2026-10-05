@@ -42,11 +42,11 @@ const RESEND_NEUTRAL_MESSAGE =
   'Als dit e-mailadres bij ons bekend is en nog niet is bevestigd, is er een nieuwe verificatiemail verstuurd.';
 
 /**
- * Auth-routes (T1.1, T1.4, DESIGN §8.2): login, logout, het eigen account, en e-mailverificatie.
+ * Auth-routes (INTENTO-NEW-DESIGN §51): login, logout, het eigen account, en e-mailverificatie.
  *
  * Login is streng rate-limited (per IP) én kent account-lockout; sessietokens gaan als
  * ondertekende httpOnly+Secure cookie mee en staan alleen gehasht in de db. E-mailverificatie
- * (T1.4) stuurt bij registratie een verificatiemail en wisselt het (gehashte, eenmalige,
+ * stuurt bij registratie een verificatiemail en wisselt het (gehashte, eenmalige,
  * verlopende) token weer in; opnieuw versturen is publiek, rate-limited en lekt niet of het adres
  * bestaat.
  */
@@ -95,7 +95,7 @@ export function registerAuthRoutes(
         throw new HttpError(401, 'INVALID_CREDENTIALS', 'Onjuiste e-mail of wachtwoord.');
       }
 
-      // Gedeactiveerde omgeving (T8.3): wachtwoord klopt, maar er komt geen sessie. Bewust ná de
+      // Gedeactiveerde omgeving: wachtwoord klopt, maar er komt geen sessie. Bewust ná de
       // wachtwoordcontrole, zodat de melding niet verklapt welke adressen bij een gestopte
       // organisatie horen — je moet de inloggegevens al kennen om hem te zien.
       if (!(await isOrganizationActive(prisma, result.account.organizationId))) {
@@ -151,7 +151,7 @@ export function registerAuthRoutes(
         );
       }
 
-      // Meteen ingelogd na registratie (zelfde sessiemechanisme als login, T1.1).
+      // Meteen ingelogd na registratie (zelfde sessiemechanisme als login).
       const { token } = await createSession(prisma, result.account.id, env.SESSION_TTL_HOURS);
       reply.setCookie(SESSION_COOKIE_NAME, token, sessionCookieOptions(env, sessionMaxAgeSeconds));
 
@@ -175,7 +175,7 @@ export function registerAuthRoutes(
         );
       }
 
-      // Verificatiemail versturen (T1.4). Bewust best-effort: een falende mailserver mag de
+      // Verificatiemail versturen. Bewust best-effort: een falende mailserver mag de
       // registratie niet laten mislukken — de gebruiker is al ingelogd en kan later "opnieuw
       // versturen". Fouten loggen we, maar gooien we niet door.
       try {
@@ -189,7 +189,7 @@ export function registerAuthRoutes(
     },
   );
 
-  // --- E-mailverificatie (T1.4) ---
+  // --- E-mailverificatie ---
 
   // Token inwisselen. Zowel POST (web-app) als GET (directe link) — beide via dezelfde logica.
   // Ongeldig/verlopen/gebruikt token → 400 met neutrale melding (geen enumeratie).
@@ -250,7 +250,7 @@ export function registerAuthRoutes(
     },
   );
 
-  // --- Eigen wachtwoord wijzigen (T2.5) ---
+  // --- Eigen wachtwoord wijzigen ---
 
   // Elk **ingelogd** account wisselt hier zijn eigen wachtwoord. Het account komt uit de sessie,
   // nooit uit de body: er is geen manier om via deze route het wachtwoord van een ander te zetten.
@@ -259,7 +259,7 @@ export function registerAuthRoutes(
   app.post(
     '/auth/password',
     {
-      // `allowPendingPasswordChange` (T2.6): juist een account dat nog op zijn tijdelijke
+      // `allowPendingPasswordChange`: juist een account dat nog op zijn tijdelijke
       // wachtwoord zit moet hier terechtkunnen — dit is de enige uitweg uit die gate.
       preHandler: authorize(prisma, { allowPendingPasswordChange: true }),
       config: {
@@ -322,7 +322,7 @@ export function registerAuthRoutes(
 
   // Elk ingelogd account mag zijn eigen gegevens opvragen; de authorize()-preHandler
   // handelt de 401 af en zet het geverifieerde account op de request. Ook toegestaan met een nog
-  // niet vervangen tijdelijk wachtwoord (T2.6): de web-UI leest hier `mustChangePassword` om de
+  // niet vervangen tijdelijk wachtwoord: de web-UI leest hier `mustChangePassword` om de
   // houder naar het wachtwoordscherm te sturen — zonder dit antwoord weet hij niet waaróm de rest
   // dichtzit.
   app.get(

@@ -20,7 +20,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Autorisatie- en tenant-isolatietests (T1.2, DESIGN §2, §9.4).
+ * Autorisatie- en tenant-isolatietests (INTENTO-NEW-DESIGN §49, §53).
  *
  * Dekt de twee kanten van de middleware op een representatief beschermd endpoint
  * (`GET /admin/accounts`): rolcontrole (401/403) en organisatie-isolatie (org A ziet nooit
@@ -125,7 +125,7 @@ describe('tenant-isolatie — /auth/me', () => {
 });
 
 /**
- * Begeleider-accounts aanmaken (T2.4, DESIGN §2, §5.2, FR-017).
+ * Begeleider-accounts aanmaken (INTENTO-NEW-DESIGN §49).
  *
  * `POST /admin/accounts` is de ontbrekende schakel onder T2.2: zonder CAREGIVER-accounts had de
  * koppelweergave niets te kiezen. De tests dekken de happy path (aanmaken → meteen koppelbaar),
@@ -232,7 +232,7 @@ describe('begeleider-accounts — POST /admin/accounts', () => {
     expect(stored?.organizationId).toBe(organizationId);
   });
 
-  it('levert een account op dat meteen aan een gebruiker gekoppeld kan worden (T2.2)', async () => {
+  it('levert een account op dat meteen aan een gebruiker gekoppeld kan worden', async () => {
     const { cookie, organizationId } = await adminCookie();
     const user = await seedUser('Kim', organizationId);
 
@@ -402,7 +402,7 @@ describe('begeleider-accounts — POST /admin/accounts', () => {
 });
 
 /**
- * Nieuw tijdelijk wachtwoord uitgeven (T2.7, DESIGN §2, §6.2 Account, §9.4).
+ * Nieuw tijdelijk wachtwoord uitgeven (INTENTO-NEW-DESIGN §49, §39, §53).
  *
  * Sinds de harde gate van T2.6 zit een begeleider die zijn tijdelijke wachtwoord kwijt is volledig
  * klem: inloggen lukt niet en zonder sessie is `POST /auth/password` onbereikbaar. Deze tests dekken

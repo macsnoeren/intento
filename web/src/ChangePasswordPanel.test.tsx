@@ -5,7 +5,7 @@ import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor het wijzigen van het eigen wachtwoord (T2.5). Draaien tegen een in-memory `Api`.
+ * Web-tests voor het wijzigen van het eigen wachtwoord. Draaien tegen een in-memory `Api`.
  * De echte garanties (her-authenticatie, alleen het eigen account, intrekken van overige sessies)
  * zitten server-side (`server/src/auth/change-password.test.ts`); hier bewaken we dat de UI het
  * juiste verstuurt, de velden leegmaakt en fouten netjes toont.
@@ -32,7 +32,7 @@ function submit() {
   fireEvent.click(screen.getByRole('button', { name: 'Wachtwoord wijzigen' }));
 }
 
-describe('ChangePasswordPanel (T2.5)', () => {
+describe('ChangePasswordPanel', () => {
   it('verstuurt huidig + nieuw wachtwoord en maakt de velden daarna leeg', async () => {
     const change = vi.fn().mockResolvedValue({ revokedSessions: 0 });
     render(<ChangePasswordPanel api={fakeApi(change)} />);

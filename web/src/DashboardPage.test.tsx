@@ -5,7 +5,7 @@ import { DashboardPage } from './DashboardPage.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Web-tests voor het beheerdashboard (T7.3). Draaien tegen een in-memory `Api` (de server-kant is
+ * Web-tests voor het beheerdashboard. Draaien tegen een in-memory `Api` (de server-kant is
  * met API-tests gedekt). Toetst dat de tellingen tonen.
  */
 

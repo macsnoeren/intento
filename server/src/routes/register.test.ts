@@ -7,7 +7,7 @@ import { MemoryMailTransport } from '../mail/transport.js';
 import { resetAuthData, seedAccount, sessionCookieHeader, testEnv } from '../test/auth-helpers.js';
 
 /**
- * Tests voor de zelfaanmelding (T1.3, `POST /auth/register`): een nieuwe bezoeker maakt in één
+ * Tests voor de zelfaanmelding (`POST /auth/register`): een nieuwe bezoeker maakt in één
  * transactie een organisatie + eerste ADMIN-account en is meteen ingelogd. Dekt de happy path,
  * de veiligheidseisen (geen account-enumeratie, wachtwoordsterkte, rate limiting) en de
  * tenant-isolatie van de nieuwe organisatie.
@@ -183,7 +183,7 @@ describe('register-routes', () => {
     expect(stored).not.toBeNull();
     expect(cookie).not.toContain(stored?.tokenHash);
 
-    // Nieuw account is nog niet geverifieerd; er is een verificatiemail verstuurd (T1.4).
+    // Nieuw account is nog niet geverifieerd; er is een verificatiemail verstuurd.
     expect(body.account.emailVerified).toBe(false);
     expect(mail.sent).toHaveLength(1);
     expect(mail.last()?.to).toBe(validBody.email);

@@ -67,7 +67,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   wachtrijtests; JSON in code-fences) vervallen hiermee; de les over code-fences komt terug in N5.2.
   *Acceptatie:* `docker compose config` geldig; `npm run docker:up` start server, web en spraak.
 
-- [ ] **N0.7 Verwijzingen in de blijvende code**
+- [x] **N0.7 Verwijzingen in de blijvende code**
   *ONTWERP: §55.* In de code die blijft (auth, users, devices, speech, crypto, mail, audit, web-schil)
   verwijzen comments naar `DESIGN §…` en oude `T`-nummers, uit een document dat niet meer bestaat.
   Vervangen door de juiste `INTENTO-NEW-DESIGN §…` of een ADR, of weghalen als de comment zonder

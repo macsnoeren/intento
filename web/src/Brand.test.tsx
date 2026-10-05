@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { BRAND_ASSETS, BrandLockup, BrandLogo, BrandMark } from './Brand.tsx';
 
 /**
- * Huisstijltests (T17.1). Twee dingen die stilletjes kapot kunnen: een logobestand dat niet (meer)
+ * Huisstijltests. Twee dingen die stilletjes kapot kunnen: een logobestand dat niet (meer)
  * bestaat — dan staat er een gebroken plaatje in de kopbalk zonder dat een test klaagt — en een
  * alt-tekst die verdwijnt of juist dubbel gaat.
  */

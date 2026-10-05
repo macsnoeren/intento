@@ -11,7 +11,7 @@ import { SettingsForm } from './SettingsForm.tsx';
 import { ApiRequestError } from './api.ts';
 
 /**
- * Instellingenformulier (DESIGN §5.3), met de nadruk op de **stemkeuze** (T18.2): de begeleider kiest
+ * Instellingenformulier (INTENTO-NEW-DESIGN §50), met de nadruk op de **stemkeuze**: de begeleider kiest
  * een stem op gehoor, en beluisteren mag nooit al iets opslaan.
  */
 

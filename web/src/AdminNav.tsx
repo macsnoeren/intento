@@ -1,11 +1,11 @@
 import { NavIcon, type NavIconName } from './NavIcon.tsx';
 
 /**
- * Het hoofdmenu van de web-applicatie (T3.2, uitgebreid in T17.1).
+ * Het hoofdmenu van de web-applicatie.
  *
  * Tot T17.1 stonden alle bestemmingen als één rij tabs onder de paginatitel. Met tien bestemmingen
- * werd dat een muur van gelijkwaardige knoppen: "Worker-tokens" (platformonderhoud) stond even groot
- * en even dichtbij als "Gebruikers" (dagelijks werk), en op een tablet in staande stand liep de rij
+ * werd dat een muur van gelijkwaardige knoppen: platformonderhoud stond even groot en even dichtbij
+ * als "Gebruikers" (dagelijks werk), en op een tablet in staande stand liep de rij
  * over meerdere regels door. Het menu is daarom **gegroepeerd** naar wat iemand komt doen — het werk
  * aan tafel, het beheer van de organisatie, en het onderhoud van het platform — en staat in een
  * zijbalk die op elke pagina hetzelfde is.

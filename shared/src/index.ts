@@ -8,7 +8,7 @@ import { z } from 'zod';
  * client en server nooit uit elkaar lopen.
  */
 
-/** Consistente foutstructuur (DESIGN §8.1): `{ error: { code, message } }`. */
+/** Consistente foutstructuur (INTENTO-NEW-DESIGN §51): `{ error: { code, message } }`. */
 export const apiErrorSchema = z.object({
   error: z.object({
     code: z.string(),
@@ -16,20 +16,6 @@ export const apiErrorSchema = z.object({
   }),
 });
 export type ApiError = z.infer<typeof apiErrorSchema>;
-
-/**
- * Uitbreiding van de foutstructuur bij backpressure van de gedistribueerde AI-wachtrij
- * (T5.5/T5.7, ADR-0010). De 503 `AI_WORKER_BUSY`/`AI_WORKER_UNAVAILABLE`-respons draagt naast
- * `error` een voorgestelde wachttijd (`retryAfterMs`, spiegelt de `Retry-After`-header) en — bij
- * een volle wachtrij — de positie in de rij mee. De tablet-UI gebruikt dit om rustig te wachten
- * en de laatste gespreks-actie automatisch opnieuw te pollen tot een worker antwoordt (T5.7).
- */
-export const aiWaitingErrorSchema = apiErrorSchema.extend({
-  waiting: z.boolean().optional(),
-  position: z.number().int().positive().optional(),
-  retryAfterMs: z.number().int().nonnegative().optional(),
-});
-export type AiWaitingError = z.infer<typeof aiWaitingErrorSchema>;
 
 /** Antwoord van het health-endpoint. */
 export const healthResponseSchema = z.object({
@@ -39,12 +25,12 @@ export const healthResponseSchema = z.object({
 });
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
-/** Rollen van een account (DESIGN §2). Ook de bron voor de db-validatie op de grens. */
+/** Rollen van een account (INTENTO-NEW-DESIGN §49). Ook de bron voor de db-validatie op de grens. */
 export const accountRoleSchema = z.enum(['ADMIN', 'CAREGIVER', 'USER']);
 export type AccountRole = z.infer<typeof accountRoleSchema>;
 
 /**
- * Soort omgeving (`Organization.type`, DESIGN §6.2): een familie, een zorginstelling of een
+ * Soort omgeving (INTENTO-NEW-DESIGN §39, `Organization.type`): een familie, een zorginstelling of een
  * persoonlijke omgeving. Bewust een gesloten lijst — gevalideerd op de API-grens (geen native
  * enum i.v.m. SQLite/PostgreSQL-portabiliteit). Een ongeldige waarde levert een 400.
  */
@@ -52,7 +38,7 @@ export const organizationTypeSchema = z.enum(['family', 'care', 'personal']);
 export type OrganizationType = z.infer<typeof organizationTypeSchema>;
 
 /**
- * Wachtwoordsterkte-eis bij het aanmaken van een account (zelfaanmelding, T1.3). Bewust
+ * Wachtwoordsterkte-eis bij het aanmaken van een account (zelfaanmelding). Bewust
  * strenger dan bij login (die valideert alleen niet-leeg): minstens 12 tekens en niet louter
  * herhaling van één teken, zodat een zwak wachtwoord al op de grens (400) wordt geweigerd.
  * De bovengrens beschermt tegen argon2-DoS met absurd lange invoer.
@@ -66,7 +52,7 @@ export const strongPasswordSchema = z
   });
 
 /**
- * Registratieverzoek (`POST /auth/register`, T1.3, DESIGN §2, §3.7 stap 1). Een nieuwe bezoeker
+ * Registratieverzoek (INTENTO-NEW-DESIGN §49, `POST /auth/register`). Een nieuwe bezoeker
  * meldt in één keer een organisatie/familie aan én maakt het eerste ADMIN-account. `email` wordt
  * genormaliseerd naar lowercase (zoals bij login) zodat hoofdletters niet tot dubbele accounts
  * leiden; `password` moet aan de sterkte-eis voldoen. Alle velden worden op de server opnieuw
@@ -110,14 +96,14 @@ export const accountPublicSchema = z.object({
    */
   name: z.string().nullable(),
   /**
-   * Of het e-mailadres is geverifieerd (T1.4). Onbevestigde accounts mogen inloggen, maar
+   * Of het e-mailadres is geverifieerd. Onbevestigde accounts mogen inloggen, maar
    * bepaalde gevoelige acties zijn geblokkeerd tot verificatie; de web-UI toont hierop een
    * herinnerings-banner met een "opnieuw versturen"-knop.
    */
   emailVerified: z.boolean(),
   /**
-   * Of dit account nog op het **tijdelijke** wachtwoord zit dat de server bij het aanmaken (T2.4)
-   * genereerde en aan de beheerder toonde (T2.6). Zolang dit `true` is kent een tweede persoon het
+   * Of dit account nog op het **tijdelijke** wachtwoord zit dat de server bij het aanmaken
+   * genereerde en aan de beheerder toonde. Zolang dit `true` is kent een tweede persoon het
    * wachtwoord; de server staat dan alléén `GET /auth/me` en `POST /auth/password` toe en de
    * web-UI toont de houder een blokkerend "kies eerst een eigen wachtwoord"-scherm. In de
    * accountlijst van de beheerder verschijnt het als markering, zodat zichtbaar is wie nog niet
@@ -125,7 +111,7 @@ export const accountPublicSchema = z.object({
    */
   mustChangePassword: z.boolean(),
   /**
-   * Of dit account de **platform-operatorconsole** mag gebruiken (T8.3). Bewust géén rol maar een
+   * Of dit account de **platform-operatorconsole** mag gebruiken. Bewust géén rol maar een
    * aparte bevoegdheid: de rol bepaalt wat je binnen je eigen organisatie mag, deze vlag ontgrendelt
    * de cross-tenant console op `/operator`. De web-client gebruikt 'm alleen om de ingang te tonen —
    * de echte grens ligt op de server (`operatorAuthorize`), die elke operator-route apart bewaakt.
@@ -140,10 +126,10 @@ export const authResponseSchema = z.object({
 });
 export type AuthResponse = z.infer<typeof authResponseSchema>;
 
-// --- Eigen wachtwoord wijzigen (T2.5, DESIGN §2, §6.2 Account, §9.4) ---
+// --- Eigen wachtwoord wijzigen (INTENTO-NEW-DESIGN §49, §39, §53) ---
 
 /**
- * Verzoek om het **eigen** wachtwoord te wijzigen (`POST /auth/password`, T2.5). Er zit bewust
+ * Verzoek om het **eigen** wachtwoord te wijzigen (`POST /auth/password`). Er zit bewust
  * géén account-id in: de server pakt altijd het ingelogde account uit de sessie, zodat niemand
  * via de body het wachtwoord van een ander kan zetten.
  *
@@ -151,7 +137,7 @@ export type AuthResponse = z.infer<typeof authResponseSchema>;
  * apparaat kan het wachtwoord niet zomaar overnemen) en wordt — net als bij login — alleen op
  * niet-leeg gevalideerd; sterkte-eisen gelden voor het **nieuwe** wachtwoord. De extra `refine`
  * weigert "wijzigen" naar hetzelfde wachtwoord: dat zou de sessies van dit account intrekken
- * zonder dat er iets verandert, en is bij een tijdelijk wachtwoord (T2.4) juist niet de bedoeling.
+ * zonder dat er iets verandert, en is bij een tijdelijk wachtwoord juist niet de bedoeling.
  */
 export const changePasswordRequestSchema = z
   .object({
@@ -175,7 +161,7 @@ export const changePasswordResponseSchema = z.object({
 });
 export type ChangePasswordResponse = z.infer<typeof changePasswordResponseSchema>;
 
-// --- E-mailverificatie (T1.4, DESIGN §2, §3.7 stap 1, §9.4) ---
+// --- E-mailverificatie (INTENTO-NEW-DESIGN §49, §53) ---
 
 /**
  * Inwisselverzoek van een verificatietoken (`POST /auth/verify-email`, of `GET` met `?token=`).
@@ -226,7 +212,7 @@ export type ResendVerificationResponse = z.infer<typeof resendVerificationRespon
 /**
  * Antwoord van `GET /admin/accounts`: de logins binnen de eigen organisatie (ADMIN-only).
  * De lijst is per definitie tenant-gefilterd — een organisatie ziet nooit accounts van een
- * andere organisatie (DESIGN §9.4, multi-tenant-isolatie).
+ * andere organisatie (INTENTO-NEW-DESIGN §53, multi-tenant-isolatie).
  */
 export const accountListResponseSchema = z.object({
   accounts: z.array(accountPublicSchema),
@@ -234,8 +220,7 @@ export const accountListResponseSchema = z.object({
 export type AccountListResponse = z.infer<typeof accountListResponseSchema>;
 
 /**
- * Aanmaakverzoek voor een **begeleider-account** (`POST /admin/accounts`, T2.4, DESIGN §2, §5.2,
- * FR-017). Bewust **zonder rolveld**: de server zet de rol hard op `CAREGIVER` en de organisatie op
+ * Aanmaakverzoek voor een **begeleider-account** (`POST /admin/accounts`, INTENTO-NEW-DESIGN §49). Bewust **zonder rolveld**: de server zet de rol hard op `CAREGIVER` en de organisatie op
  * die van de aanroepende ADMIN. Zo kan een meegestuurde `role`/`organizationId` nooit tot
  * privilege-escalatie of een account in een andere tenant leiden. Ook **zonder wachtwoordveld**: de
  * server genereert een sterk tijdelijk wachtwoord (zie `createCaregiverResponseSchema`), zodat een
@@ -253,8 +238,8 @@ export type CreateCaregiverRequest = z.infer<typeof createCaregiverRequestSchema
 
 /**
  * Antwoord van `POST /admin/accounts`: het nieuwe begeleider-account plus het **tijdelijke
- * wachtwoord**. Dat wachtwoord is server-gegenereerd en wordt hier — net als een koppelcode (T2.3)
- * of een worker-token (T5.8) — **één keer** teruggegeven; in de db staat alleen de argon2id-hash,
+ * wachtwoord**. Dat wachtwoord is server-gegenereerd en wordt hier — net als een koppelcode
+ * — **één keer** teruggegeven; in de db staat alleen de argon2id-hash,
  * dus het is daarna niet meer op te vragen. De beheerder geeft het via een veilig kanaal aan de
  * begeleider door.
  */
@@ -265,13 +250,13 @@ export const createCaregiverResponseSchema = z.object({
 export type CreateCaregiverResponse = z.infer<typeof createCaregiverResponseSchema>;
 
 /**
- * Antwoord van `POST /admin/accounts/{id}/password` (T2.7, DESIGN §2, §6.2 Account, §9.4): een
+ * Antwoord van `POST /admin/accounts/{id}/password` (INTENTO-NEW-DESIGN §49, §39, §53): een
  * beheerder geeft een **nieuw** server-gegenereerd tijdelijk wachtwoord uit voor een account in de
  * eigen organisatie dat is vastgelopen — het tijdelijke wachtwoord uit T2.4 kwijt, of buitengesloten
  * door de lockout. Zonder deze actie is er geen weg terug: inloggen lukt niet en zonder sessie is
- * `POST /auth/password` (T2.5) onbereikbaar.
+ * `POST /auth/password` onbereikbaar.
  *
- * Zelfde eigenschappen als bij aanmaken (T2.4): het wachtwoord is server-gegenereerd, wordt hier
+ * Zelfde eigenschappen als bij aanmaken: het wachtwoord is server-gegenereerd, wordt hier
  * **één keer** teruggegeven en staat daarna alleen nog als argon2id-hash in de db. Het account is
  * daarna opnieuw als `mustChangePassword` gemarkeerd, dus de houder komt bij de eerstvolgende login
  * meteen op het blokkerende wachtwoordscherm. `revokedSessions` telt de sessies van dat account die
@@ -288,10 +273,10 @@ export type ResetAccountPasswordResponse = z.infer<typeof resetAccountPasswordRe
 
 // --- Gebruikers en communicatieprofiel ---
 
-// --- Spraakuitvoer (T18.1/T18.2, DESIGN §5.3, §9.4) ---
+// --- Spraakuitvoer (INTENTO-NEW-DESIGN §50, §53, T18.1/T18.2) ---
 
 /**
- * De **stemmen** die een begeleider kan kiezen (T18.2). Eén bron voor de server (die valideert en de
+ * De **stemmen** die een begeleider kan kiezen. Eén bron voor de server (die valideert en de
  * spraakdienst aanroept) en de beheer-UI (die de keuze toont met een luisterknop), zodat een stem nooit
  * onder twee namen rondloopt.
  *
@@ -473,7 +458,7 @@ export const userListResponseSchema = z.object({
 });
 export type UserListResponse = z.infer<typeof userListResponseSchema>;
 
-// --- Profielexport/-import (T8.1, DESIGN §6.4, §8.2, FR-019) ---
+// --- Profielexport/-import (INTENTO-NEW-DESIGN §53, §51) ---
 
 /**
  * Huidige versie van het profielexportformaat. Reist mee in de payload zodat een importeur een ouder/
@@ -482,7 +467,7 @@ export type UserListResponse = z.infer<typeof userListResponseSchema>;
 export const PROFILE_EXPORT_VERSION = 1;
 
 /**
- * De **ontsleutelde** inhoud van een profielexport (DESIGN §6.4, FR-019). Bevat uitsluitend het
+ * De **ontsleutelde** inhoud van een profielexport (INTENTO-NEW-DESIGN §53). Bevat uitsluitend het
  * gebruikersprofiel: naam en communicatie-instellingen (contacten en Experience volgen in N15.1).
  * Bewust **niet**: account- of organisatiegegevens, id's of tokens — het profiel is eigendom van de
  * gebruiker en draagbaar naar een andere omgeving. Deze payload wordt in zijn geheel versleuteld voordat
@@ -526,7 +511,7 @@ export const profileImportRequestSchema = z.object({
 });
 export type ProfileImportRequest = z.infer<typeof profileImportRequestSchema>;
 
-// --- Begeleiders koppelen (T2.2, DESIGN §2, FR-017) ---
+// --- Begeleiders koppelen (INTENTO-NEW-DESIGN §49) ---
 
 /**
  * Eén begeleider-account in de koppelweergave van een gebruiker (`GET /admin/users/{id}/caregivers`).
@@ -538,7 +523,7 @@ export const caregiverLinkSchema = z.object({
   email: z.email(),
   linked: z.boolean(),
   /**
-   * De rol van het account (T9.1). Een **beheerder mag ook begeleider zijn**: een ADMIN kan aan een
+   * De rol van het account. Een **beheerder mag ook begeleider zijn**: een ADMIN kan aan een
    * gebruiker gekoppeld worden en verschijnt daarom in deze lijst. De rol reist mee zodat de UI zichtbaar
    * houdt wie beheerder is en wie 'gewone' begeleider.
    */
@@ -560,7 +545,7 @@ export type CaregiverListResponse = z.infer<typeof caregiverListResponseSchema>;
  * Koppelverzoek (`POST /admin/users/{id}/caregivers`). Eén endpoint voor koppelen én
  * ontkoppelen: `linked: true` legt de koppeling, `linked: false` verwijdert die. Idempotent —
  * herhaald koppelen/ontkoppelen levert dezelfde eindtoestand. `accountId` moet een CAREGIVER- of
- * ADMIN-account binnen dezelfde organisatie zijn (afgedwongen op de server, T9.1).
+ * ADMIN-account binnen dezelfde organisatie zijn (afgedwongen op de server).
  */
 export const linkCaregiverRequestSchema = z.object({
   accountId: z.string().min(1),
@@ -568,13 +553,13 @@ export const linkCaregiverRequestSchema = z.object({
 });
 export type LinkCaregiverRequest = z.infer<typeof linkCaregiverRequestSchema>;
 
-// --- Tabletkoppeling / apparaten (T2.3, DESIGN §6.2, §8.2, FR-018) ---
+// --- Tabletkoppeling / apparaten (INTENTO-NEW-DESIGN §39, §51) ---
 
 /**
  * Antwoord op `POST /admin/users/{id}/device-code`: de zojuist gegenereerde koppelcode en het
  * moment waarop die verloopt. De **plaintext** code wordt hier één keer teruggegeven zodat de
  * beheerder 'm op de tablet kan invoeren; daarna kent de server alleen nog de hash (de code is
- * niet opnieuw op te vragen). De code is eenmalig en verloopt (DESIGN §3.7 stap 5, FR-018).
+ * niet opnieuw op te vragen). De code is eenmalig en verloopt.
  */
 export const deviceCodeResponseSchema = z.object({
   code: z.string(),
@@ -618,7 +603,7 @@ export const deviceSessionResponseSchema = z.object({
 });
 export type DeviceSessionResponse = z.infer<typeof deviceSessionResponseSchema>;
 
-// --- OpenSymbols-integratie (T3.3, DESIGN §6.2, §8.2, FR-015) ---
+// --- OpenSymbols-integratie (INTENTO-NEW-DESIGN §39, §51) ---
 
 /**
  * Een `https`-URL. Bewust géén `http`/`data:`/andere schema's: die zijn ofwel onveilig als
@@ -635,7 +620,7 @@ export const httpsUrlSchema = z
 
 /**
  * Zoekverzoek tegen de OpenSymbols-proxy (`GET /admin/aac/opensymbols/search?q=…`). De backend
- * praat namens de client met OpenSymbols (de client nooit rechtstreeks, DESIGN §8.1). `locale`
+ * praat namens de client met OpenSymbols (INTENTO-NEW-DESIGN §51, de client nooit rechtstreeks). `locale`
  * stuurt de taal van de zoekresultaten (standaard Nederlands).
  */
 export const openSymbolsSearchQuerySchema = z.object({
@@ -704,14 +689,14 @@ export const dashboardResponseSchema = z.object({
 });
 export type DashboardResponse = z.infer<typeof dashboardResponseSchema>;
 
-// --- Audit-log (T8.2, DESIGN §9.4) ---
+// --- Audit-log (INTENTO-NEW-DESIGN §53) ---
 
 /** Uitkomst van een geauditeerde actie: geslaagd of mislukt (bv. een mislukte login). */
 export const auditOutcomeSchema = z.enum(['success', 'failure']);
 export type AuditOutcome = z.infer<typeof auditOutcomeSchema>;
 
 /**
- * Publieke weergave van één audit-regel (`GET /admin/audit-logs`, T8.2, DESIGN §9.4). Een append-only
+ * Publieke weergave van één audit-regel (INTENTO-NEW-DESIGN §53, `GET /admin/audit-logs`). Een append-only
  * spoor van gevoelige acties zonder communicatie-inhoud: alleen een stabiele `action`-sleutel, de
  * uitkomst, de actor en objectverwijzingen. `metadata` bevat hoogstens kleine, niet-gevoelige context.
  */
@@ -733,14 +718,14 @@ export const auditLogListResponseSchema = z.object({
 });
 export type AuditLogListResponse = z.infer<typeof auditLogListResponseSchema>;
 
-// --- Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, §10.4) ---
+// --- Platform-operatorconsole (INTENTO-NEW-DESIGN §53) ---
 
 /**
  * Publieke weergave van één organisatie in de **operatorconsole** (`GET /operator/organizations`).
  *
  * Dit is de enige plek in Intento waar data van meerdere tenants naast elkaar staat, dus de vorm is
  * bewust smal: alleen **beheermetadata** (naam, soort, status, omvang). Geen communicatie-inhoud,
- * geen persoonlijke context, geen gebruikersnamen — die blijven binnen de tenant (DESIGN §9.4).
+ * geen persoonlijke context, geen gebruikersnamen — die blijven binnen de tenant (INTENTO-NEW-DESIGN §53).
  * `userCount`/`accountCount` zijn aggregaten: een operator kan de omvang van een omgeving inschatten
  * (misbruik, capaciteit) zonder de mensen erin te zien.
  */
@@ -750,7 +735,7 @@ export const operatorOrganizationSchema = z.object({
   type: organizationTypeSchema,
   /** Actief; `false` = door een operator gedeactiveerd (login/sessies/tablets geweigerd). */
   active: z.boolean(),
-  /** Platformorganisatie: hier wonen de operators en het worker-tokenbeheer (T5.8). */
+  /** Platformorganisatie: hier wonen de operators. */
   isPlatform: z.boolean(),
   userCount: z.number().int().nonnegative(),
   accountCount: z.number().int().nonnegative(),
@@ -768,8 +753,8 @@ export type OperatorOrganizationListResponse = z.infer<
 
 /**
  * Nieuwe organisatie aanmaken vanuit de console (`POST /operator/organizations`). Bewust **zonder**
- * eerste admin-account: een omgeving krijgt haar beheerder via zelfaanmelding (T1.3) of via de
- * ADMIN-flow binnen de tenant (T2.4). De operator zet dus de omgeving neer, maar mint geen
+ * eerste admin-account: een omgeving krijgt haar beheerder via zelfaanmelding of via de
+ * ADMIN-flow binnen de tenant. De operator zet dus de omgeving neer, maar mint geen
  * inloggegevens voor andermans tenant — dat zou een operator stilzwijgend toegang tot communicatie
  * geven. Zie docs/security.md.
  */
@@ -802,7 +787,7 @@ export type OperatorAccount = z.infer<typeof operatorAccountSchema>;
 
 /**
  * Gebruikersregel in het organisatiedetail. **Zonder naam**: de communicerende persoon is de meest
- * beschermde entiteit in Intento (DESIGN §2, §9.4) en een operator hoeft voor beheer alleen te weten
+ * beschermde entiteit in Intento (INTENTO-NEW-DESIGN §49, §53) en een operator hoeft voor beheer alleen te weten
  * dát er gebruikers zijn en of ze actief zijn — niet wie. Vandaar id + status + aanmaakmoment.
  */
 export const operatorUserSchema = z.object({

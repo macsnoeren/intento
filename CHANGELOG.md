@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N0.7 — verwijzingen in de blijvende code
+
+- Comments en testnamen in `server/src`, `web/src` en `shared/src` verwijzen niet meer naar het
+  verwijderde `DESIGN.md`: waar er een tegenhanger is, staat er nu `INTENTO-NEW-DESIGN §…`; FR-nummers
+  en T-nummers in verwijzingshaakjes zijn weg (de oude T-nummers blijven in deze CHANGELOG terug te
+  vinden). Ook de laatste resten van de AI-wachtrij (`aiWaitingErrorSchema`, wachtrijvelden op
+  `ApiRequestError`, audit-labels van verdwenen acties) zijn weg. Geen gedragswijziging.
+
 ### N0.6 — de ai-worker eruit
 
 - `ai-worker/` is verwijderd, met de compose-service `ai-worker` en het profiel `ai`; `docker:down` en

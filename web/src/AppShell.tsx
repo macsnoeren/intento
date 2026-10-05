@@ -4,7 +4,7 @@ import { AdminNav, type AdminView, type NavRole } from './AdminNav.tsx';
 import { BrandLockup, BrandMark, BRAND_NAME, BRAND_PAYOFF } from './Brand.tsx';
 
 /**
- * Het vaste raamwerk om elke ingelogde pagina heen (T17.1): zijbalk met het menu, kopbalk met de
+ * Het vaste raamwerk om elke ingelogde pagina heen: zijbalk met het menu, kopbalk met de
  * paginatitel en rechts wie je bent, en daaronder de inhoud van de pagina.
  *
  * Waarom één component en niet per pagina een eigen kop: tot T17.1 herhaalde elke pagina dezelfde

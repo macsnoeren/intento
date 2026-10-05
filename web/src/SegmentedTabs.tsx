@@ -1,5 +1,5 @@
 /**
- * Keuzebalk tussen de onderdelen van één scherm (T17.4).
+ * Keuzebalk tussen de onderdelen van één scherm.
  *
  * Gebruikt waar een scherm te veel inhoud heeft om in één keer te tonen, maar de onderdelen wél bij
  * elkaar horen: de weergaven van het gebruikersoverzicht (gebruikers / logins) en de onderdelen van

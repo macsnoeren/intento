@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Eigen wachtwoord wijzigen (T2.5, DESIGN §2, §9.4).
+ * Eigen wachtwoord wijzigen (INTENTO-NEW-DESIGN §49, §53).
  *
  * Vooral bedoeld voor de begeleider die met het **tijdelijke** wachtwoord uit T2.4 binnenkomt: dat
  * wachtwoord is door de beheerder aangemaakt en bij hem bekend, dus het hoort meteen vervangen te
@@ -18,7 +18,7 @@ export function ChangePasswordPanel({
 }: {
   api: Api;
   /**
-   * Meldt een geslaagde wijziging (T2.6). De app ververst daarop het account: draaide dit account
+   * Meldt een geslaagde wijziging. De app ververst daarop het account: draaide dit account
    * nog op een tijdelijk wachtwoord, dan valt die markering — en het blokkerende scherm eromheen —
    * hiermee weg.
    */

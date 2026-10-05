@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Dialoogvenster (T17.2). Gebruikt voor handelingen die je *begint* vanaf een overzicht — een
+ * Dialoogvenster. Gebruikt voor handelingen die je *begint* vanaf een overzicht — een
  * gebruiker toevoegen, een begeleider aanmaken, een profiel importeren — zodat het overzicht zelf
  * niet volloopt met formulieren die je zelden nodig hebt.
  *
- * Toetsenbord- en schakelbediening zijn hier geen bijzaak (DESIGN §5.1): zolang de dialoog openstaat
+ * Toetsenbord- en schakelbediening zijn hier geen bijzaak (INTENTO-NEW-DESIGN §48): zolang de dialoog openstaat
  * blijft de focus erbinnen (Tab loopt rond), Escape sluit, en bij het sluiten gaat de focus terug
  * naar de knop die de dialoog opende — anders staat een schakelgebruiker na het sluiten weer
  * helemaal boven aan de pagina.

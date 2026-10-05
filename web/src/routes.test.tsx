@@ -5,7 +5,7 @@ import { TabletApp } from './TabletApp.tsx';
 import { OperatorConsole } from './OperatorConsole.tsx';
 
 /**
- * Route-dispatch van de bundel (T4.2, T8.3). Drie interfaces achter één build, gekozen op het pad.
+ * Route-dispatch van de bundel. Drie interfaces achter één build, gekozen op het pad.
  * Bewust getest: een typo hier laat de tablet of de operatorconsole stilletjes op de beheeromgeving
  * uitkomen — geen foutmelding, gewoon het verkeerde scherm.
  */

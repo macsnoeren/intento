@@ -20,7 +20,7 @@ export interface CaregiverRoutesDeps {
 const userParamsSchema = z.object({ id: z.string().min(1) });
 
 /**
- * Rollen die begeleider van een gebruiker kunnen zijn (T9.1). Naast CAREGIVER staat ADMIN in deze lijst:
+ * Rollen die begeleider van een gebruiker kunnen zijn. Naast CAREGIVER staat ADMIN in deze lijst:
  * in kleine organisaties (een gezin, een kleine zorglocatie) is de beheerder vaak zélf de begeleider aan
  * tafel, en die hoorde daarvoor een tweede account aan te maken. De rol reist mee naar de UI zodat
  * zichtbaar blijft wie beheerder is. `USER` staat er bewust niet bij: dat is de communicerende persoon.
@@ -55,7 +55,7 @@ async function buildCaregiverList(
 }
 
 /**
- * Begeleiders koppelen (T2.2, DESIGN §2, §8.2, FR-017).
+ * Begeleiders koppelen (INTENTO-NEW-DESIGN §49, §51).
  *
  * Een beheerder (ADMIN) bepaalt welke begeleiders (CAREGIVER-accounts) aan een gebruiker
  * gekoppeld zijn. De koppeling stuurt de toegang: een begeleider ziet en beheert alléén
@@ -64,7 +64,7 @@ async function buildCaregiverList(
  * Beide endpoints zijn ADMIN-only en volledig tenant-gebonden: de gebruiker moet in de eigen
  * organisatie zitten (`assertSameTenant`) en een te koppelen account moet een CAREGIVER **of ADMIN**
  * binnen dezelfde organisatie zijn (T9.1: een beheerder mag ook begeleider zijn) — zo kan een beheerder
- * nooit een gebruiker of begeleider uit een andere organisatie raken (multi-tenant-isolatie, DESIGN §9.4).
+ * nooit een gebruiker of begeleider uit een andere organisatie raken (INTENTO-NEW-DESIGN §53, multi-tenant-isolatie).
  */
 export function registerCaregiverRoutes(
   app: FastifyInstance,
@@ -109,7 +109,7 @@ export function registerCaregiverRoutes(
           'Geen geldig begeleider-account in deze organisatie.',
         );
       }
-      // Een beheerder mag ook begeleider zijn (T9.1); alleen een USER-account kan het niet zijn.
+      // Een beheerder mag ook begeleider zijn; alleen een USER-account kan het niet zijn.
       if (
         !CAREGIVER_ELIGIBLE_ROLES.includes(
           caregiver.role as (typeof CAREGIVER_ELIGIBLE_ROLES)[number],

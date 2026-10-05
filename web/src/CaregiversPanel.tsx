@@ -3,7 +3,7 @@ import type { CaregiverLink } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
 
 /**
- * Begeleiders koppelen aan een gebruiker (T2.2, DESIGN §5.2, FR-017). Toont alle
+ * Begeleiders koppelen aan een gebruiker (INTENTO-NEW-DESIGN §49). Toont alle
  * CAREGIVER-accounts van de organisatie met per account een aan/uit-schakelaar; omzetten
  * roept `POST /admin/users/{id}/caregivers` aan. De backend bepaalt daarmee welke gebruikers
  * een begeleider mag zien — een niet-gekoppelde begeleider krijgt overal 403.
@@ -82,7 +82,7 @@ export function CaregiversPanel({
           → “Begeleider aanmaken”; daarna verschijnt hij hier om te koppelen.
         </p>
       ) : (
-        // Elke begeleider een eigen regel over de volle breedte (T17.4): een aanvinkvakje van een
+        // Elke begeleider een eigen regel over de volle breedte: een aanvinkvakje van een
         // paar pixels is op een tablet lastig te raken, de hele regel niet.
         <ul className="choice-list">
           {caregivers.map((caregiver) => (

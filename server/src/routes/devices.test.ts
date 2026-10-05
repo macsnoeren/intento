@@ -14,7 +14,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Tabletkoppeling (T2.3, DESIGN §6.2, §8.2, FR-018).
+ * Tabletkoppeling (INTENTO-NEW-DESIGN §39, §51).
  *
  * Dekt de volledige koppelflow (beheerder genereert code → tablet wisselt in → apparaat-token
  * geeft toegang tot alléén de eigen gebruiker), de harde randen (verlopen/gebruikte/onbekende

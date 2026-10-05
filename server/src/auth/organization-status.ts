@@ -2,7 +2,7 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../errors.js';
 
 /**
- * Status van de organisatie als toegangsvoorwaarde (T8.3, DESIGN §9.4).
+ * Status van de organisatie als toegangsvoorwaarde (INTENTO-NEW-DESIGN §53).
  *
  * Een platform-operator kan een organisatie **deactiveren** (`Organization.active = false`) om
  * misbruik te stoppen. Dat is bewust geen verwijdering: de gegevens blijven staan, de eigenaar

@@ -18,7 +18,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, ADR-0011).
+ * Platform-operatorconsole (INTENTO-NEW-DESIGN §53, ADR-0011).
  *
  * De console is bewust de enige plek die door de tenant-grens heen kijkt, dus de tests draaien vooral
  * om de grens zelf: wie mag erbij (alleen een operator), wat komt eruit (beheermetadata, nooit
@@ -82,7 +82,7 @@ describe('platform-operatorconsole — /operator', () => {
     });
 
     it('weigert een ADMIN in de platformorganisatie zónder operatorvlag met 403', async () => {
-      // `isPlatform` alleen ontgrendelt worker-tokenbeheer (T5.8), niet de console: de vlag op het
+      // `isPlatform` alleen ontgrendelt de console niet: de vlag op het
       // account is een tweede, aparte voorwaarde.
       const { email, password } = await seedPlatformAccount('infra@intento.local', 'pw-infra');
       const cookie = await loginCookie(app, email, password);

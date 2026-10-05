@@ -44,7 +44,7 @@ function auditToPublic(row: AuditLogModel): unknown {
 }
 
 /**
- * Audit-log-inzage (T8.2, DESIGN §9.4). `GET /admin/audit-logs` toont het spoor van gevoelige acties
+ * Audit-log-inzage (INTENTO-NEW-DESIGN §53). `GET /admin/audit-logs` toont het spoor van gevoelige acties
  * van de **eigen organisatie** — ADMIN-only en tenant-gefilterd op `organizationId`, zodat een
  * beheerder nooit het spoor van een andere organisatie ziet (multi-tenant-isolatie). De regels bevatten
  * geen communicatie-inhoud (zie het `AuditLog`-model en `audit/audit.ts`).

@@ -1,12 +1,12 @@
 /**
- * Menupictogrammen (T17.1): één set lijnicoontjes voor de zijbalk.
+ * Menupictogrammen: één set lijnicoontjes voor de zijbalk.
  *
  * Bewust getekende SVG's en geen emoji: emoji zijn per besturingssysteem anders vormgegeven en
  * ingekleurd, waardoor het menu op elk apparaat een andere indruk maakt — en naast een rustige,
  * zakelijke zijbalk vallen ze uit de toon. Deze icoontjes volgen `currentColor`, dus ze verkleuren
  * mee met de actieve menu-ingang.
  *
- * De icoontjes zijn nooit de enige aanduiding: het label staat er altijd voluit naast (DESIGN §5.1).
+ * De icoontjes zijn nooit de enige aanduiding: het label staat er altijd voluit naast (INTENTO-NEW-DESIGN §48).
  */
 export type NavIconName =
   | 'dashboard'
@@ -71,7 +71,7 @@ const PATHS: Record<NavIconName, React.ReactNode> = {
       <path d="M18.5 16.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" />
     </>
   ),
-  // Sleutel: toegang voor AI-workers.
+  // Sleutel: toegang en rechten.
   key: (
     <>
       <circle cx="8" cy="12" r="4" />

@@ -6,8 +6,8 @@ import { OperatorConsole } from './OperatorConsole.tsx';
  * Route-dispatch van de web-bundel: drie losse interfaces achter één build, elk op een eigen pad.
  *
  * - `/tablet` — de **gebruikersapp** (device-auth, eigen gebruiker); start direct in de gespreksflow
- *   (T4.2).
- * - `/operator` — de **platform-operatorconsole** (T8.3): het enige deel dat over tenants heen kijkt.
+ *  .
+ * - `/operator` — de **platform-operatorconsole**: het enige deel dat over tenants heen kijkt.
  *   Bewust een aparte routetak i.p.v. een tab in het beheer, zodat er geen knop "cross-tenant" naast
  *   je eigen organisatie staat; een operator vindt 'm via één expliciete link op "Mijn account".
  * - de overige paden — de **beheeromgeving** (account-auth, altijd tenant-gefilterd).

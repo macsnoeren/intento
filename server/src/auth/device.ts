@@ -7,7 +7,7 @@ import { DEVICE_COOKIE_NAME } from './cookie.js';
 import { assertOrganizationActive } from './organization-status.js';
 
 /**
- * Apparaatkoppeling en device-auth (T2.3, DESIGN §6.2, §8.2, FR-018).
+ * Apparaatkoppeling en device-auth (INTENTO-NEW-DESIGN §39, §51).
  *
  * Twee geheimen, dezelfde beveiligingsregel als bij sessies (`session.ts`): niets staat
  * plaintext in de db.
@@ -163,7 +163,7 @@ export function deviceAuthorize(prisma: PrismaClient): preHandlerAsyncHookHandle
     if (!device) {
       throw new HttpError(401, 'DEVICE_NOT_LINKED', 'Geen gekoppeld apparaat.');
     }
-    // Gedeactiveerde omgeving (T8.3): een gekoppelde tablet van een gestopte organisatie mag niet
+    // Gedeactiveerde omgeving: een gekoppelde tablet van een gestopte organisatie mag niet
     // doorwerken. Het apparaat hangt aan een gebruiker, en die aan de organisatie.
     const user = await prisma.user.findUnique({
       where: { id: device.userId },
