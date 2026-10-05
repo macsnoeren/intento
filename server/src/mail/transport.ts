@@ -73,7 +73,7 @@ export class MemoryMailTransport implements MailTransport {
  * De env bepaalt dus wélke TLS-variant je gebruikt, nooit óf er TLS is.
  */
 export class SmtpMailTransport implements MailTransport {
-  private readonly transporter: nodemailer.Transporter;
+  private readonly transporter: ReturnType<typeof nodemailer.createTransport>;
 
   /**
    * `connection` is óf een SMTP-URL (`SMTP_URL`) óf de losse instellingen (`SMTP_HOST` en de rest,
