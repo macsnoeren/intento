@@ -10,14 +10,15 @@
 
 ## Overzicht
 
-Intento is een monorepo met drie workspaces. De web-app (tablet) praat uitsluitend
-met de backend-API; de backend praat met de LLM via een AI-Orchestrator met validatielaag
-(fundament vanaf T5.1, `server/src/ai/`). De client praat **nooit** rechtstreeks met de AI (DESIGN §8.1).
+Intento is een monorepo met drie workspaces plus losse Python-diensten. De web-app (tablet en
+beheer) praat uitsluitend met de backend-API. De client praat **nooit** rechtstreeks met de AI: de
+backend roept de agentdienst aan (in herbouw, [adr/0017](adr/0017-agentic-architectuur.md)), en die
+praat met Ollama.
 
 ```
-web (React/Vite, tablet)  ──HTTP──▶  server (Fastify 5)  ──▶  AI-Orchestrator + AAC (later)
-        │                                   │
-        └────────── shared (zod-schema's/types) ──────────┘
+web (React/Vite)  ──HTTP──▶  server (Fastify 5)  ──▶  agentdienst (Python, in herbouw)  ──▶  Ollama
+        │                         │       └──────────▶  spraakdienst (Python, Piper)
+        └──── shared (zod) ───────┘
 ```
 
 `shared/` bevat de zod-schema's die de vorm van API-payloads vastleggen; zowel server
@@ -35,7 +36,7 @@ server niet uit elkaar lopen.
 | Frontend | React 19 + Vite | Eén codebase voor de drie interfaces; tablet-first. |
 | Database | Prisma (SQLite dev → PostgreSQL prod) | Driver adapters; zie [adr/0003](adr/0003-persistence-prisma-sqlite-postgres.md). |
 | Auth | argon2id + gehashte sessietokens | Vanaf T1.1. |
-| AI | Self-hosted LLM achter AI-Orchestrator | Fundament vanaf T5.1; provider-agnostisch, mock in tests. Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md). |
+| AI | Python-agentdienst met eigen orchestrator, Ollama als LLM | Stateless, backend is data-eigenaar. Zie [adr/0017](adr/0017-agentic-architectuur.md). |
 
 ## Mappenstructuur
 
@@ -45,52 +46,16 @@ server niet uit elkaar lopen.
   `routes/` (één bestand per domein), `db/` (Prisma-client-singleton).
 - `server/prisma/` — `schema.prisma` (datamodel), `migrations/`, `seed.ts`. De
   CLI-config staat in `server/prisma.config.ts`.
-- `server/src/ai/` — de AI-laag: de provider-agnostische `AiProvider`-interface (`provider.ts`), de
-  `AiOrchestrator` (`orchestrator.ts`), de beperkte-context-bouw (`prompt.ts`) en de deterministische
-  `MockAiProvider` (`mock-provider.ts`) uit T5.1, plus vanaf T5.2 de **validatielaag** (`validation.ts`,
-  die AI-opties tegen de AAC-bibliotheek toetst en onbekende concepten als `ConceptProposal` afvangt) en
-  de **confidence-drempels** (`thresholds.ts`, §7.4). Server-intern — de client praat nooit met de AI.
-  Vanaf T5.5 óók de **gedistribueerde wachtrij**: `job-queue.ts` (enqueue met backpressure, atomair
-  claimen, resultaat/heartbeat, opportunistische sweep voor crash-herstel en wachtrij-timeout),
-  `queue-provider.ts` (de `QueueAiProvider` achter dezelfde interface), `worker-token.ts`
-  (infrastructuur-credential, gehasht + scoped) en `errors.ts` (`AiWorkerBusyError`/
-  `AiWorkerUnavailableError` → 503). De worker-endpoints staan in `routes/ai-worker.ts` (worker-initiated
-  long-poll, `auth/worker.ts`). Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md),
-  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md) en
-  [adr/0010](adr/0010-distributed-ai-worker-queue.md).
 - `server/src/speech/` — de **spraaklaag** (T18.1): een provider-agnostische `SpeechSynthesizer` met een
   HTTP-client naar de losstaande spraakdienst en een "niet geconfigureerd"-variant die netjes 503 geeft,
   plus een **geheugencache** op `hash(tekst + stem)`. De routes staan in `routes/speech.ts`. Server-intern:
-  de tablet praat nooit rechtstreeks met de spraakdienst, net zomin als met de AI. Zie
+  de tablet praat nooit rechtstreeks met de spraakdienst, net zomin als met de AI.
+- `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client
+  (`opensymbols.ts`), die bij het importeren uit een externe bron wordt hergebruikt. Zie
   [adr/0015](adr/0015-speech-synthesis-piper.md).
-- `server/src/conversation/decision.ts` — de **AI-beslissingslaag** (T5.2) die achter `/next` de
-  gescripte vraagselectie vervangt: AAC-begrensde kandidaten uit de relatieboom → herhaling vermijden →
-  orchestrator → validatielaag → confidence-gestuurde ordening/fase. Puur uit de opgeslagen stappen,
-  zodat de terug-functie exact blijft en alles deterministisch met de mock te testen is.
-- `server/src/conversation/generate.ts` — de **AI-boodschapgeneratie** (T5.3) achter `/generate` en
-  `/confirm`: `composeMessage` laat de orchestrator een zin formuleren uit de bevestigde concepten en
-  toetst die met een **safety-laag** tegen de AAC-bibliotheek — een zin met een concept **buiten de
-  sessie** (§7.8) wordt verworpen ten gunste van de deterministische sjabloon-zin (`message.ts`), die per
-  constructie binnen de gekozen concepten blijft. Zo bereikt een verzonnen/buiten-de-sessie begrip de
-  gebruiker (en de db) nooit — ook niet bij een onbetrouwbare provider. De scan telt sinds T10.9 alleen
-  **betekenisdragende** termen: functiewoorden (lidwoorden, voornaamwoorden, voorzetsels, hulp- en modale
-  werkwoorden) komen in elke Nederlandse zin voor en bewijzen niets over een concept — "wil" is zinsbouw,
-  geen smokkelroute voor `want`.
-- `server/src/conversation/message.ts` — de **deterministische sjabloon-zin**: begint de route met een
-  intentiecategorie, dan draagt die het zinsframe ("Ik wil …", "Ik voel me …") en verfijnt de rest;
-  begint ze met een gewoon begrip — mogelijk sinds de AI ook op het startscherm een concept mag aandragen
-  (T10.6) — dan geldt het neutrale **onderwerp-frame** en is elk gekozen concept inhoud (T10.9).
-- `server/src/conversation/correction.ts` — de **correctie** (T5.4, herzien in T10.10) achter
-  `/correction`: `analyzeCorrection` rolt precies **één** stap terug — de laatste keuze. Het afgewezen
-  concept wordt als `CorrectionEvent` vastgelegd en blijft de rest van de sessie uitgesloten, zodat
-  dezelfde route nooit terugkomt (§7.5); nogmaals ❌ rolt de volgende stap terug. De flow gaat **niet**
-  terug naar het begin en er wordt **niet** van geleerd (correctie-signaal, geen `Preference`-mutatie).
-  Eerdere versies probeerden de foutstap te *bepalen* uit de per-stap-zekerheid of het kantelpunt van de
-  hypothese; beide signalen wezen systematisch de eerste — en meest bewuste — keuze van de gebruiker aan,
-  waarna zijn hele route verdween (DESIGN §3.4).
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
-  `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm + gespreksflow, T4.2), `api.ts`
+  `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm; de gespreksflow is in herbouw), `api.ts`
   (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
   `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
   `styles.css`.
@@ -110,7 +75,7 @@ server niet uit elkaar lopen.
 
 ## Interfaces in de web-app
 
-De web-app bundelt de drie interfaces uit DESIGN §5.2, gescheiden op de URL en op
+De web-app bundelt drie interfaces, gescheiden op de URL en op
 authenticatiepijler:
 
 - **Gebruikersapp (tablet)** — `/tablet`, `TabletApp.tsx`, op **device-auth** (aparte cookie).
@@ -141,7 +106,7 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   niet meer aan.
 - **Centrale foutafhandeling** — `ZodError → 400`, `HttpError → eigen status`,
   onbekende fouten → 500 zonder interne details te lekken. Alle fouten in de
-  consistente structuur `{ error: { code, message } }` (DESIGN §8.1).
+  consistente structuur `{ error: { code, message } }`.
 - **Autorisatie + tenant-isolatie** — beschermde routes hangen het
   `authorize(prisma, { roles })`-preHandler ervoor (401 zonder sessie, 403 bij verkeerde
   rol) en zetten `request.account`. Tenant-gebonden queries filteren op `organizationId`
@@ -150,101 +115,6 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
 - **Prisma-client-singleton** (`db/prisma.ts`) — verbindt via een driver adapter
   (SQLite in dev/test) op basis van `DATABASE_URL`; wordt op `globalThis` bewaard zodat
   `tsx watch` niet telkens een nieuwe verbinding opent. Zie [data-model.md](data-model.md).
-- **AI-Orchestrator** (`ai/`) — de tussenlaag tussen de gespreksflow en de LLM. Per aanroep stelt hij
-  de **beperkte, verse context** samen (`buildAiPrompt`: systeemregels + doel + AAC-regels +
-  gebruikerscontext + gesprekscontext + laatste keuze + toegestane opties — géén chatgeschiedenis) en
-  **valideert de provider-uitvoer opnieuw** met zod. De provider zit achter de injecteerbare
-  `AiProvider`-interface (mock in tests, self-hosted LLM later), net als de OpenSymbols-client. Zie
-  [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md).
-- **Kandidatenselectie** (`conversation/candidates.ts`, T10.2) — stelt per beurt samen waaruit de AI mag
-  kiezen. Vóór Fase 10 was dat letterlijk `loadChildSymbols(laatste keuze)`: de kinderen van één knoop in
-  de relatieboom, en dus de hele wereld die het model zag. Bij een smalle tak (`want` heeft er drie) had
-  de AI geen enkele ruimte om te achterhalen wat de gebruiker bedoelt. Nu komt de set uit vier bronnen,
-  ontdubbeld en begrensd op `AI_MAX_CANDIDATES`: **boomkinderen** → **kleinkinderen** (de concrete dingen
-  achter een abstracte tak) → **retrieval** over de héle bibliotheek (op `searchText`, gevoed door de
-  begeleidersvraag, de toegestane persoonlijke context en de labels van het gekozen pad) → **geleerde
-  voorkeuren** → **tijdsbepalingen** (alleen op een afgeronde vraagroute, T14.4; in de
-  standaardstrategieën staan ze vooraan). Die laatste bron werd tot T16.2 **buiten de strategie om**
-  toegevoegd — een uitzondering die een strategie zonder bronnen (`guess`) juist op een vraagroute liet
-  stilvallen; nu bepaalt de strategie ook hier of en waar de bron meedoet. De boom blijft het sterkste signaal, maar is niet langer de grens. De zoekindex zelf
-  staat sinds T16.1 in een eigen module (`aac/search.ts`), omdat hij aan **twee** kanten van het model
-  gebruikt wordt: als kandidatenbron vóór de aanroep en als deduplicatie erná (validatielaag, trap 2½).
-  Zie [adr/0012](adr/0012-ai-generated-concepts.md).
-
-- **Validatielaag + confidence** (`ai/validation.ts`, `ai/thresholds.ts`, `conversation/decision.ts`,
-  T5.2, herzien in Fase 10) — de laag tussen provider en gebruiker (DESIGN §7.4–7.6, §7.8). De
-  beslissingslaag sluit reeds gekozen/afgewezen concepten uit (herhaling vermijden) en geeft de
-  afwijzingen **expliciet mee in de prompt** (T10.4), zodat "geen van deze past" een richtingverandering
-  uitlokt in plaats van stil te verdwijnen. Elke voorgestelde optie gaat langs de bibliotheek: bestaand
-  concept → houden; synoniem/label → omzetten; aantoonbaar nieuw → als `AI_ALLOW_NEW_CONCEPTS` aanstaat
-  een symbool aanmaken met herkomst `ai` en status `PENDING` (inclusief pictogramzoekopdracht) plus een
-  `ConceptProposal`, anders alleen het voorstel en weglaten (T10.6). Tussen "synoniem" en "nieuw" zit
-  sinds T16.1 een **semantische stap** (trap 2½): een term zonder exacte treffer wordt eerst tegen
-  dezelfde zoekindex gehouden als de kandidatenselectie (`aac/search.ts`), zodat "boterhammen" het
-  bestaande `bread` oplevert in plaats van een tweede broodbegrip. De drempel waarboven "lijkt op" als
-  treffer geldt staat als benoemde constante (`SIMILARITY_THRESHOLD`) met onderbouwing in die module.
-  De deduplicatie op trap 1/2/2½ gaat altijd voor — zonder die volgorde loopt de bibliotheek vol met
-  bijna-duplicaten, en dat gebeurde ook: zolang retrieval alléén een **voorfilter** was, bereikte een
-  vrije ronde de bibliotheek nog uitsluitend via naamcollisie.
-  De **interpretatie-zekerheid** (§7.4) bepaalt de fase (`select` <60% / `refine` 60–85% / `propose` >85%
-  of eindconcept) en wordt sinds T10.8 over beurten heen **gedempt** via de hypothese, zodat één
-  zelfverzekerd modelantwoord geen boodschap forceert. Verder gelden: voorstellen mag pas ná een keuze van
-  de **gebruiker** (het anker van de begeleider in vraagmodus telt niet mee, T9.14); het aanbod heeft een
-  onder- én bovengrens (T9.10/T10.5) zodat er altijd genoeg te kiezen is én "Geen van deze past" niet in
-  één klap alles uitsluit; en loopt een punt leeg, dan volgt eerst een **vrije ronde**, daarna de
-  intentiecategorieën, en pas als laatste een boodschapvoorstel. In die vrije ronde krijgt de AI
-  bewust **geen optielijst** (T10.13): een greep uit de bibliotheek maakt van "verzin een verfijning"
-  ongemerkt "kies iets uit deze lijst", en dan verschijnen er onverwante pictogrammen op het scherm.
-  Het aanbod bestaat daar dus alleen uit wat de AI zelf aandroeg — bestaande concepten die ze bij naam
-  noemt, komen via trap 1/2 van de validatielaag alsnog binnen. Zie
-  [adr/0009](adr/0009-validation-layer-and-confidence-policy.md) en
-  [adr/0012](adr/0012-ai-generated-concepts.md).
-
-- **Vastgelegd vraagaanbod en hypothese** (`conversation/offer.ts`, `conversation/hypothesis.ts`, T10.3/
-  T10.8) — de sessie bewaart het nog onbeantwoorde aanbod (`ConversationSession.pendingOffer`) en elke
-  stap bewaart wat er bij die vraag is aangeboden (`ConversationStep.offeredConcepts`). Nodig omdat de
-  beslissing sinds Fase 10 géén pure functie van de stappen meer is: `↩ Terug` herstelt daardoor exact
-  wat de gebruiker zag, en een keuze wordt gevalideerd tegen wat er werkelijk is aangeboden in plaats van
-  tegen de boom. De **hypothese** houdt per beurt bij wat de AI denkt dat de gebruiker bedoelt (concepten
-  + gedempte zekerheid + geschiedenis); ze houdt de voorsteldrempel stabiel (sinds T10.10 stuurt ze de correctieflow niet meer aan) en wordt bij
-  `/confirm` gewist — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6).
-- **Gespreksstrategieën** (`conversation/strategy.ts`, T11.2) — de benoemde manier waarop de AI
-  probeert te achterhalen wat de gebruiker bedoelt (DESIGN §7.10). De knoppen die de aanpak bepalen —
-  bronvolgorde (`candidates.ts`), aanbodgrootte (`decision.ts`), confidence-drempels (`ai/thresholds.ts`),
-  demping (`hypothesis.ts`) en de promptfragmenten (`ai/prompt.ts`) — zijn geen verspreide constanten meer
-  maar de **parameters van één strategie**, met een sleutel, een label en een uitleg voor de begeleider.
-  Dat is geen opruimactie: die waarden coderen een aanname over de persoon, en die aanname hoort een
-  keuze te zijn (DESIGN §5.3). De domeinregels vallen er hard buiten — eigenaarschap, deduplicatie,
-  "afgewezen komt niet terug", de gesloten promptsleutelset en "nooit een leeg scherm" variëren niet mee
-  en worden afgedwongen met één invariant-testsuite over álle geregistreerde strategieën. Strategieën
-  zijn ingebouwd (code, stabiele sleutel), niet beheerd in de database; de **selectie** loopt gesprek →
-  gebruiker → standaard en ligt vast voor de duur van het gesprek. De registry kent **`refine`** (stap
-  voor stap verfijnen, de standaard), **`explore`** (concreet vóór abstract, groter aanbod, lagere
-  voorsteldrempel), **`calm`** (klein aanbod, hoge drempel, sterke demping), **`context-first`**
-  (voorkeuren en persoonlijke context vóór de boom) en **`guess`** (T16.2 — *géén* kandidatenbronnen,
-  waardoor elke beurt na de eerste keuze een **vrije ronde** is en de AI zelf begrippen aandraagt; het
-  startscherm houdt zijn intentiecategorieën, want die bodem legt `decision.ts` buiten de strategie om).
-  `guess` markeert bovendien zijn zekerste aandraging als **gok** (`guessTile`, T16.3): de tablet toont die
-  ene tegel als "🎯 Ik denk: …" tussen de gewone opties. De markering reist mee in het vastgelegde aanbod
-  (`pendingOffer.guess`) en op de stap (`ConversationStep.guessConcept`), zodat `↩ Terug` hetzelfde scherm
-  teruggeeft; ze verandert niets aan de flow — de gebruiker tikt de tegel zelf aan en daarna geldt de
-  voorsteldrempel ongewijzigd; de gekozen sleutel wordt bij het starten van een
-  gesprek vastgelegd op de sessie (`ConversationSession.strategy`), zodat een instelling die halverwege
-  wijzigt een lopend gesprek niet van aanpak laat wisselen; de actieve sleutel staat in de
-  AI-beslissingslogregel en op de AI-job (`AiJob.strategy`, buiten de prompt om meegereisd via
-  `AiCallMeta`) en het label in de meekijkweergave van de begeleider; `decision.ts` leest er de parameters uit, en de env-grenzen (`AI_MAX_CANDIDATES`,
-  `AI_ALLOW_NEW_CONCEPTS`) blijven als **plafond** gelden — een strategie kan ze aanscherpen, nooit
-  oprekken. Zie [adr/0013](adr/0013-conversation-strategies.md).
-- **Gedistribueerde AI-wachtrij** (`ai/job-queue.ts`, `ai/queue-provider.ts`, `routes/ai-worker.ts`,
-  T5.5) — bij `AI_PROVIDER=queue` zet de `QueueAiProvider` aanvragen op een DB-wachtrij (`AiJob`) i.p.v.
-  ze in-process uit te voeren; externe workers (T5.6) claimen jobs via **worker-initiated** long-poll
-  (robuust achter NAT) met een gehasht, scoped **worker-token**. **Backpressure**: boven
-  `AI_WORKER_MAX_CONCURRENT_JOBS` → `WAITING_FOR_WORKER` + positie → 503 `AI_WORKER_BUSY` i.p.v.
-  blokkeren. **Crash-herstel zonder timer**: een opportunistische sweep (bij enqueue/claim/poll) legt een
-  verlopen lease terug (na `AI_WORKER_MAX_ATTEMPTS` → FAILED) en laat nooit-opgepakte jobs verlopen. De
-  worker-uitvoer loopt door **dezelfde** orchestrator-zod-parse én validatielaag — een worker wordt nooit
-  vertrouwd. Zie [adr/0010](adr/0010-distributed-ai-worker-queue.md).
-
 - **Platform-operatorconsole** (`auth/operator.ts`, `auth/organization-status.ts`,
   `routes/operator.ts`, `web/src/OperatorConsole.tsx`, T8.3) — de enige laag die bewust **over de
   tenant-grens heen** kijkt: organisaties beheren (aanmaken, (de)activeren) en accounts/gebruikers
@@ -267,7 +137,7 @@ Vier images, één `compose.yaml` in de repo-root:
 | `server` | `server/Dockerfile`, Debian + Node 24 | migreert in het entrypoint (`prisma migrate deploy`), draait als niet-root, SQLite op een named volume |
 | `web` | `web/Dockerfile`, nginx-alpine | statische build; `VITE_API_URL` wordt **bij de build** ingebakken |
 | `speech` | `speech-service/Dockerfile`, Python + Piper | alleen op het interne netwerk; stemmen uit een volume dat een eenmalige init-dienst vult |
-| `ai-worker` | `ai-worker/Dockerfile`, Python (stdlib) | achter compose-profiel `ai`; heeft een worker-token van de backend nodig |
+| `ai-worker` | `ai-worker/Dockerfile`, Python (stdlib) | achter compose-profiel `ai`; verdwijnt in N0.6 |
 
 Build-context van `server` en `web` is de **repo-root** (npm-workspaces, `shared/`). De database is
 bewust SQLite; het PostgreSQL-pad staat als losse stap op de "na de MVP"-lijst. Afwegingen:

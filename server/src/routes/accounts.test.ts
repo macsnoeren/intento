@@ -511,11 +511,11 @@ describe('nieuw tijdelijk wachtwoord — POST /admin/accounts/:id/password', () 
     expect(me.statusCode).toBe(200);
     expect(authResponseSchema.parse(me.json()).account.mustChangePassword).toBe(true);
 
-    // Een route die een CAREGIVER normaal wél mag (vraagmodus, T7.1), zodat de weigering
+    // Een route die een CAREGIVER normaal wél mag (een gebruiker bekijken), zodat de weigering
     // aantoonbaar van de gate komt en niet van de rolcontrole.
     const geblokkeerd = await app.inject({
       method: 'GET',
-      url: '/question/users',
+      url: '/users/onbekende-gebruiker',
       headers: { cookie: cookieCare },
     });
     expect(geblokkeerd.statusCode).toBe(403);

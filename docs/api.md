@@ -94,60 +94,17 @@ gefilterd; toegang op id via een andere organisatie geeft `403 FORBIDDEN` (besta
 | POST | `/users` | ADMIN + geverifieerd | Maakt een gebruiker in de eigen organisatie aan (`createUserRequestSchema`: `{ name, active? }`). Het communicatieprofiel wordt met standaardwaarden aangemaakt. `201` + `userPublicSchema`. Vereist een **geverifieerd e-mailadres** (T1.4) — onbevestigd → `403 EMAIL_NOT_VERIFIED`. |
 | GET | `/admin/users` | ADMIN | Lijst van gebruikers **binnen de eigen organisatie** (`userListResponseSchema`). |
 | GET | `/users/{id}` | ADMIN, CAREGIVER | Eén gebruiker inclusief profiel (`userPublicSchema`), of `403` bij een andere organisatie. Een CAREGIVER krijgt `403` als hij niet aan deze gebruiker gekoppeld is (T2.2). |
-| PUT | `/users/{id}/settings` | ADMIN, CAREGIVER | Vervangt het volledige communicatieprofiel (`updateSettingsRequestSchema`: `iconsPerScreen`, `showText`, `aiLearningEnabled`, `supportMode`, `contextIndicator`, `conversationStrategy` — als PUT zijn alle velden verplicht). `iconsPerScreen` alléén **2/4/6/8** — anders `400 VALIDATION_ERROR`. `contextIndicator` (T2.4) schakelt de contextindicator (broodkruimel) in de tablet-UI aan/uit. `conversationStrategy` (T11.4, DESIGN §7.10) is de **gespreksstrategie** van deze gebruiker: één van de ingebouwde sleutels (`refine` standaard, `explore`, `calm`, `context-first`, `guess`); een onbekende sleutel geeft `400 VALIDATION_ERROR` en raakt de database niet. `200` + `userPublicSchema`. Voor een CAREGIVER geldt dezelfde koppel-eis als bij `GET`. |
+| PUT | `/users/{id}/settings` | ADMIN, CAREGIVER | Vervangt het volledige communicatieprofiel (`updateSettingsRequestSchema`; als PUT zijn alle velden verplicht, ongeldige waarden → `400 VALIDATION_ERROR`). `200` + `userPublicSchema`. Voor een CAREGIVER geldt dezelfde koppel-eis als bij `GET`. De velden worden in N0.5/N3.1 vernieuwd. |
 | DELETE | `/users/{id}` | ADMIN | Verwijdert de gebruiker (profiel verdwijnt mee). `204`. Een CAREGIVER krijgt `403 FORBIDDEN`. |
 
 Rolkeuze (DESIGN §2): aanmaken/verwijderen is een beheerderstaak (ADMIN); een begeleider
 mag instellingen beheren, maar sinds **T2.2** alléén voor gebruikers waaraan hij gekoppeld is.
 
-### Persoonlijke context (T6.1)
-
-Persoonlijke context van een gebruiker (belangrijke personen, huisdieren, plekken, favorieten,
-routines — DESIGN §6.2 `PersonalContext`, §6.3, FR-013/020) waarmee de AI kan personaliseren, **maar
-alléén met expliciete toestemming per rij** (`aiUsageAllowed`). De gevoelige velden (`name`,
-`relationship`) worden **versleuteld** opgeslagen (AES-256-GCM, `ENCRYPTION_KEY`) en pas op de API-grens
-ontsleuteld — plaintext PII staat nooit in de db (DESIGN §9.4). Toegang is tenant-gebonden en, voor een
-CAREGIVER, beperkt tot **gekoppelde** gebruikers (zoals bij `/users/{id}/settings`).
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| POST | `/users/{id}/context` | ADMIN, CAREGIVER | Voegt een stuk context toe (`personalContextInputSchema`: `{ category, name, relationship?, aiUsageAllowed? }`). `category` is een gesloten taxonomie (`PERSON`/`PET`/`PLACE`/`ACTIVITY`/`FOOD`/`OBJECT`/`ROUTINE`/`OTHER`) — een onbekende waarde → `400 VALIDATION_ERROR`. `aiUsageAllowed` is **opt-in** (standaard `false`). `201` + `personalContextPublicSchema` (ontsleuteld). Andere organisatie of niet-gekoppelde CAREGIVER → `403 FORBIDDEN`. |
-| GET | `/users/{id}/context` | ADMIN, CAREGIVER | Alle context van de gebruiker (`personalContextListResponseSchema`, ontsleuteld), gebruiker-/tenant-gefilterd. Zelfde `403`-regels. |
-| PUT | `/users/{id}/context/{contextId}` | ADMIN, CAREGIVER | Vervangt één contextrij (`personalContextInputSchema`, zelfde velden/validatie als POST). De rij moet bij `{id}` horen — anders `404 CONTEXT_NOT_FOUND` (een id van een andere gebruiker lekt niet). `200` + `personalContextPublicSchema`. Zelfde `403`-regels. |
-| DELETE | `/users/{id}/context/{contextId}` | ADMIN, CAREGIVER | Verwijdert één contextrij (na eigenaars-/tenantcontrole). Onbekende/vreemde rij → `404 CONTEXT_NOT_FOUND`. `204` bij succes. Zelfde `403`-regels. |
-
-De web-beheeromgeving vult deze endpoints met een **stapsgewijze wizard** (T6.2): de begeleider legt personen,
-plekken, favorieten en routines pictogram-ondersteund vast en beheert ze daarna (bewerken/verwijderen).
-
-**AI-toestemmingsfilter (DESIGN §6.3).** Bij elke AI-aanroep in de gespreksflow (`/conversation/*`) laadt
-de backend **alléén** de contextrijen met `aiUsageAllowed=true`, ontsleutelt ze en geeft ze als `userContext`
-(`{ kind, value }`) mee in de beperkte prompt. Naast de persoonlijke context reizen ook de geleerde
-**voorkeuren** (T6.3, `kind: 'preference'`) mee — mits leren aanstaat. Context/voorkeuren zonder toestemming
-bereiken de AI dus nooit.
-
-### Voorkeuren en leermechanisme (T6.3)
-
-Geleerde voorkeuren van een gebruiker (DESIGN §3.8, §6.2 Preference, §7.1 taak 5, FR-014). Het leren zelf
-gebeurt server-side bij `POST /conversation/{id}/confirm`: elk **bevestigd** concept versterkt de voorkeur —
-maar **alléén** als `aiLearningEnabled=true` (uitschakelbaar) en **nooit** uit afwijzingen/correcties. De
-onderstaande endpoints zijn de **beheerkant**; toegang volgt dezelfde regels als de persoonlijke context
-(ADMIN of gekoppelde CAREGIVER, tenant-gebonden).
-
-| Methode | Pad | Rol | Gedrag |
-|---|---|---|---|
-| GET | `/users/{id}/preferences` | ADMIN, CAREGIVER | Alle voorkeuren van de gebruiker, sterkste eerst (`preferenceListResponseSchema`: `{ id, userId, concept, label, confidence, count, suggestionStatus, suggested, createdAt }`). `label` = het opgezochte AAC-label; `suggested` = er staat een suggestie open. Andere organisatie of niet-gekoppelde CAREGIVER → `403 FORBIDDEN`. |
-| POST | `/users/{id}/preferences/{prefId}/suggestion` | ADMIN, CAREGIVER | Handelt een **openstaande** suggestie af (`preferenceSuggestionActionSchema`: `{ action: 'accept' \| 'adjust' \| 'reject', category?, name? }`). `accept` neemt de voorkeur over als **persoonlijke context** (categorie afgeleid uit het AAC-concept, naam = label, `aiUsageAllowed=true`); `adjust` idem met opgegeven `category`+`name` (beide verplicht, anders `400`); `reject` weigert de suggestie. `200` + de bijgewerkte `preferencePublicSchema`. Onbekende/vreemde voorkeur → `404 PREFERENCE_NOT_FOUND`; geen openstaande suggestie → `409 NO_PENDING_SUGGESTION`. |
-
-De begeleider-suggestie ontstaat automatisch: zodra een concept ≥ 3× bevestigd is, gaat `suggestionStatus`
-van `none` → `pending` en verschijnt in de beheer-UI een voorstel ("Wil je '…' toevoegen als vaste context?")
-met **accepteren / aanpassen / weigeren**. Een geweigerde (`dismissed`) of overgenomen (`accepted`) suggestie
-komt niet terug.
-
 ### Profielexport en -import (T8.1, DESIGN §6.4, FR-019)
 
 Gegevenseigenaarschap (DESIGN §4): het communicatieprofiel is eigendom van de gebruiker en is **draagbaar**
-naar een andere omgeving. De export bevat het communicatieprofiel/de instellingen, de persoonlijke context en
-de geleerde voorkeuren — **niet** account- of organisatiegegevens, id's of tokens. De payload wordt in zijn
+naar een andere omgeving. De export bevat de weergavenaam en het communicatieprofiel (contacten en Experience volgen in
+N15.1) — **niet** account- of organisatiegegevens, id's of tokens. De payload wordt in zijn
 geheel versleuteld met de omgevingssleutel (`ENCRYPTION_KEY`), dus het bestand is **onleesbaar zonder die
 sleutel**. Beide acties zijn **ADMIN-only** en tenant-gebonden.
 
@@ -166,7 +123,7 @@ endpoints zijn tenant-gebonden (gebruiker én begeleider moeten in de eigen orga
 `403`).
 
 Sinds T9.1 kan **ook een ADMIN-account** begeleider zijn: in kleine organisaties is de beheerder vaak
-zelf degene die aan tafel de vraag stelt. De lijst draagt daarom per account de `role`, zodat zichtbaar
+zelf de begeleider aan tafel. De lijst draagt daarom per account de `role`, zodat zichtbaar
 blijft wie beheerder is. Een `USER`-account kan geen begeleider zijn (`400 NOT_A_CAREGIVER`).
 
 | Methode | Pad | Rol | Beschrijving |
@@ -185,194 +142,6 @@ leeft in de langlevende `intento_device`-cookie (`DEVICE_TOKEN_TTL_DAYS`).
 | POST | `/admin/users/{id}/device-code` | ADMIN | Genereert een koppelcode voor een gebruiker in de eigen organisatie. `201` + `deviceCodeResponseSchema` (`{ code, expiresAt }`) — de **plaintext** code wordt hier één keer teruggegeven. Een eerdere ongebruikte code wordt ongeldig. Andere organisatie → `403 FORBIDDEN`. |
 | POST | `/devices/link` | publiek | Wisselt een koppelcode in (`linkDeviceRequestSchema`, `{ code }`; genormaliseerd). Bij succes: `201` + `deviceSessionResponseSchema` (`{ device, user }`) en de `intento_device`-cookie. Onbekend/verlopen/al gebruikt → `400 INVALID_LINK_CODE` (bewust generiek). Streng rate-limited per IP. |
 | GET | `/device/me` | apparaat | Eigen gebruiker + apparaat (`deviceSessionResponseSchema`). Enige data waartoe een apparaat-token toegang geeft. Geen/ongeldig apparaat → `401 DEVICE_NOT_LINKED`. |
-
-### AAC-bibliotheek (T3.1, T3.2, T3.3)
-De AAC-bibliotheek (`AacSymbol` + `AacConceptRelation`) is de beheerde woordenschat die de AI
-begrenst (DESIGN §7.6). Ze is **gedeeld** — niet tenant-gebonden — maar niet publiek: zoeken vereist
-een ingelogd account **óf** een gekoppeld apparaat (de tablet zoekt tijdens communicatie). Een
-pictogram is óf een door een beheerder **geüploade afbeelding** (voorrang) óf een server-gerenderde
-**SVG-placeholder** uit de emoji `glyph`.
-
-**Zoeken en serveren (T3.1):**
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/aac/search?q=…` | account **of** apparaat | Zoekt hoofdletterongevoelig op concept, label én synoniemen (`aacSearchQuerySchema`; lege `q` → `400`). `200` + `aacSearchResponseSchema` (`{ symbols: [{ id, concept, label, category, glyph, synonyms, imageUrl, attribution }] }`; `attribution` = bron/licentie of `null`). Zonder account- of apparaat-auth → `401 NOT_AUTHENTICATED`. |
-| GET | `/aac/topics` | account **of** apparaat | De symbolen die **antwoordopties hebben** (minstens één kind in de relatieboom) en dus als anker van een begeleidersvraag kunnen dienen (T9.7). `200` + `aacTopicListResponseSchema` (`{ topics: [AacSymbol] }`), alfabetisch op label, elk onderwerp één keer. Voedt de onderwerp-keuzelijst in de vraagmodus; precies de ankers die `POST /question/start` accepteert. Zonder auth → `401`. |
-| GET | `/aac/images/{id}` | publiek | Pictogram van een symbool: de geüploade afbeelding met haar eigen `Content-Type`, of anders een `image/svg+xml`-placeholder (uit `glyph`+`label`), cachebaar. Bewust publiek: presentatiedata die de web-client als `<img src>` laadt. Onbekend id → `404 SYMBOL_NOT_FOUND`. `imageUrl` in de payload draagt na een upload een cache-buster `?v=<imageVersion>`. (Het oude pad met `.svg`-suffix blijft werken.) Antwoordt als enige route met `Cross-Origin-Resource-Policy: cross-origin`, zodat een web-client op een andere origin het plaatje als `<img src>` mag laden (T8.7, zie [security.md](security.md)); een 404 en alle andere routes houden `same-origin`. |
-
-**Beheer (T3.2) — alléén ADMIN.** De bibliotheek is platformbreed gedeeld, dus deze routes worden
-op **rol** bewaakt (niet tenant-gefilterd). Symbolen bekijken/zoeken, categorieën filteren, symbool
-toevoegen/bewerken/verwijderen (incl. afbeelding-upload) en relaties leggen.
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/admin/aac/symbols?q=&category=` | ADMIN | Alle symbolen met relaties (`aacSymbolListResponseSchema`; elk symbool `aacSymbolAdminSchema` met `hasImage`, `children`/`parents`). Optioneel gefilterd op zoekterm en/of categorie. |
-| POST | `/admin/aac/symbols` | ADMIN | Symbool aanmaken (`aacSymbolInputSchema`: `concept` op `^[a-z0-9-]+$`, `label`, `category`, `glyph`, `synonyms[]`). `201` + `aacSymbolAdminSchema`. Bestaand `concept` → `409 CONCEPT_EXISTS`. |
-| PUT | `/admin/aac/symbols/{id}` | ADMIN | Symbool bewerken (volledige vervanging). Onbekend id → `404 SYMBOL_NOT_FOUND`; `concept`-botsing met ander symbool → `409 CONCEPT_EXISTS`. |
-| DELETE | `/admin/aac/symbols/{id}` | ADMIN | Symbool verwijderen; relaties casceren mee. `204`. Onbekend id → `404`. |
-| POST | `/admin/aac/symbols/{id}/image` | ADMIN | Pictogram uploaden (`multipart/form-data`, veld `file`). Allowlist PNG/JPEG/WebP → anders `415 UNSUPPORTED_IMAGE_TYPE`; groter dan `AAC_IMAGE_MAX_BYTES` → `413 IMAGE_TOO_LARGE`; geen bestand → `400 NO_FILE`. `200` + `aacSymbolAdminSchema` (`hasImage: true`). |
-| POST | `/admin/aac/relations` | ADMIN | Relatie ouder→kind leggen (`aacRelationInputSchema`; `relation` standaard `"contains"`). `201` + het bijgewerkte oudersymbool. Zelfrelatie → `400 INVALID_RELATION`; onbekend symbool → `404 SYMBOL_NOT_FOUND`; bestaande relatie → `409 RELATION_EXISTS`. |
-| DELETE | `/admin/aac/relations/{id}` | ADMIN | Relatie verwijderen. `204`. Onbekend id → `404 RELATION_NOT_FOUND`. |
-
-**OpenSymbols-integratie (T3.3) — alléén ADMIN.** De backend proxyt namens de beheer-UI naar
-[OpenSymbols](https://www.opensymbols.org/) (de client praat **nooit** rechtstreeks met externe
-diensten, DESIGN §8.1). De integratie is uit als `OPENSYMBOLS_SECRET` leeg is → `503`. Een gekoppelde
-afbeelding wordt **server-side** opgehaald en lokaal opgeslagen (dezelfde `AacSymbol.imageData`-opslag
-als een upload), met bron/licentie op het symbool (`attribution`). Zie ADR-0006.
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/admin/aac/opensymbols/search?q=&locale=` | ADMIN | Zoekt bij OpenSymbols (`openSymbolsSearchQuerySchema`). `200` + `openSymbolsSearchResponseSchema` (`{ results: [{ id, name, imageUrl, extension, license, licenseUrl, author, authorUrl, sourceUrl }] }`). Alleen resultaten met een `https`-`imageUrl` worden teruggegeven; attributie-URL's zijn `http(s)`-only en worden anders op `null` gezet. Niet geconfigureerd → `503 OPENSYMBOLS_UNAVAILABLE`; externe fout → `502 OPENSYMBOLS_ERROR`. |
-| POST | `/admin/aac/symbols/{id}/opensymbols` | ADMIN | Gekozen afbeelding koppelen (`attachOpenSymbolsRequestSchema`: `imageUrl` (https-only), `license`, optioneel `licenseUrl`/`author`/`authorUrl`/`sourceUrl` — attributie-URL's mogen `http` of `https`, want ze worden alleen als link getoond). De backend haalt de bytes op (https-only + SSRF-guard), controleert content-type (PNG/JPEG/WebP → anders `415`) en grootte (`AAC_IMAGE_MAX_BYTES` → `413`), en slaat de afbeelding + bron/licentie op. `200` + `aacSymbolAdminSchema` (`hasImage: true`, `attribution` gevuld). Onbekend id → `404`; niet-`https`/interne host → `400 INVALID_IMAGE_URL`; externe/lege fout → `502`; niet geconfigureerd → `503`. |
-
-### Gespreksflow — sessies, stappen en boodschap (T4.1, T4.3, T5.3)
-Een gespreksessie (`ConversationSession`) is het tijdelijke communicatieproces waarin een gebruiker
-via pictogramkeuzes zijn intentie opbouwt (DESIGN §3.1). Alle routes lopen op **apparaat-auth**
-(`deviceAuthorize`, de `intento_device`-cookie): de tablet is aan precies één gebruiker gebonden,
-dus elke sessie is automatisch **gebruiker-geïsoleerd** — een apparaat ziet nooit de sessies van een
-andere gebruiker (`404 SESSION_NOT_FOUND`, bestaan lekt niet). De vraagselectie draait vanaf T5.2 op de
-**AI-orchestrator**: de AAC-relatieboom levert de begrensde kandidaten (intentie-categorieën →
-verfijning), de AI kiest/ordent daarbinnen, de **validatielaag** houdt onbekende concepten tegen en de
-**interpretatie-zekerheid** (§7.4) bepaalt de fase. De beslissing is een **pure functie** van de reeds
-gezette stappen (met de deterministische mock in tests), waardoor de terug-functie de vorige opties exact
-herstelt.
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| POST | `/conversation/start` | apparaat | Start een `ACTIVE` sessie voor de eigen gebruiker. `201` + `conversationStateResponseSchema` (`{ sessionId, status, question: { prompt, options[] } \| null, done, confidence?, phase?, history[] }`): de eerste vraag toont de intentie-categorieën. |
-| POST | `/conversation/{id}/next` | apparaat | **Kern-call:** keuze insturen (`conversationChoiceRequestSchema`, `{ symbolId }`) → stap opslaan en de door de **AI-orchestrator** gekozen **volgende vraag + opties** teruggeven (`conversationStateResponseSchema`), AAC-begrensd, gevalideerd, herhaling-vrij en op zekerheid geordend. `confidence` (interpretatie-zekerheid, §7.4) en `phase` (`select`/`refine`/`propose`) reizen mee. Bij een eindconcept of >85% zekerheid: `question: null`, `done: true`, `phase: 'propose'` (klaar voor een voorstel — T4.3/T5.3). Keuze buiten de huidige opties → `400 INVALID_CHOICE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
-| POST | `/conversation/{id}/choice` | apparaat | Keuze **alléén opslaan** (`{ symbolId }`). `201` + `conversationChoiceResponseSchema` (`{ sessionId, status, step, canRefine, history[] }`) — geen volgende vraag. Save-only primitive; een normale beurt gebruikt `/next`. Zelfde randen (`400`/`409`). |
-| POST | `/conversation/{id}/back` | apparaat | Laatste keuze ongedaan maken (verwijdert de hoogste stap) en de vorige vraag/opties **exact** herstellen (`conversationStateResponseSchema`). Niets om ongedaan te maken → `400 NO_STEPS_TO_UNDO`. Bij een **vraagmodus**-sessie (T7.1) kan het door de begeleider gekozen topic-anker (de eerste stap) niet ongedaan worden gemaakt (`400` als alléén het anker rest), zodat het gesprek binnen de vraag blijft. |
-| GET | `/conversation/pending` | apparaat | Openstaande **begeleidersvraag** ophalen (vraagmodus, T7.1). `200` + `pendingQuestionResponseSchema` (`{ state: conversationStateResponseSchema \| null }`): de nieuwste `ACTIVE` vraagmodus-sessie van de eigen gebruiker als volledige gesprekstoestand (met `caregiverQuestion` gevuld), of `null` → geen vraag klaar (de tablet start dan een vrij gesprek). |
-| POST | `/conversation/{id}/enough` | apparaat | **"Dit is genoeg"** (T10.11, DESIGN §3.1): de gebruiker rondt af met de route zoals hij is; er volgt geen verfijnvraag meer. `200` + `conversationStateResponseSchema` met `question: null`, `done: true`. Nodig sinds T10.10, dat pas voorstelt als er niets meer te verfijnen valt — anders zou "Ik wil eten." onbereikbaar zijn. Alleen ná een eigen keuze van de gebruiker (het anker van de begeleider telt niet mee, §2/T9.14) → anders `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. Het "genoeg"-oordeel **vervalt** zodra de route verandert (`/next`, `/back`, `/correction`). De toestand meldt met **`canFinish`** wanneer de knop mag verschijnen. |
-| POST | `/conversation/{id}/correction` | apparaat | **Correctie** (T5.4/T9.12, DESIGN §3.4, FR-009): `conversationCorrectionRequestSchema` (`{ type }`, standaard `wrong_guess` — een lege body `{}` volstaat). Twee soorten "dit klopt niet":<br>• **`wrong_guess`** (❌ op een voorstel) — de server doet **eerst een verfijnronde** (T10.12): de route blijft volledig staan en de AI draagt concepten aan die de láátste keuze preciezer maken (bij "brood": beleg, kaas, chocopasta — niet appel of banaan), desnoods nieuwe (§7.6 trap 3). Wijst de gebruiker het dáárna opnieuw af, dan rolt de server precies **één stap** terug: de laatste keuze. Dat concept wordt vastgelegd als **`CorrectionEvent`** en niet meer aangeboden, en op dat punt volgt een nieuwe vraag — **niet** terug naar het begin. Nogmaals ❌ rolt de volgende stap terug. Vóór T10.10 probeerde de server de foutstap te *bepalen* (kantelpunt van de hypothese, anders de laagste per-stap-zekerheid); dat wees systematisch de eerste — en meest bewuste — keuze van de gebruiker aan, waarna de hele route verdween (DESIGN §3.4). In vraagmodus blijft de **ankerstap van de begeleider** staan (T9.14); is dat de enige stap → `400 NO_STEPS_TO_CORRECT`.<br>• **`no_fitting_option`** (T9.12, "Staat er niet bij") — het juiste pictogram zit niet tussen de opties. Er wordt **niets teruggerold** — de keuzes van de gebruiker blijven staan. Precies de concepten uit het **vastgelegde aanbod** (wat de gebruiker dus zag) worden als `CorrectionEvent` uitgesloten, waarna de beslissingslaag een **nieuwe ronde** doet met de afwijzing als signaal voor de AI (T10.4/T10.5): ándere concepten **binnen hetzelfde onderwerp** (T14.3 — van onderwerp wisselen mag pas na herhaalde afwijzing op hetzelfde punt), en géén terugval naar het startscherm. Levert ook dat niets op, dan mag de AI zelf een begrip aandragen (vrije ronde, §7.6 trap 3) en pas daarna komen de intentiecategorieën terug — nooit een leeg scherm. Is er niets aangeboden om over te slaan → `400 NO_OPTIONS_TO_SKIP`.<br>Het antwoord is in beide gevallen `conversationStateResponseSchema`; uitgesloten concepten worden de rest van de sessie **niet meer aangeboden** (§7.5). Er wordt niets geleerd/opgeslagen (sessie blijft `ACTIVE`). Zonder keuzes → `400 NO_STEPS_TO_CORRECT`; onbekend `type` → `400`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
-| POST | `/conversation/{id}/generate` | apparaat | Boodschap **voorstellen** uit de gekozen concepten (T5.3): `200` + `conversationGenerateResponseSchema` (`{ sessionId, status, message, confidence, symbols[], history[] }`). De **AI-orchestrator** formuleert de zin (met `confidence`, §7.4), begrensd door de **safety-laag** die geen concept buiten de sessie doorlaat (§7.8); zonder AI-capability of bij een onveilige zin valt hij terug op de deterministische **sjabloon-zin**. **Vluchtig:** slaat niets op (DESIGN §3.6). Zonder gekozen concepten → `400 NO_STEPS_TO_GENERATE`; afgeronde sessie → `409 SESSION_NOT_ACTIVE`. |
-| POST | `/conversation/{id}/confirm` | apparaat | Boodschap **bevestigen** (T5.3): rondt de sessie af (`status COMPLETED`) en slaat de boodschap op (`GeneratedMessage`, `confirmed: true`). `200` + `conversationConfirmResponseSchema` (`{ sessionId, status, message }`). De server hervormt de zin **server-side** uit de opgeslagen keuzes via de orchestrator (nooit vrije clienttekst), met dezelfde safety-terugval, zodat de bewaarde boodschap binnen de gekozen concepten blijft (DESIGN §7.8). Een **afwijzing** verloopt via `/correction` (gerichte hervraag, T5.4), niet hier — er wordt dan niets opgeslagen. Zelfde randen (`400 NO_STEPS_TO_GENERATE` / `409 SESSION_NOT_ACTIVE`). Sinds T13.2 krijgen de aan deze gebruiker **gekoppelde** begeleiders daarna een meldingsmail — met naam en tijdstip, **nooit** de boodschap zelf (§9.4), en nooit blokkerend: faalt de mail, dan slaagt het bevestigen gewoon. Uit te zetten met `NOTIFY_CAREGIVERS_BY_EMAIL=false`. |
-
-Ongeauthenticeerd (geen/ongeldige `intento_device`-cookie) → `401 DEVICE_NOT_LINKED`. Alleen **bevestigde**
-communicatie wordt bewaard (DESIGN §3.6): `/generate` is vluchtig en afgewezen voorstellen belanden nooit
-in de db — een `GeneratedMessage` bestaat pas na `/confirm`. Een **correctie** (❌) legt wél een
-`CorrectionEvent` vast (correctie-signaal, géén communicatie-inhoud en géén leerdata: de `Preference`-laag
-uit T6.3 wordt nooit door correcties geraakt); de afgewezen route blijft de rest van de sessie uitgesloten.
-`conversationStateResponseSchema` draagt bij een vraagmodus-sessie ook `caregiverQuestion` (de letterlijke
-begeleidersvraag) mee; bij een vrij gesprek is dat `null`/afwezig.
-
-### Vraagmodus — begeleider stelt een vraag (T7.1, DESIGN §3.2, FR-012)
-Een begeleider stelt een gekoppelde gebruiker een vraag ("Wat wil je drinken?"); de AI beperkt de
-antwoorden en de gebruiker stelt zijn antwoord **zelf** samen en bevestigt (de begeleider bevestigt nooit
-namens de gebruiker, DESIGN §2, §3.3). De vraag begrenst de antwoorden via een **AAC-topic-anker**: de
-begeleider kiest naast de vraag een concept (bv. `drink`) waarvan de kinderen (water/sap/koffie/melk) de
-antwoordopties vormen. Deze routes lopen op **account-auth** (sessiecookie), niet device-auth.
-
-| Methode | Pad | Auth | Doel |
-|---|---|---|---|
-| GET | `/question/users` | ADMIN/CAREGIVER | Gebruikers waaraan dit account een vraag mag stellen: voor een CAREGIVER alléén de **gekoppelde** gebruikers, voor een ADMIN alle van de eigen organisatie (tenant-gefilterd). `200` + `userListResponseSchema`. |
-| POST | `/question/start` | ADMIN/CAREGIVER | Start een vraagmodus-sessie: `questionStartRequestSchema` (`{ userId, question, anchorConcept, strategy? }`). `strategy` (T11.5, optioneel) is de **gespreksstrategie voor dít gesprek** — een vraag over pijn vraagt om een andere benadering dan "wat wil je doen vanmiddag"; weggelaten = de instelling van de gebruiker, onbekende sleutel → `400 VALIDATION_ERROR`. De gekozen aanpak wordt op de sessie vastgelegd en ligt vast voor de duur van het gesprek. Maakt in één transactie een `ACTIVE` sessie (`mode: 'question'`, `caregiverQuestion`, `startedByAccountId`) met het topic-anker als vaste eerste stap. `201` + `questionStartResponseSchema` (`{ sessionId, userId, question }`). Tenant-grens (`assertSameTenant`) én begeleider-koppeling (`assertCaregiverAccess`) bewaakt: niet-gekoppelde CAREGIVER → `403`. Onbekend anker → `400 UNKNOWN_ANCHOR`; anker zonder kinderen (geen antwoordopties) → `400 ANCHOR_WITHOUT_OPTIONS`. |
-| GET | `/question/users/{id}/conversation` | ADMIN/CAREGIVER | **Meekijken** met het lopende gesprek van een gekoppelde gebruiker (T7.2, DESIGN §3.3, FR-011). `200` + `caregiverConversationViewSchema` (`{ userId, userName, supportMode, session }`): een **read-only** snapshot uit de opgeslagen stappen (géén AI-aanroep) — of de gebruiker in **ondersteuningsmodus** staat, een eventuele `caregiverQuestion`, `mode`/`status`, het afgelegde pad (`history`/broodkruimel) en de actieve **gespreksstrategie** (`{ key, label }`, T11.6 — alleen sleutel en label, nooit de parameters of de prompt), of `session: null` als er geen `ACTIVE` gesprek loopt. Zelfde toegang als hierboven: niet-gekoppelde CAREGIVER of andere tenant → `403`. Kiezen/bevestigen kan hier niet — dat is exclusief van de gebruiker op de tablet. |
-
-De vraag "verschijnt in de gebruikersapp": de tablet haalt de klaarstaande vraag op via
-`GET /conversation/pending` en doorloopt daarna de gewone gespreksflow (`/next` → `/generate` →
-`/confirm`) op die sessie. De begeleidersvraag reist als **context** (`questionContext`) mee in de
-beperkte AI-prompt, zodat de AI de antwoorden op de vraag afstemt terwijl de opties AAC-begrensd blijven.
-
-**Ondersteuningsmodus (T7.2, DESIGN §3.3, FR-011).** Staat `supportMode` in het communicatieprofiel aan,
-dan tikt de begeleider aan namens de gebruiker; de tablet toont dat expliciet ("Ondersteuningsmodus
-actief"), maar de betekenis blijft van de gebruiker. **Bevestigen kan nooit vanuit de begeleider-/beheer-UI**:
-`POST /conversation/{id}/confirm` draait achter `forbidAccountSession` + `deviceAuthorize`. Draagt de
-request een geldig **apparaat-token**, dan komt hij van de gekoppelde tablet van de gebruiker en gaat hij
-door; draagt hij géén apparaat-token maar wél een account-sessie, dan `403 CONFIRM_REQUIRES_USER` — nog
-vóór de device-auth (DESIGN §2, §3.3).
-
-> **Waarom het apparaat wint (T9.5).** Cookies zijn per **origin**, niet per tab: een begeleider die in
-> dezelfde browser is ingelogd in het beheer en daarnaast `/tablet` opent, stuurt onvermijdelijk beide
-> cookies mee. De eerdere regel ("account-cookie ⇒ altijd 403") blokkeerde daardoor de gebruiker op zijn
-> eigen tablet. De waarborg blijft even hard: bevestigen vereist een gekoppeld apparaat, en de beheer-/
-> begeleider-UI heeft dat token niet.
-
-## AI-orchestrator en validatielaag (intern, T5.1/T5.2/T5.3)
-
-De AI is een **interne** laag; er is bewust **geen client-endpoint** dat rechtstreeks met de AI praat
-(DESIGN §8.1). De interne interface backend ↔ orchestrator (DESIGN §8.2, `POST /ai/next-decision`) leeft
-in `server/src/ai/` en is vanaf T5.2 achter `/conversation/{id}/next` gezet — er is dus **geen** nieuwe
-publieke route; de vraagselectie is van de gescripte engine naar de orchestrator gewisseld.
-
-**Wat de AI wel en niet mag (T9.10/T9.14, DESIGN §3.1, §7.6).** De AI **ordent** binnen de AAC-kandidaten
-van dit punt; ze **snoeit ze niet weg**. Haar keuzes staan vooraan (dat is wat de tablet als eerste
-toont), maar alle overige kandidaten van hetzelfde punt volgen erachter en blijven via "Meer keuzes"
-(T9.6) bereikbaar — anders is een bestaand pictogram onbereikbaar, precies wat in de gebruikerstest
-misging. Verder: een boodschap wordt pas voorgesteld als de **gebruiker** zelf iets gekozen heeft (in
-vraagmodus telt het anker van de begeleider niet mee), en houdt een punt geen kandidaten meer over (bv.
-na een correctie), dan zoekt de beslissingslaag een niveau hoger verder in plaats van een boodschap te
-verzinnen. Een **eindconcept** (geen kinderen in de bibliotheek) blijft gewoon een voorstel opleveren.
-
-De vorm van de interne AI-in-/uitvoer (zod, `server/src/ai/provider.ts` — **niet** in `@intento/shared`,
-want de client kent ze niet):
-
-- **Prompt (in):** `{ task: 'select_next_question', systemRules[], goal, aacRules[], userContext[],
-  conversationContext[{concept, label}], lastChoice, availableSymbols[{concept, label}] }` — de beperkte,
-  verse context (DESIGN §7.7), **zonder** chatgeschiedenis. `buildAiPrompt` is de enige bouwer; de
-  sleutelset is gesloten. `availableSymbols` bevat alléén AAC-begrensde kandidaten, al ontdaan van reeds
-  gekozen/afgewezen concepten (herhaling vermijden, §7.5).
-- **Decision (uit):** `{ question, options[{symbol, confidence}], reason, confidence? }` — `symbol` is een
-  **conceptsleutel**; per-optie-`confidence ∈ [0,1]`; de optionele top-level `confidence` is de
-  **interpretatie-zekerheid** (§7.4). De orchestrator valideert de provider-uitvoer opnieuw (een
-  provider/worker wordt nooit vertrouwd).
-- **Boodschap-prompt (in, T5.3):** `{ task: 'generate_message', systemRules[], goal, aacRules[],
-  userContext[], chosenConcepts[{concept, label}] }` — dezelfde beperkte, verse context (§7.7), **zonder**
-  chatgeschiedenis en **zonder** opties/vraag; `buildMessagePrompt` is de enige bouwer.
-- **Boodschap-resultaat (uit, T5.3):** `{ message, confidence? }`. De methode `generateMessage` is
-  **optioneel** op een provider; ontbreekt ze (of levert ze een lege/onveilige zin), dan valt de
-  conversatie-laag terug op de deterministische **sjabloon-zin** (`conversation/message.ts`). De
-  **safety-laag** (`conversation/generate.ts`) toetst elke AI-zin tegen de AAC-bibliotheek: bevat de zin
-  een **betekenisdragend** label of synoniem van een **niet-gekozen** concept, dan is hij onveilig (§7.8)
-  en geldt de terugval. Zo bereikt een concept buiten de sessie de gebruiker (en de db) **nooit**.
-  Functiewoorden tellen niet mee (T10.9): "wil" is een synoniem van `want`, maar bovenal gewone
-  Nederlandse zinsbouw — daarop afkeuren maakte elke zin over een AI-aangedragen concept onmogelijk.
-
-**Kandidaten, validatielaag en confidence (T5.2, herzien in Fase 10 — `conversation/candidates.ts` +
-`ai/validation.ts` + `ai/thresholds.ts` + `conversation/decision.ts`):**
-
-- **Kandidatenselectie (§7.3, T10.2):** de opties die de AI voorgelegd krijgt komen niet uit één tak van
-  de begrippenboom maar uit vier bronnen, ontdubbeld en begrensd op `AI_MAX_CANDIDATES`: boomkinderen →
-  kleinkinderen → retrieval over de héle bibliotheek (zoekindex, gevoed door de begeleidersvraag, de
-  toegestane persoonlijke context en het gekozen pad) → geleerde voorkeuren. Op het **startscherm** blijft
-  het bij de intentiecategorieën (§3.1).
-- **AAC-check en nieuwe begrippen (§7.6, §7.8):** bestaand concept → houden; synoniem/label → omzetten
-  naar het echte concept (deze **deduplicatie gaat altijd voor**); aantoonbaar nieuw → met
-  `AI_ALLOW_NEW_CONCEPTS=true` een symbool aanmaken (`origin: ai`, `reviewStatus: PENDING`, met een
-  automatisch gezocht pictogram) plus een `ConceptProposal`, zodat de gebruiker het begrip **kan kiezen**,
-  zichtbaar gemarkeerd als nieuw woord (`isNew: true`). Met `AI_ALLOW_NEW_CONCEPTS=false` blijft het bij
-  het voorstel en bereikt het begrip de gebruiker nooit.
-- **Herhaling vermijden (§7.5):** al gekozen en afgewezen concepten vallen weg, vóór én na de AI-aanroep.
-  De afwijzingen reizen sinds T10.4 óók **expliciet mee in de prompt** (`rejectedConcepts` met soort
-  `wrong_guess`/`no_fitting_option`, plus `askedQuestions`), zodat "geen van deze past" een
-  richtingverandering uitlokt in plaats van alleen een kortere lijst op te leveren.
-- **Confidence-drempels (§7.4):** de interpretatie-zekerheid bepaalt de fase — `select` (<60%, nieuwe
-  vraag), `refine` (60–85%, verfijnen), `propose` (boodschap voorstellen). `question.guess` (T16.3) is
-  het concept van de optie die de AI als **gok** aandraagt bij de strategie `guess` (DESIGN §7.10); de
-  gebruikersapp markeert die ene tegel ("🎯 Ik denk: …"). De waarde staat altijd óók in `question.options`
-  en is `null` bij elke andere strategie — een gok is een aanbod dat de gebruiker zelf aantikt, geen
-  kortere weg naar een boodschap. Bij
-  `propose` is er geen vraag meer (`question: null`, `done: true`). Voorstellen vereist **twee** dingen
-  (T10.10): genoeg zekerheid **én** niets meer te verfijnen — heeft de laatste keuze nog niet-gekozen,
-  niet-afgewezen kinderen in de bibliotheek, dan blijft de AI vragen, hoe zeker ze ook is. Een eindconcept
-  levert onveranderd een voorstel op. De zekerheid wordt sinds T10.8 over
-  beurten heen **gedempt** via de hypothese, zodat één zelfverzekerd modelantwoord geen boodschap forceert.
-  Overgebleven opties worden op zekerheid geordend (meest waarschijnlijke eerst).
-- **Aanbod met onder- én bovengrens (T9.10/T10.5):** de keuzes van de AI staan vooraan en worden aangevuld
-  tot minimaal 8 opties zolang er kandidaten zijn; het aanbod is begrensd op 12, zodat "Geen van deze past"
-  niet in één klap de hele kandidatenset uitsluit. Het aanbod wordt op de sessie **vastgelegd**
-  (`pendingOffer`), zodat `↩ Terug` exact herstelt en een keuze wordt gevalideerd tegen wat er werkelijk
-  is aangeboden (T10.3).
-- **Nooit doodlopen:** loopt een punt leeg, dan volgt eerst een **vrije ronde** (de AI krijgt geen
-  bestaande opties maar wél de negatieve context en mag zelf begrippen aandragen), daarna de
-  intentiecategorieën als laatste redmiddel, en pas dán een boodschapvoorstel.
-
-Provider via env (`AI_PROVIDER`): `mock` (deterministisch, dev/test), `queue` (gedistribueerde workers —
-T5.5, zie hieronder) of `ollama` (niet in-process; Ollama draait als worker achter de wachtrij — T5.6).
-Zie [adr/0008](adr/0008-ai-provider-interface-and-orchestrator.md) en
-[adr/0009](adr/0009-validation-layer-and-confidence-policy.md).
 
 ### Spraakuitvoer (T18.1/T18.2, DESIGN §5.3, §8.1, §9.4)
 
@@ -394,120 +163,11 @@ dezelfde lijst gebruiken. Een stem-id is de naam van een Piper-model (`nl_NL-pim
 `#<spreker>` voor een meersprekermodel, of de sleutel `device` voor "de tablet spreekt zelf". Zie
 [ADR-0015](adr/0015-speech-synthesis-piper.md) en [`speech-service/README.md`](../speech-service/README.md).
 
-### AI-status (T9.4, DESIGN §7.2, §9.2)
+### Beheerdashboard
 
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/ai/status` | account **of** apparaat | Draait er echt een AI mee? `200` + `aiStatusResponseSchema` (`{ mode, workerRequired, workersOnline, lastSeenAt, active }`). `mode` is de ingestelde `AI_PROVIDER`; `workerRequired` is waar bij `queue`; `workersOnline` telt de niet-ingetrokken worker-tokens met activiteit in de laatste 60 s; `active` is waar bij `queue` mét zo'n worker. Bewust **alleen infrastructuurmetadata** — geen prompts, gespreksinhoud, tokennamen of tenantgegevens, zodat ook de tablet het mag opvragen. Zonder auth → `401`. |
-
-Beide interfaces tonen dit als een klein statuslampje ("AI denkt mee" / "Geen AI-worker actief" /
-"Zonder AI"). Aanleiding is de gebruikerstest: de backend draaide op `AI_PROVIDER=mock` — de
-deterministische mock-provider — en niets liet zien dat er geen AI meedacht.
-
-### AI-activiteit (T9.15, DESIGN §7.2, §7.4, §9.4)
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/admin/ai/jobs` | ADMIN **van de platformorganisatie** | De 25 recentste AI-jobs, nieuwste eerst (`aiJobListResponseSchema`): taak, status, pogingen, doorlooptijd, de worker die hem oppakte, en van een geslaagd resultaat de **vraag**, de door de AI aangedragen **concepten met zekerheid** en haar **motivering**, plus de **gespreksstrategie** die de aanvraag voortbracht (T11.6: alleen de sleutel — met meerdere aanpakken is "waarom deed de AI dit?" niet te beantwoorden zonder te weten wélke draaide). Antwoord op "doet de AI wel opties bedenken?" uit de gebruikerstest. De **prompt** (`AiJob.payloadJson`) komt er nooit uit — daar zit persoonlijke context in (T6.1). Zelfde grens als het worker-tokenbeheer: `AiJob` is platform-infrastructuur en niet tenant-gebonden, dus een gewone organisatie-ADMIN krijgt `403 NOT_PLATFORM_ADMIN`. |
-| GET | `/admin/ai/conversations?limit=` | ADMIN **van de platformorganisatie** | Dezelfde aanvragen **gegroepeerd per gesprek** (T12.2, `aiConversationListResponseSchema`; `limit` 1–100, standaard 25, laatst actieve eerst): per gesprek het aantal aanvragen, hoeveel er mislukten en het eerste/laatste moment. Losse regels beantwoorden "doet de AI iets?"; de draad beantwoordt "hoe liep dít gesprek?". |
-| GET | `/admin/ai/conversations/{id}` | ADMIN **van de platformorganisatie** | De AI-kant van één gesprek (`aiConversationDetailSchema`): de aanvragen **oudste eerst** (dezelfde vorm als hierboven), de gespreksstrategie die draaide, en `choices[]` — per stap het concept dat de gebruiker koos. Die twee naast elkaar maken zichtbaar wát er gebeurde: de jobs tonen wat de AI vroeg en voorstelde, de keuzes wat de gebruiker ermee deed. Bewust **alleen conceptsleutels**: de geformuleerde boodschap is communicatie-inhoud en blijft bij het tenant-gebonden gespreksverloop (T12.1), de prompt komt er sowieso nooit uit. Is het gesprek intussen verwijderd (`sessionId` is geen foreign key), dan blijven de jobs staan en is `choices` leeg — een geldige uitkomst, geen fout. |
-
-Daarnaast logt de backend per beslissing één regel (`AI-beslissing voor de volgende vraag`) met provider,
-aantal kandidaten, hoeveel opties de AI zelf aandroeg, wat er wordt aangeboden, of er een niveau hoger is
-gezocht, de zekerheid/fase en de motivering — uitsluitend AAC-concepten en tellingen, geen persoonlijke
-context of boodschapinhoud.
-
-## Gedistribueerde AI-workers — wachtrij en worker-protocol (T5.5, intern)
-
-Bij `AI_PROVIDER=queue` zet de `QueueAiProvider` elke AI-aanvraag op een **DB-wachtrij** (`AiJob`) i.p.v.
-ze in-process uit te voeren; externe workers (T5.6) halen jobs op en leveren gestructureerde output
-terug. De client praat nog steeds **nooit** rechtstreeks met de AI — een worker is backend-infrastructuur.
-De worker-uitvoer doorloopt exact dezelfde zod-parse (orchestrator) én AAC-validatielaag (T5.2), dus een
-onbekend concept van een worker bereikt de gebruiker nooit. Zie [adr/0010](adr/0010-distributed-ai-worker-queue.md).
-
-**Backpressure.** Boven `AI_WORKER_MAX_CONCURRENT_JOBS` gelijktijdige jobs krijgt de aanvrager
-`WAITING_FOR_WORKER` met een positie; de gespreks-endpoints antwoorden dan met
-`503 AI_WORKER_BUSY` + `Retry-After` (body: `{ error, waiting: true, position, retryAfterMs }`) i.p.v. te
-blokkeren. Time-out/mislukking → `503 AI_WORKER_UNAVAILABLE`.
-
-**Client-afhandeling (T5.7).** De tablet-app toont deze 503's niet als fout: ze verschijnen als een
-rustige wachtstand ("Even geduld…", optioneel de plek in de rij) en de app **polt** de laatste
-gespreks-actie na `Retry-After` automatisch opnieuw tot er een vraag/voorstel terugkomt. De web-client
-valideert de responsvorm met het gedeelde `aiWaitingErrorSchema` en herkent de wacht-codes via
-`isAiWaitingError` ([`web/src/api.ts`](../web/src/api.ts), [`web/src/TabletApp.tsx`](../web/src/TabletApp.tsx)).
-
-**Worker-endpoints** (`server/src/routes/ai-worker.ts`) — **worker-initiated** (long-poll, robuust achter
-NAT), authenticatie met een **worker-token** in de `Authorization: Bearer …`-header (apart van gebruiker-/
-device-/sessietokens; **gehasht** at-rest, scope `ai:process`, intrekbaar/verlopend), per-IP rate-limited:
-
-| Methode | Pad | Doel |
-|---|---|---|
-| POST | `/ai/worker/claim` | Claim de oudste wachtende job (long-poll). `200` + `{ job: { id, task, payload } }` (payload = de beperkte prompt-context) of `204` als er niets claimbaar is. |
-| POST | `/ai/worker/jobs/{id}/heartbeat` | Lease verlengen tijdens lange inferentie. `200` + `{ leaseExpiresAt }`; niet (meer) eigenaar → `409 JOB_NOT_CLAIMED`. |
-| POST | `/ai/worker/jobs/{id}/result` | Gestructureerd resultaat inleveren; **op de grens gevalideerd** tegen het bij de taak horende zod-schema (verkeerde vorm → `400`). `200`; niet (meer) eigenaar → `409`. |
-| POST | `/ai/worker/jobs/{id}/fail` | Nette teruggave bij een fout (`{ message? }`): terug in de wachtrij (pogingen over) of afgeschreven. `200`; niet (meer) eigenaar → `409`. |
-
-Auth-fouten: geen/onbekend token → `401 WORKER_UNAUTHENTICATED`; ingetrokken/verlopen → `403
-WORKER_TOKEN_INACTIVE`; ontbrekende scope → `403 WORKER_SCOPE_DENIED`. Een worker-token wordt gemunt via
-de beheer-UI (zie hieronder) of via de CLI
-`npm run worker-token:create --workspace=server -- --name <label> [--ttl-days N] [--scopes ai:process]`
-(het rauwe token wordt één keer getoond).
-
-**Worker-tokenbeheer** (`server/src/routes/worker-tokens.ts`, T5.8) — beheer van dezelfde infrastructuur-
-credentials via de beheer-UI. Worker-tokens zijn **platform-infrastructuur** (niet tenant-gebonden), dus
-beheer is voorbehouden aan een **ADMIN van de platformorganisatie** (`Organization.isPlatform`): naast
-`authorize({ roles: ['ADMIN'] })` hangt `requirePlatformOrg`. Het rauwe token verlaat de server alléén bij
-aanmaken.
-
-| Methode | Pad | Doel |
-|---|---|---|
-| GET | `/admin/worker-tokens` | Lijst van worker-tokens (naam, scopes, status `active`/`revoked`/`expired`, `lastSeenAt`, `expiresAt`). Nooit de hash of het rauwe token. |
-| POST | `/admin/worker-tokens` | Nieuw token (`{ name, scopes?, ttlDays? }`). `201` + `{ workerToken, token }` — `token` is het **rauwe** token, hier één keer zichtbaar. |
-| POST | `/admin/worker-tokens/{id}/revoke` | Token intrekken (idempotent). `200` + de bijgewerkte weergave; daarna weigert `workerAuthorize` het (`403`). Onbekend id → `404 WORKER_TOKEN_NOT_FOUND`. |
-
-Auth-fouten: geen sessie → `401 NOT_AUTHENTICATED`; wel ADMIN maar geen platformorganisatie → `403
-NOT_PLATFORM_ADMIN`; verkeerde rol → `403 FORBIDDEN`.
-
-### Beheerdashboard en conceptvoorstellen (T7.3, DESIGN §5.2, FR-016)
-
-Alle endpoints eisen `authorize({ roles: ['ADMIN'] })` (geen sessie → `401`; andere rol → `403 FORBIDDEN`).
-
-**Dashboard** (`server/src/routes/dashboard.ts`) — beknopt overzicht van de **eigen organisatie**.
-De tellingen zijn tenant-gefilterd op `organizationId` (T1.2); alleen `pendingProposals` is platformbreed
-(de AAC-bibliotheek en haar voorstellen zijn gedeeld). De recente activiteit bevat **geen
-communicatie-inhoud** (privacy by design, DESIGN §6.4): alleen gebruikersnaam, status/modus, het aantal
-bevestigde boodschappen en het starttijdstip.
-
-| Methode | Pad | Doel |
-|---|---|---|
-| GET | `/admin/dashboard` | `200` + `dashboardResponseSchema`: `{ users: { total, active }, caregivers: { total }, pendingProposals, recentActivity[] }`. |
-
-**AI-conceptvoorstellen** (`server/src/routes/concept-proposals.ts`) — reviewlijst en beoordeling van
-begrippen die de validatielaag (T5.2) vastlegde toen de AI een concept aandroeg dat niet in de bibliotheek
-bestaat (de optie bereikte de gebruiker nooit). Net als het AAC-beheer **platformbreed gedeeld** (niet
-tenant-gefilterd); rolcontrole (ADMIN) volstaat. Bij **goedkeuren** wordt het begrip als synoniem aan het
-gekozen pictogram toegevoegd, zodat de validatielaag het voortaan herkent en de AI het mag aanbieden
-(FR-016: "pas na goedkeuring beschikbaar voor de AI").
-
-| Methode | Pad | Doel |
-|---|---|---|
-| GET | `/admin/concept-proposals` | Reviewlijst (openstaande `PENDING` eerst). `200` + `conceptProposalListResponseSchema` (elk voorstel met `concept`, `reason`, `status`, `linkedSymbol`). |
-| POST | `/admin/concept-proposals/{id}/approve` | Koppel het begrip aan een bestaand pictogram (`{ symbolId }`). `200` + `conceptProposalSchema` (`status: "APPROVED"`, `linkedSymbol` gevuld). Onbekend voorstel → `404 PROPOSAL_NOT_FOUND`; onbekend pictogram → `404 SYMBOL_NOT_FOUND`; al goedgekeurd → `409 PROPOSAL_ALREADY_HANDLED`. |
-| POST | `/admin/concept-proposals/{id}/reject` | Voorstel afwijzen; het begrip blijft buiten de AAC-begrenzing. `200` + `conceptProposalSchema` (`status: "REJECTED"`). Onbekend → `404`; al goedgekeurd → `409`. |
-
-**Nieuwe woorden van de AI** (`server/src/routes/aac.ts`, T10.7, DESIGN §7.6 trap 4) — begrippen die de AI
-tijdens een gesprek aandroeg en die meteen een bruikbaar, gemarkeerd pictogram werden (§7.6 trap 3). De
-gebruiker kon ze dus al kiezen; wat blijvend in de beheerde bibliotheek terechtkomt, blijft aan de
-beheerder. Alle routes ADMIN-only (zonder auth `401`, niet-ADMIN `403`). Een symbool dat géén onbeoordeeld
-AI-concept is (`origin != ai` of `reviewStatus != PENDING`) geeft `404 NEW_CONCEPT_NOT_FOUND`, zodat dit
-pad geen sluipweg is om bibliotheeksymbolen te wijzigen.
-
-| Methode | Pad | Doel |
-|---|---|---|
-| GET | `/admin/aac/new-concepts` | De nog niet beoordeelde AI-concepten, nieuwste eerst. `200` + `aiConceptReviewListResponseSchema`: per concept het symbool (`aacSymbolAdminSchema`), `timesChosen` (hoe vaak het in gesprekken gekozen is — het signaal of een woord echt aanslaat), de `reason` van de AI en `createdAt`. |
-| POST | `/admin/aac/new-concepts/{id}/keep` | **Behouden**: het begrip hoort in de bibliotheek. `reviewStatus` → `APPROVED` (de "nieuw"-markering verdwijnt uit de gebruikersapp) en het voorstel wordt goedgekeurd. `200` + `aacSymbolAdminSchema`. Label/pictogram/relaties bewerkt de beheerder met de gewone symbool-endpoints. |
-| POST | `/admin/aac/new-concepts/{id}/merge` | **Samenvoegen** met een bestaand pictogram (`{ targetSymbolId }`): het begrip wordt daar een **synoniem** van en het losse concept wordt verwijderd — zo blijft de bibliotheek vrij van bijna-duplicaten. `200` + `aacSymbolAdminSchema` (het doelsymbool). Onbekend doel → `404 SYMBOL_NOT_FOUND`; zichzelf als doel → `400 INVALID_MERGE_TARGET`. |
-| DELETE | `/admin/aac/new-concepts/{id}` | **Verwijderen**: het begrip is onbruikbaar. Symbool weg, voorstel `REJECTED`. `204`. |
+`GET /admin/dashboard` (ADMIN; geen sessie → `401`, andere rol → `403`): beknopt overzicht van de **eigen
+organisatie**, tenant-gefilterd op `organizationId`. `200` + `dashboardResponseSchema`:
+`{ users: { total, active }, caregivers: { total } }`.
 
 ### Audit-log (T8.2, DESIGN §9.4)
 
@@ -523,61 +183,6 @@ in een organisatie-lijst. Het `ip`-veld blijft server-side (niet in de respons).
 |---|---|---|
 | GET | `/admin/audit-logs?limit=` | `200` + `auditLogListResponseSchema`: `{ entries[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Elke regel: `action`, `outcome`, `accountId`, `targetType`, `targetId`, `metadata`, `createdAt` — **geen** `ip`, **geen** communicatie-inhoud. |
 
-### Berichten voor de begeleider (T13.1, DESIGN §2, §3.3, §3.6, §9.1)
-
-Een gebruiker komt tot een zin en bevestigt hem — en dan moet iemand dat zien. Deze lijst is dat
-sluitstuk: elke **bevestigde** boodschap van de gebruikers waar dit account bij hoort, nieuwste eerst,
-met het tijdstip erbij. Er wordt niets nieuws opgeslagen; `GeneratedMessage` bewaart de bevestigde
-boodschap al (T4.3). Dat is meteen de grens van wat hier kan verschijnen: een voorstel dat de gebruiker
-**afwees** wordt nooit opgeslagen (§3.6) en bereikt dus nooit een begeleider.
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/caregiver/messages?limit=` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageListResponseSchema`: `{ messages[] }` (nieuwste eerst, `limit` 1–200, standaard 50). Per regel: `message`, `createdAt` (het moment van bevestigen), `userId`/`userName`, `sessionId` — zodat het gesprek erachter met `GET /admin/conversations/{id}` (T12.1) te openen is — en `caregiverQuestion` als het een antwoord in vraagmodus was. De grens is dezelfde als bij `GET /question/users`: een CAREGIVER ziet uitsluitend **gekoppelde** gebruikers, een ADMIN de eigen organisatie, en beide altijd tenant-gefilterd. De filtering zit in de query zelf, niet in een controle achteraf, zodat een boodschap van een niet-gekoppelde gebruiker er per constructie niet in kan komen. |
-
-| POST | `/caregiver/messages/{id}/acknowledge` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageResponseSchema`: tekent de boodschap af als **opgepakt** en geeft de bijgewerkte regel terug (`acknowledgedAt`, `acknowledgedBy`). Idempotent: een tweede aftekening laat de **eerste** aftekenaar en het eerste tijdstip staan — de vraag is wie het opgepakt heeft, niet wie er als laatste op de knop drukte. Buiten je grens: `404 NOT_FOUND` (geen 403, om niet te lekken dát de boodschap bestaat). |
-| DELETE | `/caregiver/messages/{id}/acknowledge` | ADMIN, CAREGIVER (gekoppeld) | `200` + `caregiverMessageResponseSchema` met `acknowledgedAt: null`: draait het aftekenen terug. Mag ook door een collega — een misklik moet te herstellen zijn zonder op de aftekenaar te wachten — en is idempotent. |
-
-**Afhandelen (T13.3).** Een lijst die alleen maar groeit wordt ruis. Een begeleider kan een boodschap
-daarom **aftekenen**; wie en wanneer staat vast in een eigen tabel (`MessageAcknowledgement`), níet als
-kolom op `GeneratedMessage`. Drie gevolgen, alle drie uit §2:
-- **De boodschap verandert niet.** `GeneratedMessage` wordt na het bevestigen nooit meer beschreven; de
-  administratie van de begeleider kan de uitspraak van de gebruiker per constructie niet aanraken.
-- **Aftekenen verbergt niets.** `GET /caregiver/messages` geeft afgetekende boodschappen gewoon terug; de
-  begeleidersapp toont ze rustiger en kan ze tijdelijk filteren, maar niets verdwijnt uit het systeem.
-- **De stand is gedeeld, niet persoonlijk** (één aftekening per boodschap). De vraag is "is hier al iets
-  mee gedaan", niet "heb ík het gezien" — twee begeleiders die allebei denken dat de ander het oppakt is
-  precies wat dit voorkomt. Een "nieuw sinds je vorige bezoek"-markering per account loste dat niet op en
-  zou stilzwijgend wissen wat je nog moest doen, alleen omdat je even keek. Zie ADR-0014.
-
-**Melding per e-mail (T13.2).** Bij het bevestigen gaat er een seintje naar elke **gekoppelde**
-begeleider: "‹naam› heeft om ‹tijd› een bericht bevestigd — log in om te kijken". De boodschap zelf staat
-er bewust niet in: e-mail is een extern kanaal (andermans servers, blijft in postvakken staan, wordt
-geïndexeerd) en de zin is communicatie-inhoud die achter authenticatie hoort (§9.4). Een beheerder zonder
-koppeling krijgt niets — die zou anders mail krijgen over elke zin van elke gebruiker. De verzending is
-**niet blokkerend**: een onbereikbare mailserver mag een boodschap die de gebruiker al gegeven heeft nooit
-stukmaken; fouten worden gelogd. Env: `APP_BASE_URL` (link in de mail, https in productie) en
-`NOTIFY_CAREGIVERS_BY_EMAIL` (default `true`).
-
-
-### Gespreksverloop terugzien (T12.1, DESIGN §3.1, §3.6, §9.1, §9.4)
-
-Na elke gebruikerstest is de vraag dezelfde: *wat gebeurde er nou eigenlijk?* Deze twee endpoints geven
-het antwoord uit wat al vastligt — `ConversationStep` bewaart per stap de **getoonde vraag**, de
-**aangeboden concepten** (`offeredConcepts`, T10.3) en de **keuze van de gebruiker**. Er wordt dus niets
-extra's opgeslagen om te kunnen terugkijken; dat zou tegen §3.6 in gaan.
-
-Dit is de enige beheerweergave met **communicatie-inhoud**, dus met de strengste grens: ADMIN én
-CAREGIVER, tenant-gefilterd (`assertSameTenant`) en voor een begeleider beperkt tot **gekoppelde**
-gebruikers (`assertCaregiverAccess`) — dezelfde grens als de voorkeuren- en persoonlijke-context-API.
-Een onbekend gesprek en een gesprek uit een andere organisatie geven **dezelfde** `403`, zodat uit de
-statuscode niet is af te leiden dat een gesprek bestaat (IDOR).
-
-| Methode | Pad | Rol | Beschrijving |
-|---|---|---|---|
-| GET | `/admin/users/{id}/conversations?limit=` | ADMIN, CAREGIVER (gekoppeld) | De gesprekken van deze gebruiker, nieuwste eerst (`conversationListResponseSchema`; `limit` 1–100, standaard 25). Per gesprek: status, modus, de begeleidersvraag bij vraagmodus, de **gespreksstrategie** die draaide (T11.5), starttijd, aantal stappen, aantal correcties en de bevestigde boodschap (of `null`). |
-| GET | `/admin/conversations/{id}` | ADMIN, CAREGIVER (gekoppeld) | Het volledige verloop (`conversationTranscriptResponseSchema`): dezelfde samenvatting plus `steps[]` — per stap de gestelde **vraag**, de **aangeboden opties** in de getoonde volgorde (label, glyph, `imageUrl`, `isNew`) met de keuze van de gebruiker als `chosen: true`, en de zekerheid waarmee de vraag werd aangeboden — en `corrections[]` (met stap en afgewezen concept). Een correctie heeft drie soorten: `wrong_guess` (❌ Nee, de laatste keuze rolde terug), `no_fitting_option` ("Staat er niet bij", het aanbod van dat punt is overgeslagen) en `refine_round` (T12.3 — de ❌ die eerst een **verfijnronde** opleverde). Bij die laatste is `rejectedConcept` `null`: er is niets teruggerold en niets uitgesloten. Dat type staat wél in de terugblik maar is **niet postbaar** op `POST /conversation/{id}/correction`; het ontstaat uitsluitend server-side. Zonder deze gebeurtenis lijkt de AI in het verloop spontaan van vraag te veranderen op precies het punt waar een begeleider wil weten waarom. Een concept dat intussen uit de bibliotheek is verdwenen blijft staan met `missing: true` en zijn sleutel als label: de terugblik moet kloppen met wat de gebruiker zág, dus zo'n optie weglaten zou het beeld vervalsen. **Niet** in de respons: de prompt, de hypothese van de AI en afgewezen boodschappen (§3.6, §9.4). |
-
 ### Platform-operatorconsole (T8.3, DESIGN §9.1, §9.4, ADR-0011)
 
 `operatorAuthorize(...)` — een **eigen** guard, niet `authorize()` (geen sessie → `401`; elk ander account,
@@ -590,7 +195,7 @@ guard zet `request.operator` en laat `request.account` leeg, zodat de tenant-hel
 van stilletjes op de organisatie van de operator te filteren. De responses dragen uitsluitend
 **beheermetadata**: geen communicatie-inhoud, geen persoonlijke context, geen voorkeuren, en geen namen van
 gebruikers (die blijven binnen hun eigen omgeving). Elke muterende actie wordt geaudit met de operator als
-actor en **zonder** tenant (`organizationId: null`), zoals bij worker-tokens.
+actor en **zonder** tenant (`organizationId: null`).
 
 Deactiveren is geen verwijdering maar wel een harde, onmiddellijke stop: `Organization.active=false` wordt
 afgedwongen bij login, op bestaande accountsessies (`authorize()`) én op gekoppelde tablets

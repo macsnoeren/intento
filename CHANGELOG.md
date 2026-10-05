@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N0.4 — server: de oude gespreks- en AI-code eruit
+
+- Weg: `server/src/conversation/`, `server/src/ai/`, `server/src/aac/`, de routes voor gesprekken,
+  vraagmodus, berichten, conceptvoorstellen, voorkeuren, persoonlijke context, AI-worker,
+  worker-tokens, AI-status, gespreksgeschiedenis en de AAC-bibliotheek, plus de meldingsmail aan
+  begeleiders, het worker-token-script en de bijbehorende zod-schema's in `shared/`.
+- De OpenSymbols-client verhuist naar `server/src/vocabulary/opensymbols.ts`, met eigen unittests
+  (ook tegen een lokale nep-server: token, 401-vernieuwing, fout van de zoekdienst).
+- Env: alle `AI_*`-variabelen, `NOTIFY_CAREGIVERS_BY_EMAIL` en `AAC_IMAGE_MAX_BYTES` zijn weg;
+  `UPLOAD_MAX_BYTES` (standaard 1 MB) is de nieuwe groottegrens voor binnenkomende afbeeldingen.
+- Het dashboard telt alleen nog gebruikers en begeleiders; de profielexport bevat alleen nog de
+  instellingen. De database zelf blijft in deze taak ongemoeid (N0.5).
+
 ### N0.3 — beheer-UI: de oude AI-schermen eruit
 
 - Weg: Begeleiden (vraagmodus + berichtenlijst met afhandelen), Gesprekken, AI-activiteit,

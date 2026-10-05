@@ -1,9 +1,9 @@
 /**
- * Stabiele, machine-leesbare actiesleutels voor de audit-log (T8.2, DESIGN §9.4).
+ * Stabiele, machine-leesbare actiesleutels voor de audit-log (INTENTO-NEW-DESIGN §53).
  *
  * Eén centrale bron zodat de sleutels consistent blijven (namespace.werkwoord) en niet als
  * losse string-literals door de routes zwerven. Uitsluitend **gevoelige** acties (login,
- * instellingen, context, export/import, beheer) worden geaudit — nooit communicatie-inhoud.
+ * instellingen, export/import, beheer) worden geaudit — nooit communicatie-inhoud.
  */
 export const AUDIT_ACTIONS = {
   // Auth (T1.1/T1.3/T1.4)
@@ -26,27 +26,13 @@ export const AUDIT_ACTIONS = {
   CAREGIVER_UNLINK: 'caregiver.unlink',
   // Tabletkoppeling (T2.3)
   DEVICE_CODE_CREATE: 'device.code.create',
-  // Persoonlijke context (T6.1)
-  CONTEXT_CREATE: 'context.create',
-  CONTEXT_UPDATE: 'context.update',
-  CONTEXT_DELETE: 'context.delete',
   // Profielexport/-import (T8.1)
   PROFILE_EXPORT: 'profile.export',
   PROFILE_IMPORT: 'profile.import',
-  // Worker-tokens (T5.8)
-  WORKER_TOKEN_CREATE: 'worker_token.create',
-  WORKER_TOKEN_REVOKE: 'worker_token.revoke',
   // Platform-operatorconsole (T8.3) — cross-tenant beheer, altijd met de operator als actor
   OPERATOR_ORGANIZATION_CREATE: 'operator.organization.create',
   OPERATOR_ORGANIZATION_DEACTIVATE: 'operator.organization.deactivate',
   OPERATOR_ORGANIZATION_ACTIVATE: 'operator.organization.activate',
-  // AI-conceptvoorstellen (T7.3)
-  CONCEPT_PROPOSAL_APPROVE: 'concept_proposal.approve',
-  CONCEPT_PROPOSAL_REJECT: 'concept_proposal.reject',
-  // Door de AI aangedragen concepten beoordelen (T10.7, DESIGN §7.6 trap 4)
-  AI_CONCEPT_KEEP: 'ai_concept.keep',
-  AI_CONCEPT_MERGE: 'ai_concept.merge',
-  AI_CONCEPT_DISCARD: 'ai_concept.discard',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

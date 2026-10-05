@@ -238,8 +238,6 @@ function fakeApi(
       return Promise.resolve({
         users: { total: 0, active: 0 },
         caregivers: { total: 0 },
-        pendingProposals: 0,
-        recentActivity: [],
       });
     },
     listAuditLogs() {

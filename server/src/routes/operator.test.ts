@@ -344,13 +344,13 @@ describe('platform-operatorconsole — /operator', () => {
     });
 
     it('sluit ook een gekoppelde tablet buiten (device-auth)', async () => {
-      // Anders zou de gebruikersapp vrolijk doorpraten met de AI terwijl de omgeving gestopt is.
+      // Anders zou de gebruikersapp gewoon doorwerken terwijl de omgeving gestopt is.
       const tenant = await seedAccount('admin@familie.local', 'pw-familie', 'ADMIN');
       const user = await seedUser('Sanne', tenant.organizationId);
       const tablet = await deviceCookie(app, user.id);
       const before = await app.inject({
         method: 'GET',
-        url: '/conversation/pending',
+        url: '/device/me',
         headers: { cookie: tablet },
       });
       expect(before.statusCode).toBe(200);
@@ -365,7 +365,7 @@ describe('platform-operatorconsole — /operator', () => {
 
       const after = await app.inject({
         method: 'GET',
-        url: '/conversation/pending',
+        url: '/device/me',
         headers: { cookie: tablet },
       });
       expect(after.statusCode).toBe(403);

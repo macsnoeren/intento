@@ -97,27 +97,6 @@ describe('audit-logging — gevoelige acties', () => {
     expect(rows[0].accountId).toBe(admin.accountId);
   });
 
-  it('logt persoonlijke context zonder de PII (naam/relatie) op te slaan in het spoor', async () => {
-    const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
-    const cookie = await loginCookie(app, admin.email, admin.password);
-    const user = await seedUser('Sanne', admin.organizationId);
-
-    const res = await app.inject({
-      method: 'POST',
-      url: `/users/${user.id}/context`,
-      headers: { cookie },
-      payload: { category: 'PERSON', name: 'Geheime Naam', relationship: 'dochter' },
-    });
-    expect(res.statusCode).toBe(201);
-
-    const rows = await prisma.auditLog.findMany({ where: { action: 'context.create' } });
-    expect(rows).toHaveLength(1);
-    const meta = rows[0].metadataJson ?? '';
-    expect(meta).not.toContain('Geheime Naam');
-    expect(meta).not.toContain('dochter');
-    expect(meta).toContain('PERSON');
-  });
-
   it('logt een profielexport', async () => {
     const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
     const cookie = await loginCookie(app, admin.email, admin.password);

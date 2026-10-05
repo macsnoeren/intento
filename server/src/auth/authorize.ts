@@ -5,7 +5,6 @@ import type { AccountModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { findAccountBySessionToken } from './session.js';
 import { readSessionToken } from './request.js';
-import { findDeviceByToken, readDeviceToken } from './device.js';
 import { assertOrganizationActive } from './organization-status.js';
 
 /**
@@ -110,11 +109,10 @@ export function requireVerifiedEmail(): preHandlerHookHandler {
 }
 
 /**
- * Extra preHandler dat een **platform-/operatoradmin** eist (T5.8, DESIGN §9.4). Hangt ná
- * `authorize(prisma, { roles: ['ADMIN'] })` en geeft 403 `NOT_PLATFORM_ADMIN` als de organisatie
- * van het account geen platform-org is (`Organization.isPlatform`). Worker-tokens zijn
- * platform-infrastructuur (los van tenants): alleen de operator die de bootstrap-org beheert mag ze
- * munten/intrekken, zodat een zelf-aangemelde familie/zorg-admin geen infra-credentials kan maken.
+ * Extra preHandler dat een **platformbeheerder** eist. Hangt ná `authorize(prisma, { roles: ['ADMIN'] })`
+ * en geeft 403 `NOT_PLATFORM_ADMIN` als de organisatie van het account geen platform-org is
+ * (`Organization.isPlatform`). Bedoeld voor wat het hele platform raakt, zoals de platformitems van de
+ * Vocabulary (INTENTO-NEW-DESIGN §15): een zelf-aangemelde organisatie mag die niet wijzigen.
  */
 export function requirePlatformOrg(prisma: PrismaClient): preHandlerAsyncHookHandler {
   return async (request) => {
@@ -124,51 +122,7 @@ export function requirePlatformOrg(prisma: PrismaClient): preHandlerAsyncHookHan
       select: { isPlatform: true },
     });
     if (!org?.isPlatform) {
-      throw new HttpError(
-        403,
-        'NOT_PLATFORM_ADMIN',
-        'Alleen een platformbeheerder mag worker-tokens beheren.',
-      );
-    }
-  };
-}
-
-/**
- * Extra preHandler dat een **account-sessie zonder apparaat verbiedt** op een device-only actie
- * (T7.2, DESIGN §3.3; aangescherpt in T9.5).
- *
- * Sommige acties zijn exclusief van de **gebruiker** zelf en mogen nooit vanuit een begeleider-/
- * beheerdersessie komen — met name het **bevestigen** van een boodschap (`/conversation/:id/confirm`):
- * een begeleider kan aantikken namens de gebruiker (ondersteuningsmodus), maar de betekenis blijft van
- * de gebruiker, dus alleen de tablet (device-auth) mag bevestigen (DESIGN §2, §3.3, FR-011).
- *
- * Hangt vóór `deviceAuthorize`. Het **apparaat-token wint**: draagt de request een geldig
- * apparaat-token, dan komt hij van de gekoppelde tablet van de gebruiker en gaat hij door. Alleen een
- * request **zonder** apparaat-token maar mét account-sessie krijgt 403 (`CONFIRM_REQUIRES_USER`) —
- * ongeacht rol; zonder beide valt hij door naar `deviceAuthorize`, dat 401 geeft.
- *
- * Waarom het apparaat wint (T9.5): cookies zijn per **origin**, niet per tab. Een begeleider die in
- * dezelfde browser is ingelogd in het beheer en daarnaast `/tablet` opent, stuurt onvermijdelijk beide
- * cookies mee. De oude volgorde (account-cookie = altijd 403) blokkeerde daardoor de gebruiker op zijn
- * eigen tablet, wat in de gebruikerstest ook echt gebeurde. De waarborg zelf blijft hard: bevestigen
- * vereist een gekoppeld apparaat, en de beheer-/begeleider-UI heeft dat token niet — die kan dus nog
- * steeds niet bevestigen.
- */
-export function forbidAccountSession(prisma: PrismaClient): preHandlerAsyncHookHandler {
-  return async (request) => {
-    // Geldig apparaat-token? Dan is dit de tablet van de gebruiker en laten we hem door; de
-    // eigenlijke device-auth (en de gebruiker-isolatie op de sessie) volgt in `deviceAuthorize`.
-    const deviceToken = readDeviceToken(request);
-    if (deviceToken && (await findDeviceByToken(prisma, deviceToken))) return;
-
-    const token = readSessionToken(request);
-    const account = token ? await findAccountBySessionToken(prisma, token) : null;
-    if (account) {
-      throw new HttpError(
-        403,
-        'CONFIRM_REQUIRES_USER',
-        'Alleen de gebruiker kan zelf een boodschap bevestigen; een begeleider kan dat nooit namens de gebruiker.',
-      );
+      throw new HttpError(403, 'NOT_PLATFORM_ADMIN', 'Alleen een platformbeheerder mag dit.');
     }
   };
 }

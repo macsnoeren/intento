@@ -1,6 +1,5 @@
 import { prisma } from '../src/db/prisma.js';
 import { seedBootstrapOrgAndAdmin } from '../src/db/bootstrap-seed.js';
-import { seedAacLibrary } from '../src/aac/library.js';
 
 /**
  * Seed-script (idempotent, `npm run db:seed`).
@@ -30,12 +29,8 @@ async function main(): Promise<void> {
     adminPassword,
   });
 
-  // AAC-bibliotheek (T3.1): gedeelde, niet-tenant-gebonden woordenschat. Idempotent ge-upsert.
-  await seedAacLibrary(prisma);
-  const symbolCount = await prisma.aacSymbol.count();
-
   console.log(
-    `Seed klaar: organisatie "${organization.name}" (${organization.id}), admin "${admin.email}", ${symbolCount} AAC-symbolen.`,
+    `Seed klaar: organisatie "${organization.name}" (${organization.id}), admin "${admin.email}".`,
   );
   if (verifiedExistingAdmin) {
     console.log(

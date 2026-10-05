@@ -5,10 +5,11 @@ import type { Env } from '../env.js';
 import { HttpError } from '../errors.js';
 
 /**
- * OpenSymbols-integratie (T3.3, DESIGN §6.2, §8.2, FR-015).
+ * OpenSymbols-client (INTENTO-NEW-DESIGN §15, §53). Wordt hergebruikt voor het zoeken in en
+ * importeren uit een externe bron (N8.4/N8.5).
  *
- * De backend proxyt namens de beheer-UI naar de OpenSymbols-API — de client praat **nooit**
- * rechtstreeks met externe diensten (DESIGN §8.1). Deze module bevat:
+ * De backend praat namens de beheer-UI met de OpenSymbols-API — de client praat **nooit**
+ * rechtstreeks met externe diensten. Deze module bevat:
  *  - de provider-agnostische `OpenSymbolsClient`-interface (injecteerbaar/mockbaar in tests);
  *  - de echte, op `fetch` gebaseerde implementatie met token-uitwisseling en time-outs;
  *  - `assertSafeImageUrl`: de SSRF/`https`-guard die vóór elke download draait.
@@ -230,11 +231,11 @@ export function createOpenSymbolsClient(env: Env): OpenSymbolsClient {
       }
       // Vroege afwijzing op basis van de aangekondigde grootte (definitieve check in de route).
       const declaredLength = Number(res.headers.get('content-length'));
-      if (Number.isFinite(declaredLength) && declaredLength > env.AAC_IMAGE_MAX_BYTES) {
+      if (Number.isFinite(declaredLength) && declaredLength > env.UPLOAD_MAX_BYTES) {
         throw new HttpError(
           413,
           'IMAGE_TOO_LARGE',
-          `Afbeelding is te groot (max ${env.AAC_IMAGE_MAX_BYTES} bytes).`,
+          `Afbeelding is te groot (max ${env.UPLOAD_MAX_BYTES} bytes).`,
         );
       }
       const contentType = (res.headers.get('content-type') ?? '')

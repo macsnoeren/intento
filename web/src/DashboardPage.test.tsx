@@ -6,7 +6,7 @@ import { ApiRequestError, type Api } from './api.ts';
 
 /**
  * Web-tests voor het beheerdashboard (T7.3). Draaien tegen een in-memory `Api` (de server-kant is
- * met API-tests gedekt). Toetst dat de tellingen en recente activiteit tonen.
+ * met API-tests gedekt). Toetst dat de tellingen tonen.
  */
 
 const adminAccount: AccountPublic = {
@@ -31,22 +31,10 @@ function fakeApi(dashboard: DashboardResponse): Api {
 }
 
 describe('beheerdashboard', () => {
-  it('toont de tellingen en recente activiteit', async () => {
+  it('toont de tellingen', async () => {
     const api = fakeApi({
       users: { total: 3, active: 2 },
       caregivers: { total: 1 },
-      pendingProposals: 4,
-      recentActivity: [
-        {
-          sessionId: 's-1',
-          userId: 'u-1',
-          userName: 'Sanne',
-          status: 'COMPLETED',
-          mode: 'free',
-          messageCount: 1,
-          startedAt: '2026-07-12T09:00:00.000Z',
-        },
-      ],
     });
     render(
       <DashboardPage api={api} account={adminAccount} onLogout={() => {}} onNavigate={() => {}} />,
@@ -57,8 +45,5 @@ describe('beheerdashboard', () => {
     expect(screen.getByText('2 actief')).toBeTruthy();
     // Geen tegel meer voor conceptvoorstellen (N0.3).
     expect(screen.queryByText('Openstaande voorstellen')).toBeNull();
-    // Recente activiteit toont de gebruiker en status, zonder communicatie-inhoud.
-    expect(screen.getByText('Sanne')).toBeTruthy();
-    expect(screen.getByText('Afgerond')).toBeTruthy();
   });
 });

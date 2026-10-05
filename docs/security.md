@@ -19,19 +19,10 @@
       Getest in `app.test.ts` met een echte OPTIONS-preflight (`app.inject()` doet zelf géén
       preflight, dus alleen zo'n test dekt dit af).
 - [x] **Cross-Origin-Resource-Policy (CORP)** — helmet zet globaal `same-origin`: geen enkele
-      andere origin mag een API-antwoord als subresource inladen. Eén bewuste uitzondering:
-      `GET /aac/images/:file` antwoordt met `cross-origin` (T8.7). De web-client draait op een
-      andere origin dan de API (Vite op `:5173` vs. API op `:3000`, in productie de web-host vs.
-      de API-host) en laadt pictogrammen als `<img src>`. Dat is een **no-cors** resource-load:
-      CORS-headers doen daar niets, CORP wél — de browser haalt het plaatje op en gooit het
-      daarna weg, met lege pictogramvakken in het gespreksscherm als gevolg (waargenomen in
-      Firefox bij T8.5). De versoepeling is route-scoped en beperkt tot niet-persoonlijke,
-      publieke presentatiedata; een onbekend pictogram (404) en elke andere route houden
-      `same-origin`. Beide kanten zijn getest in `routes/aac.test.ts`.
-      *Aandachtspunt voor productie:* helmets CSP (`img-src 'self' data:`) geldt alleen voor
-      documenten die de **API** serveert — de API serveert geen HTML, dus de web-client raakt
-      hij niet. Zet de web-host een eigen CSP, dan moet de API-origin daar in `img-src` staan,
-      anders blokkeert die CSP de pictogrammen alsnog.
+      andere origin mag een API-antwoord als subresource inladen. De oude uitzondering voor
+      pictogrammen (`/aac/images`) is met de AAC-bibliotheek verdwenen; de Vocabulary-afbeeldingen
+      krijgen hun eigen, route-scoped uitzondering in N2.2 (`/assets/:id`), want de web-client laadt
+      ze vanaf een andere origin als `<img src>` en daar doet CORS niets, CORP wél.
 - [x] **Secrets via env** — `SIGNING_SECRET`/`ENCRYPTION_KEY` uit env, nooit in code.
       **Prod-guard:** de server weigert te starten in productie met dev-default-secrets
       of met `COOKIE_SECURE=false`. Getest in `app.test.ts`.
@@ -194,20 +185,7 @@
       gekoppeld is (`assertCaregiverAccess`, `auth/caregivers.ts`) — niet-gekoppeld → `403`.
       Getest in `routes/caregivers.test.ts` (T2.2). Sinds T9.1 kan ook een **ADMIN** als begeleider aan een
       gebruiker gekoppeld worden; dat verruimt niets aan toegang (een ADMIN mocht binnen de eigen
-      organisatie altijd al alles zien) — een `USER`-account blijft geweigerd (`400 NOT_A_CAREGIVER`). Read-only **meekijken** met een lopend gesprek
-      (`GET /question/users/{id}/conversation`, T7.2) staat achter dezelfde tenant- + koppeling-check.
-- [x] **Bevestigen is exclusief van de gebruiker (T7.2, aangescherpt in T9.5; DESIGN §2, §3.3, FR-011)** —
-      een boodschap **bevestigen** kan nooit vanuit de begeleider-/beheer-UI. `POST /conversation/{id}/confirm`
-      draait achter `forbidAccountSession` (`auth/authorize.ts`) vóór `deviceAuthorize`. Het **apparaat-token
-      wint**: draagt de request een geldig apparaat-token, dan komt hij van de gekoppelde tablet van de
-      gebruiker en gaat hij door; draagt hij géén apparaat-token maar wél een account-sessie, dan
-      `403 CONFIRM_REQUIRES_USER`. In ondersteuningsmodus tikt de begeleider aan op de tablet, maar de
-      betekenis (en het bevestigen) blijft van de gebruiker. Reden voor de volgorde: cookies zijn per
-      **origin**, niet per tab — een beheerder die in dezelfde browser is ingelogd én `/tablet` opent stuurt
-      beide cookies mee, en de oude regel blokkeerde daarmee de gebruiker op zijn eigen tablet (echt
-      waargenomen in de gebruikerstest). De waarborg blijft hard: bevestigen vereist een gekoppeld apparaat,
-      en de beheer-/begeleider-UI heeft dat token niet. Getest in `routes/conversation.test.ts`
-      (caregiver-cookie zonder apparaat → 403, device-cookie → 200, device- **plus** admin-cookie → 200).
+      organisatie altijd al alles zien) — een `USER`-account blijft geweigerd (`400 NOT_A_CAREGIVER`).
 - [x] **Apparaatkoppeling (T2.3)** — koppelcode én apparaat-token staan **gehasht at-rest**
       (SHA-256, alleen de hash in de db, `auth/device.ts`), net als sessietokens. Codes hebben
       ~40 bit entropie, zijn **eenmalig** (race-veilig geclaimd via conditionele update) en
@@ -217,106 +195,25 @@
       (`INVALID_LINK_CODE`) zonder onderscheid onbekend/verlopen/gebruikt. Het apparaat-token is
       een **aparte auth-pijler**: het geeft alléén toegang tot de eigen-gebruiker-endpoints
       (`/device/me`), nooit tot beheer-/accountroutes. Getest in `routes/devices.test.ts`.
-- [x] **Uploads (T3.2)** — AAC-pictogramupload (`POST /admin/aac/symbols/{id}/image`, ADMIN-only)
-      met **groottelimiet** (`AAC_IMAGE_MAX_BYTES`, `@fastify/multipart` kapt af → `413`) en een
-      **mime-allowlist**: alleen `image/png`/`image/jpeg`/`image/webp`, dus **geen SVG** (dat kan
-      script bevatten → XSS-risico bij serveren). Eén bestand per request. De bytes worden in de db
-      bewaard en met een vast `Content-Type` geserveerd; het publieke `/aac/images/{id}` blijft
-      niet-gevoelige presentatiedata (geen ondertekende URL's nodig in deze fase). Getest in
-      `routes/aac.admin.test.ts` (type → `415`, te groot → `413`).
-- [x] **Externe integratie / SSRF (T3.3)** — de OpenSymbols-koppeling loopt **volledig server-side**
-      (`server/src/aac/opensymbols.ts`): de client praat nooit rechtstreeks met de externe dienst
-      (DESIGN §8.1), credentials (`OPENSYMBOLS_SECRET`) staan alleen in de env. Elke te downloaden
-      bron-URL moet **`https`** zijn (zod `httpsUrlSchema`) én passeert `assertSafeImageUrl`, die
-      `localhost`, `*.local`/`*.internal` en loopback/link-local/private IP-bereiken (IPv4 + IPv6)
-      weigert (SSRF-mitigatie). De opgehaalde afbeelding valt onder dezelfde **mime-allowlist**
-      (PNG/JPEG/WebP, geen SVG → `415`) en **groottelimiet** (`AAC_IMAGE_MAX_BYTES` → `413`,
-      inclusief een vroege `Content-Length`-check) als een upload; redirects worden geweigerd
-      (`redirect: 'error'`) en er geldt een time-out. Externe fouten worden **niet gelekt** (nette
-      `502`); zoekresultaten zonder `https`-afbeelding worden weggefilterd vóór ze de client bereiken.
-      Getest in `routes/aac.opensymbols.test.ts` (niet-`https` → `400`, interne host → `400`,
-      `415`/`413`/`502`/`503`, sanering van niet-`https`-resultaten).
-      **Attributie-URL's** (`licenseUrl`/`authorUrl`/`sourceUrl`) volgen een andere, bewust minder
-      strenge regel (`webLinkUrlSchema`): die worden nooit door de server opgehaald maar als `href`
-      in de beheer-UI getoond, dus geldt de XSS-eis `http(s)`-only — `http` mag, want licentie- en
-      auteurspagina's van pictogrambibliotheken staan nog volop op plain `http`. `javascript:`/`data:`
-      wordt geweigerd (`400`) bij het koppelen en valt bij zoeken/uitlezen stil weg naar `null`
-      (`mapOpenSymbolsResults`, `aac/library.ts`), zodat een vreemde externe of oude opgeslagen waarde
-      geen link oplevert in plaats van een XSS-vector.
-- [x] **AI-grens en promptbegrenzing (T5.1)** — de AI loopt **volledig server-side** achter de
-      AI-Orchestrator (`server/src/ai/`); de client praat nooit rechtstreeks met de LLM (DESIGN §8.1) en
-      de AI-schema's staan bewust server-intern (niet in `@intento/shared`). Elke aanroep krijgt alléén de
-      **beperkte, verse context** (systeemregels + doel + AAC-regels + toegestane gebruikerscontext +
-      gesprekscontext + laatste keuze; **geen** chatgeschiedenis) via `buildAiPrompt`, waarvan de
-      sleutelset gesloten is — er kan geen ongevraagde context (PII, vrije tekst) inlekken. De harde
-      veiligheidsregels (DESIGN §7.8: nooit verzinnen/namens de gebruiker spreken/buiten de AAC-concepten)
-      reizen als systeemregels mee. De provider-uitvoer wordt **opnieuw** zod-gevalideerd (een provider/
-      worker wordt nooit vertrouwd; de AAC-existentiecheck volgt in T5.2). `AI_API_KEY` is een
-      infrastructuur-credential in de env, nooit richting client. Gekozen richting: een **self-hosted**
-      LLM (privacy by design), niet een externe cloud-API (ADR-0008). Getest in `server/src/ai/*.test.ts`.
-- [x] **Gedistribueerde AI-workers / worker-token (T5.5)** — een externe worker is **backend-
-      infrastructuur, geen vertrouwde component** (ADR-0010): de client praat nog steeds nooit met de AI,
-      en **alle** worker-uitvoer wordt op de grens opnieuw zod-gevalideerd (`routes/ai-worker.ts`,
-      verkeerde vorm → `400`) én loopt door de AAC-validatielaag (T5.2) — een onbekend concept van een
-      worker bereikt de gebruiker nooit. Het **worker-token** is een aparte auth-pijler (naast account-/
-      device-/sessietokens), **gehasht at-rest** (SHA-256, `ai/worker-token.ts`), 256-bit random, met een
-      **scope** (`ai:process`), **intrekbaar** (`revokedAt`) en optioneel **verlopend** (`expiresAt`); het
-      gaat als `Authorization: Bearer …` mee (geen cookie). `workerAuthorize` (`auth/worker.ts`) geeft
-      `401` bij geen/onbekend token en `403` bij ingetrokken/verlopen/verkeerde-scope. De worker-endpoints
-      zijn **per-IP rate-limited** (`AI_WORKER_RATE_LIMIT_*`). Een worker die zijn lease verliest (crash/
-      time-out) kan zijn oude job niet meer voltooien (guarded update). De payload/het resultaat bevat
-      **geen** communicatie-inhoud buiten AAC-concepten (privacy by design). **Backpressure** (503
-      `AI_WORKER_BUSY`) voorkomt dat een piek de site laat blokkeren (DESIGN §9.4). Getest in
-      `ai/job-queue.test.ts`, `ai/queue-provider.test.ts`, `routes/ai-worker.test.ts` en
-      `routes/conversation-queue.test.ts`.
-- [x] **Worker-tokenbeheer als platform-privilege (T5.8)** — worker-tokens zijn platform-
-      **infrastructuur**, niet tenant-gebonden. Beheer (aanmaken/lijsten/intrekken) via de beheer-UI
-      (`routes/worker-tokens.ts`) is daarom voorbehouden aan een **ADMIN van de platformorganisatie**
-      (`Organization.isPlatform`, gezet door de bootstrap-seed): naast `authorize({ roles: ['ADMIN'] })`
-      hangt `requirePlatformOrg` (`auth/authorize.ts`, `403 NOT_PLATFORM_ADMIN`). Zo kan een zelf-
-      aangemelde familie/zorg-ADMIN (T1.3) **geen** infra-credential munten dat jobs van álle tenants zou
-      verwerken — een privilege-escalatie/misbruik-vector wordt zo dichtgezet. Het **rauwe** token verlaat
-      de server uitsluitend één keer bij aanmaken (daarna alleen de SHA-256-hash); de lijst-/detailweergave
-      lekt nooit de hash of het rauwe token. Een ingetrokken token wordt onmiddellijk door
-      `workerAuthorize` geweigerd (`403`). Getest in `routes/worker-tokens.test.ts` (platform-ADMIN
-      maakt/lijst/trekt in, rauw token één keer, niet-platform-ADMIN → 403, ingetrokken token → 403).
-- [x] **Persoonlijke context — versleuteling at-rest + toestemmingsfilter (T6.1)** — de gevoelige,
-      vrij-tekst-PII van `PersonalContext` (`name`, `relationship`) wordt **versleuteld** opgeslagen met
-      **AES-256-GCM** (`crypto/encryption.ts`, sleutel afgeleid uit `ENCRYPTION_KEY` via SHA-256): db-lekkage
-      levert geen leesbare persoonsgegevens op, en geknoei aan de cijfertekst wordt bij het ontsleutelen
-      gedetecteerd (auth-tag). Anders dan tokens (die we alleen *hashen*) is hier terugleesbaarheid nodig, dus
-      versleuteling. Elke veldversleuteling krijgt een **nieuwe random IV** (nooit hergebruikt) en een
-      versieprefix (`v1:`) voor latere rotatie. Toegang is tenant-/gebruiker-gebonden en, voor een CAREGIVER,
-      beperkt tot **gekoppelde** gebruikers (`assertSameTenant` + `assertCaregiverAccess`). **AI-toestemmings-
-      filter (DESIGN §6.3):** de gespreksflow laadt **alléén** context met `aiUsageAllowed=true` in de prompt
-      (`users/personal-context.ts` → `loadAllowedUserContext`); context zonder expliciete toestemming bereikt
-      de AI nooit. Getest in `crypto/encryption.test.ts` (roundtrip, unieke IV, tamper/verkeerde sleutel) en
-      `routes/personal-context.test.ts` (rauwe-db-test: geen plaintext; toestemmingsfilter: niet-toegestane
-      context nergens in de prompt; tenant-/caregiver-403; ongeldige categorie → 400).
-- [x] **Meldingsmail aan de begeleider — geen communicatie-inhoud naar buiten (T13.2)** — bij het
-      bevestigen van een boodschap krijgen de **gekoppelde** begeleiders een mail dát er iets nieuws is.
-      De boodschap zelf gaat er **niet** in mee. Dat is een bewuste grens: e-mail loopt over servers die
-      niet van ons zijn, blijft onbeperkt in postvakken staan en wordt vaak geïndexeerd — precies de
-      eigenschappen die je niet wilt voor de zin die iemand met moeite heeft samengesteld (DESIGN §9.4).
-      Wat er wél in staat: de naam van de gebruiker, het tijdstip en een link naar de app; genoeg om te
-      weten dat je moet gaan kijken, en de inhoud blijft achter authenticatie. Ontvangers zijn uitsluitend
-      accounts met een expliciete `CaregiverAssignment` — een beheerder zonder koppeling krijgt niets, en
-      dus ook geen mail over gebruikers die niet van hem zijn. De verzending is **niet blokkerend**: een
-      mailfout wordt gelogd en het bevestigen slaagt gewoon, zodat een mailserver nooit een boodschap van
-      een gebruiker kan stukmaken. Uit te zetten met `NOTIFY_CAREGIVERS_BY_EMAIL=false`; `APP_BASE_URL`
-      moet in productie https zijn (env-guard). Getest in `mail/caregiver-notification.test.ts`
-      (gekoppeld wél/niet-gekoppeld niet, zin komt niet in tekst of HTML voor, mailfout → `/confirm`
-      blijft `200` en de boodschap staat vast, uitgeschakeld → niets verstuurd).
+- [x] **Externe integratie / SSRF** — de OpenSymbols-client (`server/src/vocabulary/opensymbols.ts`)
+      draait **volledig server-side**: de client praat nooit rechtstreeks met de externe dienst,
+      credentials (`OPENSYMBOLS_SECRET`) staan alleen in de env. Elke te downloaden bron-URL passeert
+      `assertSafeImageUrl`, die niet-`https`, `localhost`, `*.local`/`*.internal` en
+      loopback/link-local/private IP-bereiken (IPv4 + IPv6) weigert (SSRF-mitigatie); redirects worden
+      geweigerd (`redirect: 'error'`), er geldt een time-out en een vroege `Content-Length`-check tegen
+      `UPLOAD_MAX_BYTES`. Zoekresultaten zonder `https`-afbeelding worden weggefilterd; attributie-URL's
+      (`licenseUrl`/`authorUrl`/`sourceUrl`) mogen `http(s)` zijn maar nooit `javascript:`/`data:` (die
+      vallen weg naar `null`). Getest in `vocabulary/opensymbols.test.ts`. De volledige importcontrole
+      (bekende host, typecontrole, werkelijke grootte) volgt in N8.5.
 - [x] **Profielexport/-import — versleuteld bestand + strikte toegang (T8.1)** — de export
-      (`GET /users/{id}/export`) bundelt alléén het **profiel** (communicatie-instellingen, persoonlijke
-      context, voorkeuren, weergavenaam) en **nooit** account-/organisatiegegevens, id's of tokens (DESIGN
-      §6.4). De volledige payload wordt met dezelfde AES-256-GCM-`Encryptor` (`ENCRYPTION_KEY`) versleuteld,
+      (`GET /users/{id}/export`) bundelt alléén het **profiel** (communicatie-instellingen en weergavenaam)
+      en **nooit** account-/organisatiegegevens, id's of tokens. De volledige payload wordt met dezelfde AES-256-GCM-`Encryptor` (`ENCRYPTION_KEY`) versleuteld,
       dus het exportbestand is **onleesbaar zonder de omgevingssleutel** (getest: de payload bevat geen
       plaintext-PII, en importeren met een andere sleutel → `400 IMPORT_INVALID`). Beide acties zijn
       **ADMIN-only** en tenant-gebonden (`assertSameTenant`); import eist bovendien een **geverifieerd
       e-mailadres** (`requireVerifiedEmail`, zoals `POST /users`) omdat het een echte persoon aanmaakt.
       Ongeldige/beschadigde invoer wordt netjes tot `400 IMPORT_INVALID` gemapt (nooit een 500, geen
-      interne details). Geïmporteerde context wordt in de doelomgeving **opnieuw versleuteld** at-rest.
+      interne details).
       **Restrisico/afweging:** de export gebruikt de omgevings-`ENCRYPTION_KEY`, dus cross-deployment-
       overdracht vereist dat beide omgevingen dezelfde sleutel delen; een wachtwoordgebaseerde exportsleutel
       is toekomstig werk. Getest in `routes/profile-transfer.test.ts`.
@@ -327,8 +224,7 @@
 - [x] **Audit-logging (T8.2, DESIGN §9.4)** — een herbruikbare `recordAudit(...)` (`server/src/audit/`)
       schrijft een **append-only** spoor over gevoelige acties: login (geslaagd én mislukt, brute-force-
       detectie), logout, registratie, e-mailverificatie, wachtwoordwijziging (T2.5), begeleider-accounts aanmaken (T2.4), een nieuw tijdelijk wachtwoord uitgeven (T2.7),
-      gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes, persoonlijke context (create/update/delete), profielexport/-import, worker-
-      tokens en conceptvoorstellen. **Best-effort en nooit blokkerend**: een hapering in de audit-tabel laat
+      gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes en profielexport/-import. **Best-effort en nooit blokkerend**: een hapering in de audit-tabel laat
       de hoofdactie niet mislukken (fout gelogd, niet doorgegooid). **Geen communicatie-inhoud of vrije-tekst-
       PII**: alleen een stabiele `action`-sleutel, uitkomst, objectverwijzing en kleine niet-gevoelige
       `metadata`. Een mislukte login logt géén e-mailadres (voorkomt enumeratie in het log) en heeft geen
@@ -422,12 +318,6 @@
 - **Deactiveren kost één PK-lookup per geauthenticeerde request** (organisatiestatus, op elk van de
   drie auth-paden). Bewust geaccepteerd boven meeliften op de sessie-join: de check moet op één plek
   leesbaar zijn en overal hetzelfde doen.
-- **`GET /ai/status` (T9.4) lekt bewust een klein beetje infrastructuurinformatie**: modus, aantal recent
-  actieve workers en het laatste activiteitsmoment, leesbaar voor elk ingelogd account én elke gekoppelde
-  tablet. Geen tokennamen, tenantgegevens of gespreksinhoud. De afweging: zonder deze indicator kan
-  niemand zien dát er geen AI meedenkt — precies de verwarring uit de gebruikerstest — en de gelekte
-  metadata zegt niets over personen.
-
 ## Reviewgeschiedenis
 
 - **T8.2 (2026-07-12)** — `/security-review` over de audit-logging-fase en de meeliftende wijzigingen.

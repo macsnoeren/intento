@@ -14,25 +14,12 @@ import { registerAccountRoutes } from './routes/accounts.js';
 import { registerUserRoutes } from './routes/users.js';
 import { registerCaregiverRoutes } from './routes/caregivers.js';
 import { registerDeviceRoutes } from './routes/devices.js';
-import { registerAacRoutes } from './routes/aac.js';
-import { registerConversationRoutes } from './routes/conversation.js';
-import { registerQuestionRoutes } from './routes/question.js';
-import { registerPersonalContextRoutes } from './routes/personal-context.js';
-import { registerPreferenceRoutes } from './routes/preferences.js';
 import { registerProfileTransferRoutes } from './routes/profile-transfer.js';
-import { registerAiWorkerRoutes } from './routes/ai-worker.js';
-import { registerAiStatusRoutes } from './routes/ai-status.js';
-import { registerWorkerTokenRoutes } from './routes/worker-tokens.js';
 import { registerDashboardRoutes } from './routes/dashboard.js';
-import { registerConceptProposalRoutes } from './routes/concept-proposals.js';
 import { registerAuditRoutes } from './routes/audit.js';
-import { registerConversationHistoryRoutes } from './routes/conversation-history.js';
-import { registerMessageRoutes } from './routes/messages.js';
 import { registerOperatorRoutes } from './routes/operator.js';
 import { registerSpeechRoutes } from './routes/speech.js';
-import { createOpenSymbolsClient, type OpenSymbolsClient } from './aac/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
-import { createAiOrchestrator, type AiOrchestrator } from './ai/index.js';
 import { createSpeechService, type SpeechService } from './speech/index.js';
 import { createEncryptor } from './crypto/encryption.js';
 
@@ -46,12 +33,8 @@ export interface BuildAppOptions {
    * in plaats van ze naar stdout te laten verdwijnen.
    */
   logger?: FastifyServerOptions['logger'];
-  /** OpenSymbols-proxy (T3.3); standaard uit de env, injecteerbaar zodat tests een mock meegeven. */
-  openSymbols?: OpenSymbolsClient;
   /** Mail-transport (T1.4); standaard uit de env (log/SMTP), injecteerbaar zodat tests de mail opvangen. */
   mail?: MailTransport;
-  /** AI-orchestrator (T5.2); standaard uit de env (mock/echt), injecteerbaar zodat tests een provider mocken. */
-  orchestrator?: AiOrchestrator;
   /** Spraakdienst (T18.1); standaard uit de env, injecteerbaar zodat tests zonder Piper draaien. */
   speech?: SpeechService;
 }
@@ -65,13 +48,10 @@ export async function buildApp({
   env,
   prisma = defaultPrisma,
   logger = false,
-  openSymbols = createOpenSymbolsClient(env),
   mail = createMailTransport(env),
-  orchestrator = createAiOrchestrator(env, prisma),
   speech = createSpeechService(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
-  // Veldversleuteling at-rest (T6.1): persoonlijke context wordt versleuteld opgeslagen. Eén instantie
-  // per app; de sleutel wordt uit `ENCRYPTION_KEY` afgeleid en gedeeld door de context- en gespreksroutes.
+  // Veldversleuteling at-rest: één instantie per app; de sleutel wordt uit `ENCRYPTION_KEY` afgeleid.
   const encryptor = createEncryptor(env);
   const app = Fastify({
     logger,
@@ -100,13 +80,13 @@ export async function buildApp({
   // (streng op /auth/login). Zo blijft o.a. /health onbeperkt.
   await app.register(rateLimit, { global: false });
 
-  // Multipart-uploads (AAC-pictogrammen, T3.2). Eén bestand per request en een harde
+  // Multipart-uploads (eigen afbeeldingen, N8.1). Eén bestand per request en een harde
   // groottelimiet uit de env. `throwFileSizeLimit: false` laat de plugin een te groot bestand
   // afkappen (`truncated`) i.p.v. zelf te gooien, zodat de route het weigert met onze eigen
-  // consistente foutstructuur (413 IMAGE_TOO_LARGE).
+  // consistente foutstructuur.
   await app.register(multipart, {
     throwFileSizeLimit: false,
-    limits: { fileSize: env.AAC_IMAGE_MAX_BYTES, files: 1 },
+    limits: { fileSize: env.UPLOAD_MAX_BYTES, files: 1 },
   });
 
   app.setErrorHandler(errorHandler);
@@ -118,32 +98,12 @@ export async function buildApp({
   registerUserRoutes(app, { prisma });
   registerCaregiverRoutes(app, { prisma });
   registerDeviceRoutes(app, { env, prisma });
-  registerAacRoutes(app, { prisma, env, openSymbols });
-  registerConversationRoutes(app, { prisma, orchestrator, encryptor, env, openSymbols, mail });
-  // Vraagmodus (T7.1): begeleider stelt een gebruiker een vraag; de AI beperkt de antwoorden.
-  registerQuestionRoutes(app, { prisma });
-  // Persoonlijke context (T6.1): begeleider/beheerder legt personen/plekken/routines vast (versleuteld).
-  registerPersonalContextRoutes(app, { prisma, encryptor });
-  // Voorkeuren + begeleider-suggestie (T6.3): leren gebeurt bij `/confirm`; hier bekijkt/handelt beheer af.
-  registerPreferenceRoutes(app, { prisma, encryptor });
   // Profielexport/-import (T8.1): eigenaarschap — versleuteld profiel exporteren en elders importeren.
   registerProfileTransferRoutes(app, { prisma, encryptor });
-  // Worker-endpoints voor de gedistribueerde AI-wachtrij (T5.5). Altijd geregistreerd: ze werken op de
-  // AiJob-tabel en zijn onschadelijk zonder queue-provider (er komen dan simpelweg geen jobs binnen).
-  registerAiWorkerRoutes(app, { env, prisma });
-  // AI-status (T9.4): draait er een echte AI en is er een worker actief? Alleen infrastructuurmetadata,
-  // leesbaar voor een ingelogd account én voor de tablet, zodat beide kunnen tonen dát er een AI meedenkt.
-  registerAiStatusRoutes(app, { prisma, env });
-  // Beheer-UI voor worker-tokens (T5.8): platform-ADMIN mint/lijst/trekt infra-credentials in.
-  registerWorkerTokenRoutes(app, { prisma });
-  // Beheerdashboard (T7.3): tenant-overzicht (gebruikers/begeleiders/activiteit) + openstaande voorstellen.
+  // Beheerdashboard: tenant-overzicht (gebruikers en begeleiders).
   registerDashboardRoutes(app, { prisma });
-  // AI-conceptvoorstellen (T7.3): reviewlijst + goedkeuren (koppelen aan pictogram) / afwijzen.
-  registerConceptProposalRoutes(app, { prisma });
   // Audit-log-inzage (T8.2): ADMIN bekijkt het spoor van gevoelige acties van de eigen organisatie.
   registerAuditRoutes(app, { prisma });
-  registerConversationHistoryRoutes(app, { prisma });
-  registerMessageRoutes(app, { prisma });
   // Platform-operatorconsole (T8.3): de enige, apart bewaakte routetak die over tenants heen kijkt.
   registerOperatorRoutes(app, { prisma });
   // Spraakuitvoer (T18.1): de tablet laat uitspreken wat er op zijn scherm staat; de begeleider

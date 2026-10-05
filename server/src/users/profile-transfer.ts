@@ -12,15 +12,13 @@ import { HttpError } from '../errors.js';
 import { DEFAULT_PROFILE, type UserWithProfile } from './serialize.js';
 
 /**
- * Profielexport en -import (T8.1, DESIGN §6.4, §8.2, FR-019).
+ * Profielexport en -import (INTENTO-NEW-DESIGN §1 eigenaarschap, §53).
  *
- * Kern van gegevenseigenaarschap (DESIGN §4): de gebruiker bezit zijn profiel en kan het meenemen naar een
- * andere omgeving. Deze module is bewust HTTP-vrij zodat de bouw/versleuteling en het inlezen/valideren
+ * De gebruiker bezit zijn profiel en kan het meenemen naar een andere omgeving. Deze module is bewust HTTP-vrij zodat de bouw/versleuteling en het inlezen/valideren
  * deterministisch te testen zijn; de routes (`routes/profile-transfer.ts`) doen de auth/tenant-grens.
  *
- * Wat reist er mee (DESIGN §6.4): communicatie-instellingen, persoonlijke context (versleuteld at-rest,
- * hier ontsleuteld voor de export) en geleerde voorkeuren — plus de weergavenaam. **Niet**: account- of
- * organisatiegegevens, id's of tokens (omgeving-specifiek). Het exportbestand wordt in zijn geheel
+ * Wat reist er mee: de communicatie-instellingen en de weergavenaam (contacten en Experience volgen in
+ * N15.1). **Niet**: account- of organisatiegegevens, id's of tokens (omgeving-specifiek). Het exportbestand wordt in zijn geheel
  * versleuteld met de omgevingssleutel (`ENCRYPTION_KEY`) en is dus onleesbaar zonder die sleutel.
  *
  * Sleutel-let op: de versleuteling gebruikt dezelfde `ENCRYPTION_KEY` als de rest van de app. Een export
@@ -37,16 +35,6 @@ export async function buildProfileExport(
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     include: { communicationProfile: true },
-  });
-
-  const contexts = await prisma.personalContext.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  const preferences = await prisma.preference.findMany({
-    where: { userId },
-    orderBy: [{ confidence: 'desc' }, { count: 'desc' }, { concept: 'asc' }],
   });
 
   const profile = user.communicationProfile;
@@ -70,22 +58,6 @@ export async function buildProfileExport(
           speechHints: profile.speechHints,
         }
       : DEFAULT_PROFILE,
-    // De categorie/suggestionStatus komen als `String` uit de db; `profileExportSchema.parse` hieronder
-    // valideert ze tegen de gesloten taxonomieën (en weigert een onbekende waarde met een 400).
-    personalContexts: contexts.map((row) => ({
-      category: row.category,
-      name: encryptor.decrypt(row.nameEncrypted),
-      relationship:
-        row.relationshipEncrypted !== null ? encryptor.decrypt(row.relationshipEncrypted) : null,
-      aiUsageAllowed: row.aiUsageAllowed,
-    })),
-    preferences: preferences.map((pref) => ({
-      concept: pref.concept,
-      confidence: pref.confidence,
-      count: pref.count,
-      source: pref.source,
-      suggestionStatus: pref.suggestionStatus,
-    })),
   });
 }
 
@@ -121,9 +93,8 @@ export function decodeProfileExport(encryptor: Encryptor, data: string): Profile
 }
 
 /**
- * Importeert een profiel als **nieuwe** gebruiker in de organisatie van het account. In één transactie: de
- * gebruiker + communicatieprofiel, de persoonlijke context (opnieuw **versleuteld** at-rest) en de geleerde
- * voorkeuren. `nameOverride` vervangt optioneel de geëxporteerde weergavenaam.
+ * Importeert een profiel als **nieuwe** gebruiker in de organisatie van het account: de gebruiker met
+ * zijn communicatieprofiel. `nameOverride` vervangt optioneel de geëxporteerde weergavenaam.
  */
 export async function importProfile(
   prisma: PrismaClient,
@@ -143,32 +114,6 @@ export async function importProfile(
         communicationProfile: { create: { ...payload.communicationProfile } },
       },
     });
-
-    if (payload.personalContexts.length > 0) {
-      await tx.personalContext.createMany({
-        data: payload.personalContexts.map((ctx) => ({
-          userId: user.id,
-          category: ctx.category,
-          nameEncrypted: encryptor.encrypt(ctx.name),
-          relationshipEncrypted:
-            ctx.relationship !== null ? encryptor.encrypt(ctx.relationship) : null,
-          aiUsageAllowed: ctx.aiUsageAllowed,
-        })),
-      });
-    }
-
-    if (payload.preferences.length > 0) {
-      await tx.preference.createMany({
-        data: payload.preferences.map((pref) => ({
-          userId: user.id,
-          concept: pref.concept,
-          confidence: pref.confidence,
-          count: pref.count,
-          source: pref.source,
-          suggestionStatus: pref.suggestionStatus,
-        })),
-      });
-    }
 
     return tx.user.findUniqueOrThrow({
       where: { id: user.id },

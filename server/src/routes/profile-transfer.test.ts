@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import {
-  personalContextListResponseSchema,
   profileExportResponseSchema,
   userPublicSchema,
   type UpdateSettingsRequest,
@@ -17,7 +16,7 @@ import {
 } from '../test/auth-helpers.js';
 
 /**
- * Profielexport/-import-tests (T8.1, DESIGN §6.4, §8.2, FR-019).
+ * Profielexport/-import-tests (INTENTO-NEW-DESIGN §1, §53).
  *
  * Dekt de acceptatie: een roundtrip (export in org A → import in org B) levert een **identiek** profiel;
  * het exportbestand is onleesbaar zonder de omgevingssleutel; en de actie is ADMIN-only en tenant-gebonden.
@@ -48,14 +47,13 @@ describe('profielexport/-import (T8.1)', () => {
     await app.close();
   });
 
-  /** Richt een gebruiker met aangepast profiel, twee stukjes context en één voorkeur in binnen `orgId`. */
+  /** Richt een gebruiker met een aangepast profiel in binnen `orgId`. */
   async function seedRichProfile(orgId: string): Promise<string> {
     const user = await seedUser('Emma', orgId);
     await prisma.userCommunicationProfile.update({
       where: { userId: user.id },
       data: CUSTOM_SETTINGS,
     });
-    // Persoonlijke context via de admin-route, zodat de velden echt versleuteld at-rest staan.
     return user.id;
   }
 
@@ -64,24 +62,6 @@ describe('profielexport/-import (T8.1)', () => {
     const adminA = await seedAccount('a@intento.local', 'pw', 'ADMIN');
     const cookieA = await loginCookie(app, adminA.email, adminA.password);
     const userId = await seedRichProfile(adminA.organizationId);
-
-    // Twee stukjes context: één met relatie + AI-toestemming, één zonder.
-    for (const body of [
-      { category: 'PERSON', name: 'Lisa', relationship: 'zus', aiUsageAllowed: true },
-      { category: 'FOOD', name: 'Appelmoes' },
-    ]) {
-      const res = await app.inject({
-        method: 'POST',
-        url: `/users/${userId}/context`,
-        headers: { cookie: cookieA },
-        payload: body,
-      });
-      expect(res.statusCode).toBe(201);
-    }
-    // Eén geleerde voorkeur (rechtstreeks; leren zelf is in T6.3 gedekt).
-    await prisma.preference.create({
-      data: { userId, concept: 'walking', confidence: 0.6, count: 3, suggestionStatus: 'pending' },
-    });
 
     const exportRes = await app.inject({
       method: 'GET',
@@ -107,38 +87,6 @@ describe('profielexport/-import (T8.1)', () => {
     expect(imported.organizationId).toBe(adminB.organizationId);
     expect(imported.name).toBe('Emma');
     expect(imported.communicationProfile).toEqual(CUSTOM_SETTINGS);
-
-    // Context roundtript identiek (en blijft versleuteld at-rest in org B).
-    const ctxRes = await app.inject({
-      method: 'GET',
-      url: `/users/${imported.id}/context`,
-      headers: { cookie: cookieB },
-    });
-    const { contexts } = personalContextListResponseSchema.parse(ctxRes.json());
-    expect(
-      contexts.map((c) => ({
-        category: c.category,
-        name: c.name,
-        relationship: c.relationship,
-        aiUsageAllowed: c.aiUsageAllowed,
-      })),
-    ).toEqual([
-      { category: 'PERSON', name: 'Lisa', relationship: 'zus', aiUsageAllowed: true },
-      { category: 'FOOD', name: 'Appelmoes', relationship: null, aiUsageAllowed: false },
-    ]);
-    const rawCtx = await prisma.personalContext.findFirst({ where: { userId: imported.id } });
-    expect(rawCtx!.nameEncrypted).not.toContain('Lisa');
-
-    // Voorkeur roundtript identiek.
-    const prefs = await prisma.preference.findMany({ where: { userId: imported.id } });
-    expect(prefs).toHaveLength(1);
-    expect(prefs[0]).toMatchObject({
-      concept: 'walking',
-      confidence: 0.6,
-      count: 3,
-      source: 'confirmed_usage',
-      suggestionStatus: 'pending',
-    });
   });
 
   it('kan de weergavenaam bij import overschrijven', async () => {
@@ -168,20 +116,12 @@ describe('profielexport/-import (T8.1)', () => {
     const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
     const cookie = await loginCookie(app, admin.email, admin.password);
     const userId = await seedRichProfile(admin.organizationId);
-    await app.inject({
-      method: 'POST',
-      url: `/users/${userId}/context`,
-      headers: { cookie },
-      payload: { category: 'PERSON', name: 'Geheimnaam' },
-    });
-
     const { data } = profileExportResponseSchema.parse(
       (
         await app.inject({ method: 'GET', url: `/users/${userId}/export`, headers: { cookie } })
       ).json(),
     );
     // De ondoorzichtige payload lekt geen plaintext PII.
-    expect(data).not.toContain('Geheimnaam');
     expect(data).not.toContain('Emma');
     await app.close();
 

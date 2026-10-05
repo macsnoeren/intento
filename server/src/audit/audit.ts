@@ -25,7 +25,7 @@ export interface AuditEntry {
   accountId?: string | null;
   /** Tenant; standaard `request.account?.organizationId`. */
   organizationId?: string | null;
-  /** Type doelobject, bv. "user" | "workerToken". */
+  /** Type doelobject, bv. "user" | "account". */
   targetType?: string | null;
   /** Id van het doelobject. */
   targetId?: string | null;

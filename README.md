@@ -21,7 +21,7 @@ Zie [INTENTO-NEW-DESIGN.md](INTENTO-NEW-DESIGN.md) voor de ontwerpbron en
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, **dashboard + AI-conceptvoorstellen** (T7.3), gebruikersbeheer (T2.1), begeleider-accounts (T2.4) en -koppeling (T2.2), eigen wachtwoord wijzigen (T2.5), accountlijst met tijdelijk-wachtwoord-markering (T2.6) en het uitgeven van een nieuw tijdelijk wachtwoord (T2.7), tabletkoppeling (T2.3) en AAC-bibliotheekbeheer (T3.2, incl. OpenSymbols-koppeling T3.3); **gebruikersapp op de tablet** met de gespreksflow op `/tablet` (T4.2); **begeleiderinterface** met de vraagmodus (T7.1); **platform-operatorconsole** op `/operator` (T8.3). Sinds T17.1 in één huisstijl, met een menu in de zijbalk in plaats van een rij tabs; de logobestanden staan in [`web/brand/`](web/brand/README.md). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, dashboard, gebruikersbeheer, begeleider-accounts en -koppeling, wachtwoordbeheer, tabletkoppeling, audit-log; **gebruikersapp op de tablet** op `/tablet` (gespreksflow in herbouw); **platform-operatorconsole** op `/operator`. Sinds T17.1 in één huisstijl, met een menu in de zijbalk in plaats van een rij tabs; de logobestanden staan in [`web/brand/`](web/brand/README.md). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
@@ -198,8 +198,7 @@ STARTTLS-upgrade niet, dan faalt de verzending in plaats van in platte tekst doo
 Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account (meteen als
 geverifieerd aangemaakt; herseeden verifieert een nog ongeverifieerde bootstrap-admin alsnog en laat het
 wachtwoord ongemoeid). E-mail/wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`
-(default `admin@intento.local` / `change-me-admin` — buiten lokaal ontwikkelen overschrijven) en
-seedt daarnaast de gedeelde AAC-bibliotheek (T3.1). Login zet een ondertekende httpOnly-sessie-cookie:
+(default `admin@intento.local` / `change-me-admin` — buiten lokaal ontwikkelen overschrijven). Login zet een ondertekende httpOnly-sessie-cookie:
 
 ```bash
 # Inloggen (cookie in cookies.txt bewaren) en het eigen account opvragen:
@@ -265,7 +264,7 @@ hij nergens (zie "Tijdelijk wachtwoord" hieronder).
 ### Eigen wachtwoord wijzigen (T2.5)
 
 Elk ingelogd account wisselt zijn **eigen** wachtwoord via het paneel "Wachtwoord wijzigen": voor een
-beheerder onder de tab **Mijn account**, voor een begeleider onderaan de vraagmodus. Vooral bedoeld
+beheerder én begeleider onder **Mijn account**. Vooral bedoeld
 voor de begeleider die met het tijdelijke wachtwoord uit T2.4 binnenkomt — dat kent zijn beheerder
 immers ook.
 
@@ -362,39 +361,6 @@ curl -sc device.txt -X POST http://127.0.0.1:3000/devices/link \
 curl -sb device.txt http://127.0.0.1:3000/device/me
 ```
 
-## AAC-bibliotheek (T3.1, T3.2, T3.3)
-
-De AAC-bibliotheek is de gedeelde, beheerde pictogramwoordenschat die de AI begrenst (DESIGN §7.6).
-`npm run db:seed` vult ze met een startset (~31 symbolen + relaties voor de voorbeeldflows uit
-DESIGN §3). Zoeken kan met een ingelogd account **of** een gekoppeld apparaat en is
-hoofdletterongevoelig op concept, label én synoniem. Een pictogram is óf een door een beheerder
-geüploade/gekoppelde afbeelding óf een server-gerenderde SVG-placeholder uit de emoji-`glyph`.
-
-Een **beheerder** onderhoudt de bibliotheek in de beheeromgeving (tab *AAC-bibliotheek*):
-symbolen zoeken/filteren, toevoegen/bewerken/verwijderen, een pictogram uploaden (PNG/JPEG/WebP,
-max `AAC_IMAGE_MAX_BYTES`) en begripsrelaties leggen (`POST /admin/aac/…`, ADMIN-only). De
-bibliotheek is platformbreed gedeeld, dus dit is een rol-beperkte (niet tenant-gebonden) taak.
-
-In plaats van zelf uploaden kan een beheerder ook een bestaand, vrij te gebruiken pictogram bij
-[OpenSymbols](https://www.opensymbols.org/) opzoeken en koppelen (T3.3). De **backend** proxyt de
-zoekactie en haalt de gekozen afbeelding **server-side** op (`https`-only + SSRF-guard + mime-/
-groottecontrole), slaat 'm lokaal op en bewaart bron/licentie op het symbool. Zet
-`OPENSYMBOLS_SECRET` (en eventueel `OPENSYMBOLS_API_URL`) in de env; zonder secret is de integratie
-uit (endpoints antwoorden `503`). Zie [docs/adr/0006](docs/adr/0006-external-service-proxy-opensymbols.md).
-
-```bash
-# Zoeken op synoniem ("lopen" vindt concept "walking"); levert o.a. een imageUrl per symbool:
-curl -sb cookies.txt "http://127.0.0.1:3000/aac/search?q=lopen"
-# Het pictogram van een symbool ophalen (publiek; geüploade afbeelding of SVG-placeholder):
-curl -s http://127.0.0.1:3000/aac/images/<symbol-id>
-# Beheer: een symbool aanmaken (ADMIN):
-curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/aac/symbols \
-  -H 'Content-Type: application/json' \
-  -d '{"concept":"reading","label":"Lezen","category":"activity","glyph":"📖","synonyms":["boek lezen"]}'
-# OpenSymbols zoeken (ADMIN; vereist OPENSYMBOLS_SECRET):
-curl -sb cookies.txt "http://127.0.0.1:3000/admin/aac/opensymbols/search?q=dog"
-```
-
 ## De tablet
 
 De **gebruikersapp op de tablet** draait op de `/tablet`-URL: `npm run dev:web`, open
@@ -410,138 +376,6 @@ gekoppelde tablet een rustig scherm **"Nog niet beschikbaar"**.
 > in de **effectbody** weer op `true` — zet je hem alleen bij de declaratie, dan blijft hij na de
 > gesimuleerde unmount `false` en worden alle latere `setState`-aanroepen stil overgeslagen.
 
-## Vraagmodus — begeleider stelt een vraag (T7.1)
-
-De **begeleiderinterface** (rol CAREGIVER; ook een ADMIN kan het) laat een begeleider een gekoppelde
-gebruiker een vraag stellen ("Wat wil je drinken?"). De AI beperkt de antwoorden en de gebruiker stelt
-zijn antwoord zelf samen en bevestigt — de begeleider bevestigt nooit namens de gebruiker (DESIGN §2,
-§3.2, §3.3, FR-012). De begeleider kiest naast de vraag een **onderwerp** (AAC-topic, bv. "Drinken");
-de kinderen daarvan (water/sap/koffie/melk) vormen de antwoordopties. De vraag verschijnt daarna in de
-gebruikersapp op de tablet, die haar oppakt via `GET /conversation/pending` en de gewone gespreksflow
-doorloopt.
-
-```bash
-# Begeleider (account-auth): gekoppelde gebruikers ophalen en een vraag stellen:
-curl -sb cookies.txt "http://127.0.0.1:3000/question/users"
-curl -sb cookies.txt -X POST http://127.0.0.1:3000/question/start \
-  -H 'content-type: application/json' \
-  -d '{"userId":"<gebruiker-id>","question":"Wat wil je drinken?","anchorConcept":"drink"}'
-# Tablet (device-auth): de klaarstaande vraag oppakken:
-curl -sb device.txt http://127.0.0.1:3000/conversation/pending
-```
-
-Alleen een aan de gebruiker **gekoppelde** begeleider (of een ADMIN in de eigen organisatie) mag een
-vraag stellen; een niet-gekoppelde begeleider krijgt `403`. Het door de begeleider gekozen topic-anker
-is de vaste eerste stap en kan door de gebruiker niet ongedaan worden gemaakt, zodat het gesprek binnen
-de vraag blijft.
-
-## Berichten van je gebruikers — zien en afhandelen (T13.1/T13.2/T13.3)
-
-Onder de vraagmodus staat op de pagina **Begeleiden** de lijst met elke **bevestigde** boodschap van de
-gebruikers waar dit account bij hoort — nieuwste eerst, met tijdstip en naam, en de begeleidersvraag
-erbij als het een antwoord in vraagmodus was. Zonder die lijst stopte de communicatie precies waar ze
-zou moeten beginnen: iemand vraagt om iets en niemand ziet het. Bij het bevestigen gaat er bovendien een
-seintje per e-mail naar elke gekoppelde begeleider — zonder de zin zelf, want e-mail is een extern kanaal
-(`NOTIFY_CAREGIVERS_BY_EMAIL`, `APP_BASE_URL`).
-
-Een lijst die alleen maar groeit wordt ruis, dus kan een begeleider een boodschap **afhandelen**:
-
-```bash
-# Opgepakt aftekenen (en met DELETE weer terugdraaien):
-curl -sb cookies.txt -X POST "http://127.0.0.1:3000/caregiver/messages/<bericht-id>/acknowledge"
-curl -sb cookies.txt -X DELETE "http://127.0.0.1:3000/caregiver/messages/<bericht-id>/acknowledge"
-```
-
-De knop **Opgepakt** legt vast wie hem oppakte en wanneer; **Toch niet** draait dat terug (ook door een
-collega — een misklik moet te herstellen zijn). De stand is **gedeeld**: de vraag is "is hier al iets
-mee gedaan", niet "heb ík het gezien". Wat een begeleider níet kan, is de boodschap zelf aanraken: het
-aftekenen staat in een eigen tabel naast `GeneratedMessage`, dat na het bevestigen nooit meer beschreven
-wordt, en het filter *"alleen nog niet opgepakt"* verbergt hoogstens tijdelijk in de weergave — er
-verdwijnt niets (DESIGN §2). Zie [docs/adr/0014](docs/adr/0014-message-acknowledgement.md) en
-[docs/api.md](docs/api.md).
-
-## AI-orchestrator, validatielaag en confidence (T5.1/T5.2)
-
-De vraagselectie achter `POST /conversation/{id}/next` draait vanaf **T5.2** op de **AI-orchestrator**
-(`server/src/ai/`), niet meer op de gescripte engine. Het fundament (T5.1): een provider-agnostische
-**`AiProvider`**-interface, een **`AiOrchestrator`** die per aanroep de **beperkte, verse context**
-samenstelt (systeemregels + doel + AAC-regels + gebruikerscontext + gesprekscontext + laatste keuze;
-**geen** chatgeschiedenis) en de provider-uitvoer opnieuw valideert, en een **deterministische
-mock-provider** voor dev en tests.
-
-Daaromheen leggen de lagen in `server/src/conversation/` de harde waarborgen uit DESIGN §7 op.
-**Kandidatenselectie** (`candidates.ts`): de opties komen uit boomkinderen + kleinkinderen + retrieval over
-de héle bibliotheek + geleerde voorkeuren, begrensd op `AI_MAX_CANDIDATES`. **Herhaling** wordt vermeden
-(gekozen én afgewezen concepten uitgesloten, terug blijft exact) en de afwijzingen reizen **mee in de
-prompt**, zodat de AI van richting kan veranderen. De **validatielaag** (`ai/validation.ts`) dedupliceert
-elk voorgesteld begrip tegen concept/label/synoniem en maakt een écht nieuw begrip aan als gemarkeerd
-nieuw woord (`AI_ALLOW_NEW_CONCEPTS`, → `ConceptProposal` + beheerlijst). De **interpretatie-zekerheid**
-(`ai/thresholds.ts`, §7.4) bepaalt de fase `select`/`refine`/`propose` en wordt over beurten heen gedempt
-via de **hypothese** (`hypothesis.ts`). De client praat nooit rechtstreeks met de AI (DESIGN §8.1); de
-AI-schema's staan server-intern. Provider via `AI_PROVIDER` (`mock` standaard; `queue` voor
-gedistribueerde workers — zie hieronder). Zie
-[docs/adr/0008](docs/adr/0008-ai-provider-interface-and-orchestrator.md),
-[docs/adr/0009](docs/adr/0009-validation-layer-and-confidence-policy.md),
-[docs/adr/0012](docs/adr/0012-ai-generated-concepts.md) en [docs/api.md](docs/api.md).
-
-> **De AI stuurt het gesprek (Fase 10).** Tot dan was de kandidatenset letterlijk de kinderen van één
-> knoop in de begrippenboom: bij een smalle tak (`want` heeft er drie) had de AI geen ruimte om te
-> achterhalen wat de gebruiker bedoelt, en "geen van deze past" zette hem terug op het startscherm. Nu
-> put de AI uit de héle bibliotheek, weet ze wát er is afgewezen, en mag ze — als het woord er echt niet
-> in staat — zélf een begrip aandragen: dat wordt meteen een bruikbaar pictogram met een ✨-markering, en
-> komt in het beheer terecht onder **Nieuwe woorden**. Een boodschap wordt pas voorgesteld als de
-> **gebruiker** zelf iets koos (in vraagmodus telt het anker van de begeleider niet mee, T9.14). Loopt een
-> punt leeg, dan volgt eerst een vrije ronde, dan de intentiecategorieën, en pas dán een voorstel.
-
-> **De gebruiker houdt de regie (T10.10/T10.11).** Een boodschap wordt pas voorgesteld als er ook niets
-> meer te verfijnen valt — zeker weten *dát* iemand wil eten is niet hetzelfde als weten *wát*. Wil de
-> gebruiker tóch hier stoppen, dan doet hij dat zelf met **"✅ Dit is genoeg"**; ❌ Nee verfijnt eerst en
-> rolt daarna hooguit één stap terug in plaats van zijn hele route weg te gooien; en met
-> **"🔄 Opnieuw beginnen"** komt hij altijd terug bij af.
-
-> **Welke aanpak draait er? (Fase 11)** De knoppen die bepalen *hoe* de AI zoekt — bronvolgorde,
-> aanbodgrootte, drempels, demping en de promptformulering — zijn gebundeld tot één benoemde
-> **gespreksstrategie** (`conversation/strategy.ts`, DESIGN §7.10). De bestaande aanpak heet `refine`
-> ("Stap voor stap verfijnen") en is de standaard. Die knoppen zijn niet neutraal: ze veronderstellen
-> iemand die categorieën begrijpt en stapsgewijs verfijnt, en dat past niet bij iedereen. Wat een
-> strategie **nooit** verandert zijn de garanties — eigenaarschap, deduplicatie, "afgewezen komt niet
-> terug", de gesloten promptsleutelset en "nooit een leeg scherm"; die worden afgedwongen door één
-> invariant-testsuite die over álle geregistreerde strategieën draait. Zie
-> [docs/adr/0013](docs/adr/0013-conversation-strategies.md).
-
-> **Draait er echt een AI? (T9.4/T9.8)** Met de standaard `AI_PROVIDER=mock` denkt er **geen** AI mee: de
-> mock-provider kiest de bibliotheekvolgorde. Dat is aan de flow niet te zien, dus de server logt bij het
-> opstarten welke modus draait (met een waarschuwing bij `mock`) en zowel de tablet als de beheeromgeving
-> tonen een statuslampje uit `GET /ai/status` — "AI denkt mee", "Geen AI-worker actief" of "Zonder AI".
-> Voor echte AI: `AI_PROVIDER=queue` **en** een draaiende [AI-worker](ai-worker/README.md). Wat de AI
-> per aanvraag deed (vraag, aangedragen concepten, motivering, duur) staat in het beheer onder
-> **AI-activiteit** (`GET /admin/ai/jobs`, platformbeheer) en in de serverlog (T9.15).
-
-## Gedistribueerde AI-workers (T5.5)
-
-Met **`AI_PROVIDER=queue`** zet de backend AI-aanvragen op een **DB-wachtrij** (`AiJob`) i.p.v. ze
-in-process uit te voeren; externe workers (T5.6, bv. Ollama op een andere machine) halen jobs op via een
-**worker-initiated** long-poll (robuust achter NAT) en leveren gestructureerde output terug. Diezelfde
-orchestrator-validatie én AAC-validatielaag blijven gelden — een onbekend concept van een worker bereikt
-de gebruiker nooit. Boven `AI_WORKER_MAX_CONCURRENT_JOBS` gelijktijdige jobs krijgt de client een
-**`503 AI_WORKER_BUSY`** (met positie + `Retry-After`) i.p.v. te blokkeren; een gecrashte worker laat zijn
-job na een lease-time-out automatisch teruglegggen.
-
-De worker-endpoints (`/ai/worker/claim|heartbeat|result|fail`) vereisen een **worker-token** (apart
-infrastructuur-credential, gehasht at-rest, scope `ai:process`, intrekbaar). Munt er een via de CLI:
-
-```bash
-npm run worker-token:create --workspace=server -- --name gpu-node-1 [--ttl-days 90]
-```
-
-…of via het tabblad **Worker-tokens** in de beheeromgeving (T5.8). Worker-tokens zijn platform-
-infrastructuur, dus beheer is voorbehouden aan een **ADMIN van de platformorganisatie**
-(`Organization.isPlatform` — de bootstrap-seed zet dit; een zelf-aangemelde organisatie krijgt het niet).
-
-Het rauwe token wordt **één keer** getoond; zet het als `WORKER_TOKEN` in de
-[standalone Ollama-worker](ai-worker/) (T5.6). Zie
-[docs/adr/0010](docs/adr/0010-distributed-ai-worker-queue.md) en [docs/api.md](docs/api.md).
-
 ### Externe Ollama-worker (T5.6)
 
 De [`ai-worker/`](ai-worker/)-applicatie (Python, stdlib-only) claimt jobs via het worker-protocol, draait
@@ -549,35 +383,10 @@ ze tegen een **Ollama**-endpoint (mogelijk op een andere machine) en levert gest
 Een configureerbaar maximum (`MAX_THREADS`) begrenst de gelijktijdige Ollama-aanroepen zodat de site niet
 wordt overvraagd. Opzet, draaien en testen: zie [ai-worker/README.md](ai-worker/README.md).
 
-## Persoonlijke context en leren (T6.1–T6.3)
-
-In de beheeromgeving (gebruikersdetail) legt een begeleider/beheerder **persoonlijke context** vast —
-belangrijke personen, huisdieren, plekken, favorieten en routines (T6.1/T6.2, DESIGN §3.7 stap 3, §6.3).
-Gevoelige velden staan **versleuteld at-rest** (AES-256-GCM, `ENCRYPTION_KEY`); per rij bepaalt een
-opt-in-schakelaar of de AI die context mag zien (`aiUsageAllowed`). Alléén toegestane context bereikt de
-beperkte AI-prompt.
-
-Daarbovenop leert Intento **voorkeuren** (T6.3, DESIGN §3.8, FR-014): elke **bevestigde** boodschap
-versterkt de gekozen concepten — maar alleen als *AI-leren* aanstaat voor die gebruiker, en nooit uit
-afwijzingen/correcties. De voorkeuren reizen als extra context mee naar de AI. Wordt een concept vaak
-gekozen (≥ 3×), dan verschijnt in het **Voorkeuren**-paneel een suggestie om het als vaste context toe te
-voegen; de begeleider kan **accepteren, aanpassen of weigeren**.
-
-```bash
-# Voorkeuren van een gebruiker bekijken (ADMIN/gekoppelde CAREGIVER):
-curl -sb cookies.txt http://127.0.0.1:3000/users/<id>/preferences
-# Een openstaande suggestie overnemen als persoonlijke context:
-curl -sb cookies.txt -X POST http://127.0.0.1:3000/users/<id>/preferences/<prefId>/suggestion \
-  -H 'content-type: application/json' -d '{"action":"accept"}'
-```
-
-Zie [docs/api.md](docs/api.md) en [docs/data-model.md](docs/data-model.md).
-
 ## Profielexport en -import (T8.1)
 
-Het communicatieprofiel is **eigendom van de gebruiker** en draagbaar (DESIGN §6.4, FR-019). Een beheerder
-exporteert het profiel (instellingen + persoonlijke context + voorkeuren, **zonder** account-/organisatie-
-gegevens) als **versleuteld** bestand en importeert het elders als nieuwe gebruiker. Het bestand is
+Het communicatieprofiel is **eigendom van de gebruiker** en draagbaar (INTENTO-NEW-DESIGN §1). Een beheerder
+exporteert het profiel (de instellingen, **zonder** account-/organisatiegegevens) als **versleuteld** bestand en importeert het elders als nieuwe gebruiker. Het bestand is
 onleesbaar zonder de omgevingssleutel (`ENCRYPTION_KEY`); import in een andere deployment vereist daarom
 dezelfde sleutel. Beide acties zijn **ADMIN-only** en tenant-gebonden.
 
@@ -596,7 +405,7 @@ Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 
 Gevoelige acties laten een **onveranderlijk spoor** na (DESIGN §9.4): login (geslaagd én mislukt), logout,
 registratie, e-mailverificatie, wachtwoordwijziging, begeleider-accounts, gebruikersbeheer + instellingen, begeleider-koppelingen, koppelcodes,
-persoonlijke context, profielexport/-import, worker-tokens, conceptvoorstellen en platform-operatoracties (T8.3). Het spoor bevat **geen
+profielexport/-import en platform-operatoracties (T8.3). Het spoor bevat **geen
 communicatie-inhoud of vrije-tekst-PII** — alleen wie-wat-wanneer. Inzage via `GET /admin/audit-logs`
 (ADMIN, tenant-gefilterd op de eigen organisatie) en de beheerpagina **Audit-log**. Zie
 [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
@@ -649,25 +458,22 @@ Zie [docs/api.md](docs/api.md) en [docs/security.md](docs/security.md).
 De web-applicatie heeft één schil om alle ingelogde pagina's:
 
 - **Zijbalk met menu** — de bestemmingen staan gegroepeerd naar wat je komt doen: *Overzicht*,
-  *Communicatie* (Begeleiden, Gesprekken), *Organisatie* (Gebruikers, AAC-bibliotheek,
-  Conceptvoorstellen), *Platform* (Worker-tokens, AI-activiteit, Audit-log) en *Account*. Een
-  **begeleider** ziet een kort menu: Begeleiden en Mijn account. Op een smal scherm (tablet staand)
+  *Organisatie* (Gebruikers), *Platform* (Audit-log) en *Account*. De nieuwe beheerschermen uit
+  INTENTO-NEW-DESIGN §49 komen er per taak bij. Een **begeleider** ziet een kort menu: Mijn account. Op een smal scherm (tablet staand)
   schuift de zijbalk weg achter een menuknop.
 - **Kopbalk** — de paginatitel met één regel uitleg, en rechts wie je bent (naam, rol) met de
-  uitlogknop. Pagina's die op de AI wachten tonen daar ook de AI-indicator.
+  uitlogknop.
 - **Voordeurschermen** — inloggen, aanmelden, e-mailadres bevestigen en het koppelen van een tablet
   delen één gecentreerde kaart met het logo erboven.
 - **Overzicht → detail** (T17.2/T17.3) — schermen met veel inhoud werken in twee stappen. Je ziet
-  eerst een **lijst over de volle breedte** (gebruikers als regels met hun profiel erbij, AAC-symbolen
-  als tegels met hun pictogram); daar één item openen geeft dat item een **eigen scherm** met alles
+  eerst een **lijst over de volle breedte** (gebruikers als regels met hun profiel erbij); daar één item openen geeft dat item een **eigen scherm** met alles
   bij elkaar. Toevoegen, importeren en aanmaken zitten achter een knop met een dialoog, zodat het
   overzicht een overzicht blijft.
 - **Onderdelen per detailscherm** (T17.4) — het scherm van één gebruiker heeft bovenaan een
-  keuzebalk: Instellingen · Begeleiders · Persoonlijke context · Voorkeuren · Tablet · Profiel &
-  verwijderen. Eén onderdeel tegelijk, over een leesbare breedte. Verwijderen zit onder het laatste
+  keuzebalk: Instellingen · Begeleiders · Tablet · Profiel & verwijderen. Eén onderdeel tegelijk, over een leesbare breedte. Verwijderen zit onder het laatste
   onderdeel, apart en met uitleg over wat er weggaat.
 - **Tablet** — de gebruikersapp heeft een vaste, rustige kopbalk: linksboven het beeldmerk met
-  "Intento", rechtsboven de naam van de gebruiker en de AI-indicator. Bewust klein: het keuzescherm
+  "Intento", rechtsboven de naam van de gebruiker. Bewust klein: het keuzescherm
   eronder moet de aandacht houden.
 
 De kleuren komen uit het logo (donkerblauw, turkoois, blauw, paars, oranje) en staan als
@@ -686,19 +492,6 @@ cd web/brand && python3 generate-assets.py     # vereist Pillow (python3-pil)
 
 De paden staan in de code op één plek (`BRAND_ASSETS` in `web/src/Brand.tsx`); een test controleert
 dat elk pad — ook die uit `index.html` — echt bestaat.
-
-## MVP — Definition of Done (DESIGN §10.3)
-
-Alle zes MVP-criteria zijn afgevinkt met bewijs in code + tests:
-
-| Criterium | Bewijs |
-|---|---|
-| ✅ Gebruiker maakt zelfstandig een boodschap | Gescripte + AI-gestuurde gespreksflow (T4.1–T4.3, T5.1–T5.3); `conversation*.test.ts`, tablet-UI `TabletApp.tsx`. |
-| ✅ AI stelt passende pictogramkeuzes voor | AI-orchestrator + validatielaag + confidence-drempels (T5.1/T5.2); `ai/*.test.ts` — onbekend concept bereikt de gebruiker nooit. |
-| ✅ Gebruiker corrigeert fouten | Correctieflow (T5.4); `conversation-correction.test.ts` — gerichte hervraag, afgewezen route niet herhaald. |
-| ✅ Begeleider ondersteunt | Vraagmodus + ondersteuningsmodus (T7.1/T7.2); server dwingt af dat bevestigen nooit vanuit een begeleiderssessie kan (`question.test.ts`, `/confirm` → 403). |
-| ✅ Persoonlijke context wordt gebruikt | Versleutelde context + AI-inputfilter (T6.1/T6.2); alleen `aiUsageAllowed=true` in de prompt (`personal-context.test.ts`). |
-| ✅ Gegevens veilig opgeslagen | argon2id + gehashte tokens, AES-256-GCM voor gevoelige velden, multi-tenant-isolatie, audit-logging (T8.2), `/security-review` zonder open bevindingen. |
 
 ## Kwaliteit (moet groen zijn — zie Definition of Done in CLAUDE.md)
 

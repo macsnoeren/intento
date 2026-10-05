@@ -6,28 +6,8 @@ import { AppShell } from './AppShell.tsx';
 
 /**
  * Beheeromgeving — dashboard. Een beknopt overzicht van de **eigen organisatie**: aantal gebruikers
- * (totaal/actief), begeleiders en recente gespreksactiviteit. Bewust **zonder communicatie-inhoud**:
- * alleen wie/wanneer/status en het aantal bevestigde boodschappen.
+ * (totaal/actief) en begeleiders.
  */
-
-function statusLabel(status: DashboardResponse['recentActivity'][number]['status']): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Actief';
-    case 'COMPLETED':
-      return 'Afgerond';
-    case 'ABANDONED':
-      return 'Afgebroken';
-  }
-}
-
-function modeLabel(mode: string): string {
-  return mode === 'question' ? 'Begeleidersvraag' : 'Vrij gesprek';
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleString('nl-NL');
-}
 
 export function DashboardPage({
   api,
@@ -88,26 +68,6 @@ export function DashboardPage({
               <span className="stat-tile__value">{data.caregivers.total}</span>
               <span className="stat-tile__label">Begeleiders</span>
             </div>
-          </section>
-
-          <section className="panel" aria-label="Recente activiteit">
-            <h2 className="panel__subtitle">Recente activiteit</h2>
-            {data.recentActivity.length === 0 ? (
-              <p className="muted">Nog geen gesprekken.</p>
-            ) : (
-              <ul className="activity-list">
-                {data.recentActivity.map((item) => (
-                  <li key={item.sessionId} className="activity-list__item">
-                    <span className="activity-list__user">{item.userName}</span>
-                    <span className="muted">{modeLabel(item.mode)}</span>
-                    <span className="badge">{statusLabel(item.status)}</span>
-                    <span className="muted">
-                      {item.messageCount} bevestigd · {formatDate(item.startedAt)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
           </section>
         </>
       ) : null}

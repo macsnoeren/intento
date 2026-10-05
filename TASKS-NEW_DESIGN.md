@@ -43,7 +43,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   hun menu-items. In het instellingenformulier blijven alleen `showText`, voorlezen en stem staan.
   *Acceptatie:* web-tests aangepast en groen; het menu toont per rol alleen bestaande pagina's (test).
 
-- [ ] **N0.4 Server: de oude gespreks- en AI-code eruit**
+- [x] **N0.4 Server: de oude gespreks- en AI-code eruit**
   *ONTWERP: §55.* Weg: `server/src/conversation/`, `server/src/ai/`, de routes `conversation*`,
   `question`, `messages`, `concept-proposals`, `preferences`, `personal-context`, `ai-worker`,
   `worker-tokens`, `ai-status`, `conversation-history`, `aac`, plus `mail/caregiver-notification.ts`. De

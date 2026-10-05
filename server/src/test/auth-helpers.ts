@@ -19,18 +19,10 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
   });
 }
 
-/** Verwijdert alle auth-/gebruikersdata (AI-jobs/worker-tokens → gesprekken → koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
+/** Verwijdert alle auth-/gebruikersdata (koppelingen/apparaten → tokens → sessies → accounts → profielen → gebruikers → organisaties). */
 export async function resetAuthData(): Promise<void> {
   // Audit-log (T8.2) staat los van de tenant-boom (geen FK's); apart legen zodat tests schoon starten.
   await prisma.auditLog.deleteMany();
-  // AI-wachtrij eerst: AiJob verwijst (SetNull) naar WorkerToken; beide staan los van de tenant-boom.
-  await prisma.aiJob.deleteMany();
-  await prisma.workerToken.deleteMany();
-  await prisma.correctionEvent.deleteMany();
-  await prisma.conversationStep.deleteMany();
-  await prisma.conversationSession.deleteMany();
-  await prisma.personalContext.deleteMany();
-  await prisma.preference.deleteMany();
   await prisma.deviceLinkCode.deleteMany();
   await prisma.device.deleteMany();
   await prisma.caregiverAssignment.deleteMany();

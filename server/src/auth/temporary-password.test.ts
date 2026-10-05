@@ -92,11 +92,11 @@ describe('tijdelijk wachtwoord — markering en gate', () => {
   it('blokkeert alle overige acties met 403 PASSWORD_CHANGE_REQUIRED', async () => {
     const { caregiverCookie } = await createCaregiverAndLogin();
 
-    // Een route die deze rol normaal gesproken wél mag (vraagmodus, T7.1): de weigering komt dus
-    // van de gate en niet van de rolcontrole.
+    // Een route die deze rol normaal gesproken wél mag (een gebruiker bekijken): de weigering komt
+    // dus van de gate en niet van de rolcontrole of het bestaan van de gebruiker.
     const res = await app.inject({
       method: 'GET',
-      url: '/question/users',
+      url: '/users/onbekende-gebruiker',
       headers: { cookie: caregiverCookie },
     });
     expect(res.statusCode).toBe(403);
@@ -138,13 +138,15 @@ describe('tijdelijk wachtwoord — markering en gate', () => {
     });
     expect(authResponseSchema.parse(me.json()).account.mustChangePassword).toBe(false);
 
-    // En de eerder geblokkeerde route mag weer — dezelfde sessie, geen nieuwe login nodig.
+    // En de eerder geblokkeerde route mag weer — dezelfde sessie, geen nieuwe login nodig. De
+    // gebruiker is niet aan deze begeleider gekoppeld, dus nu antwoordt de route zelf in plaats van
+    // de gate.
     const after = await app.inject({
       method: 'GET',
-      url: '/question/users',
+      url: '/users/onbekende-gebruiker',
       headers: { cookie: caregiverCookie },
     });
-    expect(after.statusCode).toBe(200);
+    expect(after.json()).not.toMatchObject({ error: { code: 'PASSWORD_CHANGE_REQUIRED' } });
   });
 
   it('markeert een zelf gekozen wachtwoord niet en zet die accounts dus niet achter de gate', async () => {
