@@ -41,9 +41,7 @@ ophalen, het geheim, en wat te doen als beluisteren niet lukt — staat in
 [`speech-service/README.md`](speech-service/README.md).
 
 Wijzigt een begeleider de stem (of een andere instelling) terwijl de tablet openstaat, dan pakt de tablet
-dat op bij het **volgende gesprek** ("Opnieuw beginnen") of zodra hij weer op de voorgrond komt — niet
-midden in een lopend gesprek, want halverwege van stem of schermindeling wisselen is verwarrender dan
-afmaken waar je aan begon.
+dat op zodra hij weer op de voorgrond komt.
 
 Buiten de npm-workspaces staat [`ai-worker/`](ai-worker/): een **losstaande Python-applicatie** (T5.6) die
 als externe Ollama-worker AI-jobs van de backend-wachtrij verwerkt. Het is bewust geen npm-workspace — het
@@ -397,52 +395,20 @@ curl -sb cookies.txt -X POST http://127.0.0.1:3000/admin/aac/symbols \
 curl -sb cookies.txt "http://127.0.0.1:3000/admin/aac/opensymbols/search?q=dog"
 ```
 
-## Gespreksflow op de tablet (T4.1 backend, T4.2 UI)
+## De tablet
 
-De **gebruikersapp op de tablet** is de derde interface (naast beheer- en begeleiderinterface) en
-draait op de `/tablet`-URL: `npm run dev:web`, open <http://localhost:5173/tablet>. Ze werkt op het
-apparaat-token uit de tabletkoppeling (hierboven) — geen dagelijkse login. Is het apparaat nog niet
-gekoppeld, dan toont de app een koppelscherm dat een koppelcode inwisselt; daarna start ze direct in
-de gespreksflow.
+De **gebruikersapp op de tablet** draait op de `/tablet`-URL: `npm run dev:web`, open
+<http://localhost:5173/tablet>. Ze werkt op het apparaat-token uit de tabletkoppeling (hierboven) —
+geen dagelijkse login. Is het apparaat nog niet gekoppeld, dan toont de app een koppelscherm dat een
+koppelcode inwisselt.
 
-De flow zelf (DESIGN §3.1) draait op de **gescripte engine** (T4.1): een **startscherm** met de
-intentievraag ("Wat wil je duidelijk maken?") en de categorieën, gevolgd door **keuzeschermen** met
-telkens één vraag en grote pictogramopties. Het communicatieprofiel van de gebruiker stuurt de UI:
-het aantal opties is begrensd tot `iconsPerScreen` (2/4/6/8) en tekstlabels verschijnen alleen bij
-`showText`. Er is altijd een `↩ Terug`-knop (herstelt de vorige opties exact) en — als
-`contextIndicator` in het profiel aanstaat (T2.4, per gebruiker) — een contextindicator die het
-afgelegde pad toont. Het voorstellen en bevestigen van de uiteindelijke boodschap volgt in T4.3.
+De gespreksflow wordt herbouwd (INTENTO-NEW-DESIGN §48, ADR-0017). Tot die er is, toont een
+gekoppelde tablet een rustig scherm **"Nog niet beschikbaar"**.
 
-> **Effecten en `<StrictMode>` (T8.5).** De app draait in dev onder `<StrictMode>` (`main.tsx`), dat
-> elk component bewust dubbel mount (mount → unmount → remount) om onveilige effecten zichtbaar te
-> maken. Een "ben ik nog gemount?"-vlag moet daarom in de **effectbody** weer op `true` — zet je hem
-> alleen bij de declaratie, dan blijft hij na de gesimuleerde unmount `false` en worden alle latere
-> `setState`-aanroepen stil overgeslagen (het scherm bleef zo hangen op "Laden…"). Gebruik bij
-> voorkeur het `let active = true`-patroon binnen het effect zelf; een ref alleen wanneer de guard
-> gedeeld wordt met event-handlers, zoals in `ConversationScreen`. Let op: tests die zonder
-> StrictMode renderen zien dit soort fouten niet — `TabletApp.test.tsx` heeft er daarom expliciet
-> twee die dat wél doen.
-
-De backend-endpoints (apparaat-auth, elke sessie automatisch gebruiker-geïsoleerd):
-
-```bash
-# 1) Gesprek starten → eerste vraag (intentie-categorieën):
-curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/start
-# 2) Keuze insturen → volgende vraag + opties (of done):
-curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/next \
-  -H 'content-type: application/json' -d '{"symbolId":"<optie-id>"}'
-# 3) Laatste keuze ongedaan maken → vorige vraag/opties exact hersteld:
-curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/back
-# 4) Voorstel afwijzen (❌) → gerichte hervraag op de vermoedelijke foutstap (T5.4):
-curl -sb device.txt -X POST http://127.0.0.1:3000/conversation/<sessie-id>/correction \
-  -H 'content-type: application/json' -d '{"type":"wrong_guess"}'
-```
-
-Bij een correctie gaat de flow **niet** terug naar het begin: de server doet eerst een **verfijnronde**
-(de route blijft staan, de AI draagt preciezere concepten aan) en rolt pas bij een tweede ❌ één stap
-terug (de laatste keuze). Dan legt hij het afgewezen concept vast als
-`CorrectionEvent` en biedt die route de rest van de sessie niet opnieuw aan (DESIGN §3.4, §7.5, FR-009).
-Er wordt niets geleerd of opgeslagen.
+> **Effecten en `<StrictMode>`.** De app draait in dev onder `<StrictMode>` (`main.tsx`), dat elk
+> component bewust dubbel mount (mount → unmount → remount). Een "ben ik nog gemount?"-vlag moet daarom
+> in de **effectbody** weer op `true` — zet je hem alleen bij de declaratie, dan blijft hij na de
+> gesimuleerde unmount `false` en worden alle latere `setState`-aanroepen stil overgeslagen.
 
 ## Vraagmodus — begeleider stelt een vraag (T7.1)
 

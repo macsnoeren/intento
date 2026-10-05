@@ -113,18 +113,11 @@ server niet uit elkaar lopen.
 De web-app bundelt de drie interfaces uit DESIGN §5.2, gescheiden op de URL en op
 authenticatiepijler:
 
-- **Gebruikersapp (tablet)** — `/tablet`, `TabletApp.tsx`, op **device-auth** (aparte cookie,
-  T2.3). Kent via de `DeviceApi` alléén eigen-gebruiker-endpoints (`/device/me`, `/devices/link`,
-  `/conversation/*`) — nooit beheer- of accountroutes. Rendert de gescripte gespreksflow (T4.1):
-  startscherm + keuzeschermen, begrensd door het communicatieprofiel (`iconsPerScreen`, `showText`),
-  met `↩ Terug` en een contextindicator die per gebruiker aan/uit kan (`contextIndicator`, T2.4). Bij
-  een eindconcept volgt het **voorstelscherm** (T4.3): de gegenereerde zin + pictogramreeks met
-  ✅ Ja / ❌ Nee — bevestigen slaat de boodschap op en rondt de sessie af, ❌ gaat terug naar de vraag.
-  Sinds T18.3 **leest de tablet voor** wat er op het scherm staat — de vraag, het voorstel en de
-  bevestigde boodschap, letterlijk en ongewijzigd — als `speechEnabled` aanstaat, met een "🔊 Nog eens"-knop
-  erbij. De spraaklaag (`speech.ts`) haalt audio bij de backend op en valt terug op `speechSynthesis` van
-  het apparaat; de keuze "Stem van het apparaat" gebruikt die weg meteen. Af en toe volgt er ná de vraag
-  een gesproken zetje over de **bediening** (`speech-hints.ts`, T18.4) — nooit over de inhoud.
+- **Gebruikersapp (tablet)** — `/tablet`, `TabletApp.tsx`, op **device-auth** (aparte cookie).
+  Kent via de `DeviceApi` alléén eigen-gebruiker-endpoints (`/device/me`, `/devices/link`,
+  `/device/speech`) — nooit beheer- of accountroutes. De gespreksflow wordt herbouwd (ADR-0017); tot
+  dan toont een gekoppelde tablet "Nog niet beschikbaar". De spraaklaag (`speech.ts`) blijft: hij
+  haalt audio bij de backend op en valt terug op `speechSynthesis` van het apparaat.
 - **Beheeromgeving** — overige paden, `App.tsx`, op **account-auth** (`/auth/*`, ADMIN/CAREGIVER).
   De pagina **Begeleiden** draagt sinds T13.1 ook de **berichtenlijst** (`routes/messages.ts`): elke
   boodschap die een gekoppelde gebruiker bevestigde, nieuwste eerst met tijdstip. Bewust op dát scherm,

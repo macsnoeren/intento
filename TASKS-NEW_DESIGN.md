@@ -31,7 +31,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* `rg "DESIGN\.md|TASKS\.md|TEST-FEEDBACK" README.md docs/` vindt niets meer; `npm run
   format:check` groen.
 
-- [ ] **N0.2 Tablet: de oude gespreksflow eruit**
+- [x] **N0.2 Tablet: de oude gespreksflow eruit**
   *ONTWERP: §48, §55.* `TabletApp.tsx` houdt alleen het koppelen; na het koppelen een rustig scherm "Nog
   niet beschikbaar". Weg: keuzescherm, voorstelscherm, correctie, contextindicator, gok-tegel,
   `speech-hints.ts`. `speech.ts` blijft (wordt in N4.12 hergebruikt).

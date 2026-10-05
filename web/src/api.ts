@@ -23,9 +23,6 @@ import {
   conceptProposalListResponseSchema,
   dashboardResponseSchema,
   profileExportResponseSchema,
-  conversationConfirmResponseSchema,
-  conversationGenerateResponseSchema,
-  conversationStateResponseSchema,
   createCaregiverResponseSchema,
   createWorkerTokenResponseSchema,
   deviceCodeResponseSchema,
@@ -34,7 +31,6 @@ import {
   operatorOrganizationDetailSchema,
   operatorOrganizationListResponseSchema,
   operatorOrganizationSchema,
-  pendingQuestionResponseSchema,
   personalContextListResponseSchema,
   personalContextPublicSchema,
   preferenceListResponseSchema,
@@ -74,11 +70,7 @@ import {
   type CaregiverListResponse,
   type ConceptProposal,
   type ConceptProposalListResponse,
-  type ConversationConfirmResponse,
-  type ConversationCorrectionType,
   type DashboardResponse,
-  type ConversationGenerateResponse,
-  type ConversationStateResponse,
   type CreateUserRequest,
   type CreateWorkerTokenRequest,
   type CreateWorkerTokenResponse,
@@ -89,7 +81,6 @@ import {
   type OperatorOrganization,
   type OperatorOrganizationDetail,
   type OperatorOrganizationListResponse,
-  type PendingQuestionResponse,
   type PersonalContextInput,
   type PersonalContextListResponse,
   type PersonalContextPublic,
@@ -139,18 +130,6 @@ export class ApiRequestError extends Error {
     super(message);
     this.name = 'ApiRequestError';
   }
-}
-
-/**
- * Herkent de "even wachten"-503's van de gedistribueerde AI-wachtrij (T5.7, ADR-0010): alle
- * workers bezet (`AI_WORKER_BUSY`) of tijdelijk geen worker beschikbaar (`AI_WORKER_UNAVAILABLE`).
- * De tablet-UI toont dan geen fout maar een rustige wachtstand en polt automatisch opnieuw.
- */
-export function isAiWaitingError(err: unknown): err is ApiRequestError {
-  return (
-    err instanceof ApiRequestError &&
-    (err.code === 'AI_WORKER_BUSY' || err.code === 'AI_WORKER_UNAVAILABLE')
-  );
 }
 
 export interface Api {
@@ -307,41 +286,6 @@ export interface DeviceApi {
   deviceMe(): Promise<DeviceSessionResponse>;
   /** Koppelcode inwisselen voor een apparaat-token (cookie) en de sessie teruggeven. */
   linkDevice(code: string): Promise<DeviceSessionResponse>;
-  /** Nieuw gesprek starten; geeft de startvraag (intentie-categorieën) terug. */
-  startConversation(): Promise<ConversationStateResponse>;
-  /** Keuze insturen → volgende vraag + opties (of `done`). */
-  conversationNext(sessionId: string, symbolId: string): Promise<ConversationStateResponse>;
-  /** Laatste keuze ongedaan maken; herstelt de vorige vraag/opties exact. */
-  conversationBack(sessionId: string): Promise<ConversationStateResponse>;
-  /**
-   * "Dit klopt niet" (T5.4/T9.12). `wrong_guess` (standaard) wijst het **voorstel** af: precies één stap
-   * terug (de laatste keuze) en een nieuwe vraag op dat punt. `no_fitting_option` betekent dat het juiste
-   * pictogram niet tussen de aangeboden opties staat: dit punt wordt overgeslagen en het gesprek gaat
-   * met andere opties verder, zonder een gemaakte keuze terug te rollen.
-   */
-  conversationCorrection(
-    sessionId: string,
-    type?: ConversationCorrectionType,
-  ): Promise<ConversationStateResponse>;
-  /**
-   * "Dit is genoeg" (T10.11): de route zegt al genoeg — ga naar het voorstelscherm zonder nog een
-   * verfijnvraag. Alleen zinvol wanneer de toestand `canFinish` meldt.
-   */
-  conversationEnough(sessionId: string): Promise<ConversationStateResponse>;
-  /** Boodschap laten voorstellen uit de gekozen concepten (sjabloon-zin + confidence; slaat niets op). */
-  conversationGenerate(sessionId: string): Promise<ConversationGenerateResponse>;
-  /** Boodschap bevestigen → sessie afronden en de boodschap opslaan. */
-  conversationConfirm(sessionId: string): Promise<ConversationConfirmResponse>;
-  /**
-   * Openstaande begeleidersvraag ophalen (vraagmodus, T7.1). Geeft de gesprekstoestand van een
-   * klaarstaande vraag terug, of `null` als er geen is — dan start de tablet een vrij gesprek.
-   */
-  getPendingQuestion(): Promise<PendingQuestionResponse>;
-  /**
-   * Draait er een echte AI mee (T9.4)? De tablet toont het als een klein lampje, zodat gebruiker en
-   * begeleider zien dát er een AI meedenkt — of juist niet.
-   */
-  getAiStatus(): Promise<AiStatusResponse>;
   /**
    * Laat de tekst op het scherm uitspreken (T18.3). De **stem** komt uit het profiel van de gebruiker
    * achter de apparaatsessie; de tablet stuurt alleen de tekst mee. Werkt de spraakdienst niet, dan
@@ -764,49 +708,5 @@ export const httpApi: Api & DeviceApi = {
     return deviceSessionResponseSchema.parse(
       await request('/devices/link', { method: 'POST', body: JSON.stringify({ code }) }),
     );
-  },
-  async startConversation() {
-    return conversationStateResponseSchema.parse(
-      await request('/conversation/start', { method: 'POST', body: '{}' }),
-    );
-  },
-  async conversationNext(sessionId, symbolId) {
-    return conversationStateResponseSchema.parse(
-      await request(`/conversation/${sessionId}/next`, {
-        method: 'POST',
-        body: JSON.stringify({ symbolId }),
-      }),
-    );
-  },
-  async conversationBack(sessionId) {
-    return conversationStateResponseSchema.parse(
-      await request(`/conversation/${sessionId}/back`, { method: 'POST', body: '{}' }),
-    );
-  },
-  async conversationCorrection(sessionId, type = 'wrong_guess') {
-    return conversationStateResponseSchema.parse(
-      await request(`/conversation/${sessionId}/correction`, {
-        method: 'POST',
-        body: JSON.stringify({ type }),
-      }),
-    );
-  },
-  async conversationEnough(sessionId) {
-    return conversationStateResponseSchema.parse(
-      await request(`/conversation/${sessionId}/enough`, { method: 'POST', body: '{}' }),
-    );
-  },
-  async conversationGenerate(sessionId) {
-    return conversationGenerateResponseSchema.parse(
-      await request(`/conversation/${sessionId}/generate`, { method: 'POST', body: '{}' }),
-    );
-  },
-  async conversationConfirm(sessionId) {
-    return conversationConfirmResponseSchema.parse(
-      await request(`/conversation/${sessionId}/confirm`, { method: 'POST', body: '{}' }),
-    );
-  },
-  async getPendingQuestion() {
-    return pendingQuestionResponseSchema.parse(await request('/conversation/pending'));
   },
 };

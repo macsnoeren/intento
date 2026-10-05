@@ -20,6 +20,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
   daarmee vervangen.
 - `npm audit` weer op 0: fastify 5.12.5 en nodemailer 10.
 
+### N0.2 — tablet: de oude gespreksflow eruit
+
+- `TabletApp.tsx` houdt alleen het koppelen; een gekoppelde tablet toont een rustig scherm "Nog niet
+  beschikbaar". Keuzescherm, voorstelscherm, correctie, contextindicator, gok-tegel, wachtstand voor de
+  AI-wachtrij en de gesproken bedieningszetjes (`speech-hints.ts`) zijn weg.
+- `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
+  voorlezen in de nieuwe flow.
+
 ## [Unreleased] — vóór de herbouw
 
 ### Toegevoegd — een verse installatie zonder seed in gebruik nemen
