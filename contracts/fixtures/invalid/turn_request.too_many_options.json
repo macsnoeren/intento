@@ -1,0 +1,56 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "turn": 0,
+  "event": {
+    "type": "start"
+  },
+  "state": null,
+  "settings": {
+    "interaction_mode": "binary",
+    "options_per_screen": 9,
+    "question_strategy": "general_to_specific",
+    "max_questions": 15,
+    "experience_enabled": true
+  },
+  "vocabulary": [
+    {
+      "id": "v-pain",
+      "labels": ["pijn"],
+      "concepts": ["pain"],
+      "contexts": ["health"],
+      "part_of_speech": "noun",
+      "is_start": true,
+      "sort_order": 1
+    },
+    {
+      "id": "v-eat",
+      "labels": ["eten"],
+      "concepts": ["eat"],
+      "contexts": ["food_drink"],
+      "part_of_speech": "verb",
+      "is_start": true,
+      "sort_order": 2
+    },
+    {
+      "id": "v-head",
+      "labels": ["hoofd"],
+      "concepts": ["head"],
+      "contexts": ["body"],
+      "part_of_speech": "noun",
+      "is_start": false,
+      "sort_order": 10
+    },
+    {
+      "id": "v-sick",
+      "labels": ["ziek", "misselijk"],
+      "concepts": ["sick"],
+      "contexts": ["health"],
+      "part_of_speech": "adjective",
+      "is_start": false,
+      "sort_order": 11
+    }
+  ],
+  "contacts": [],
+  "experience": null
+}

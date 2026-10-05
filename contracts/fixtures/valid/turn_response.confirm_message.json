@@ -1,0 +1,107 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "turn": 1,
+  "state": {
+    "session_id": "s-1",
+    "phase": "confirm_message",
+    "turn": 1,
+    "interaction_mode": "binary",
+    "mode_since_turn": 0,
+    "current_intent": {
+      "concept": "pain",
+      "label": "pijn",
+      "confidence": 0.3
+    },
+    "intent_hypotheses": [
+      {
+        "concept": "pain",
+        "label": "pijn",
+        "confidence": 0.3
+      },
+      {
+        "concept": "eat",
+        "label": "eten",
+        "confidence": 0.2
+      }
+    ],
+    "questions_asked": [
+      {
+        "turn": 0,
+        "concept": "pain",
+        "text": "Heb je pijn?"
+      }
+    ],
+    "answers": [
+      {
+        "turn": 0,
+        "answer": "yes",
+        "concepts": ["pain"],
+        "option_ref": "v-pain"
+      }
+    ],
+    "rejected_concepts": [],
+    "uncertainties": [],
+    "assumptions": [],
+    "proposal": {
+      "message": "Ik heb pijn.",
+      "concepts": ["pain"],
+      "confidence": 0.9
+    },
+    "communication_intent": null,
+    "share": {
+      "contacts_asked": [],
+      "selected_contact": null,
+      "sent_to": []
+    },
+    "last_presentation": {
+      "kind": "confirm_message",
+      "mode": "binary",
+      "text": "Bedoel je: Ik heb pijn?",
+      "options": [
+        {
+          "ref": "v-pain",
+          "kind": "symbol",
+          "vocabulary_item_id": "v-pain",
+          "contact_id": null,
+          "label": "pijn",
+          "concept": "pain",
+          "representation": "exact",
+          "position": 0
+        }
+      ],
+      "message": "Ik heb pijn."
+    }
+  },
+  "presentation": {
+    "kind": "confirm_message",
+    "mode": "binary",
+    "text": "Bedoel je: Ik heb pijn?",
+    "options": [
+      {
+        "ref": "v-pain",
+        "kind": "symbol",
+        "vocabulary_item_id": "v-pain",
+        "contact_id": null,
+        "label": "pijn",
+        "concept": "pain",
+        "representation": "exact",
+        "position": 0
+      }
+    ],
+    "message": "Ik heb pijn."
+  },
+  "inferences": [],
+  "decisions": [
+    {
+      "agent": "intent-agent",
+      "status": "success",
+      "model": "gemma3:4b",
+      "prompt_version": "intent-v1",
+      "latency_ms": 1200,
+      "validation": "valid",
+      "reason": null
+    }
+  ],
+  "gaps": []
+}

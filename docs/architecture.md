@@ -52,7 +52,8 @@ server niet uit elkaar lopen.
   de tablet praat nooit rechtstreeks met de spraakdienst, net zomin als met de AI.
 - `agent-service/` — de **agentdienst** (Python, ADR-0017): `config.py` (gevalideerde env, verplicht
   `SERVICE_TOKEN`), `auth.py` (API-key, constante-tijdvergelijking), `server.py` (stdlib-HTTP-server).
-  Nu alleen `GET /health`; de orchestrator en `/v1/turn` volgen in fase N1.
+  `contracts.py` bevat de contracten v1 (pydantic); ze worden samen met de zod-kant getest tegen
+  `contracts/fixtures/`. Nu alleen `GET /health`; de orchestrator en `/v1/turn` volgen in fase N1.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client
   (`opensymbols.ts`), die bij het importeren uit een externe bron wordt hergebruikt. Zie
   [adr/0015](adr/0015-speech-synthesis-piper.md).

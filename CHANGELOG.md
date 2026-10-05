@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.3 — contracten v1 in pydantic
+
+- `agent_service/contracts.py`: `TurnRequest`, `TurnResponse`, `SessionState`, `Event` (start, answer_yes,
+  answer_no, select_option, none_of_these), `Settings`, `VocabularyEntry`, `ContactEntry`,
+  `ExperienceSummary`, `Presentation` + `Option` (`representation: exact|stand_in`), `Inference`,
+  `AgentDecision`, `Gap`; allemaal met `contract_version: 1` aan de buitenkant.
+- Onbekende velden zijn een fout (`extra="forbid"`): zo heeft het contract geen plek voor schrijfacties
+  op de Vocabulary of contacten (invariant I8), en een contact heeft nooit een e-mailveld (V6).
+- Voorbeeldbestanden in `contracts/fixtures/valid` en `invalid`; unittests eisen dat elk geldig
+  voorbeeld geaccepteerd wordt (en een rondgang overleeft) en elk ongeldig voorbeeld geweigerd.
+
 ### N1.2 — Python-kwaliteit in de Definition of Done
 
 - `pydantic` (2.13.5) is een dependency van de agentdienst; mypy draait in strict-modus over

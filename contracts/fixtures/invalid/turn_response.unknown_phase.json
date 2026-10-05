@@ -1,0 +1,110 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "turn": 0,
+  "state": {
+    "session_id": "s-1",
+    "phase": "sending",
+    "turn": 0,
+    "interaction_mode": "binary",
+    "mode_since_turn": 0,
+    "current_intent": {
+      "concept": "pain",
+      "label": "pijn",
+      "confidence": 0.3
+    },
+    "intent_hypotheses": [
+      {
+        "concept": "pain",
+        "label": "pijn",
+        "confidence": 0.3
+      },
+      {
+        "concept": "eat",
+        "label": "eten",
+        "confidence": 0.2
+      }
+    ],
+    "questions_asked": [
+      {
+        "turn": 0,
+        "concept": "pain",
+        "text": "Heb je pijn?"
+      }
+    ],
+    "answers": [],
+    "rejected_concepts": [],
+    "uncertainties": [],
+    "assumptions": [],
+    "proposal": null,
+    "communication_intent": null,
+    "share": {
+      "contacts_asked": [],
+      "selected_contact": null,
+      "sent_to": []
+    },
+    "last_presentation": {
+      "kind": "question",
+      "mode": "binary",
+      "text": "Heb je pijn?",
+      "options": [
+        {
+          "ref": "v-pain",
+          "kind": "symbol",
+          "vocabulary_item_id": "v-pain",
+          "contact_id": null,
+          "label": "pijn",
+          "concept": "pain",
+          "representation": "exact",
+          "position": 0
+        }
+      ],
+      "message": null
+    }
+  },
+  "presentation": {
+    "kind": "question",
+    "mode": "binary",
+    "text": "Heb je pijn?",
+    "options": [
+      {
+        "ref": "v-pain",
+        "kind": "symbol",
+        "vocabulary_item_id": "v-pain",
+        "contact_id": null,
+        "label": "pijn",
+        "concept": "pain",
+        "representation": "exact",
+        "position": 0
+      }
+    ],
+    "message": null
+  },
+  "inferences": [
+    {
+      "agent": "intent-agent",
+      "kind": "intent_hypotheses",
+      "payload": {
+        "hypotheses": [
+          {
+            "concept": "pain",
+            "confidence": 0.3
+          }
+        ]
+      },
+      "confidence": 0.3
+    }
+  ],
+  "decisions": [
+    {
+      "agent": "question-agent",
+      "status": "fallback",
+      "model": null,
+      "prompt_version": null,
+      "latency_ms": 0,
+      "validation": "valid",
+      "reason": "regelgebaseerd"
+    }
+  ],
+  "gaps": []
+}

@@ -92,7 +92,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* beide scripts draaien groen; een opzettelijke typefout laat `check:python` falen
   (handmatig gecontroleerd en teruggedraaid).
 
-- [ ] **N1.3 Contracten v1 in pydantic**
+- [x] **N1.3 Contracten v1 in pydantic**
   *ONTWERP: §5, §34, §51.* Modellen: `SessionState`, `Event` (start, answer_yes, answer_no,
   select_option, none_of_these), `Settings`, `VocabularyEntry`, `ContactEntry`, `TurnRequest`,
   `Presentation` + `Option` (met `representation: exact|stand_in`), `Inference`, `AgentDecision`, `Gap`,

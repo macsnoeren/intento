@@ -1,0 +1,19 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "turn": 0,
+  "event": {
+    "type": "start"
+  },
+  "state": null,
+  "settings": {
+    "interaction_mode": "binary",
+    "options_per_screen": 4,
+    "question_strategy": "general_to_specific",
+    "max_questions": 15,
+    "experience_enabled": true
+  },
+  "vocabulary": [],
+  "contacts": [],
+  "experience": null
+}
