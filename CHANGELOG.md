@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.5 — orchestrator-skelet met regelgebaseerde agents
+
+- `orchestrator.py`: `step(request) -> TurnResponse` als zuivere functie met de fasen `clarify`,
+  `confirm_message`, `done` en `stopped`. JA → "Bedoel je: {Label}?"; JA daarop → `done`; NEE op het
+  voorstel → die hypothese telt als afgewezen, terug naar `clarify`. Zijn alle startconcepten
+  afgewezen, dan "Wil je stoppen?" — nooit een leeg scherm.
+- Regelgebaseerde agents (`agents/rules.py`): de terugval van de latere LLM-agents. Elke beurt levert
+  agentbeslissingen en een `intent_hypotheses`-inference op.
+- Unittests per overgang, plus een herbruikbare testopbouw (`tests/builders.py`).
+
 ### N1.4 — dezelfde contracten in zod
 
 - `shared/src/agent-contract.ts`: de contracten v1 in zod (strict objects, snake_case-sleutels),

@@ -106,7 +106,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* de contracttest is groen; een veld dat alleen aan één kant bestaat, laat een test falen
   (handmatig gecontroleerd).
 
-- [ ] **N1.5 Orchestrator-skelet met regelgebaseerde agents**
+- [x] **N1.5 Orchestrator-skelet met regelgebaseerde agents**
   *ONTWERP: §4.1, §4.2, §6, §7 (terugval).* `orchestrator.py` als zuivere functie
   `step(request) -> TurnResponse` met de fasen uit §4.1 (`clarify`, `confirm_message`, `done`,
   `stopped`; de deelfasen komen in N11). Regelgebaseerde agents: Intent = startconcepten in volgorde;

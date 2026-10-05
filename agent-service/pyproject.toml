@@ -22,8 +22,8 @@ target-version = "py311"
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["agent_service"]
+[tool.setuptools.packages.find]
+include = ["agent_service*"]
 
 [tool.ruff.lint]
 # Expliciet, zodat de uitkomst niet afhangt van een gebruikersconfig op de machine.

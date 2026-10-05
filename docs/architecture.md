@@ -53,7 +53,11 @@ server niet uit elkaar lopen.
 - `agent-service/` — de **agentdienst** (Python, ADR-0017): `config.py` (gevalideerde env, verplicht
   `SERVICE_TOKEN`), `auth.py` (API-key, constante-tijdvergelijking), `server.py` (stdlib-HTTP-server).
   `contracts.py` bevat de contracten v1 (pydantic); ze worden samen met de zod-kant getest tegen
-  `contracts/fixtures/`. Nu alleen `GET /health`; de orchestrator en `/v1/turn` volgen in fase N1.
+  `contracts/fixtures/`. `orchestrator.py` is een **zuivere functie** `step(TurnRequest) -> TurnResponse`
+  (geen I/O, geen klok): de fasen `clarify` → `confirm_message` → `done`/`stopped`, met de
+  regelgebaseerde agents uit `agents/rules.py` (Intent = startconcepten in volgorde, Question =
+  "{Label}?", Icon = het item van dat concept) als terugval. `vocabulary.py` is een alleen-lezen index
+  op de meegestuurde Vocabulary.
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client
