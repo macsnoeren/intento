@@ -2,7 +2,8 @@
 
 > Bron van waarheid is [`server/prisma/schema.prisma`](../server/prisma/schema.prisma).
 > Hier leggen we de **keuzes en werkwijze** uit die niet uit het schema alleen blijken.
-> Ontwerpbron: [../DESIGN.md](../DESIGN.md) §6. Achtergrond bij de persistentiekeuzes:
+> Ontwerpbron: [../INTENTO-NEW-DESIGN.md](../INTENTO-NEW-DESIGN.md) §39. De gesprekstabellen worden
+> herbouwd ([ADR-0017](adr/0017-agentic-architectuur.md)). Achtergrond bij de persistentiekeuzes:
 > [adr/0003](adr/0003-persistence-prisma-sqlite-postgres.md).
 
 ## Stack en werkwijze

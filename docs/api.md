@@ -2,7 +2,8 @@
 
 > Bron van waarheid zijn de zod-schema's in `shared/`. Houd dit overzicht kort;
 > verwijs voor exacte velden naar de schema's/types. Volledige endpoint-planning:
-> [../DESIGN.md](../DESIGN.md) §8.
+> [../INTENTO-NEW-DESIGN.md](../INTENTO-NEW-DESIGN.md) §51. De gespreks- en AI-endpoints worden
+> herbouwd ([ADR-0017](adr/0017-agentic-architectuur.md)).
 
 ## Conventies
 

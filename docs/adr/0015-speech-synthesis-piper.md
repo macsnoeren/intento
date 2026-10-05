@@ -59,7 +59,7 @@ keuze.** Concreet:
   twee `mls_*-low`-modellen komen uit ruwe luisterboekdata; bij het beluisteren sprak geen van die
   stemmen een zin verstaanbaar uit. Ze zijn daarom uit de catalogus gelaten. Nathalie (Vlaams) is de
   enige vrouwenstem die de server kan leveren; voor een Nederlandse vrouwenstem is de apparaatstem
-  voorlopig de weg. Zie T18.5 in `TASKS.md`.
+  voorlopig de weg. Zie T18.5 in de (oude) takenlijst.
 - **Later heroverwegen:** een zwaarder model met Nederlandse vrouwenstemmen (bv. Chatterbox
   Multilingual, MIT, maar 6 GB+ VRAM) of een eigen fijn-afgestemde Piper-stem, zodra er hardware of een
   dataset voor is.

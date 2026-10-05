@@ -1,6 +1,6 @@
 # 0009. Validatielaag, herhaling-vermijding en confidence-beleid
 
-- **Status:** geaccepteerd
+- **Status:** vervangen door [ADR-0017](0017-agentic-architectuur.md)
 - **Datum:** 2026-07-10
 
 ## Context

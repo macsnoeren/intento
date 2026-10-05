@@ -1,6 +1,6 @@
 # 0008. AI-provider-interface, orchestrator en providerkeuze
 
-- **Status:** geaccepteerd
+- **Status:** vervangen door [ADR-0017](0017-agentic-architectuur.md)
 - **Datum:** 2026-07-10
 
 ## Context

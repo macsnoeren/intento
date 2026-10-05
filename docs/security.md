@@ -2,7 +2,9 @@
 
 > Welke maatregelen genomen zijn en welke afwegingen gemaakt. Werk bij per taak.
 > Draai `npm audit` (0 kwetsbaarheden) en `/security-review` bij grotere fases.
-> Ontwerpbron: [../DESIGN.md](../DESIGN.md) §9.4 + CLAUDE.md security-checklist.
+> Ontwerpbron: [../INTENTO-NEW-DESIGN.md](../INTENTO-NEW-DESIGN.md) §53 + CLAUDE.md security-checklist.
+> De gespreks- en AI-laag wordt herbouwd ([ADR-0017](adr/0017-agentic-architectuur.md)); secties
+> over de oude AI-flow vervallen per taak.
 
 ## Genomen maatregelen (OWASP-checklist)
 

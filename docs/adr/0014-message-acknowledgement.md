@@ -1,6 +1,6 @@
 # 0014. Afhandelen van berichten: een gedeelde aftekening naast de boodschap
 
-- **Status:** geaccepteerd
+- **Status:** vervangen door [ADR-0017](0017-agentic-architectuur.md)
 - **Datum:** 2026-08-26
 
 ## Context

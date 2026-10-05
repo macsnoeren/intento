@@ -1,6 +1,6 @@
 # 0013. Gespreksstrategieën: configuratie-gedreven, ingebouwd, per gebruiker of gesprek te kiezen
 
-- **Status:** geaccepteerd
+- **Status:** vervangen door [ADR-0017](0017-agentic-architectuur.md)
 - **Datum:** 2026-08-22
 
 ## Context

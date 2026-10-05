@@ -1,12 +1,19 @@
 # Intento
 
-Intento is een AI-ondersteunde AAC-communicatieapplicatie voor mensen met een beperkt
-communicatievermogen. De AI helpt de gebruiker zijn **intentie** te vinden via
-pictogramkeuzes; de gebruiker blijft altijd eigenaar van de boodschap. Intento is
-**geen chatbot**.
+Intento is een AI-ondersteunde AAC-communicatieapplicatie voor mensen die moeite hebben met
+spreken. De gebruiker communiceert met pictogrammen; een **agentic AI-architectuur** —
+gespecialiseerde agents onder regie van één orchestrator — helpt hem stap voor stap duidelijk te
+maken wat hij bedoelt. De gebruiker blijft altijd eigenaar van de boodschap. Intento is **geen
+chatbot**.
 
-Zie [DESIGN.md](DESIGN.md) voor de volledige ontwerpbron en [TASKS.md](TASKS.md) voor
-de gefaseerde takenlijst.
+Zie [INTENTO-NEW-DESIGN.md](INTENTO-NEW-DESIGN.md) voor de ontwerpbron en
+[TASKS-NEW_DESIGN.md](TASKS-NEW_DESIGN.md) voor de gefaseerde takenlijst.
+
+> **Herbouw.** De gespreks- en AI-laag wordt herbouwd volgens het nieuwe ontwerp, zonder backward
+> compatibiliteit (ontwerp §55, [ADR-0017](docs/adr/0017-agentic-architectuur.md)). Rollen,
+> accounts, organisaties, tablet koppelen, spraak en Docker blijven; de oude gespreksflow, de
+> AI-worker en de AI-instellingen verdwijnen. Delen van deze README beschrijven nog de oude
+> situatie en worden per taak bijgewerkt.
 
 ## Structuur (npm-workspaces-monorepo)
 
@@ -89,7 +96,7 @@ curl http://127.0.0.1:3000/health
 ## Draaien in Docker
 
 De vier onderdelen hebben elk een eigen image; `compose.yaml` zet ze samen neer. De database is
-**SQLite op een volume** (zie fase 19 in `TASKS.md`) — bewust, want schema, migratielijn en
+**SQLite op een volume** ([ADR-0016](docs/adr/0016-containers-en-compose.md)) — bewust, want schema, migratielijn en
 runtime-adapter zijn nu SQLite en de overstap naar PostgreSQL hoort een eigen, zichtbare stap te zijn.
 
 ```bash
@@ -750,7 +757,7 @@ of Done én bewaakt een **pre-commit hook** het:
 - Regeleindes liggen dubbel vast — [.gitattributes](.gitattributes) (`* text=auto eol=lf`) en
   `endOfLine: "lf"` in `.prettierrc.json` — zodat een checkout of editor op Windows geen CRLF
   terugbrengt. Dat was eerder de reden dat vier bestanden volledig als "verkeerd opgemaakt"
-  golden. Aangeleverd naslagmateriaal (`INTENTO-DESIGN/`, `PROJECT-NODEJS/`, `LICENSE`) is
+  golden. Aangeleverd naslagmateriaal (`PROJECT-NODEJS/`, `LICENSE`) is
   bewust uitgezonderd: dat onderhouden we niet zelf en Prettier negeert het al.
 
 ## Documentatie

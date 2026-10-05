@@ -1,6 +1,6 @@
 # 0012. De AI stuurt het gesprek: retrieval-kandidaten, negatieve context en AI-gegenereerde concepten
 
-- **Status:** geaccepteerd
+- **Status:** vervangen door [ADR-0017](0017-agentic-architectuur.md)
 - **Datum:** 2026-08-22
 
 ## Context

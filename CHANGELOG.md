@@ -3,7 +3,24 @@
 Alle noemenswaardige wijzigingen aan Intento. Format losjes gebaseerd op
 [Keep a Changelog](https://keepachangelog.com/). Werk dit bij per afgeronde taak/fase.
 
-## [Unreleased]
+## Herbouw (agentic)
+
+De gespreks- en AI-laag wordt herbouwd volgens `INTENTO-NEW-DESIGN.md`, zonder backward
+compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
+
+### N0.1 — documentatie wijst naar het nieuwe ontwerp
+
+- `DESIGN.md`, `INTENTO-DESIGN/`, `TASKS.md`, `TEST.md` en `TEST-FEEDBACK.md` zijn verwijderd;
+  `INTENTO-NEW-DESIGN.md` is de enige ontwerpbron en `TASKS-NEW_DESIGN.md` de takenlijst.
+  `CLAUDE.md` is herschreven voor de herbouw.
+- README en `docs/` verwijzen naar het nieuwe ontwerp en melden dat de gespreks- en AI-laag herbouwd
+  wordt.
+- **ADR-0017 "Agentic architectuur"**: een stateless Python-agentdienst met eigen orchestrator, de
+  backend als enige data-eigenaar, geen wachtrij. ADR-0008, 0009, 0010, 0012, 0013 en 0014 zijn
+  daarmee vervangen.
+- `npm audit` weer op 0: fastify 5.12.5 en nodemailer 10.
+
+## [Unreleased] — vóór de herbouw
 
 ### Toegevoegd — een verse installatie zonder seed in gebruik nemen
 

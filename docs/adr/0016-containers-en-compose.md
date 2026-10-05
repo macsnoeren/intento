@@ -48,7 +48,7 @@ Randvoorwaarden die de vorm bepaalden, gevonden bij het bekijken van de repo:
   rest van de stack doet.
 - **SQLite op een volume, voorlopig.** DESIGN §9.3 noemt PostgreSQL voor productie en dat blijft staan,
   maar de overstap vraagt een adapter, een provider-wissel en een **eigen migratielijn**. Dat hoort een
-  zichtbare taak te zijn ("na de MVP" in `TASKS.md`), niet iets wat ongemerkt in een containertaak
+  zichtbare taak te zijn ("na de MVP" in de takenlijst), niet iets wat ongemerkt in een containertaak
   meelift.
 
 ## Gevolgen

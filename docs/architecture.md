@@ -2,7 +2,11 @@
 
 > Beschrijft **wat** het systeem is en **waarom** het zo gebouwd is. Details die
 > veranderen (exacte types, endpoints) horen in de code/schema's. Volledige
-> ontwerpbron: [../DESIGN.md](../DESIGN.md).
+> ontwerpbron: [../INTENTO-NEW-DESIGN.md](../INTENTO-NEW-DESIGN.md).
+>
+> **Herbouw:** de gespreks- en AI-laag wordt herbouwd als agentdienst met eigen orchestrator
+> ([ADR-0017](adr/0017-agentic-architectuur.md)). Secties over de oude AI-Orchestrator, de
+> wachtrij en de AI-worker beschrijven de situatie vóór de herbouw en verdwijnen per taak.
 
 ## Overzicht
 

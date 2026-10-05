@@ -1,6 +1,6 @@
 # 0010. Gedistribueerde AI-workers: wachtrij en worker-initiated protocol
 
-- **Status:** geaccepteerd
+- **Status:** vervangen door [ADR-0017](0017-agentic-architectuur.md)
 - **Datum:** 2026-07-11
 
 ## Context
@@ -75,7 +75,7 @@ apart worker-token als infrastructuur-credential, en een `QueueAiProvider` die d
   `Retry-After`) i.p.v. om te vallen.
 - De volledige tablet-UX voor `WAITING` (spinner + polling) is bewust **niet** in deze taak gebouwd — de
   backend levert het signaal (503 + `Retry-After` + `position`); de gebruikersapp-afhandeling is als
-  vervolgtaak genoteerd (TASKS.md). Tot die tijd is de mock de standaardprovider en verandert de
+  vervolgtaak genoteerd. Tot die tijd is de mock de standaardprovider en verandert de
   bestaande flow niet.
 - Worker-tokens worden buiten de app-UI aangemaakt via een CLI-script (`scripts/create-worker-token.ts`);
   een beheer-UI ervoor volgt in T5.8 (zie hieronder).

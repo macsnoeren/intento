@@ -5,6 +5,5 @@ coverage/
 server/src/generated/
 server/prisma/migrations/
 PROJECT-NODEJS/
-INTENTO-DESIGN/
 ai-worker/
 *.md
