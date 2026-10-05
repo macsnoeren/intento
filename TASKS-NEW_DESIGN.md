@@ -60,7 +60,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   `docs/data-model.md` bijwerken.
   *Acceptatie:* de migratielijn draait schoon op een lege database; de seed draait twee keer zonder fout.
 
-- [ ] **N0.6 De ai-worker eruit**
+- [x] **N0.6 De ai-worker eruit**
   *ONTWERP: §3.1, §55.* `ai-worker/` verwijderen; de compose-service `ai-worker` en het profiel `ai`
   verwijderen (ook uit `docker:down`/`docker:logs` in `package.json`); `.env.docker.example`, README,
   `docs/architecture.md` bijwerken. De twee open punten uit de oude takenlijst (wisselvallige

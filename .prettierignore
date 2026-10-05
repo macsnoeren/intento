@@ -5,5 +5,4 @@ coverage/
 server/src/generated/
 server/prisma/migrations/
 PROJECT-NODEJS/
-ai-worker/
 *.md

@@ -45,7 +45,7 @@ Randvoorwaarden die de vorm bepaalden, gevonden bij het bekijken van de repo:
   image opnieuw te bouwen.
 - **De AI-worker achter een compose-profiel** (`--profile ai`). Hij heeft een `WORKER_TOKEN` nodig dat
   de backend éérst moet uitgeven en een bereikbare Ollama; die twee horen niet stil te blokkeren wat de
-  rest van de stack doet.
+  rest van de stack doet. *(Achterhaald: de AI-worker is in N0.6 verwijderd, zie ADR-0017.)*
 - **SQLite op een volume, voorlopig.** DESIGN §9.3 noemt PostgreSQL voor productie en dat blijft staan,
   maar de overstap vraagt een adapter, een provider-wissel en een **eigen migratielijn**. Dat hoort een
   zichtbare taak te zijn ("na de MVP" in de takenlijst), niet iets wat ongemerkt in een containertaak

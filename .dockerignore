@@ -21,7 +21,6 @@ speech-service/.venv
 **/*.pyc
 
 # Documentatie en ontwerp: nuttig in de repo, niet in een image.
-INTENTO-DESIGN
 PROJECT-NODEJS
 docs
 *.md

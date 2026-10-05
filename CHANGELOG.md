@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N0.6 — de ai-worker eruit
+
+- `ai-worker/` is verwijderd, met de compose-service `ai-worker` en het profiel `ai`; `docker:down` en
+  `docker:logs` hebben `--profile ai` niet meer nodig. `.env.docker.example`, README,
+  `docs/architecture.md`, de lint-/format-uitzonderingen en `scripts/stop.sh` zijn bijgewerkt.
+- De twee open punten van de oude worker (wisselvallige wachtrijtests; JSON in code-fences) vervallen;
+  de les over code-fences komt terug in de OllamaProvider (N5.2).
+
 ### N0.5 — database: oude tabellen en velden eruit
 
 - Migratie `drop_old_ai_layer`: de tabellen van de oude AI-laag (`AacSymbol`, `AacConceptRelation`,

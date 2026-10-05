@@ -9,7 +9,7 @@ Waarom een aparte dienst en geen bibliotheek in de backend:
   mijn buik") gaat nooit naar een cloudleverancier (DESIGN §9.4).
 - **Licentie.** Piper staat onder GPL-3.0 (het bevat espeak-ng). Als los proces achter een
   HTTP-grens raakt die licentie de rest van Intento niet; zie [ADR-0015](../docs/adr/0015-speech-synthesis-piper.md).
-- **Deploy.** Net als `ai-worker/` kun je hem op een andere machine zetten zonder de backend te raken.
+- **Deploy.** Je kunt hem op een andere machine zetten zonder de backend te raken.
 
 ## Vereisten
 
@@ -31,8 +31,7 @@ cp .env.example .env
 kent. Het is een zelfverzonnen wachtwoord tussen twee processen op jouw machine: de backend stuurt
 hem mee als `Authorization: Bearer …`, deze dienst vergelijkt hem met wat in zijn eigen `.env` staat
 en antwoordt anders met `401`. Verder doet hij niets: hij hoort bij geen gebruiker en geeft geen
-rechten binnen Intento. (Vergelijk het met `WORKER_TOKEN` van `ai-worker/`, met dat verschil dat die
-door de backend wordt uitgegeven en gehasht in de database staat.)
+rechten binnen Intento.
 
 Genereer er zelf een en zet **dezelfde waarde** op twee plekken:
 

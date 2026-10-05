@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stopt alle draaiende processen van dit project: backend, web-app, spraakdienst en AI-worker.
+# Stopt alle draaiende processen van dit project: backend, web-app en spraakdienst.
 #
 # Waarom een script en geen `pkill -f intento`: dat patroon staat óók in de commandoregel waarmee je
 # pkill aanroept, dus je schiet er je eigen shell mee af. En een simpele "kill alles met de projectmap
@@ -20,7 +20,6 @@ TARGETS=(
   "backend|node_modules/\.bin/tsx|tsx watch|tsx/dist/loader|src/server\.ts|dist/server\.js"
   "web-app|node_modules/\.bin/vite|-c vite( |$)|esbuild --service"
   "spraakdienst|speech_service"
-  "AI-worker|ai_worker|ai-worker/run\.py|python3? \./run\.py"
   "dev-starter|node_modules/\.bin/concurrently"
 )
 

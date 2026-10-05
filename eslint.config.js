@@ -13,9 +13,6 @@ export default tseslint.config(
       // Gegenereerde Prisma-client: niet linten (self-suppressed, wordt geregenereerd).
       '**/src/generated/**',
       'PROJECT-NODEJS/**',
-      'INTENTO-DESIGN/**',
-      // Standalone Python-worker (T5.6): eigen tooling (zie ai-worker/README.md), geen JS/TS.
-      'ai-worker/**',
     ],
   },
   js.configs.recommended,

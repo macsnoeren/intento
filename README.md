@@ -43,10 +43,6 @@ ophalen, het geheim, en wat te doen als beluisteren niet lukt — staat in
 Wijzigt een begeleider de stem (of een andere instelling) terwijl de tablet openstaat, dan pakt de tablet
 dat op zodra hij weer op de voorgrond komt.
 
-Buiten de npm-workspaces staat [`ai-worker/`](ai-worker/): een **losstaande Python-applicatie** (T5.6) die
-als externe Ollama-worker AI-jobs van de backend-wachtrij verwerkt. Het is bewust geen npm-workspace — het
-is aparte deploybare infrastructuur met een eigen [README](ai-worker/README.md) en `.env`.
-
 ## Vereisten
 
 - Node.js ≥ 22 (ontwikkeld op Node 24)
@@ -102,26 +98,17 @@ cp .env.docker.example .env.docker    # vul de geheimen in (SIGNING_SECRET, ENCR
 npm run docker:build
 npm run docker:up                     # web op http://localhost:8080, API op http://localhost:3000
 npm run docker:logs                   # meekijken
-npm run docker:down                   # stoppen, óók de AI-worker (volumes blijven staan)
+npm run docker:down                   # stoppen (volumes blijven staan)
 ```
 
 De npm-scripts geven `--env-file .env.docker` mee. Draai je `docker compose` met de hand, doe dat dan
-ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig heeft. `docker:down` en
-`docker:logs` geven daarnaast `--profile ai` mee: zonder dat blijft de AI-worker draaien terwijl de
-rest al gestopt is, want een `down` raakt standaard geen diensten uit een profiel.
+ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig heeft.
 
 **Wat waar draait.** `server` migreert bij elke start automatisch (`prisma migrate deploy`) en draait
 als niet-root; `web` is een nginx met SPA-fallback, zodat een harde refresh op `/tablet` werkt;
 `speech` luistert alleen op het compose-netwerk en krijgt zijn stemmen uit een volume dat een
-eenmalige init-dienst vult. De **AI-worker** staat achter een profiel, want die heeft eerst een token
-nodig:
-
-```bash
-docker compose --env-file .env.docker exec server \
-  node dist/scripts/create-worker-token.js --name docker-worker   # token één keer zichtbaar
-# zet het in .env.docker als WORKER_TOKEN, daarna:
-docker compose --env-file .env.docker --profile ai up -d
-```
+eenmalige init-dienst vult. De oude AI-worker is verdwenen (ADR-0017); de agentdienst komt er in
+N1.7 bij.
 
 De web-app bakt de API-URL in bij de **build** (`VITE_API_URL`): wijs je hem naar een andere host, dan
 hoort daar `npm run docker:build` bij. Dat de API een eigen poort heeft is een bewuste keuze — de SPA
@@ -375,13 +362,6 @@ gekoppelde tablet een rustig scherm **"Nog niet beschikbaar"**.
 > component bewust dubbel mount (mount → unmount → remount). Een "ben ik nog gemount?"-vlag moet daarom
 > in de **effectbody** weer op `true` — zet je hem alleen bij de declaratie, dan blijft hij na de
 > gesimuleerde unmount `false` en worden alle latere `setState`-aanroepen stil overgeslagen.
-
-### Externe Ollama-worker (T5.6)
-
-De [`ai-worker/`](ai-worker/)-applicatie (Python, stdlib-only) claimt jobs via het worker-protocol, draait
-ze tegen een **Ollama**-endpoint (mogelijk op een andere machine) en levert gestructureerde output terug.
-Een configureerbaar maximum (`MAX_THREADS`) begrenst de gelijktijdige Ollama-aanroepen zodat de site niet
-wordt overvraagd. Opzet, draaien en testen: zie [ai-worker/README.md](ai-worker/README.md).
 
 ## Profielexport en -import (T8.1)
 
