@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N0.3 — beheer-UI: de oude AI-schermen eruit
+
+- Weg: Begeleiden (vraagmodus + berichtenlijst met afhandelen), Gesprekken, AI-activiteit,
+  Conceptvoorstellen, Voorkeuren, Persoonlijke context, Worker-tokens, AAC-bibliotheek en de
+  AI-statusbadge, met hun menu-items en API-methodes in de web-client.
+- Het instellingenformulier toont alleen nog tekst tonen, voorlezen en stem; de overige velden gaan
+  ongewijzigd mee tot ze in N0.5 uit het profiel verdwijnen.
+- Het menu toont per rol alleen bestaande pagina's (getest). Een begeleider heeft voorlopig alleen
+  "Mijn account"; zijn gebruikersscherm komt terug in de nieuwe taak N3.4.
+
 ## [Unreleased] — vóór de herbouw
 
 ### Toegevoegd — een verse installatie zonder seed in gebruik nemen

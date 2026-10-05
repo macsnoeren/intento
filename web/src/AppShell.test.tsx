@@ -140,8 +140,8 @@ describe('app-raamwerk', () => {
     render(
       <AppShell
         account={account({ role: 'CAREGIVER', name: 'Bram Begeleider' })}
-        title="Vraag stellen"
-        active="question"
+        title="Mijn account"
+        active="account"
         onNavigate={() => {}}
         onLogout={() => {}}
       >

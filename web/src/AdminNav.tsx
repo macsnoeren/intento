@@ -13,17 +13,7 @@ import { NavIcon, type NavIconName } from './NavIcon.tsx';
  * De groepen zijn `role="group"` met een label in plaats van koppen: het menu hoort de koppenstructuur
  * van de pagina zelf niet te verstoren.
  */
-export type AdminView =
-  | 'dashboard'
-  | 'users'
-  | 'question'
-  | 'aac'
-  | 'proposals'
-  | 'worker-tokens'
-  | 'ai-activity'
-  | 'conversations'
-  | 'audit-logs'
-  | 'account';
+export type AdminView = 'dashboard' | 'users' | 'audit-logs' | 'account';
 
 /** Rollen die een menu krijgen. Een begeleider ziet alleen wat hij mag (zie `VIEWS_BY_ROLE`). */
 export type NavRole = 'ADMIN' | 'CAREGIVER';
@@ -46,27 +36,12 @@ const GROUPS: NavGroup[] = [
     items: [{ view: 'dashboard', label: 'Dashboard', icon: 'dashboard' }],
   },
   {
-    label: 'Communicatie',
-    items: [
-      { view: 'question', label: 'Begeleiden', icon: 'question' },
-      { view: 'conversations', label: 'Gesprekken', icon: 'conversations' },
-    ],
-  },
-  {
     label: 'Organisatie',
-    items: [
-      { view: 'users', label: 'Gebruikers', icon: 'users' },
-      { view: 'aac', label: 'AAC-bibliotheek', icon: 'library' },
-      { view: 'proposals', label: 'Conceptvoorstellen', icon: 'proposals' },
-    ],
+    items: [{ view: 'users', label: 'Gebruikers', icon: 'users' }],
   },
   {
     label: 'Platform',
-    items: [
-      { view: 'worker-tokens', label: 'Worker-tokens', icon: 'key' },
-      { view: 'ai-activity', label: 'AI-activiteit', icon: 'ai' },
-      { view: 'audit-logs', label: 'Audit-log', icon: 'audit' },
-    ],
+    items: [{ view: 'audit-logs', label: 'Audit-log', icon: 'audit' }],
   },
   {
     label: 'Account',
@@ -75,13 +50,13 @@ const GROUPS: NavGroup[] = [
 ];
 
 /**
- * Wat een rol in het menu ziet. Een begeleider begeleidt en beheert zijn eigen account — verder
- * niets; de server weigert de rest sowieso, maar een menu vol knoppen die 403 opleveren is geen
- * menu. Dit is géén beveiliging: de autorisatie zit in de backend (DESIGN §6.2).
+ * Wat een rol in het menu ziet. Een begeleider beheert (voorlopig) alleen zijn eigen account; de
+ * server weigert de rest sowieso, maar een menu vol knoppen die 403 opleveren is geen menu. Dit is
+ * géén beveiliging: de autorisatie zit in de backend (ADR-0005).
  */
 const VIEWS_BY_ROLE: Record<NavRole, AdminView[] | 'all'> = {
   ADMIN: 'all',
-  CAREGIVER: ['question', 'account'],
+  CAREGIVER: ['account'],
 };
 
 /** De zichtbare groepen voor een rol; groepen die daarna leeg zijn vallen weg. */

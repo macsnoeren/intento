@@ -5,12 +5,9 @@ import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 
 /**
- * Beheeromgeving — dashboard (T7.3, DESIGN §5.2, FR-016). Een beknopt overzicht van de **eigen
- * organisatie**: aantal gebruikers (totaal/actief), begeleiders, openstaande AI-conceptvoorstellen
- * (platformbreed) en recente gespreksactiviteit. Bewust **zonder communicatie-inhoud** (privacy by
- * design, DESIGN §6.4): alleen wie/wanneer/status en het aantal bevestigde boodschappen.
- *
- * Vanaf de tegel "openstaande voorstellen" springt de beheerder direct naar de reviewlijst (T7.3).
+ * Beheeromgeving — dashboard. Een beknopt overzicht van de **eigen organisatie**: aantal gebruikers
+ * (totaal/actief), begeleiders en recente gespreksactiviteit. Bewust **zonder communicatie-inhoud**:
+ * alleen wie/wanneer/status en het aantal bevestigde boodschappen.
  */
 
 function statusLabel(status: DashboardResponse['recentActivity'][number]['status']): string {
@@ -91,16 +88,6 @@ export function DashboardPage({
               <span className="stat-tile__value">{data.caregivers.total}</span>
               <span className="stat-tile__label">Begeleiders</span>
             </div>
-            <button
-              type="button"
-              className="stat-tile stat-tile--action"
-              onClick={() => onNavigate('proposals')}
-              aria-label={`${data.pendingProposals} openstaande conceptvoorstellen bekijken`}
-            >
-              <span className="stat-tile__value">{data.pendingProposals}</span>
-              <span className="stat-tile__label">Openstaande voorstellen</span>
-              <span className="muted">Bekijken →</span>
-            </button>
           </section>
 
           <section className="panel" aria-label="Recente activiteit">

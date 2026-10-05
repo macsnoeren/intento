@@ -10,20 +10,14 @@ import type {
   CreateCaregiverRequest,
   CreateCaregiverResponse,
   CreateUserRequest,
-  CreateWorkerTokenRequest,
-  CreateWorkerTokenResponse,
   DeviceCodeResponse,
-  PersonalContextPublic,
   ResendVerificationResponse,
   ResetAccountPasswordResponse,
   UpdateSettingsRequest,
   UserListResponse,
   UserPublic,
   VerifyEmailResponse,
-  WorkerTokenListResponse,
-  WorkerTokenPublic,
 } from '@intento/shared';
-import { CONVERSATION_STRATEGY_CATALOG } from '@intento/shared';
 import { App } from './App.tsx';
 import { ApiRequestError, type Api } from './api.ts';
 
@@ -91,9 +85,7 @@ function fakeApi(
   const users: UserPublic[] = [];
   let counter = 0;
   // In-memory worker-tokenstore (T5.8).
-  const workerTokens: WorkerTokenPublic[] = [];
   // In-memory persoonlijke-contextstore per gebruiker (T6.2).
-  const contextsByUser = new Map<string, PersonalContextPublic[]>();
   // Koppelingen per gebruiker; de begeleiderlijst zelf is organisatiebreed (uit `options`).
   const caregiverSeed = options.caregivers ?? [];
   let caregiverCounter = caregiverSeed.length;
@@ -240,131 +232,6 @@ function fakeApi(
     generateDeviceCode(): Promise<DeviceCodeResponse> {
       return Promise.resolve({ code: 'ABCD2345', expiresAt: '2026-07-08T10:15:00.000Z' });
     },
-    // AAC-beheer wordt in AacLibraryPage.test.tsx apart gedekt; hier alleen stubs zodat de
-    // beheeromgeving-tests tegen de volledige `Api` compileren (standaardweergave is Gebruikers).
-    listAacSymbols() {
-      return Promise.resolve({ symbols: [] });
-    },
-    createAacSymbol() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
-    },
-    updateAacSymbol() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
-    },
-    deleteAacSymbol() {
-      return Promise.resolve();
-    },
-    uploadAacImage() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
-    },
-    createAacRelation() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
-    },
-    deleteAacRelation() {
-      return Promise.resolve();
-    },
-    searchOpenSymbols() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
-    },
-    attachOpenSymbols() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'stub'));
-    },
-    listWorkerTokens(): Promise<WorkerTokenListResponse> {
-      if (options.workerTokensForbidden) {
-        return Promise.reject(
-          new ApiRequestError(403, 'NOT_PLATFORM_ADMIN', 'Alleen een platformbeheerder.'),
-        );
-      }
-      return Promise.resolve({ tokens: [...workerTokens] });
-    },
-    createWorkerToken(body: CreateWorkerTokenRequest): Promise<CreateWorkerTokenResponse> {
-      if (options.workerTokensForbidden) {
-        return Promise.reject(
-          new ApiRequestError(403, 'NOT_PLATFORM_ADMIN', 'Alleen een platformbeheerder.'),
-        );
-      }
-      const token: WorkerTokenPublic = {
-        id: `wt-${++counter}`,
-        name: body.name,
-        scopes: body.scopes ?? ['ai:process'],
-        status: 'active',
-        lastSeenAt: null,
-        expiresAt: null,
-        revokedAt: null,
-        createdAt: '2026-07-11T10:00:00.000Z',
-      };
-      workerTokens.unshift(token);
-      return Promise.resolve({ workerToken: token, token: `wrk_raw-${token.id}` });
-    },
-    revokeWorkerToken(id: string): Promise<WorkerTokenPublic> {
-      const index = workerTokens.findIndex((t) => t.id === id);
-      const updated: WorkerTokenPublic = {
-        ...workerTokens[index]!,
-        status: 'revoked',
-        revokedAt: '2026-07-11T11:00:00.000Z',
-      };
-      workerTokens[index] = updated;
-      return Promise.resolve(updated);
-    },
-    listPersonalContext(userId) {
-      return Promise.resolve({ contexts: contextsByUser.get(userId) ?? [] });
-    },
-    createPersonalContext(userId, body) {
-      const created: PersonalContextPublic = {
-        id: `ctx-${++counter}`,
-        userId,
-        category: body.category,
-        name: body.name,
-        relationship: body.relationship ?? null,
-        aiUsageAllowed: body.aiUsageAllowed ?? false,
-        createdAt: '2026-07-11T10:00:00.000Z',
-      };
-      const list = contextsByUser.get(userId) ?? [];
-      list.push(created);
-      contextsByUser.set(userId, list);
-      return Promise.resolve(created);
-    },
-    updatePersonalContext(userId, contextId, body) {
-      const list = contextsByUser.get(userId) ?? [];
-      const index = list.findIndex((c) => c.id === contextId);
-      const updated: PersonalContextPublic = {
-        ...list[index]!,
-        category: body.category,
-        name: body.name,
-        relationship: body.relationship ?? null,
-        aiUsageAllowed: body.aiUsageAllowed ?? false,
-      };
-      list[index] = updated;
-      return Promise.resolve(updated);
-    },
-    deletePersonalContext(userId, contextId) {
-      const list = contextsByUser.get(userId) ?? [];
-      contextsByUser.set(
-        userId,
-        list.filter((c) => c.id !== contextId),
-      );
-      return Promise.resolve();
-    },
-    listPreferences() {
-      return Promise.resolve({ preferences: [] });
-    },
-    resolveSuggestion() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
-    },
-    // Vraagmodus (T7.1) — apart gedekt in QuestionModePage-tests; hier stubs zodat de app tegen de
-    // volledige `Api` compileert (de beheeromgeving-tests raken de vraagmodus niet).
-    searchAac() {
-      return Promise.resolve({ symbols: [] });
-    },
-    listQuestionUsers() {
-      return Promise.resolve({ users: [] });
-    },
-    startQuestion() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
-    },
-    viewUserConversation() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
-    },
     // Dashboard + conceptvoorstellen (T7.3) — apart gedekt in eigen tests; hier stubs zodat de app
     // tegen de volledige `Api` compileert.
     getDashboard() {
@@ -377,27 +244,6 @@ function fakeApi(
     },
     listAuditLogs() {
       return Promise.resolve({ entries: [] });
-    },
-    listAiConversations() {
-      return Promise.resolve({ conversations: [] });
-    },
-    getAiConversation() {
-      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
-    },
-    listCaregiverMessages() {
-      return Promise.resolve({ messages: [] });
-    },
-    acknowledgeCaregiverMessage() {
-      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
-    },
-    unacknowledgeCaregiverMessage() {
-      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
-    },
-    listConversations() {
-      return Promise.resolve({ conversations: [] });
-    },
-    getConversation() {
-      return Promise.reject(new ApiRequestError(404, 'NOT_FOUND', 'niet in deze test'));
     },
     // Operatorconsole (T8.3) — eigen routetak met eigen test; hier stubs zodat de beheer-app
     // tegen de volledige `Api` compileert.
@@ -416,46 +262,10 @@ function fakeApi(
     activateOperatorOrganization() {
       return Promise.reject(new ApiRequestError(403, 'NOT_OPERATOR', 'niet in deze test'));
     },
-    listConceptProposals() {
-      return Promise.resolve({ proposals: [] });
-    },
-    approveConceptProposal() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
-    },
-    rejectConceptProposal() {
-      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
-    },
     // Profielexport/-import (T8.1) — apart gedekt in ProfileTransfer-tests; hier stubs zodat de app
     // tegen de volledige `Api` compileert.
     exportProfile() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
-    },
-    listAacTopics() {
-      return Promise.resolve({ topics: [] });
-    },
-    listAiJobs() {
-      return Promise.resolve({ jobs: [] });
-    },
-    listAiConcepts() {
-      return Promise.resolve({ concepts: [] });
-    },
-    keepAiConcept() {
-      return Promise.reject(new Error('niet in deze test'));
-    },
-    mergeAiConcept() {
-      return Promise.reject(new Error('niet in deze test'));
-    },
-    discardAiConcept() {
-      return Promise.reject(new Error('niet in deze test'));
-    },
-    getAiStatus() {
-      return Promise.resolve({
-        mode: 'mock' as const,
-        workerRequired: false,
-        workersOnline: 0,
-        lastSeenAt: null,
-        active: false,
-      });
     },
     importProfile() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
@@ -536,21 +346,14 @@ describe('beheeromgeving-app', () => {
     // Aanmaken via de dialoog; de app opent meteen het scherm van de nieuwe gebruiker.
     await createUser('Sanne');
 
-    // Op dat scherm staat het instellingenformulier.
+    // Op dat scherm staat het instellingenformulier, zonder de oude AI-instellingen (N0.3).
     const form = await screen.findByRole('form', { name: 'Instellingen voor Sanne' });
-    // Alleen 2/4/6/8 als keuze voor het aantal opties; 4 is de standaard.
-    const iconRadios = within(form).getAllByRole('radio', { name: /^[2468]$/ });
-    expect(iconRadios).toHaveLength(4);
-    // Daarnaast de gespreksstrategie (T11.4): één keuze per ingebouwde aanpak, mét uitleg.
-    const strategyRadios = within(form)
-      .getAllByRole('radio')
-      .filter((radio) => (radio as HTMLInputElement).name === 'conversationStrategy');
-    expect(strategyRadios).toHaveLength(CONVERSATION_STRATEGY_CATALOG.length);
-    expect(within(form).getByText('Rustig en bevestigend')).toBeTruthy();
-    expect(within(form).getByText(/snel overprikkeld raakt/)).toBeTruthy();
+    expect(within(form).queryByRole('radio', { name: /^[2468]$/ })).toBeNull();
+    expect(within(form).queryByText(/AI leert/)).toBeNull();
+    expect(within(form).queryByText(/Ondersteuningsmodus/)).toBeNull();
 
-    // Wijzig naar 6 opties en sla op.
-    fireEvent.click(within(form).getByRole('radio', { name: '6' }));
+    // Tekst tonen uitzetten en opslaan.
+    fireEvent.click(within(form).getByRole('checkbox', { name: /Tekst tonen/ }));
     fireEvent.click(within(form).getByRole('button', { name: 'Instellingen opslaan' }));
     expect((await within(form).findByRole('status')).textContent).toContain('Opgeslagen');
 
@@ -571,7 +374,7 @@ describe('beheeromgeving-app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Alle gebruikers' }));
     const list = await screen.findByRole('region', { name: 'Gebruikers' });
     const row = within(list).getByRole('button', { name: /Sanne/ });
-    expect(row.textContent).toContain('pictogrammen per scherm');
+    expect(row.textContent).toContain('Voorlezen uit');
 
     // En vanaf die regel weer naar zijn eigen scherm: een keuzebalk met zijn onderdelen, en
     // "Instellingen" staat open (T17.4).
@@ -587,11 +390,9 @@ describe('beheeromgeving-app', () => {
     expect(await screen.findByRole('region', { name: 'Tablet koppelen voor Sanne' })).toBeTruthy();
     expect(screen.queryByRole('form', { name: 'Instellingen voor Sanne' })).toBeNull();
 
-    // Een verse gebruiker heeft nog geen context, dus dat onderdeel opent in de wizard (T6.2).
-    openUserTab('Persoonlijke context');
-    expect(
-      await screen.findByRole('region', { name: 'Persoonlijke-contextwizard voor Sanne' }),
-    ).toBeTruthy();
+    // De oude onderdelen persoonlijke context en voorkeuren zijn weg (N0.3).
+    expect(screen.queryByRole('tab', { name: 'Persoonlijke context' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Voorkeuren' })).toBeNull();
 
     // De formulieren om iemand toe te voegen staan hier niet meer tussen (T17.2).
     expect(screen.queryByRole('region', { name: 'Begeleider aanmaken' })).toBeNull();
@@ -713,31 +514,16 @@ describe('beheeromgeving-app', () => {
     expect(result.textContent).toContain('/tablet');
   });
 
-  it('toont in de beheeromgeving de tab "Begeleiden" en kan daar een vraag stellen (T9.1)', async () => {
-    render(<App api={fakeApi({ loggedIn: true })} />);
-    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
-
-    const nav = screen.getByRole('navigation', { name: 'Beheer' });
-    fireEvent.click(within(nav).getByRole('button', { name: 'Begeleiden' }));
-
-    // Dezelfde vraagmodus-pagina als de begeleider ziet — de server liet ADMIN hier altijd al toe.
-    expect(await screen.findByRole('heading', { name: 'Vraag stellen' })).toBeTruthy();
-    expect(screen.getByRole('navigation', { name: 'Beheer' })).toBeTruthy();
-  });
-
   it('geeft een begeleider een menu met zijn eigen account erin (T17.1)', async () => {
     render(<App api={fakeApi({ loggedIn: true, role: 'CAREGIVER' })} />);
 
-    // Een begeleider komt binnen op zijn werk: de vraagmodus.
-    await screen.findByRole('heading', { name: 'Vraag stellen' });
+    // De vraagmodus is vervallen (N0.3); een begeleider komt binnen op zijn account.
+    expect(await screen.findByRole('heading', { name: 'Mijn account' })).toBeTruthy();
 
-    // Zijn menu is kort — begeleiden en zijn eigen account, geen organisatiebeheer.
+    // Zijn menu is kort — geen organisatiebeheer.
     const nav = screen.getByRole('navigation', { name: 'Beheer' });
     expect(within(nav).queryByRole('button', { name: 'Gebruikers' })).toBeNull();
-
-    // Tot T17.1 was de vraagmodus zijn enige weergave en was "Mijn account" onbereikbaar.
-    fireEvent.click(within(nav).getByRole('button', { name: 'Mijn account' }));
-    expect(await screen.findByRole('heading', { name: 'Mijn account' })).toBeTruthy();
+    expect(within(nav).getByRole('button', { name: 'Mijn account' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Wachtwoord wijzigen' })).toBeTruthy();
   });
 
@@ -815,52 +601,6 @@ describe('beheeromgeving-app', () => {
     render(<App api={fakeApi({ loggedIn: true, emailVerified: true })} />);
     await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
     expect(screen.queryByRole('button', { name: 'Verificatiemail opnieuw versturen' })).toBeNull();
-  });
-
-  it('laat een platformbeheerder een worker-token aanmaken en intrekken (T5.8)', async () => {
-    render(<App api={fakeApi({ loggedIn: true })} />);
-    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
-
-    // Naar het worker-tokentabblad.
-    fireEvent.click(screen.getByRole('button', { name: 'Worker-tokens' }));
-    await screen.findByRole('heading', { name: 'Worker-tokens' });
-    expect(await screen.findByText(/Nog geen worker-tokens/i)).toBeTruthy();
-
-    // Token aanmaken → rauw token wordt één keer getoond.
-    const form = screen.getByRole('form', { name: 'Worker-token aanmaken' });
-    fireEvent.change(within(form).getByLabelText('Naam van het worker-token'), {
-      target: { value: 'gpu-node-1' },
-    });
-    fireEvent.click(within(form).getByRole('button', { name: 'Token aanmaken' }));
-
-    const reveal = await screen.findByRole('status');
-    expect(reveal.textContent).toContain('wrk_raw-');
-
-    // Het token verschijnt in de lijst als actief.
-    const list = screen.getByRole('region', { name: 'Worker-tokens' });
-    expect(await within(list).findByText('gpu-node-1')).toBeTruthy();
-    expect(within(list).getByText('Actief')).toBeTruthy();
-
-    // Intrekken → status wordt Ingetrokken en de intrek-knop verdwijnt.
-    fireEvent.click(
-      within(list).getByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }),
-    );
-    await waitFor(() => expect(within(list).getByText('Ingetrokken')).toBeTruthy());
-    expect(
-      within(list).queryByRole('button', { name: 'Worker-token gpu-node-1 intrekken' }),
-    ).toBeNull();
-  });
-
-  it('toont een uitleg i.p.v. de lijst voor een niet-platform-beheerder (T5.8)', async () => {
-    render(<App api={fakeApi({ loggedIn: true, workerTokensForbidden: true })} />);
-    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Worker-tokens' }));
-    await screen.findByRole('heading', { name: 'Worker-tokens' });
-
-    expect(await screen.findByText(/alleen door een platformbeheerder/i)).toBeTruthy();
-    // Geen aanmaakformulier zichtbaar.
-    expect(screen.queryByRole('form', { name: 'Worker-token aanmaken' })).toBeNull();
   });
 
   it('wisselt een token uit de e-maillink in via de verificatiepagina (T1.4)', async () => {

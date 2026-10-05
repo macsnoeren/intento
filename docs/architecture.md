@@ -119,18 +119,13 @@ authenticatiepijler:
   dan toont een gekoppelde tablet "Nog niet beschikbaar". De spraaklaag (`speech.ts`) blijft: hij
   haalt audio bij de backend op en valt terug op `speechSynthesis` van het apparaat.
 - **Beheeromgeving** — overige paden, `App.tsx`, op **account-auth** (`/auth/*`, ADMIN/CAREGIVER).
-  De pagina **Begeleiden** draagt sinds T13.1 ook de **berichtenlijst** (`routes/messages.ts`): elke
-  boodschap die een gekoppelde gebruiker bevestigde, nieuwste eerst met tijdstip. Bewust op dát scherm,
-  want dat is het enige dat een gewone CAREGIVER heeft.
-  Bevat sinds T12.1 ook **Gesprekken**: een gesprek van begin tot eind teruglezen — per stap de gestelde
-  vraag, het aanbod dat de gebruiker zag en zijn keuze (`routes/conversation-history.ts`). Dat leest
-  uitsluitend uit wat de gespreksflow al vastlegt (`ConversationStep.offeredConcepts`, T10.3), dus er
-  wordt niets extra's bewaard om te kunnen terugkijken (§3.6). Het is de enige beheerweergave met
-  communicatie-inhoud en draagt daarom de strengste grens: tenant-gefilterd én, voor een begeleider,
-  beperkt tot gekoppelde gebruikers.
-- **Begeleiderinterface** — dezelfde route-tak als de beheeromgeving, maar met een **kort menu**
-  (T17.1): Begeleiden en Mijn account. Een begeleider ziet geen ingangen naar beheer dat de server
-  hem toch weigert; dat menu is geen beveiliging, de autorisatie zit in de backend (DESIGN §6.2).
+  Menu voor de beheerder: Dashboard, Gebruikers (met per gebruiker instellingen, begeleiders, tablet en
+  profiel), Audit-log en Mijn account. De oude AI-schermen (vraagmodus, gesprekken, AI-activiteit,
+  conceptvoorstellen, voorkeuren, persoonlijke context, worker-tokens, AAC-bibliotheek, berichtenlijst)
+  zijn weg (N0.3); de nieuwe beheerschermen uit INTENTO-NEW-DESIGN §49 komen per taak terug.
+- **Begeleiderinterface** — dezelfde route-tak als de beheeromgeving, maar met een **kort menu**:
+  voorlopig alleen Mijn account. Een begeleider ziet geen ingangen naar beheer dat de server hem toch
+  weigert; dat menu is geen beveiliging, de autorisatie zit in de backend (ADR-0005).
 - **Platform-operatorconsole** — `/operator`, `OperatorConsole.tsx`. Draait in dezelfde schil, maar
   bewust **zonder menu**: cross-tenant beheer hoort geen knop naast "Gebruikers" te zijn (T8.3).
 

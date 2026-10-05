@@ -4,15 +4,9 @@ import { ApiRequestError, httpApi, type Api } from './api.ts';
 import { LoginForm } from './LoginForm.tsx';
 import { RegisterForm } from './RegisterForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
-import { QuestionModePage } from './QuestionModePage.tsx';
-import { AacLibraryPage } from './AacLibraryPage.tsx';
-import { WorkerTokensPage } from './WorkerTokensPage.tsx';
-import { AiActivityPage } from './AiActivityPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
-import { ConversationsPage } from './ConversationsPage.tsx';
 import { AccountPage } from './AccountPage.tsx';
-import { ConceptProposalsPage } from './ConceptProposalsPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
@@ -159,29 +153,18 @@ export function App({
     <VerificationBanner api={api} email={account.email} />
   );
 
-  // Begeleider (CAREGIVER): de begeleiderinterface (T7.1, DESIGN §3.2, §5.2). Sinds T17.1 met een
-  // eigen — korter — menu: begeleiden en het eigen account. Tot dan was de vraagmodus zijn énige
-  // weergave, waardoor een begeleider zijn tijdelijke wachtwoord alleen kon wisselen via een paneel
-  // onderaan diezelfde pagina.
+  // Begeleider (CAREGIVER): een eigen, korter menu. De vraagmodus is vervallen (ontwerp besluit 10);
+  // instellingen en contacten van gekoppelde gebruikers komen terug in N3.4 en N10.3.
   if (account.role === 'CAREGIVER') {
     return (
       <>
         {banner}
-        {view === 'account' ? (
-          <AccountPage
-            api={api}
-            account={account}
-            onLogout={() => void handleLogout()}
-            onNavigate={setView}
-          />
-        ) : (
-          <QuestionModePage
-            api={api}
-            account={account}
-            onLogout={() => void handleLogout()}
-            onNavigate={setView}
-          />
-        )}
+        <AccountPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
       </>
     );
   }
@@ -212,103 +195,11 @@ export function App({
       </>
     );
   }
-
-  // Begeleiden (T9.1): dezelfde vraagmodus-pagina als de begeleider ziet, maar als beheertab. Een
-  // beheerder is in kleine organisaties vaak zelf de begeleider aan tafel; de server liet ADMIN op
-  // `/question/*` altijd al toe, alleen de weergave ontbrak.
-  if (view === 'question') {
-    return (
-      <>
-        {banner}
-        <QuestionModePage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'proposals') {
-    return (
-      <>
-        {banner}
-        <ConceptProposalsPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'aac') {
-    return (
-      <>
-        {banner}
-        <AacLibraryPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'worker-tokens') {
-    return (
-      <>
-        {banner}
-        <WorkerTokensPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  // AI-activiteit (T9.15): zien wat de AI op de achtergrond doet. Achter dezelfde platformgrens als het
-  // worker-tokenbeheer; een gewone organisatie-ADMIN krijgt van de server 403 en hier een uitleg.
-  if (view === 'ai-activity') {
-    return (
-      <>
-        {banner}
-        <AiActivityPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
   if (view === 'account') {
     return (
       <>
         {banner}
         <AccountPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  // Gesprekken terugzien (T12.1): de enige beheerweergave met communicatie-inhoud, dus tenant- en
-  // begeleidersgebonden — de server bewaakt dat, hier tonen we alleen wat er terugkomt.
-  if (view === 'conversations') {
-    return (
-      <>
-        {banner}
-        <ConversationsPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

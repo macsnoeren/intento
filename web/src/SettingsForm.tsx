@@ -1,29 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import {
-  CONVERSATION_STRATEGY_CATALOG,
   SPEECH_VOICE_CATALOG,
-  conversationStrategySchema,
-  iconsPerScreenSchema,
   speechVoiceSchema,
-  type IconsPerScreen,
   type UpdateSettingsRequest,
   type UserPublic,
 } from '@intento/shared';
 import { ApiRequestError } from './api.ts';
 
-const ICON_OPTIONS: readonly IconsPerScreen[] = [2, 4, 6, 8];
-
 /**
- * Instellingenformulier voor het communicatieprofiel van één gebruiker (DESIGN §5.3).
- * Aantal opties is beperkt tot 2/4/6/8 (radioknoppen, dus ongeldige waarden zijn in de UI
- * onmogelijk); de rest zijn aan/uit-schakelaars. Opslaan roept `PUT /users/{id}/settings` aan.
+ * Instellingenformulier voor het communicatieprofiel van één gebruiker (INTENTO-NEW-DESIGN §50).
+ * Opslaan roept `PUT /users/{id}/settings` aan met het volledige profiel; velden die hier (nog) niet
+ * staan, gaan ongewijzigd mee. De nieuwe communicatie-instellingen volgen in N3.2.
  *
- * De **gespreksstrategie** (T11.4, DESIGN §7.10) staat er als radiokeuze bij, met per optie de uitleg
- * erbij in plaats van erachter verstopt: de begeleider kiest hier hóe de AI naar de bedoeling van deze
- * persoon zoekt, en dat is alleen een geïnformeerde keuze als hij ziet voor wie een aanpak bedoeld is.
- *
- * De **stem** (T18.2, DESIGN §5.3) werkt net zo, maar met een luisterknop erbij: een stem kies je op
- * gehoor en niet op een naam. Beluisteren verandert niets — de keuze wordt pas bij Opslaan bewaard.
+ * De **stem** heeft een luisterknop: een stem kies je op gehoor en niet op een naam. Beluisteren
+ * verandert niets — de keuze wordt pas bij Opslaan bewaard.
  */
 export function SettingsForm({
   user,
@@ -83,51 +73,6 @@ export function SettingsForm({
       onSubmit={(e) => void handleSubmit(e)}
       aria-label={`Instellingen voor ${user.name}`}
     >
-      <fieldset className="field">
-        <legend className="field__label">Aantal opties per scherm</legend>
-        <div className="choice-row">
-          {ICON_OPTIONS.map((value) => (
-            <label key={value} className="choice">
-              <input
-                type="radio"
-                name="iconsPerScreen"
-                checked={settings.iconsPerScreen === value}
-                onChange={() =>
-                  setSettings((s) => ({ ...s, iconsPerScreen: iconsPerScreenSchema.parse(value) }))
-                }
-              />
-              <span>{value}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <fieldset className="field">
-        <legend className="field__label">Hoe de AI naar de bedoeling zoekt</legend>
-        <div className="choice-list">
-          {CONVERSATION_STRATEGY_CATALOG.map((strategy) => (
-            <label key={strategy.key} className="choice-block">
-              <input
-                type="radio"
-                name="conversationStrategy"
-                value={strategy.key}
-                checked={settings.conversationStrategy === strategy.key}
-                onChange={() =>
-                  setSettings((s) => ({
-                    ...s,
-                    conversationStrategy: conversationStrategySchema.parse(strategy.key),
-                  }))
-                }
-              />
-              <span>
-                <strong>{strategy.label}</strong>
-                <small className="choice-block__hint">{strategy.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
       <label className="toggle">
         <input
           type="checkbox"
@@ -135,33 +80,6 @@ export function SettingsForm({
           onChange={(e) => setSettings((s) => ({ ...s, showText: e.target.checked }))}
         />
         <span>Tekst tonen onder pictogrammen</span>
-      </label>
-
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={settings.aiLearningEnabled}
-          onChange={(e) => setSettings((s) => ({ ...s, aiLearningEnabled: e.target.checked }))}
-        />
-        <span>AI leert van bevestigde communicatie</span>
-      </label>
-
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={settings.supportMode}
-          onChange={(e) => setSettings((s) => ({ ...s, supportMode: e.target.checked }))}
-        />
-        <span>Ondersteuningsmodus (begeleider tikt aan)</span>
-      </label>
-
-      <label className="toggle">
-        <input
-          type="checkbox"
-          checked={settings.contextIndicator}
-          onChange={(e) => setSettings((s) => ({ ...s, contextIndicator: e.target.checked }))}
-        />
-        <span>Contextindicator tonen (broodkruimel van het gekozen pad)</span>
       </label>
 
       <label className="toggle">
@@ -217,16 +135,6 @@ export function SettingsForm({
           </p>
         ) : null}
       </fieldset>
-
-      <label className="toggle">
-        <input
-          type="checkbox"
-          disabled={!settings.speechEnabled}
-          checked={settings.speechHints}
-          onChange={(e) => setSettings((s) => ({ ...s, speechHints: e.target.checked }))}
-        />
-        <span>Af en toe hardop uitleggen hoe de knoppen werken</span>
-      </label>
 
       <div className="form__actions">
         <button className="button button--primary" type="submit" disabled={busy}>

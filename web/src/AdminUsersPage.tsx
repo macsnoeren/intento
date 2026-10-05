@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
-  CONVERSATION_STRATEGY_CATALOG,
   SPEECH_PREVIEW_SENTENCE,
   isDeviceVoice,
   type AccountPublic,
@@ -14,8 +13,6 @@ import { AccountsPanel } from './AccountsPanel.tsx';
 import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
-import { PersonalContextPanel } from './PersonalContextPanel.tsx';
-import { PreferencesPanel } from './PreferencesPanel.tsx';
 import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.tsx';
 import { Modal } from './Modal.tsx';
 import { SegmentedTabs, tabPanelProps, type SegmentedTab } from './SegmentedTabs.tsx';
@@ -51,23 +48,17 @@ const OVERVIEW_TABS: readonly SegmentedTab<UsersTab>[] = [
  * instellen hoe hij communiceert, dan wie hem begeleidt, dan wat de AI over hem mag weten, en pas
  * daarna het apparaat en het beheer van zijn profiel.
  */
-type UserTab = 'settings' | 'caregivers' | 'context' | 'preferences' | 'device' | 'profile';
+type UserTab = 'settings' | 'caregivers' | 'device' | 'profile';
 
 const USER_TABS: readonly SegmentedTab<UserTab>[] = [
   { id: 'settings', label: 'Instellingen' },
   { id: 'caregivers', label: 'Begeleiders' },
-  { id: 'context', label: 'Persoonlijke context' },
-  { id: 'preferences', label: 'Voorkeuren' },
   { id: 'device', label: 'Tablet' },
   { id: 'profile', label: 'Profiel & verwijderen' },
 ];
 
 /** Welke dialoog openstaat; `null` = geen. */
 type UsersDialog = 'create-user' | 'create-caregiver' | 'import-profile' | null;
-
-function strategyLabel(key: UserPublic['communicationProfile']['conversationStrategy']): string {
-  return CONVERSATION_STRATEGY_CATALOG.find((entry) => entry.key === key)?.label ?? key;
-}
 
 /** Initialen voor het naamvakje in de lijst. Puur decoratief; de naam staat er voluit naast. */
 function initials(name: string): string {
@@ -239,14 +230,12 @@ export function AdminUsersPage({
                       <span className="record__body">
                         <span className="record__title">{user.name}</span>
                         <span className="record__meta">
-                          {user.communicationProfile.iconsPerScreen} pictogrammen per scherm ·{' '}
-                          {strategyLabel(user.communicationProfile.conversationStrategy)} · sinds{' '}
-                          {formatDate(user.createdAt)}
+                          {user.communicationProfile.speechEnabled
+                            ? 'Voorlezen aan'
+                            : 'Voorlezen uit'}{' '}
+                          · sinds {formatDate(user.createdAt)}
                         </span>
                       </span>
-                      {user.communicationProfile.supportMode ? (
-                        <span className="badge">Ondersteuningsmodus</span>
-                      ) : null}
                       <span className="badge badge--active">
                         {user.active ? 'Actief' : 'Inactief'}
                       </span>
@@ -401,8 +390,8 @@ function UserDetailPage({
           <section className="panel" aria-label="Instellingen">
             <h2 className="panel__subtitle">Communicatie-instellingen</h2>
             <p className="muted">
-              Hoe {user.name} communiceert: hoeveel pictogrammen hij tegelijk ziet, of er tekst bij
-              staat, en hoe de AI naar zijn bedoeling zoekt.
+              Hoe {user.name} communiceert: of er tekst bij de pictogrammen staat en of de tablet
+              voorleest.
             </p>
             <SettingsForm
               key={user.id}
@@ -427,24 +416,6 @@ function UserDetailPage({
         {tab === 'caregivers' ? (
           <CaregiversPanel
             key={`caregivers-${user.id}-${caregiverVersion}`}
-            api={api}
-            userId={user.id}
-            userName={user.name}
-          />
-        ) : null}
-
-        {tab === 'context' ? (
-          <PersonalContextPanel
-            key={`context-${user.id}`}
-            api={api}
-            userId={user.id}
-            userName={user.name}
-          />
-        ) : null}
-
-        {tab === 'preferences' ? (
-          <PreferencesPanel
-            key={`preferences-${user.id}`}
             api={api}
             userId={user.id}
             userName={user.name}

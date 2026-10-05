@@ -37,7 +37,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   `speech-hints.ts`. `speech.ts` blijft (wordt in N4.12 hergebruikt).
   *Acceptatie:* tablettests aangepast en groen; koppelen werkt nog (rooktest).
 
-- [ ] **N0.3 Beheer-UI: de oude AI-schermen eruit**
+- [x] **N0.3 Beheer-UI: de oude AI-schermen eruit**
   *ONTWERP: §49, §55.* Weg: Vraagmodus, Gesprekken, AI-activiteit, Conceptvoorstellen, Voorkeuren,
   Persoonlijke context, Worker-tokens, AAC-bibliotheek, berichtenlijst + afhandelen, AI-statusbadge — en
   hun menu-items. In het instellingenformulier blijven alleen `showText`, voorlezen en stem staan.
@@ -249,6 +249,13 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   `RETENTION_DEFAULT_DAYS` = 90); `GET/PUT /organization/settings` (beheerder); veld in de beheeromgeving.
   Het opruimen zelf komt in N14.2. Audit-log.
   *Acceptatie:* tests: grenzen, rol, isolatie.
+
+- [ ] **N3.4 Begeleider: gekoppelde gebruikers en hun instellingen**
+  *ONTWERP: §49, V7.* Ontdekt bij N0.3: met de vraagmodus verdween het enige scherm waarop een
+  begeleider zijn gekoppelde gebruikers zag. Een menu-item "Mijn gebruikers" voor de CAREGIVER met de
+  gekoppelde gebruikers (lezen via een nieuw `GET /caregiver/users`, tenant- en koppelingsgebonden) en
+  per gebruiker het instellingenformulier van N3.2.
+  *Acceptatie:* tests: een begeleider ziet alleen gekoppelde gebruikers; componenttest.
 
 ## Fase N4 — Eén gesprek van begin tot eind (zonder LLM)
 

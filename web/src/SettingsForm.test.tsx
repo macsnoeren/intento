@@ -73,16 +73,14 @@ describe('instellingen — stemkeuze', () => {
       screen.getByRole('checkbox', { name: /leest voor wat er op het scherm staat/ }),
     );
     fireEvent.click(screen.getByRole('radio', { name: /Nathalie/ }));
-    fireEvent.click(
-      screen.getByRole('checkbox', { name: /hardop uitleggen hoe de knoppen werken/ }),
-    );
     fireEvent.click(screen.getByRole('button', { name: 'Instellingen opslaan' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [, settings] = onSave.mock.calls[0] as [string, UpdateSettingsRequest];
     expect(settings.speechEnabled).toBe(true);
     expect(settings.speechVoice).toBe('nl_BE-nathalie-medium');
-    expect(settings.speechHints).toBe(false);
+    // Velden die het formulier niet (meer) toont, gaan ongewijzigd mee.
+    expect(settings.speechHints).toBe(true);
   });
 
   it('houdt de stemkeuze uitgeschakeld zolang spraak uitstaat', () => {
