@@ -77,7 +77,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N1 — De agentdienst (Python) staat
 
-- [ ] **N1.1 Skelet van de agentdienst**
+- [x] **N1.1 Skelet van de agentdienst**
   *ONTWERP: §3.1, §51.* Nieuwe map `agent-service/` met package `agent_service`, in dezelfde stijl als de
   spraakdienst: stdlib-HTTP-server, `config.py` met gevalideerde env (`HOST`, `PORT`, `SERVICE_TOKEN`),
   `GET /health` zonder token, een helper die de API-key controleert (constante-tijd-vergelijking), README

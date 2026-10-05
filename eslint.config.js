@@ -13,6 +13,8 @@ export default tseslint.config(
       // Gegenereerde Prisma-client: niet linten (self-suppressed, wordt geregenereerd).
       '**/src/generated/**',
       'PROJECT-NODEJS/**',
+      // Python-omgevingen van de diensten (vendored JS van pip e.d.).
+      '**/.venv/**',
     ],
   },
   js.configs.recommended,

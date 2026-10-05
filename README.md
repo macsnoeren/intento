@@ -25,6 +25,10 @@ Zie [INTENTO-NEW-DESIGN.md](INTENTO-NEW-DESIGN.md) voor de ontwerpbron en
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 
+Buiten de npm-workspaces staat [`agent-service/`](agent-service/README.md): de **Python-agentdienst**
+met de orchestrator en de agents (ADR-0017). Alleen de backend roept hem aan, met een gedeeld geheim; hij
+is stateless en bewaart niets. Opzet, draaien en testen: zie de README van de dienst.
+
 Buiten de npm-workspaces staat ook [`speech-service/`](speech-service/README.md): een **losstaande
 Python-dienst** (T18.1) die met [Piper](https://github.com/OHF-Voice/piper1-gpl) tekst in spraak omzet,
 lokaal en zonder cloud. De tablet leest daarmee voor wat er op zijn scherm staat; de backend praat namens

@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.1 — skelet van de agentdienst
+
+- Nieuwe map `agent-service/` (package `agent_service`) in de stijl van de spraakdienst: stdlib-HTTP-server,
+  `config.py` met gevalideerde env (`HOST`, `PORT`, verplicht `SERVICE_TOKEN` van minstens 16 tekens),
+  `GET /health` zonder token en een API-keycontrole met constante-tijdvergelijking. README en
+  `.env.example` erbij; unittests voor config, auth en `/health`.
+- `.venv` van de Python-diensten valt buiten Prettier en ESLint.
+
 ### N0.7 — verwijzingen in de blijvende code
 
 - Comments en testnamen in `server/src`, `web/src` en `shared/src` verwijzen niet meer naar het

@@ -6,3 +6,6 @@ server/src/generated/
 server/prisma/migrations/
 PROJECT-NODEJS/
 *.md
+**/.venv/
+**/.mypy_cache/
+**/.ruff_cache/
