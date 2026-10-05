@@ -267,3 +267,45 @@ class TurnResponse(Contract):
     inferences: list[Inference]
     decisions: list[AgentDecision]
     gaps: list[Gap]
+
+
+def field_paths(schema: dict[str, JsonValue]) -> list[str]:
+    """Alle veldpaden van een JSON-schema (`a.b`, `a[].c`), voor de vergelijking met de zod-kant.
+
+    Zo valt ook een **optioneel** veld op dat maar aan één kant bestaat: dat zou de voorbeeldbestanden
+    niet altijd breken, de lijst met paden wel.
+    """
+    raw_defs = schema.get("$defs", {})
+    defs = raw_defs if isinstance(raw_defs, dict) else {}
+    paths: set[str] = set()
+    # Verwijzingen die we nu aan het aflopen zijn: een recursieve vorm mag geen oneindige lus worden.
+    active: set[str] = set()
+
+    def walk(node: JsonValue, prefix: str) -> None:
+        if not isinstance(node, dict):
+            return
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref not in active:
+            active.add(ref)
+            walk(schema if ref == "#" else defs.get(ref.rsplit("/", 1)[-1]), prefix)
+            active.discard(ref)
+        for key in ("anyOf", "oneOf", "allOf"):
+            variants = node.get(key)
+            if isinstance(variants, list):
+                for variant in variants:
+                    walk(variant, prefix)
+        props = node.get("properties")
+        if isinstance(props, dict):
+            for name, child in props.items():
+                path = f"{prefix}.{name}" if prefix else name
+                paths.add(path)
+                walk(child, path)
+        items = node.get("items")
+        if items is not None:
+            walk(items, f"{prefix}[]")
+        additional = node.get("additionalProperties")
+        if isinstance(additional, dict):
+            walk(additional, f"{prefix}{{}}")
+
+    walk(schema, "")
+    return sorted(paths)

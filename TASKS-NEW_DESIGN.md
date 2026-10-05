@@ -100,7 +100,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (`valid/*.json` en `invalid/*.json`).
   *Acceptatie:* unittests: elk geldig voorbeeld wordt geaccepteerd, elk ongeldig voorbeeld geweigerd.
 
-- [ ] **N1.4 Dezelfde contracten in zod**
+- [x] **N1.4 Dezelfde contracten in zod**
   *ONTWERP: §34.* `shared/src/agent-contract.ts` met dezelfde vormen in zod. Een vitest-test laadt
   dezelfde `contracts/fixtures/` en eist hetzelfde oordeel als pydantic.
   *Acceptatie:* de contracttest is groen; een veld dat alleen aan één kant bestaat, laat een test falen

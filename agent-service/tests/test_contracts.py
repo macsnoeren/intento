@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from agent_service.contracts import CONTRACT_VERSION, TurnRequest, TurnResponse
+from agent_service.contracts import CONTRACT_VERSION, TurnRequest, TurnResponse, field_paths
 
 FIXTURES = Path(__file__).resolve().parents[2] / "contracts" / "fixtures"
 
@@ -55,6 +55,13 @@ class ContractFixturesTest(unittest.TestCase):
                 data = json.loads(path.read_text("utf-8"))
                 model = model_for(path).model_validate(data)
                 self.assertEqual(model.model_dump(mode="json"), data)
+
+    def test_velden_gelijk_aan_contracts_fields_json(self) -> None:
+        # De zod-kant vergelijkt met hetzelfde bestand; een veld aan maar één kant faalt dus altijd.
+        expected = json.loads((FIXTURES.parent / "fields.json").read_text("utf-8"))
+        for name, model in MODELS.items():
+            with self.subTest(model=name):
+                self.assertEqual(field_paths(model.model_json_schema()), expected[name])
 
     def test_contractversie_is_1(self) -> None:
         self.assertEqual(CONTRACT_VERSION, 1)

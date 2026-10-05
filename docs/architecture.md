@@ -54,6 +54,8 @@ server niet uit elkaar lopen.
   `SERVICE_TOKEN`), `auth.py` (API-key, constante-tijdvergelijking), `server.py` (stdlib-HTTP-server).
   `contracts.py` bevat de contracten v1 (pydantic); ze worden samen met de zod-kant getest tegen
   `contracts/fixtures/`. Nu alleen `GET /health`; de orchestrator en `/v1/turn` volgen in fase N1.
+- `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
+  `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client
   (`opensymbols.ts`), die bij het importeren uit een externe bron wordt hergebruikt. Zie
   [adr/0015](adr/0015-speech-synthesis-piper.md).

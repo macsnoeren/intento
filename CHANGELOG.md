@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.4 — dezelfde contracten in zod
+
+- `shared/src/agent-contract.ts`: de contracten v1 in zod (strict objects, snake_case-sleutels),
+  geëxporteerd via `@intento/shared`.
+- `shared` heeft nu een eigen vitest-suite: de test leest dezelfde `contracts/fixtures/` als pydantic
+  en eist hetzelfde oordeel. Daarnaast vergelijken beide kanten hun veldpaden met
+  `contracts/fields.json`, zodat ook een optioneel veld aan maar één kant een test laat falen
+  (handmatig gecontroleerd).
+
 ### N1.3 — contracten v1 in pydantic
 
 - `agent_service/contracts.py`: `TurnRequest`, `TurnResponse`, `SessionState`, `Event` (start, answer_yes,
