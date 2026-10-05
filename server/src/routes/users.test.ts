@@ -55,16 +55,9 @@ describe('gebruikersbeheer — /users', () => {
     // Standaardwaarden (DESIGN §5.3): 4 opties, tekst aan, leren aan, ondersteuning uit,
     // contextindicator aan.
     expect(user.communicationProfile).toEqual({
-      iconsPerScreen: 4,
       showText: true,
-      aiLearningEnabled: true,
-      supportMode: false,
-      contextIndicator: true,
-      // Standaardstrategie (T11.4): bestaande gebruikers houden het gedrag van vóór de instelling.
-      conversationStrategy: 'refine',
       speechEnabled: false,
       speechVoice: 'nl_NL-pim-medium',
-      speechHints: true,
     });
   });
 
@@ -112,7 +105,7 @@ describe('gebruikersbeheer — /users', () => {
     expect(res.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
   });
 
-  it('werkt instellingen bij en valideert iconsPerScreen op 2/4/6/8', async () => {
+  it('werkt instellingen bij en weigert een onbekende stem', async () => {
     const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
     const cookie = await loginCookie(app, admin.email, admin.password);
     const user = await seedUser('Sanne', admin.organizationId);
@@ -122,45 +115,27 @@ describe('gebruikersbeheer — /users', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
-        iconsPerScreen: 6,
         showText: false,
-        aiLearningEnabled: false,
-        supportMode: true,
-        contextIndicator: false,
-        conversationStrategy: 'calm',
         speechEnabled: false,
         speechVoice: 'nl_NL-pim-medium',
-        speechHints: true,
       },
     });
     expect(ok.statusCode).toBe(200);
     expect(userPublicSchema.parse(ok.json()).communicationProfile).toEqual({
-      iconsPerScreen: 6,
       showText: false,
-      aiLearningEnabled: false,
-      supportMode: true,
-      contextIndicator: false,
-      conversationStrategy: 'calm',
       speechEnabled: false,
       speechVoice: 'nl_NL-pim-medium',
-      speechHints: true,
     });
 
-    // 3 is geen geldige waarde → 400.
+    // Een stem buiten de catalogus is geen geldige waarde → 400.
     const bad = await app.inject({
       method: 'PUT',
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
-        iconsPerScreen: 3,
         showText: true,
-        aiLearningEnabled: true,
-        supportMode: false,
-        contextIndicator: true,
-        conversationStrategy: 'refine',
         speechEnabled: false,
-        speechVoice: 'nl_NL-pim-medium',
-        speechHints: true,
+        speechVoice: 'onbekende-stem',
       },
     });
     expect(bad.statusCode).toBe(400);
@@ -183,15 +158,9 @@ describe('gebruikersbeheer — /users', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
-        iconsPerScreen: 2,
         showText: true,
-        aiLearningEnabled: true,
-        supportMode: false,
-        contextIndicator: true,
-        conversationStrategy: 'refine',
         speechEnabled: false,
         speechVoice: 'nl_NL-pim-medium',
-        speechHints: true,
       },
     });
     expect(put.statusCode).toBe(200);

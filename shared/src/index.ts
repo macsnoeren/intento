@@ -286,106 +286,7 @@ export const resetAccountPasswordResponseSchema = z.object({
 });
 export type ResetAccountPasswordResponse = z.infer<typeof resetAccountPasswordResponseSchema>;
 
-// --- Gebruikers en communicatieprofiel (T2.1, DESIGN §2, §5.3, §6.2) ---
-
-/**
- * Aantal pictogramopties per scherm. Bewust beperkt tot 2/4/6/8 (DESIGN §5.3): minder =
- * eenvoudiger, meer = sneller. Elke andere waarde is ongeldig en wordt op de API-grens
- * geweigerd (400). Standaardwaarde is 4 (in het datamodel).
- */
-export const iconsPerScreenSchema = z.union([
-  z.literal(2),
-  z.literal(4),
-  z.literal(6),
-  z.literal(8),
-]);
-export type IconsPerScreen = z.infer<typeof iconsPerScreenSchema>;
-
-/**
- * De sleutels van de ingebouwde **gespreksstrategieën** (T11.4, DESIGN §7.10). Stabiel: ze worden
- * opgeslagen bij de gebruiker en het gesprek, en verschijnen in logs en beheerschermen.
- *
- * Ze staan hier — in `shared` — omdat zowel de server (die de parameters kent) als de beheer-UI (die de
- * keuze toont) dezelfde lijst nodig heeft. De **parameters** van een strategie blijven server-intern:
- * de client hoeft niet te weten met welke drempels er gezocht wordt, alleen wát hij kan kiezen.
- */
-export const CONVERSATION_STRATEGY_KEYS = [
-  'refine',
-  'explore',
-  'calm',
-  'context-first',
-  'guess',
-] as const;
-
-/** Strategiesleutel; een onbekende waarde wordt op de API-grens geweigerd (400). */
-export const conversationStrategySchema = z.enum(CONVERSATION_STRATEGY_KEYS);
-export type ConversationStrategyKey = z.infer<typeof conversationStrategySchema>;
-
-/** De standaardstrategie: de aanpak die gold voordat er iets te kiezen viel. */
-export const DEFAULT_CONVERSATION_STRATEGY: ConversationStrategyKey = 'refine';
-
-/**
- * Normaliseert een **opgeslagen** strategiesleutel: onbekend → de standaard.
- *
- * De twee kanten zijn bewust verschillend. *Invoer* wordt hard geweigerd (`conversationStrategySchema`
- * op de API-grens, 400): een half toegepaste strategie is erger dan een geweigerde request. *Opgeslagen*
- * data wordt gerepareerd: verdwijnt een strategie ooit uit de registry, dan mag het profiel van die
- * gebruiker daardoor niet onleesbaar worden — hij zou zijn tablet niet meer kunnen koppelen om iets te
- * zeggen. Dat is een veel groter kwaad dan een aanpak die stilletjes terugvalt op de standaard.
- */
-export function toConversationStrategy(value: unknown): ConversationStrategyKey {
-  const parsed = conversationStrategySchema.safeParse(value);
-  return parsed.success ? parsed.data : DEFAULT_CONVERSATION_STRATEGY;
-}
-
-/**
- * De keuzelijst zoals de **begeleider** hem ziet: naam en uitleg in begrijpelijke taal, geen
- * parameters. Eén bron voor de beheer-UI en de server-registry, zodat een strategie nooit onder twee
- * namen rondloopt.
- */
-export const CONVERSATION_STRATEGY_CATALOG: readonly {
-  key: ConversationStrategyKey;
-  label: string;
-  description: string;
-}[] = [
-  {
-    key: 'refine',
-    label: 'Stap voor stap verfijnen',
-    description:
-      'Begint bij de categorie en werkt stap voor stap naar het detail toe. De standaardaanpak: ' +
-      'geschikt voor wie categorieën herkent en het prettig vindt om in kleine stappen te kiezen.',
-  },
-  {
-    key: 'explore',
-    label: 'Breed verkennen',
-    description:
-      'Laat meteen concrete dingen zien in plaats van eerst categorieën, en toont er meer tegelijk. ' +
-      'Geschikt voor wie voorwerpen en activiteiten goed herkent maar moeite heeft met indelen.',
-  },
-  {
-    key: 'calm',
-    label: 'Rustig en bevestigend',
-    description:
-      'Toont weinig pictogrammen tegelijk, blijft dicht bij de vorige keuze en wacht langer voordat ' +
-      'er een boodschap wordt voorgesteld. Geschikt voor wie snel overprikkeld raakt of veel tijd ' +
-      'nodig heeft.',
-  },
-  {
-    key: 'context-first',
-    label: 'Context eerst',
-    description:
-      'Begint bij wat deze persoon vaak kiest en bij zijn eigen context (personen, favorieten, vaste ' +
-      'plekken) in plaats van bij de begrippenboom. Geschikt voor wie een sterk vast dagritme heeft.',
-  },
-  {
-    key: 'guess',
-    label: 'De AI gokt mee',
-    description:
-      'De AI kiest niet uit de begrippenlijst maar bedenkt elke beurt zélf wat je waarschijnlijk ' +
-      'bedoelt, en zet haar beste gok tussen de pictogrammen. Geschikt voor wie weinig keuzes wil ' +
-      'maken en een verkeerde gok makkelijk wegtikt; de gebruiker kiest en bevestigt nog steeds zelf.',
-  },
-];
+// --- Gebruikers en communicatieprofiel ---
 
 // --- Spraakuitvoer (T18.1/T18.2, DESIGN §5.3, §9.4) ---
 
@@ -521,38 +422,19 @@ export type SpeechPreviewRequest = z.infer<typeof speechPreviewRequestSchema>;
 export const SPEECH_PREVIEW_SENTENCE = 'Ik wil graag water drinken.';
 
 /**
- * Communicatie-instellingen van een gebruiker (`UserCommunicationProfile`, DESIGN §5.3).
- * Stuurt de gebruikersapp aan: aantal opties, tekst tonen, AI-leren en ondersteuningsmodus.
+ * Communicatie-instellingen van een gebruiker (`UserCommunicationProfile`, INTENTO-NEW-DESIGN §50).
+ * De nieuwe communicatie-instellingen (vorm, opties per scherm, vraagstrategie, …) volgen in N3.1.
  */
 export const communicationProfileSchema = z.object({
-  iconsPerScreen: iconsPerScreenSchema,
+  /** Tekst onder de pictogrammen tonen. */
   showText: z.boolean(),
-  aiLearningEnabled: z.boolean(),
-  supportMode: z.boolean(),
   /**
-   * Contextindicator (broodkruimel van het afgelegde pad) in de gebruikersapp tonen (DESIGN §5.3,
-   * T2.4). Standaard aan; uit → de tablet toont het gekozen pad niet meer.
-   */
-  contextIndicator: z.boolean(),
-  /**
-   * De **gespreksstrategie** van deze gebruiker (T11.4, DESIGN §5.3, §7.10): de manier waarop de AI
-   * probeert te achterhalen wat hij bedoelt. Een instelling over de *zoekwijze*, nooit over de
-   * waarborgen — geen enkele keuze hier verandert wie eigenaar is van de boodschap.
-   */
-  conversationStrategy: conversationStrategySchema,
-  /**
-   * Spreekt de tablet uit wat er op het scherm staat (T18.3, DESIGN §5.3)? Standaard **uit**: een
-   * bestaande gebruiker houdt daarmee exact het gedrag van vóór deze instelling, en een tablet die
+   * Spreekt de tablet uit wat er op het scherm staat? Standaard **uit**: een tablet die
    * onaangekondigd begint te praten is voor deze doelgroep geen kleinigheid.
    */
   speechEnabled: z.boolean(),
-  /** De stem waarmee dat gebeurt (T18.2); de begeleider kiest hem op gehoor. */
+  /** De stem waarmee dat gebeurt; de begeleider kiest hem op gehoor. */
   speechVoice: speechVoiceSchema,
-  /**
-   * Af en toe een gesproken zetje over de **bediening** (T18.4) — "wil je andere keuzes? tik op Meer
-   * keuzes". Alleen van kracht als `speechEnabled` aanstaat, en nooit over de inhoud van het gesprek.
-   */
-  speechHints: z.boolean(),
 });
 export type CommunicationProfile = z.infer<typeof communicationProfileSchema>;
 
@@ -580,7 +462,7 @@ export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
 
 /**
  * Instellingenverzoek (`PUT /users/{id}/settings`). PUT vervangt het volledige profiel, dus
- * alle velden zijn verplicht. `iconsPerScreen` accepteert alléén 2/4/6/8.
+ * alle velden zijn verplicht.
  */
 export const updateSettingsRequestSchema = communicationProfileSchema;
 export type UpdateSettingsRequest = z.infer<typeof updateSettingsRequestSchema>;
@@ -611,16 +493,13 @@ export const profileExportSchema = z.object({
   exportedAt: z.iso.datetime(),
   user: z.object({ name: z.string() }),
   /**
-   * Het communicatieprofiel. De **gespreksstrategie** (T11.4) en de **spraakinstellingen** (T18.2)
-   * hebben hier bewust een terugval: een bestand dat vóór die instellingen is geëxporteerd bevat de
-   * velden niet, en dat is geen reden om een overdracht te weigeren — die gebruiker had toen de
-   * standaardaanpak en een stille tablet.
+   * Het communicatieprofiel. De spraakinstellingen hebben een terugval: een ouder bestand zonder die
+   * velden is geen reden om een overdracht te weigeren. Velden van vóór de herbouw (N0.5) worden bij
+   * het inlezen genegeerd.
    */
   communicationProfile: communicationProfileSchema.extend({
-    conversationStrategy: conversationStrategySchema.default(DEFAULT_CONVERSATION_STRATEGY),
     speechEnabled: z.boolean().default(false),
     speechVoice: speechVoiceSchema.default(DEFAULT_SPEECH_VOICE),
-    speechHints: z.boolean().default(true),
   }),
 });
 export type ProfileExport = z.infer<typeof profileExportSchema>;

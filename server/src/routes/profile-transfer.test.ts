@@ -26,17 +26,9 @@ describe('profielexport/-import (T8.1)', () => {
 
   /** Een bewust niet-standaard profiel, zodat de roundtrip elk veld aantoonbaar meeneemt. */
   const CUSTOM_SETTINGS: UpdateSettingsRequest = {
-    iconsPerScreen: 8,
     showText: false,
-    aiLearningEnabled: false,
-    supportMode: true,
-    contextIndicator: false,
-    // Bewust niet de standaard (T11.4): een strategie die de overdracht niet overleeft, valt stil terug
-    // op "stap voor stap verfijnen" en dan gedraagt het profiel zich na verhuizing anders.
-    conversationStrategy: 'calm',
     speechEnabled: false,
     speechVoice: 'nl_NL-pim-medium',
-    speechHints: true,
   };
 
   beforeEach(async () => {

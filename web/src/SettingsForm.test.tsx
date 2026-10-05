@@ -23,15 +23,9 @@ function user(overrides: Partial<CommunicationProfile> = {}): UserPublic {
     active: true,
     createdAt: '2026-07-12T10:00:00.000Z',
     communicationProfile: {
-      iconsPerScreen: 4,
       showText: true,
-      aiLearningEnabled: true,
-      supportMode: false,
-      contextIndicator: true,
-      conversationStrategy: 'refine',
       speechEnabled: false,
       speechVoice: DEFAULT_SPEECH_VOICE,
-      speechHints: true,
       ...overrides,
     },
   };
@@ -79,8 +73,6 @@ describe('instellingen — stemkeuze', () => {
     const [, settings] = onSave.mock.calls[0] as [string, UpdateSettingsRequest];
     expect(settings.speechEnabled).toBe(true);
     expect(settings.speechVoice).toBe('nl_BE-nathalie-medium');
-    // Velden die het formulier niet (meer) toont, gaan ongewijzigd mee.
-    expect(settings.speechHints).toBe(true);
   });
 
   it('houdt de stemkeuze uitgeschakeld zolang spraak uitstaat', () => {

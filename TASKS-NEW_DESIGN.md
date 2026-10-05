@@ -53,7 +53,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* alle checks groen; `rg "conversation|AiJob|WorkerToken" server/src` levert alleen nog
   het Prisma-schema op.
 
-- [ ] **N0.5 Database: oude tabellen en velden eruit**
+- [x] **N0.5 Database: oude tabellen en velden eruit**
   *ONTWERP: §39, §55.* Eén migratie die de tabellen uit §55 verwijdert, plus de profielvelden
   `iconsPerScreen`, `aiLearningEnabled`, `supportMode`, `contextIndicator`, `conversationStrategy` en
   `speechHints`. Seed en profielexport/-import inkorten tot wat overblijft (instellingen).

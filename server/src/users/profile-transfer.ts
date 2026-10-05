@@ -1,7 +1,6 @@
 import {
   PROFILE_EXPORT_VERSION,
   profileExportSchema,
-  toConversationStrategy,
   toSpeechVoice,
   type ProfileExport,
 } from '@intento/shared';
@@ -38,24 +37,18 @@ export async function buildProfileExport(
   });
 
   const profile = user.communicationProfile;
-  // `profileExportSchema.parse` dwingt meteen af dat de payload klopt (bv. alléén 2/4/6/8 iconen) en dat er
-  // geen extra velden lekken die niet in het draagbare profiel horen.
+  // `profileExportSchema.parse` dwingt meteen af dat de payload klopt en dat er geen extra velden lekken
+  // die niet in het draagbare profiel horen.
   return profileExportSchema.parse({
     version: PROFILE_EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
     user: { name: user.name },
     communicationProfile: profile
       ? {
-          iconsPerScreen: profile.iconsPerScreen,
           showText: profile.showText,
-          aiLearningEnabled: profile.aiLearningEnabled,
-          supportMode: profile.supportMode,
-          contextIndicator: profile.contextIndicator,
-          conversationStrategy: toConversationStrategy(profile.conversationStrategy),
           // De stem verhuist mee: hoe iemand klinkt hoort bij zijn profiel, niet bij deze omgeving.
           speechEnabled: profile.speechEnabled,
           speechVoice: toSpeechVoice(profile.speechVoice),
-          speechHints: profile.speechHints,
         }
       : DEFAULT_PROFILE,
   });

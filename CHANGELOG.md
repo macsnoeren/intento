@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N0.5 — database: oude tabellen en velden eruit
+
+- Migratie `drop_old_ai_layer`: de tabellen van de oude AI-laag (`AacSymbol`, `AacConceptRelation`,
+  `ConversationSession`, `ConversationStep`, `GeneratedMessage`, `MessageAcknowledgement`,
+  `CorrectionEvent`, `ConceptProposal`, `Preference`, `PersonalContext`, `AiJob`, `WorkerToken`) en de
+  profielvelden `iconsPerScreen`, `aiLearningEnabled`, `supportMode`, `contextIndicator`,
+  `conversationStrategy` en `speechHints` zijn weg. Geen datamigratie (ontwerp §55).
+- Het communicatieprofiel bestaat nu uit `showText`, `speechEnabled` en `speechVoice`; de
+  gespreksstrategieën verdwijnen uit `shared/`. Een oud profielexportbestand blijft importeerbaar
+  (onbekende velden worden genegeerd).
+
 ### N0.4 — server: de oude gespreks- en AI-code eruit
 
 - Weg: `server/src/conversation/`, `server/src/ai/`, `server/src/aac/`, de routes voor gesprekken,

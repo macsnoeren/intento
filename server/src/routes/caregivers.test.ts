@@ -247,15 +247,9 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
         url: `/users/${user.id}/settings`,
         headers: { cookie },
         payload: {
-          iconsPerScreen: 2,
           showText: true,
-          aiLearningEnabled: true,
-          supportMode: false,
-          contextIndicator: true,
-          conversationStrategy: 'refine',
           speechEnabled: false,
           speechVoice: 'nl_NL-pim-medium',
-          speechHints: true,
         },
       });
       expect(put.statusCode).toBe(403);
@@ -281,15 +275,9 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
         url: `/users/${user.id}/settings`,
         headers: { cookie },
         payload: {
-          iconsPerScreen: 6,
           showText: false,
-          aiLearningEnabled: false,
-          supportMode: true,
-          contextIndicator: true,
-          conversationStrategy: 'refine',
           speechEnabled: false,
           speechVoice: 'nl_NL-pim-medium',
-          speechHints: true,
         },
       });
       expect(put.statusCode).toBe(200);

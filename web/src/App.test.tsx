@@ -46,15 +46,9 @@ function makeUser(id: string, name: string): UserPublic {
     active: true,
     createdAt: '2026-07-08T10:00:00.000Z',
     communicationProfile: {
-      iconsPerScreen: 4,
       showText: true,
-      aiLearningEnabled: true,
-      supportMode: false,
-      contextIndicator: true,
-      conversationStrategy: 'refine',
       speechEnabled: false,
       speechVoice: 'nl_NL-pim-medium',
-      speechHints: true,
     },
   };
 }

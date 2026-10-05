@@ -220,19 +220,19 @@ filteren tenant-data op `organizationId` (T1.2). Endpoints en foutcodes:
 ## Gebruikersbeheer (beheeromgeving, T2.1)
 
 Een beheerder beheert de communicerende gebruikers en hun communicatie-instellingen
-(aantal opties 2/4/6/8, tekst tonen, AI-leren, ondersteuningsmodus — DESIGN §5.3). Via de
+(tekst tonen, voorlezen en stem; de nieuwe instellingen uit INTENTO-NEW-DESIGN §50 volgen in N3.1). Via de
 web-app: `npm run dev:web`, open <http://localhost:5173>, log in als admin en beheer
 gebruikers (aanmaken, instellingen, verwijderen). De web-app praat met de backend op
 `VITE_API_URL` (standaard `http://localhost:3000`).
 
 ```bash
-# Gebruiker aanmaken (ADMIN), lijst, instellingen (alleen 2/4/6/8), verwijderen:
+# Gebruiker aanmaken (ADMIN), lijst, instellingen, verwijderen:
 curl -sb cookies.txt -X POST http://127.0.0.1:3000/users \
   -H 'content-type: application/json' -d '{"name":"Sanne"}'
 curl -sb cookies.txt http://127.0.0.1:3000/admin/users
 curl -sb cookies.txt -X PUT http://127.0.0.1:3000/users/<id>/settings \
   -H 'content-type: application/json' \
-  -d '{"iconsPerScreen":6,"showText":false,"aiLearningEnabled":false,"supportMode":true,"contextIndicator":true}'
+  -d '{"showText":false,"speechEnabled":true,"speechVoice":"nl_NL-pim-medium"}'
 curl -sb cookies.txt -X DELETE http://127.0.0.1:3000/users/<id>
 ```
 

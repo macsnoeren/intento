@@ -77,15 +77,9 @@ describe('audit-logging — gevoelige acties', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
-        iconsPerScreen: 6,
         showText: true,
-        aiLearningEnabled: true,
-        supportMode: false,
-        contextIndicator: true,
-        conversationStrategy: 'refine',
         speechEnabled: false,
         speechVoice: 'nl_NL-pim-medium',
-        speechHints: true,
       },
     });
     expect(res.statusCode).toBe(200);

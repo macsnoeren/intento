@@ -28,23 +28,21 @@ datasource db {
 /// gefilterd (multi-tenant-isolatie, DESIGN §9.4). Het eerste fundament-model in T0.2;
 /// accounts, gebruikers en de rest volgen in latere taken.
 model Organization {
-  id        String   @id @default(cuid())
+  id         String   @id @default(cuid())
   /// Weergavenaam van de omgeving.
-  name      String
+  name       String
   /// Soort omgeving: "family" | "care" | "personal" (gevalideerd op de API-grens).
-  type      String
-  /// Platform-/operatororganisatie (T5.8): alléén ADMINs van zo'n org mogen platform-brede
-  /// infrastructuur beheren (worker-tokens). Standaard `false`; de bootstrap-seed zet dit op
-  /// `true`, en zelfaanmelding (T1.3) alleen bij de allereerste aanmelding op een lege database
-  /// mét `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan. Elke aanmelding daarna krijgt `false`. Zo kan een
-  /// zelf-aangemelde familie/zorg-admin geen infra-credentials munten die jobs van álle tenants
-  /// zouden verwerken (DESIGN §9.4).
-  isPlatform Boolean @default(false)
+  type       String
+  /// Platformorganisatie: alleen ADMINs van zo'n org mogen wat het hele platform raakt beheren
+  /// (bv. de platformitems van de Vocabulary). Standaard `false`; de bootstrap-seed zet dit op
+  /// `true`, en zelfaanmelding alleen bij de allereerste aanmelding op een lege database mét
+  /// `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan.
+  isPlatform Boolean  @default(false)
   /// Of de omgeving actief is (T8.3). Een platform-operator kan een organisatie **deactiveren** om
   /// misbruik te stoppen: dat is bewust geen verwijdering (gegevens blijven staan, herstel is één
   /// klik) maar wel een harde stop — inloggen, bestaande accountsessies én gekoppelde tablets van
   /// een inactieve organisatie worden geweigerd (`ORGANIZATION_SUSPENDED`). Zie docs/security.md.
-  active     Boolean @default(true)
+  active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
   accounts Account[]
@@ -74,84 +72,22 @@ model User {
   devices              Device[]
   /// Openstaande/gebruikte koppelcodes waarmee een apparaat aan deze gebruiker koppelt.
   deviceLinkCodes      DeviceLinkCode[]
-  /// Gespreksessies van deze gebruiker (T4.1); verdwijnen mee als de gebruiker wordt verwijderd.
-  conversationSessions ConversationSession[]
-  /// Persoonlijke context van deze gebruiker (T6.1); gevoelige velden versleuteld at-rest.
-  personalContexts     PersonalContext[]
-  /// Geleerde voorkeuren (T6.3); alléén uit bevestigde communicatie, uitschakelbaar per gebruiker.
-  preferences          Preference[]
 
   @@index([organizationId])
 }
 
-/// Persoonlijke context van een gebruiker: belangrijke personen, huisdieren, plekken, favorieten,
-/// routines (T6.1, DESIGN §3.7 stap 3, §6.2 PersonalContext, §6.3, §9.4, FR-013/020). Dient om de AI
-/// te personaliseren — maar **alléén met expliciete toestemming**: alleen rijen met `aiUsageAllowed=true`
-/// belanden ooit in het AI-contextobject (DESIGN §6.3). Privacy by design:
-///
-/// - **Versleuteld at-rest.** De gevoelige, vrij-tekst PII-velden (`name`, `relationship`) staan NOOIT
-///   plaintext in de db: ze worden met AES-256-GCM versleuteld (`ENCRYPTION_KEY`) opgeslagen als
-///   ondoorzichtige strings (`nameEncrypted`, `relationshipEncrypted`) en pas op de API-grens ontsleuteld.
-///   Zo levert db-lekkage geen leesbare persoonsgegevens op (DESIGN §9.4, CLAUDE.md security-checklist).
-/// - **Toestemming per rij.** `aiUsageAllowed` (standaard `false` — opt-in) bepaalt of de AI deze context
-///   mag zien. Zonder toestemming blijft de context zichtbaar voor beheer/begeleiding maar bereikt hij de
-///   prompt nooit.
-/// - **Tenant-/gebruiker-gebonden.** Aan precies één `User` gebonden; elke query wordt op de gebruiker
-///   (en via de gebruiker op de organisatie) gefilterd (multi-tenant-isolatie, DESIGN §9.4).
-///
-/// `category` is een gesloten taxonomie (PERSON/PET/PLACE/ACTIVITY/FOOD/OBJECT/ROUTINE/OTHER), op de grens
-/// met zod gevalideerd — geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit (zie schema-header).
-model PersonalContext {
-  id                    String   @id @default(cuid())
-  userId                String
-  /// Categorie: "PERSON" | "PET" | "PLACE" | "ACTIVITY" | "FOOD" | "OBJECT" | "ROUTINE" | "OTHER"
-  /// (gevalideerd op de API-grens). Bepaalt hoe de context de AI ondersteunt.
-  category              String
-  /// AES-256-GCM-cijfertekst van de naam/omschrijving (bv. een persoons- of huisdiernaam). Nooit plaintext.
-  nameEncrypted         String
-  /// AES-256-GCM-cijfertekst van de relatie/toelichting (bv. "dochter"); `null` als niet opgegeven.
-  relationshipEncrypted String?
-  /// Of de AI deze context mag gebruiken (DESIGN §6.3). Standaard `false` (opt-in, expliciete toestemming).
-  aiUsageAllowed        Boolean  @default(false)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-/// Communicatie-instellingen per gebruiker (DESIGN §5.3, §6.2). 1-op-1 aan `User`
-/// (`userId` is de primaire sleutel). De waarden sturen de gebruikersapp aan:
-/// - `iconsPerScreen`: aantal opties per scherm — alleen 2/4/6/8 (standaard 4), afgedwongen
-///   met zod op de API-grens (geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit).
-/// - `showText`: tekst onder pictogrammen tonen (ondersteunend, standaard aan).
-/// - `aiLearningEnabled`: leren van bevestigde communicatie toestaan (uitschakelbaar).
-/// - `supportMode`: ondersteuningsmodus (begeleider tikt aan namens de gebruiker).
-/// - `contextIndicator`: contextindicator (broodkruimel van het afgelegde pad) in de
-///   gebruikersapp tonen (DESIGN §5.3, standaard aan).
-/// - `conversationStrategy`: de gespreksstrategie van deze persoon (T11.4, DESIGN §7.10) — de
-///   manier waarop de AI probeert te achterhalen wat hij bedoelt. De strategieën zijn
-///   **ingebouwd** (code, stabiele sleutel); hier staat alleen de gekozen sleutel, op de
-///   API-grens met zod tegen de registry gevalideerd. Standaard `refine`: bestaande
-///   gebruikers houden daarmee exact het gedrag van vóór deze instelling.
-/// - `speechEnabled`: spreekt de tablet uit wat er op het scherm staat (T18.3)? Standaard **uit**,
-///   zodat een bestaande tablet niet onaangekondigd begint te praten.
-/// - `speechVoice`: met welke stem (T18.2). Een sleutel uit de gedeelde stemcatalogus, op de
-///   API-grens met zod gevalideerd; `device` betekent "de tablet spreekt zelf".
-/// - `speechHints`: af en toe een gesproken zetje over de **bediening** (T18.4) — nooit over de
-///   inhoud van het gesprek. Alleen van kracht als `speechEnabled` aanstaat.
+/// Communicatie-instellingen per gebruiker (INTENTO-NEW-DESIGN §50). 1-op-1 aan `User`
+/// (`userId` is de primaire sleutel). De oude AI-instellingen zijn weg (N0.5); de nieuwe
+/// communicatie-instellingen volgen in N3.1.
+/// - `showText`: tekst onder pictogrammen tonen (standaard aan).
+/// - `speechEnabled`: spreekt de tablet uit wat er op het scherm staat? Standaard **uit**.
+/// - `speechVoice`: met welke stem. Een sleutel uit de gedeelde stemcatalogus, op de API-grens met
+///   zod gevalideerd; `device` betekent "de tablet spreekt zelf".
 model UserCommunicationProfile {
-  userId               String  @id
-  iconsPerScreen       Int     @default(4)
-  showText             Boolean @default(true)
-  aiLearningEnabled    Boolean @default(true)
-  supportMode          Boolean @default(false)
-  contextIndicator     Boolean @default(true)
-  conversationStrategy String  @default("refine")
-  speechEnabled        Boolean @default(false)
-  speechVoice          String  @default("nl_NL-pim-medium")
-  speechHints          Boolean @default(true)
+  userId        String  @id
+  showText      Boolean @default(true)
+  speechEnabled Boolean @default(false)
+  speechVoice   String  @default("nl_NL-pim-medium")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -161,27 +97,27 @@ model UserCommunicationProfile {
 /// plaintext opgeslagen — alleen een argon2id-hash. `email` is platformbreed uniek zodat
 /// login op e-mail alleen het account eenduidig bepaalt (MVP-keuze, zie ADR-0004).
 model Account {
-  id             String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   /// Login-identiteit; platformbreed uniek (lowercase genormaliseerd op de API-grens).
-  email          String   @unique
+  email               String    @unique
   /// Weergavenaam van de accounthouder (bv. de admin die zich zelf aanmeldde, T1.3).
   /// Nullable: geseede/bestaande accounts hebben geen naam en login vereist er geen.
-  name           String?
+  name                String?
   /// argon2id-hash van het wachtwoord. Nooit het wachtwoord zelf.
-  passwordHash   String
+  passwordHash        String
   /// Rol: "ADMIN" | "CAREGIVER" | "USER" (gevalideerd op de API-grens; geen native enum
   /// i.v.m. PostgreSQL/SQLite-portabiliteit, zie schema-header en ADR-0003).
-  role           String
-  organizationId String
+  role                String
+  organizationId      String
   /// Account-lockout tegen brute force: telt opeenvolgende mislukte logins; `lockedUntil`
   /// blokkeert login tot dat moment. Beide worden bij een geslaagde login gereset.
-  failedLoginAttempts Int      @default(0)
+  failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
   /// E-mailverificatie (T1.4, DESIGN §2, §9.4). `null` = nog niet geverifieerd; anders het moment
   /// waarop het e-mailadres via een verificatietoken is bevestigd. Onbevestigde accounts mogen
   /// inloggen maar bepaalde gevoelige acties (bv. gebruikers aanmaken) zijn geblokkeerd tot
   /// verificatie — zie docs/security.md. Geseede/bestaande accounts (vóór T1.4) blijven `null`.
-  emailVerifiedAt DateTime?
+  emailVerifiedAt     DateTime?
   /// Tijdelijk-wachtwoord-markering (T2.6, DESIGN §2, §9.4). `true` zolang dit account nog draait op
   /// het **server-gegenereerde** wachtwoord dat een beheerder bij het aanmaken (T2.4) te zien kreeg:
   /// dat wachtwoord is dus bij een tweede persoon bekend en het account is tot die tijd niet echt van
@@ -190,7 +126,7 @@ model Account {
   /// alléén het eigen account bekijken en het wachtwoord wijzigen toe (`403 PASSWORD_CHANGE_REQUIRED`
   /// op al het overige) — zie docs/security.md. Standaard `false`: zelf gekozen wachtwoorden
   /// (zelfaanmelding T1.3, seed) zijn nooit bij een ander bekend.
-  mustChangePassword Boolean @default(false)
+  mustChangePassword  Boolean   @default(false)
   /// Platform-operator (T8.3, DESIGN §9.1, §9.4). `true` = dit account mag de operatorconsole
   /// gebruiken: organisaties en accounts **over tenants heen** inzien en beheren. Bewust een aparte
   /// vlag naast `role`, niet een vierde rol: de rol bepaalt wat je binnen je eigen organisatie mag
@@ -200,17 +136,15 @@ model Account {
   /// plekken gezet, allebei bootstrap: de seed, en — als `BOOTSTRAP_FIRST_ADMIN_AS_OPERATOR` aan
   /// staat — de allereerste zelfaanmelding op een lege database. Er is geen API waarmee een
   /// bestaand account de vlag uitdeelt of krijgt. Zie ADR-0011 en docs/security.md.
-  isOperator     Boolean @default(false)
-  createdAt      DateTime @default(now())
+  isOperator          Boolean   @default(false)
+  createdAt           DateTime  @default(now())
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sessions     Session[]
+  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sessions                Session[]
   /// Gebruikers waaraan dit account (als CAREGIVER) gekoppeld is.
-  caregiverLinks CaregiverAssignment[]
+  caregiverLinks          CaregiverAssignment[]
   /// Openstaande/gebruikte e-mailverificatietokens van dit account.
   emailVerificationTokens EmailVerificationToken[]
-  /// Boodschappen die dit account als "opgepakt" heeft afgetekend (T13.3).
-  messageAcknowledgements MessageAcknowledgement[]
 
   @@index([organizationId])
 }
@@ -298,383 +232,10 @@ model DeviceLinkCode {
   @@index([userId])
 }
 
-/// Een pictogram uit de beheerde AAC-bibliotheek (DESIGN §6.2, FR-015, T3.1). De bibliotheek
-/// begrenst de AI: tijdens communicatie mag alleen uit deze symbolen worden gekozen (DESIGN §7.6).
-/// Ze zijn **platformbreed gedeeld**, niet tenant-gebonden — één beheerde woordenschat voor alle
-/// omgevingen (persoonlijke context/voorkeuren blijven wél per gebruiker en tenant).
-///
-/// Velden:
-/// - `concept`: canonieke, unieke conceptsleutel (lowercase, bv. "walking"). Hiernaar verwijzen
-///   relaties en straks de AI-context (§6.3); niet de weergavetekst.
-/// - `label`: weergavetekst voor de gebruiker (Nederlands, bv. "Wandelen").
-/// - `category`: categoriesleutel ("intent" | "activity" | ... ; gevalideerd op de API-grens,
-///   geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
-/// - `glyph`: de visuele weergave als emoji-fallback. Zolang er geen afbeelding is geüpload rendert
-///   de server hieruit een SVG-placeholder (`GET /aac/images/:id`). Beheerders beheren dit in T3.2.
-/// - `imageData` / `imageMimeType`: een door een beheerder geüpload pictogram (T3.2). Bewust **in de
-///   db** opgeslagen (Bytes) i.p.v. op het bestandssysteem: portabel op SQLite én PostgreSQL, één
-///   backup-/migratiepad en geen pad-/serving-beveiliging op schijf. Beide `null` = nog geen upload,
-///   dan valt serving terug op de glyph-placeholder. Alleen een mime-allowlist (raster) wordt
-///   geaccepteerd, met groottelimiet (zie env `AAC_IMAGE_MAX_BYTES`).
-/// - `imageVersion`: teller die bij elke upload omhooggaat en als cache-buster (`?v=`) in de
-///   afbeeldings-URL komt, zodat een vervangen pictogram niet uit de browsercache blijft komen.
-/// - `synonyms`: alternatieve zoektermen (JSON-array van strings) — gestructureerd bewaard zodat de
-///   beheer-UI ze los kan beheren en de zoek-API ze kan teruggeven.
-/// - `searchText`: afgeleide, genormaliseerde (lowercase) zoekindex = concept + label + synoniemen.
-///   De zoek-API matcht hierop met één `contains`, wat **portabel én hoofdletterongevoelig** is op
-///   zowel SQLite als PostgreSQL (beide kanten vooraf lowercase → geen DB-specifieke `mode` nodig).
-///   Wordt herbouwd bij elke wijziging van het symbool of zijn synoniemen.
-model AacSymbol {
-  id            String   @id @default(cuid())
-  concept       String   @unique
-  label         String
-  category      String
-  glyph         String
-  /// Geüploade afbeeldingsbytes (T3.2); `null` = terugvallen op de glyph-placeholder.
-  imageData     Bytes?
-  /// Mime-type van de geüploade afbeelding (uit de mime-allowlist); `null` als er geen upload is.
-  imageMimeType String?
-  /// Cache-buster: telt uploads, komt als `?v=` in de afbeeldings-URL.
-  imageVersion  Int      @default(0)
-  /// Bronvermelding/licentie van een gekoppelde externe afbeelding (OpenSymbols, T3.3). Alle `null`
-  /// bij een zelf-geüploade afbeelding of de glyph-placeholder. Reist mee met het pictogram zodat de
-  /// licentie-attributie altijd zichtbaar is (CC-attributie: auteur + bron + licentie).
-  imageLicense    String?
-  imageLicenseUrl String?
-  imageAuthor     String?
-  imageAuthorUrl  String?
-  imageSourceUrl  String?
-  /// JSON-array van synoniemen (zoektermen). Op de grens met zod gevalideerd/geparseerd.
-  synonyms      Json
-  /// Genormaliseerde zoekindex (lowercase); afgeleid, nooit rechtstreeks aan de client getoond.
-  searchText    String
-  /// Herkomst van het symbool (T10.6, DESIGN §7.6 trap 3): "library" (seed of door een beheerder
-  /// toegevoegd) of "ai" (tijdens een gesprek door de AI aangedragen omdat het begrip nog niet bestond).
-  /// Op de API-grens gevalideerd; geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit.
-  origin        String   @default("library")
-  /// Beoordelingsstatus van een AI-gegenereerd symbool: "APPROVED" (bibliotheek, standaard) of
-  /// "PENDING" (nieuw, nog niet door een beheerder bekeken). Een PENDING-symbool doet gewoon mee in het
-  /// gesprek — dat is de hele bedoeling — maar wordt in de UI **zichtbaar gemarkeerd** als nieuw woord
-  /// en staat in de beheerlijst (T10.7). De gebruiker blijft eigenaar: hij kiest het zelf (DESIGN §7.8).
-  reviewStatus  String   @default("APPROVED")
-  createdAt     DateTime @default(now())
-
-  /// Relaties waarin dit symbool de ouder is (bv. "buiten" bevat "wandelen").
-  parentLinks AacConceptRelation[] @relation("parent")
-  /// Relaties waarin dit symbool het kind is.
-  childLinks  AacConceptRelation[] @relation("child")
-
-  @@index([category])
-  @@index([reviewStatus])
-}
-
-/// Een begripsrelatie tussen twee AAC-symbolen (DESIGN §6.2, FR-015, T3.1). Vormt de boom waarlangs
-/// de (later AI-gestuurde) verfijning loopt: van intentie naar steeds concreter concept
-/// (bv. "buiten" → "wandelen"). `relation` typeert de relatie ("contains" in de MVP; ruimte voor
-/// meer types later). De samengestelde unieke sleutel voorkomt dubbele relaties; beide kanten
-/// `onDelete: Cascade` ruimen de relatie op als een van de symbolen verdwijnt.
-model AacConceptRelation {
-  id       String @id @default(cuid())
-  parentId String
-  childId  String
-  /// Type relatie: "contains" | … (gevalideerd op de API-grens; geen native enum i.v.m.
-  /// SQLite/PostgreSQL-portabiliteit — zie schema-header).
-  relation String @default("contains")
-
-  parent AacSymbol @relation("parent", fields: [parentId], references: [id], onDelete: Cascade)
-  child  AacSymbol @relation("child", fields: [childId], references: [id], onDelete: Cascade)
-
-  @@unique([parentId, childId, relation])
-  @@index([parentId])
-  @@index([childId])
-}
-
-/// Een gespreksessie: het tijdelijke communicatieproces waarin een gebruiker via pictogramkeuzes
-/// zijn intentie opbouwt (T4.1, DESIGN §3.1, §6.2). De sessie is aan **precies één** `User` gebonden
-/// (gebruiker-isolatie, DESIGN §9.4): een tablet mag alleen de sessies van zijn eigen gebruiker zien.
-/// In deze fase draait de vraagselectie op een **gescripte engine** over de AAC-relatieboom; de
-/// AI-orchestrator neemt die rol later over achter dezelfde interface. Alleen bevestigde communicatie
-/// wordt uiteindelijk bewaard (DESIGN §3.6) — het genereren/bevestigen volgt in T4.3.
-model ConversationSession {
-  id        String   @id @default(cuid())
-  userId    String
-  /// Status: "ACTIVE" | "COMPLETED" | "ABANDONED" (gevalideerd op de API-grens; geen native enum
-  /// i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header). In T4.1 alleen ACTIVE; T4.3 rondt af.
-  status    String   @default("ACTIVE")
-  /// Gespreksmodus: "free" (gebruiker start zelf een vrij gesprek, T4.1) of "question" (een begeleider
-  /// stelde een vraag via de vraagmodus, T7.1, DESIGN §3.2). Op de API-grens gevalideerd; geen native
-  /// enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header.
-  mode      String   @default("free")
-  /// De letterlijke begeleidersvraag bij een vraagmodus-sessie ("Wat wil je drinken?", DESIGN §3.2).
-  /// `null` bij een vrij gesprek. Reist mee naar de AI als **context** (beperkt de antwoorden) en wordt
-  /// in de gebruikersapp getoond zodat de gebruiker het antwoord samenstelt. Bewust géén vrije
-  /// gebruikersinvoer: alleen de begeleider (account-auth) kan dit zetten.
-  caregiverQuestion   String?
-  /// Het CAREGIVER-/ADMIN-account dat de vraag stelde (T7.1); `null` bij een vrij gesprek. Voor
-  /// herkomst/diagnose — de eigenaar van de communicatie blijft de gebruiker (DESIGN §2, §3.3).
-  startedByAccountId  String?
-  startedAt DateTime @default(now())
-  /// Het nog **onbeantwoorde** vraagaanbod van deze sessie (T10.3, DESIGN §7.5): de getoonde vraag en
-  /// de aangeboden concepten in de getoonde volgorde, plus de fase/zekerheid van die beslissing.
-  /// Vorm: `{ stepCount, question, concepts[], confidence, phase, done }`, bij het lezen met zod
-  /// gevalideerd (`pendingOfferSchema`). `stepCount` maakt het aanbod zelf-invaliderend: hoort het niet
-  /// bij het huidige aantal stappen, dan wordt er een nieuwe beslissing genomen.
-  ///
-  /// Waarom opslaan en niet herleiden: sinds de kandidaten uit **retrieval** komen (T10.2) en niet meer
-  /// uit één boomknoop, is de beslissing geen pure functie meer van de stappen — een tweede AI-aanroep
-  /// zou andere opties kunnen kiezen. Zonder vastlegging zou `↩ Terug` dus niet exact herstellen en zou
-  /// een geldige keuze als `INVALID_CHOICE` geweigerd kunnen worden. `null` = geen openstaand aanbod.
-  pendingOffer Json?
-  /// Heeft de gebruiker zelf aangegeven dat de route **goed genoeg** is (T10.11, DESIGN §3.1)? Dan gaat
-  /// het gesprek naar het voorstelscherm met de route zoals hij is, ook al zou de beslissingslaag nog
-  /// willen verfijnen (§7.4). Nodig sinds T10.10: dat stelt pas voor als er niets meer te verfijnen valt,
-  /// waardoor "Ik wil eten." — in AAC een volwaardige boodschap — anders onbereikbaar zou zijn.
-  ///
-  /// Wordt gewist zodra de gebruiker verder kiest, terug gaat of corrigeert: dan is de route veranderd en
-  /// geldt zijn "genoeg" niet meer.
-  readyToPropose Boolean @default(false)
-  /// Bij hoeveel stappen er al een **verfijnronde** is gedaan na ❌ Nee (T10.12, DESIGN §3.4). `null` =
-  /// nog niet op dit punt.
-  ///
-  /// ❌ betekent twee dingen die niet te onderscheiden zijn: "je zit in de goede richting maar niet
-  /// specifiek genoeg" en "dit klopt helemaal niet". De eerste is de goedkoopste verklaring, dus die
-  /// proberen we eerst: dezelfde route, maar de AI mag verfijningen aandragen ("brood" → boter, kaas,
-  /// chocopasta) — ook als de bibliotheek die nog niet kent (§7.6 trap 3). Wijst de gebruiker het
-  /// dáárna opnieuw af, dan klopte de laatste keuze zelf niet en rolt die terug.
-  ///
-  /// Vergelijken met het huidige aantal stappen maakt dit zelf-invaliderend: kiest de gebruiker een
-  /// verfijning, dan hoort een volgende ❌ weer bij een nieuw punt en begint de cyclus opnieuw.
-  refinedAtStep Int?
-  /// De lopende **hypothese** van de AI over wat de gebruiker bedoelt (T10.8, DESIGN §7.1 taak 3, §7.4):
-  /// `{ concepts[], confidence, reason, history[] }`, bij het lezen met zod gevalideerd
-  /// (`hypothesisSchema`). Bewust **vluchtig**: bij het afronden van het gesprek (`/confirm`) wordt dit
-  /// leeggemaakt — een onzekere aanname is geen bewaarde communicatie (DESIGN §3.6). Bevat uitsluitend
-  /// AAC-concepten en getallen, nooit persoonlijke context (DESIGN §9.4).
-  hypothesis Json?
-  /// De **gespreksstrategie** van dit gesprek (T11.5, DESIGN §7.10): de sleutel van een ingebouwde
-  /// aanpak, of `null` = volg de instelling van de gebruiker. Een begeleider kan hem meegeven bij het
-  /// stellen van een vraag (§3.2): een vraag over pijn vraagt om een andere benadering dan "wat wil je
-  /// doen vanmiddag". De resolutieorde is **gesprek → gebruiker → standaard** (`resolveStrategy`).
-  ///
-  /// De strategie ligt vast voor de duur van het gesprek: halverwege wisselen zou het vastgelegde
-  /// aanbod (`pendingOffer`) en de lopende hypothese inconsistent maken. Op de API-grens tegen de
-  /// registry gevalideerd; een opgeslagen sleutel die de registry niet meer kent valt bij het lezen
-  /// terug op de gebruikersinstelling.
-  strategy   String?
-
-  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  steps    ConversationStep[]
-  /// De bij bevestiging opgeslagen boodschap(pen) van deze sessie (T4.3). In de MVP hoogstens één:
-  /// een sessie wordt bij `confirm` afgerond (COMPLETED). Afgewezen voorstellen worden NOOIT opgeslagen.
-  messages GeneratedMessage[]
-  /// Correcties van de gebruiker (❌ op een voorstel, T5.4): correctie-signaal, geen leerdata.
-  corrections CorrectionEvent[]
-
-  @@index([userId])
-}
-
-/// Een door de (in deze fase gescripte) engine voorgestelde en door de gebruiker **bevestigde**
-/// boodschap (T4.3, DESIGN §3.1, §3.6, §6.2 GeneratedMessage, FR-007). Kernprincipe (DESIGN §3.6):
-/// alleen **bevestigde** communicatie wordt bewaard — een rij bestaat pas na `POST /conversation/{id}/
-/// confirm`. Onzekere aannames en **afgewezen** voorstellen worden nooit opgeslagen; het genereren
-/// (`/generate`) is dus bewust vluchtig en raakt de db niet. `confirmed` is daarmee in de MVP altijd
-/// `true`, maar blijft expliciet in het model conform DESIGN §6.2 (en als anker voor latere statussen).
-model GeneratedMessage {
-  id        String   @id @default(cuid())
-  sessionId String
-  /// De geformuleerde zin uit de gekozen concepten (sjabloon-gebaseerd in deze fase; de
-  /// AI-orchestrator neemt dit later over achter dezelfde interface — T5.3).
-  message   String
-  /// Of de gebruiker de boodschap bevestigde. In de MVP altijd `true` (alleen bevestigde
-  /// boodschappen worden opgeslagen); expliciet gemodelleerd conform DESIGN §6.2.
-  confirmed Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  /// De aftekening door een begeleider (T13.3); `null` zolang niemand de boodschap oppakte.
-  acknowledgement MessageAcknowledgement?
-
-  @@index([sessionId])
-}
-
-/// Een begeleider tekent een bevestigde boodschap af als **opgepakt** (T13.3, DESIGN §2, §3.3, §3.6).
-///
-/// Waarom een eigen model en geen kolommen op `GeneratedMessage`: de boodschap is een uitspraak van de
-/// **gebruiker** (§2) en ligt vast zodra hij hem bevestigde; dit is begeleiders-administratie eróver. Door
-/// ze te scheiden kan die administratie de boodschap per constructie niet wijzigen — `GeneratedMessage`
-/// wordt na het bevestigen nooit meer beschreven — en is "opgepakt" terug te draaien door de rij te
-/// verwijderen, zonder de boodschap aan te raken.
-///
-/// De aftekening is **gedeeld**, niet per account (`messageId` uniek): de vraag van een begeleider is "is
-/// hier al iets mee gedaan?", en die is gemeenschappelijk. Twee begeleiders die allebei denken dat de
-/// ander het oppakt, is precies het probleem dat dit oplost.
-///
-/// `onDelete: Cascade` op het account: verdwijnt de begeleider, dan verdwijnt zijn aftekening en staat de
-/// boodschap weer open. Bewust die kant op — een boodschap onterecht opnieuw onder ogen krijgen is
-/// hinderlijk, hem onterecht als afgehandeld beschouwen (zonder dat er nog iemand is die weet waarom) is
-/// schadelijk.
-model MessageAcknowledgement {
-  id        String   @id @default(cuid())
-  /// De afgetekende boodschap. Uniek: één aftekening per boodschap, gedeeld door alle begeleiders.
-  messageId String   @unique
-  /// Het account dat aftekende — het "wie" van de administratie.
-  accountId String
-  /// Het moment van aftekenen — het "wanneer".
-  createdAt DateTime @default(now())
-
-  message GeneratedMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  account Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  @@index([accountId])
-}
-
-/// Eén keuze in een gesprek (T4.1, DESIGN §3.1, §6.2). Elke stap legt vast wélke vraag getoond werd
-/// (`question`) en welk AAC-concept de gebruiker koos (`selectedConcept` + `selectedSymbolId`). `order`
-/// bepaalt de volgorde en maakt de terug-functie exact: de laatste stap verwijderen herstelt de vorige
-/// context. `confidence` is voorbereidend op de AI-fase (§7.4) en blijft `null` in de gescripte engine
-/// (er is nog geen AI-zekerheid). De samengestelde unieke sleutel `(sessionId, order)` voorkomt gaten/
-/// duplicaten in de volgorde.
-model ConversationStep {
-  id               String   @id @default(cuid())
-  sessionId        String
-  /// Positie in het gesprek (0-based); de terug-functie verwijdert de hoogste.
-  order            Int
-  /// De vraag (prompttekst) die bij deze stap getoond werd.
-  question         String
-  /// Het gekozen AAC-concept (canonieke sleutel, bv. "walking").
-  selectedConcept  String
-  /// Het gekozen `AacSymbol`-id; `null` als het symbool later verwijderd is (geen harde FK i.v.m.
-  /// de gedeelde, muteerbare bibliotheek). Zo blijft de historie leesbaar via `selectedConcept`.
-  selectedSymbolId String?
-  /// De interpretatie-zekerheid waarmee de vraag van déze stap werd **aangeboden** (§7.4); `null` als er
-  /// geen AI-zekerheid bekend was. Bewust de zekerheid op het aanbiedmoment en niet die van de toestand
-  /// erna: de stap legt vast wat de gebruiker te zien kreeg. De correctie-analyse gebruikt dit als
-  /// terugval; haar primaire signaal is het kantelpunt van de hypothese (T10.8).
-  confidence       Float?
-  /// De concepten die bij déze vraag zijn **aangeboden**, in de getoonde volgorde (T10.3, DESIGN §7.5).
-  /// Twee doelen: (1) `↩ Terug` herstelt de vorige vraag met exact dezelfde opties in plaats van met een
-  /// nieuwe AI-beslissing, en (2) "Geen van deze past" sluit precies uit wat de gebruiker gezien heeft.
-  /// Vorm: `string[]` (conceptsleutels), bij het lezen met zod gevalideerd. Lege lijst voor stappen van
-  /// vóór T10.3.
-  offeredConcepts  Json     @default("[]")
-  /// Welke van de aangeboden concepten als **gok** was gemarkeerd (T16.3, strategie `guess`): de tegel
-  /// "🎯 Ik denk: …" tussen de gewone pictogrammen. `null` bij elke andere strategie. Nodig om dezelfde
-  /// reden als `offeredConcepts`: `↩ Terug` en de correctieflow herstellen het scherm zoals het was,
-  /// inclusief wélke tegel gemarkeerd stond — anders verandert een teruggerold scherm stilletjes van vorm.
-  guessConcept     String?
-  createdAt        DateTime @default(now())
-
-  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@unique([sessionId, order])
-  @@index([sessionId])
-}
-
-/// Een correctie van de gebruiker: bij ❌ ("Nee, dit klopt niet") op een voorstel heranalyseert de
-/// orchestrator de route en bepaalt waar de vermoedelijk verkeerde afslag zat (T5.4, DESIGN §3.4,
-/// §6.2 CorrectionEvent, §7.6, FR-009). De flow gaat NIET terug naar het begin: de vermoedelijke
-/// foutstap (en alles erna) wordt teruggerold en er volgt een gerichtere hervraag, waarbij het
-/// afgewezen concept in de rest van de sessie niet meer wordt aangeboden (nooit dezelfde foutieve
-/// route, §7.5). Deze events worden bewaard als correctie-signaal, maar er wordt **niet** van geleerd
-/// (§3.4 punt 4): ze raken nooit de `Preference`-laag (T6.3). Bewust géén communicatie-inhoud hier —
-/// alleen welk concept op welke stap werd afgewezen (DESIGN §3.6, privacy by design).
-model CorrectionEvent {
-  id        String   @id @default(cuid())
-  sessionId String
-  /// Soort correctie: "wrong_guess" (❌ Nee), "no_fitting_option" ("Staat er niet bij") of
-  /// "refine_round" (T12.3: de eerste ❌ die een verfijnronde in gang zette). Gevalideerd op de grens;
-  /// geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header. Alleen de eerste twee
-  /// zijn door een client te posten; "refine_round" ontstaat uitsluitend server-side.
-  type      String   @default("wrong_guess")
-  /// De `order`-index van de stap waar de correctie op sloeg: bij een terugrol de teruggerolde stap, bij
-  /// een verfijnronde de laatste keuze die opnieuw bevraagd werd.
-  stepOrder Int
-  /// Het AAC-concept dat op die stap gekozen was en nu is afgewezen; blijft de rest van de sessie
-  /// uitgesloten van de aangeboden opties (§7.5).
-  ///
-  /// `null` betekent: **er is niets uitgesloten** (T12.3). Dat is de vorm van een verfijnronde — de
-  /// gebruiker drukte ❌, maar T10.12 rolt dan bewust nog niets terug zodat hij niets kwijtraakt. De
-  /// gebeurtenis wordt vastgelegd zodat de terugblik (T12.1) niet lijkt te suggereren dat de AI spontaan
-  /// van vraag veranderde. Het nullable maken is óók de waarborg: `loadRejections` haalt alleen rijen op
-  /// mét een concept, dus zo'n rij kán per constructie niets uitsluiten.
-  rejectedConcept String?
-  createdAt DateTime @default(now())
-
-  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-}
-
-/// Een door de AI voorgesteld nieuw begrip dat (nog) niet in de AAC-bibliotheek bestaat (DESIGN §6.2,
-/// §7.6, FR-016, T5.2/T7.3). De **validatielaag** (T5.2) maakt zo'n voorstel aan wanneer de AI tijdens
-/// communicatie een concept aandraagt dat noch als concept, noch als synoniem in de bibliotheek bestaat:
-/// de optie wordt weggelaten (bereikt de gebruiker NOOIT — DESIGN §7.6) en het begrip belandt hier ter
-/// beoordeling door een beheerder. Pas na goedkeuring (koppeling aan een `AacSymbol`, T7.3) mag de AI het
-/// gebruiken. `concept` is uniek zodat herhaalde voorstellen van hetzelfde begrip één openstaand item
-/// vormen (idempotente upsert), i.p.v. de reviewlijst te overspoelen.
-model ConceptProposal {
-  id             String   @id @default(cuid())
-  /// De canonieke conceptsleutel die de AI voorstelde (lowercase-genormaliseerd), uniek.
-  concept        String   @unique
-  /// Korte onderbouwing waarom dit begrip nodig zou zijn (uit de `reason` van de AI-beslissing).
-  reason         String
-  /// Status: "PENDING" | "APPROVED" | "REJECTED" (gevalideerd op de grens; geen native enum i.v.m.
-  /// SQLite/PostgreSQL-portabiliteit — zie schema-header). Nieuw voorstel start PENDING; T7.3 beoordeelt.
-  status         String   @default("PENDING")
-  /// Na goedkeuring: het `AacSymbol` waaraan het begrip gekoppeld is (T7.3). `null` zolang niet gekoppeld.
-  /// Bewust geen harde FK (net als `ConversationStep.selectedSymbolId`) i.v.m. de muteerbare bibliotheek.
-  linkedSymbolId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  @@index([status])
-}
-
-/// Een geleerde **voorkeur** van een gebruiker (T6.3, DESIGN §3.8, §6.2 Preference, §7.1 taak 5, FR-014).
-/// Het leermechanisme werkt strikt volgens de domeinregels (DESIGN §3.6, CLAUDE.md):
-///
-/// - **Alleen uit bevestigde communicatie.** Een voorkeur wordt uitsluitend bijgewerkt wanneer een
-///   gebruiker een boodschap **bevestigt** (`POST /conversation/{id}/confirm`). Nooit uit afgewezen
-///   voorstellen, correcties (§3.4 punt 4) of onzekere AI-aannames — die raken deze laag nooit.
-/// - **Uitschakelbaar.** Bijwerken gebeurt alléén als `UserCommunicationProfile.aiLearningEnabled=true`;
-///   staat de schakelaar uit, dan muteert er niets (en komen bestaande voorkeuren ook niet in de prompt).
-/// - **Geen communicatie-inhoud.** Alleen de canonieke AAC-conceptsleutel + een afgeleide zekerheid en
-///   teller worden bewaard — geen zinnen, geen vrije tekst (privacy by design, §9.4).
-///
-/// `confidence` (0–1) groeit met elke bevestigde keuze (afgeleid van `count`); `count` telt hoe vaak het
-/// concept bevestigd is en voedt de **begeleider-suggestie** (§3.8): bij een vaak gekozen concept krijgt de
-/// begeleider een voorstel om het als persoonlijke context toe te voegen. `suggestionStatus` onthoudt de
-/// afhandeling van die suggestie ("none" → nog geen suggestie · "pending" → suggestie staat open ·
-/// "accepted" → begeleider nam het over als context · "dismissed" → begeleider weigerde), zodat een
-/// geweigerde suggestie niet blijft terugkomen. `source` legt de herkomst vast ("confirmed_usage", de enige
-/// in de MVP). De unieke `(userId, concept)`-sleutel houdt één rij per concept per gebruiker.
-model Preference {
-  id              String   @id @default(cuid())
-  userId          String
-  /// De canonieke AAC-conceptsleutel (bv. "walking"); verwijst naar de bibliotheek, geen weergavetekst.
-  concept         String
-  /// Afgeleide zekerheid (0–1), groeit met het aantal bevestigingen (§7.4-schaal).
-  confidence      Float    @default(0)
-  /// Aantal keer dat dit concept in een bevestigde boodschap zat (voedt de suggestie-drempel, §3.8).
-  count           Int      @default(0)
-  /// Herkomst van de voorkeur: "confirmed_usage" (de enige in de MVP; DESIGN §6.2). Op de grens gevalideerd.
-  source          String   @default("confirmed_usage")
-  /// Status van de begeleider-suggestie: "none" | "pending" | "accepted" | "dismissed" (§3.8). Op de grens
-  /// gevalideerd; geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header.
-  suggestionStatus String  @default("none")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, concept])
-  @@index([userId])
-}
-
 /// Een audit-logregel over een **gevoelige actie** (T8.2, DESIGN §9.4). Append-only spoor van
 /// wie-wat-wanneer op beveiligings-/beheerrelevante handelingen: login (geslaagd én mislukt),
-/// instellingen, persoonlijke context, profielexport/-import en beheeracties (gebruikers,
-/// begeleider-koppelingen, worker-tokens, conceptvoorstellen). Privacy by design (DESIGN §3.6, §9.4):
+/// instellingen, profielexport/-import en beheeracties (gebruikers, begeleider-koppelingen).
+/// Privacy by design:
 ///
 /// - **Nooit communicatie-inhoud.** Er worden géén zinnen, pictogramkeuzes, persoonlijke-context-PII of
 ///   andere vrije tekst gelogd — alleen een stabiele `action`-sleutel, de uitkomst en objectverwijzingen
@@ -695,7 +256,7 @@ model AuditLog {
   accountId      String?
   /// De tenant waarin de actie plaatsvond (nullable bij pre-auth acties zoals een mislukte login).
   organizationId String?
-  /// Type van het doelobject, bv. "user" | "account" | "personalContext" | "workerToken" (nullable).
+  /// Type van het doelobject, bv. "user" | "account" (nullable).
   targetType     String?
   /// Id van het doelobject (nullable).
   targetId       String?
@@ -726,87 +287,4 @@ model Session {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
-}
-
-/// Een infrastructuur-credential voor een externe AI-worker (T5.5, DESIGN §7.2, §9.2, §9.4, ADR-0010).
-/// Losstaand van gebruiker-/device-/sessietokens: een worker is infrastructuur, geen gebruiker en geen
-/// tenant. Het rauwe token staat NOOIT plaintext in de db — alleen de SHA-256-hash (`tokenHash`), net als
-/// bij sessie- en apparaat-tokens. De worker stuurt het rauwe token als `Authorization: Bearer …` mee
-/// (geen cookie: workers zijn geen browsers). Intrekbaar via `revokedAt`; optioneel verlopend via
-/// `expiresAt`. `scopes` begrenst wat het token mag (nu alleen "ai:process"); komma-gescheiden, op de
-/// grens gevalideerd (geen native enum i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
-model WorkerToken {
-  id         String    @id @default(cuid())
-  /// Menselijke labelnaam (bv. "gpu-node-1"), puur voor beheer/diagnose.
-  name       String
-  /// SHA-256-hash (hex) van het worker-token. Uniek zodat lookup op hash direct raakt.
-  tokenHash  String    @unique
-  /// Toegestane scopes, komma-gescheiden (bv. "ai:process"). Op de grens gevalideerd.
-  scopes     String    @default("ai:process")
-  /// Ingetrokken op dit moment; daarna weigert `workerAuthorize` het token. `null` = actief.
-  revokedAt  DateTime?
-  /// Optionele vervaltijd; na dit moment is het token ongeldig. `null` = verloopt niet.
-  expiresAt  DateTime?
-  /// Laatst geziene activiteit (best-effort bijgewerkt bij claim/heartbeat), voor beheer/diagnose.
-  lastSeenAt DateTime?
-  createdAt  DateTime  @default(now())
-
-  jobs AiJob[]
-
-  @@index([revokedAt])
-}
-
-/// Eén AI-aanvraag in de gedistribueerde wachtrij (T5.5, DESIGN §7.2, §7.7, §9.2, ADR-0010). De DB is de
-/// bron van waarheid zodat een herstart of worker-crash geen aanvraag verliest. `payloadJson` bevat de
-/// door `buildAiPrompt`/`buildMessagePrompt` samengestelde **beperkte** context (systeemregels + doel +
-/// AAC-regels + gebruikers-/gesprekscontext); `resultJson` de door de worker ingeleverde, opnieuw met de
-/// zod-schema's (T5.1) gevalideerde uitvoer. De uitvoer doorloopt daarna nog de AAC-validatielaag (T5.2)
-/// — een worker wordt nooit vertrouwd. Bewust géén communicatie-inhoud buiten de AAC-concepten (privacy
-/// by design, DESIGN §3.6, §9.4).
-model AiJob {
-  id             String    @id @default(cuid())
-  /// De AI-taak: "select_next_question" | "generate_message" (op de grens gevalideerd; geen native enum
-  /// i.v.m. SQLite/PostgreSQL-portabiliteit — zie schema-header).
-  task           String
-  /// Status: "WAITING_FOR_WORKER" (over capaciteit, nog niet claimbaar) | "QUEUED" (claimbaar) |
-  /// "CLAIMED" (in behandeling) | "SUCCEEDED" | "FAILED" | "EXPIRED". Op de grens gevalideerd.
-  status         String    @default("QUEUED")
-  /// De beperkte prompt-context als JSON-string (zie modeltoelichting).
-  payloadJson    String
-  /// Het door de worker ingeleverde resultaat als JSON-string; `null` tot succes.
-  resultJson     String?
-  /// Korte foutmelding bij een mislukte/teruggelegde job (geen interne stacktraces).
-  errorMessage   String?
-  /// Aantal keren dat de job geclaimd is; na `AI_WORKER_MAX_ATTEMPTS` teruglegging → FAILED.
-  attempts       Int       @default(0)
-  /// Het worker-token dat de job momenteel/als laatste claimde; `null` zolang niet geclaimd.
-  claimedById    String?
-  claimedAt      DateTime?
-  /// Deadline van de huidige claim-lease; verstrijkt die zonder heartbeat/resultaat → teruggelegd.
-  leaseExpiresAt DateTime?
-  /// Uiterste moment waarop de job nog opgepakt mag worden; daarna → EXPIRED (nette wachtrij-timeout).
-  expiresAt      DateTime
-  /// De **gespreksstrategie** die deze aanvraag voortbracht (T11.6, DESIGN §7.10): puur de sleutel, als
-  /// administratie voor het beheerscherm AI-activiteit — met meerdere aanpakken is "waarom deed de AI
-  /// dit?" niet te beantwoorden zonder te weten wélke draaide. Bewust géén promptinhoud en geen
-  /// persoonlijke context (DESIGN §9.4); `null` bij een boodschap-job of een oudere rij.
-  strategy       String?
-  /// Het **gesprek** waar deze aanvraag bij hoort (T12.2, DESIGN §9.4): puur administratie, zodat het
-  /// beheerscherm AI-activiteit de losse jobs als één draad kan tonen — zonder die sleutel is "waarom
-  /// deed de AI dit?" niet te beantwoorden, want je ziet alleen losse beslissingen.
-  ///
-  /// Bewust **geen** foreign key naar `ConversationSession`: `AiJob` is platform-infrastructuur en staat
-  /// buiten de tenant-boom (net als `WorkerToken`). Een FK zou die twee aan elkaar knopen en de
-  /// wachtrij mee laten cascaden met tenantdata. Het gevolg is dat de sleutel naar een verwijderd
-  /// gesprek kan wijzen; de leeskant gaat daar defensief mee om. `null` bij een aanvraag buiten een
-  /// gesprek om en bij rijen van vóór T12.2.
-  sessionId      String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  claimedBy WorkerToken? @relation(fields: [claimedById], references: [id], onDelete: SetNull)
-
-  @@index([status, createdAt])
-  @@index([claimedById])
-  @@index([sessionId])
 }
