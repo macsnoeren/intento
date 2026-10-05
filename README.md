@@ -485,7 +485,12 @@ npm run lint         # ESLint (flat config, type-aware)
 npm test             # vitest in server en web
 npm audit            # 0 kwetsbaarheden
 npm run format:check # Prettier-opmaak controleren (npm run format schrijft de fixes)
+npm run check:python # ruff + mypy --strict + unittest voor agent-service en speech-service
+npm run audit:python # pip-audit over de Python-afhankelijkheden: 0 kwetsbaarheden
 ```
+
+De Python-checks draaien in `agent-service/.venv` (wordt bij de eerste keer aangemaakt, met de
+`dev`-extra uit `agent-service/pyproject.toml`). Zie [`scripts/python.sh`](scripts/python.sh).
 
 ### Opmaak wordt afgedwongen
 

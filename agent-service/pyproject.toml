@@ -3,8 +3,13 @@ name = "intento-agent-service"
 version = "0.1.0"
 description = "Agentdienst van Intento: orchestrator en agents achter één HTTP-endpoint (ADR-0017)."
 requires-python = ">=3.11"
-# De HTTP-laag draait op de standaardbibliotheek, net als de spraakdienst.
-dependencies = []
+# De HTTP-laag draait op de standaardbibliotheek, net als de spraakdienst; pydantic valideert de
+# contracten met de backend (INTENTO-NEW-DESIGN §34).
+dependencies = ["pydantic>=2.13.5"]
+
+[project.optional-dependencies]
+# Kwaliteitsgereedschap voor `npm run check:python` en `npm run audit:python`.
+dev = ["ruff>=0.16.10", "mypy>=2.4.0", "pip-audit>=2.10.1"]
 
 [project.scripts]
 intento-agent-service = "agent_service.__main__:main"
@@ -24,3 +29,9 @@ packages = ["agent_service"]
 # Expliciet, zodat de uitkomst niet afhangt van een gebruikersconfig op de machine.
 # E501 blijft uit (de formatter bewaakt de regellengte van code; commentaar mag een woord uitlopen).
 select = ["E4", "E7", "E9", "F", "W", "I", "UP", "B", "RUF"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+files = ["agent_service", "tests"]
+plugins = ["pydantic.mypy"]

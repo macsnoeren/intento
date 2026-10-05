@@ -72,12 +72,12 @@ class SpeechRequestHandler(BaseHTTPRequestHandler):
         header = self.headers.get("Authorization", "")
         return header.strip() == f"Bearer {expected}"
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - signatuur van de stdlib
+    def log_message(self, format: str, *args: Any) -> None:
         log.info("%s - %s", self.address_string(), format % args)
 
     # --- routes ----------------------------------------------------------------------------
 
-    def do_GET(self) -> None:  # noqa: N802 - signatuur van de stdlib
+    def do_GET(self) -> None:
         if self.path.split("?", 1)[0] != "/health":
             self._send_error(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Onbekend pad.")
             return
@@ -86,17 +86,21 @@ class SpeechRequestHandler(BaseHTTPRequestHandler):
             {"status": "ok", "voices": available_voices(self.config.voices_dir)},
         )
 
-    def do_POST(self) -> None:  # noqa: N802 - signatuur van de stdlib
+    def do_POST(self) -> None:
         if self.path.split("?", 1)[0] != "/synthesize":
             self._send_error(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Onbekend pad.")
             return
         if not self._authorized():
-            self._send_error(HTTPStatus.UNAUTHORIZED, "UNAUTHORIZED", "Ongeldig of ontbrekend token.")
+            self._send_error(
+                HTTPStatus.UNAUTHORIZED, "UNAUTHORIZED", "Ongeldig of ontbrekend token."
+            )
             return
 
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0 or length > MAX_BODY_BYTES:
-            self._send_error(HTTPStatus.BAD_REQUEST, "INVALID_BODY", "Body ontbreekt of is te groot.")
+            self._send_error(
+                HTTPStatus.BAD_REQUEST, "INVALID_BODY", "Body ontbreekt of is te groot."
+            )
             return
         try:
             payload = json.loads(self.rfile.read(length).decode("utf-8"))

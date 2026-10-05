@@ -45,7 +45,9 @@ class SpeechServerTest(unittest.TestCase):
         self.server.server_close()
         self.thread.join(timeout=5)
 
-    def post(self, path: str, payload: dict, token: str | None = "geheim") -> tuple[int, bytes, str]:
+    def post(
+        self, path: str, payload: dict, token: str | None = "geheim"
+    ) -> tuple[int, bytes, str]:
         request = urllib.request.Request(
             f"{self.base}{path}",
             data=json.dumps(payload).encode("utf-8"),

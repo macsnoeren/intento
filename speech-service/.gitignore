@@ -3,3 +3,6 @@ voices/
 __pycache__/
 *.pyc
 .venv/
+.audit-deps/
+.ruff_cache/
+*.egg-info/

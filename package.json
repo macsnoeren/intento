@@ -33,7 +33,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "check:python": "bash scripts/python.sh check",
+    "audit:python": "bash scripts/python.sh audit"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

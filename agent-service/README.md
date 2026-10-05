@@ -25,7 +25,7 @@ Python ≥ 3.11. De HTTP-laag draait op de standaardbibliotheek.
 ```bash
 cd agent-service
 python3 -m venv .venv            # ontbreekt ensurepip: python3 -m venv --without-pip .venv + get-pip.py
-.venv/bin/pip install -e .
+.venv/bin/pip install -e ".[dev]"
 cp .env.example .env             # vul SERVICE_TOKEN in
 .venv/bin/python -m agent_service
 curl http://127.0.0.1:5003/health
@@ -35,9 +35,13 @@ curl http://127.0.0.1:5003/health
 
 ## Testen
 
+Vanuit de repo-root (maakt de venv zo nodig aan, met ruff, mypy en pip-audit):
+
 ```bash
-.venv/bin/python -m unittest discover -s tests -t .
-.venv/bin/ruff check . && .venv/bin/ruff format --check .
+npm run check:python   # ruff + mypy --strict + unittest (ook voor de spraakdienst)
+npm run audit:python   # pip-audit
 ```
+
+Of los: `.venv/bin/python -m unittest discover -s tests -t .` en `.venv/bin/mypy`.
 
 De tests starten een echte server op een vrije poort; er is geen netwerk of LLM nodig.

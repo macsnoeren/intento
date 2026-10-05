@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.2 — Python-kwaliteit in de Definition of Done
+
+- `pydantic` (2.13.5) is een dependency van de agentdienst; mypy draait in strict-modus over
+  `agent_service` en de tests (met de pydantic-plugin).
+- Nieuwe root-scripts: `npm run check:python` (ruff + opmaak, mypy strict, unittest voor agent-service en
+  speech-service) en `npm run audit:python` (pip-audit, beide diensten op 0). Ze draaien via
+  `scripts/python.sh` in `agent-service/.venv`; de spraakdienst-afhankelijkheden worden apart in
+  `speech-service/.audit-deps` gezet, zodat de audit ook werkt op een systeem zonder `ensurepip`.
+- De spraakdienst voldoet aan ruff 0.16 (overbodige `noqa`'s weg, opmaak).
+
 ### N1.1 — skelet van de agentdienst
 
 - Nieuwe map `agent-service/` (package `agent_service`) in de stijl van de spraakdienst: stdlib-HTTP-server,

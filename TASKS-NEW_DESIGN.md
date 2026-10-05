@@ -85,7 +85,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests voor config (ontbrekend token → duidelijke fout) en `/health`; handmatig gestart
   en met curl bevraagd.
 
-- [ ] **N1.2 Python-kwaliteit in de Definition of Done**
+- [x] **N1.2 Python-kwaliteit in de Definition of Done**
   *ONTWERP: §54.* pydantic (laatste stabiele versie) als dependency van de agentdienst; mypy strict voor
   `agent_service`; root-scripts `check:python` (ruff + mypy + unittest voor agent-service en
   speech-service) en `audit:python` (pip-audit). Vermelden in CLAUDE.md (DoD) en README.

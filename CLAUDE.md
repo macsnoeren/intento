@@ -90,8 +90,8 @@ Injectie (geparametriseerde queries) · XSS (URL's `http(s)`-only valideren) · 
 - [ ] `npm run lint` groen
 - [ ] `npm run format:check` groen (de pre-commit hook bewaakt dit ook)
 - [ ] `npm test` — alle tests groen (incl. nieuwe)
-- [ ] Python geraakt? `npm run check:python` groen (ruff + mypy + unittest; vanaf N1.2 — daarvóór ruff en unittest per dienst)
-- [ ] `npm audit` — 0 kwetsbaarheden; Python geraakt? `npm run audit:python` — 0 (vanaf N1.2)
+- [ ] Python geraakt? `npm run check:python` groen (ruff + mypy strict + unittest voor agent-service en speech-service)
+- [ ] `npm audit` — 0 kwetsbaarheden; Python geraakt? `npm run audit:python` — 0
 - [ ] Input gevalideerd (zod/pydantic) + autorisatie/isolatie getest
 - [ ] Raakt de taak een invariant uit INTENTO-NEW-DESIGN §52? Dan is die invariant getest
 - [ ] Geen secrets in code; `.env.example`-bestanden bijgewerkt

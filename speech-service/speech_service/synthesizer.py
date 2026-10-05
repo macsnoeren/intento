@@ -62,7 +62,7 @@ class PiperSynthesizer:
                 ) from exc
             try:
                 model = PiperVoice.load(str(path), config_path=str(path) + ".json")
-            except Exception as exc:  # noqa: BLE001 - onnxruntime gooit van alles
+            except Exception as exc:
                 # Meestal een **afgebroken download**: een half `.onnx`-bestand laadt niet en
                 # onnxruntime meldt dat als "Protobuf parsing failed". Zonder deze vangst kwam die
                 # fout ongefilterd uit de handler en viel de verbinding weg — de backend zag dan een
@@ -93,6 +93,6 @@ class PiperSynthesizer:
                     model.synthesize_wav(  # type: ignore[attr-defined]
                         text, wav, syn_config=SynthesisConfig(speaker_id=voice.speaker_id)
                     )
-        except Exception as exc:  # noqa: BLE001 - alles wat Piper gooit wordt één nette fout
+        except Exception as exc:
             raise SynthesisError(f"Synthese mislukte: {exc}") from exc
         return buffer.getvalue()

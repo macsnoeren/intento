@@ -72,7 +72,7 @@ class ServiceConfig:
     def from_env(
         environ: dict[str, str] | None = None,
         env_file: str | os.PathLike[str] | None = ".env",
-    ) -> "ServiceConfig":
+    ) -> ServiceConfig:
         """Bouwt en valideert de configuratie; directe env-vars winnen van `.env`-waarden."""
         merged: dict[str, str] = {}
         if env_file is not None:

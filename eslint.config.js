@@ -15,6 +15,7 @@ export default tseslint.config(
       'PROJECT-NODEJS/**',
       // Python-omgevingen van de diensten (vendored JS van pip e.d.).
       '**/.venv/**',
+      '**/.audit-deps/**',
     ],
   },
   js.configs.recommended,

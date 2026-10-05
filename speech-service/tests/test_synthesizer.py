@@ -41,7 +41,9 @@ class PiperSynthesizerTest(unittest.TestCase):
     @unittest.skipUnless(PIPER_AANWEZIG, "piper-tts niet geïnstalleerd")
     def test_half_gedownload_model_geeft_een_nette_fout(self) -> None:
         # Een afgebroken download: geldig begin, maar niet af.
-        (self.voices_dir / "nl_NL-pim-medium.onnx").write_bytes(b"\x08\x08\x12\x07pytorch" + b"\x00" * 512)
+        (self.voices_dir / "nl_NL-pim-medium.onnx").write_bytes(
+            b"\x08\x08\x12\x07pytorch" + b"\x00" * 512
+        )
         (self.voices_dir / "nl_NL-pim-medium.onnx.json").write_text("{}")
 
         synth = PiperSynthesizer(self.voices_dir)

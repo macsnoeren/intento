@@ -9,3 +9,5 @@ PROJECT-NODEJS/
 **/.venv/
 **/.mypy_cache/
 **/.ruff_cache/
+**/.audit-deps/
+**/*.egg-info/
