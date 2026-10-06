@@ -386,7 +386,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   tekst, `required_symbols`, confidence). Prompt `question-v1`. Terugval "{label}?".
   *Acceptatie:* unittests met FakeProvider, inclusief terugval.
 
-- [ ] **N6.4 Vraagstrategieën**
+- [x] **N6.4 Vraagstrategieën**
   *ONTWERP: §7.1.* De drie strategieën (sleutel, label, uitleg, instructie) in de agentdienst; de
   instructie gaat mee naar de Question Agent. Een contracttest eist dat de sleutels in `shared/` en in
   Python gelijk zijn.

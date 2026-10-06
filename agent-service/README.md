@@ -77,6 +77,10 @@ formuleert de binary vraag erover (`concept`, `text`, `required_symbols`, `confi
 moet precies het gevraagde zijn, de tekst een vraag van 3 tot 80 tekens zonder URL die nog niet
 gesteld is; anders de terugval "{Label}?". Het pictogram en het woord eronder blijven die van het item.
 
+**Vraagstrategieën** (`agents/strategies.py`, §7.1): de drie strategieën met sleutel, label, uitleg en
+instructie. De instructie van de strategie uit de instellingen gaat als `strategie` mee naar de Question
+Agent (niet naar andere agents). De sleutels zijn getest tegen `contracts/question_strategies.json`.
+
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).
 

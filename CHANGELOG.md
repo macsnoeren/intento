@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.4 — vraagstrategieën
+
+- `agent_service/agents/strategies.py`: `general_to_specific`, `concrete_first` en `short_and_calm` met
+  label, uitleg en instructie; de instructie van de ingestelde strategie gaat mee naar de Question Agent.
+- `contracts/question_strategies.json` als gedeelde referentie: Python (`STRATEGIES`, het
+  contracttype) en `shared/` (sleutels, catalogus, zod-schema) worden er allebei tegen getest.
+
 ### N6.3 — Question Agent v1
 
 - `agent_service/agents/question.py` met prompt `question-v1` (bijgewerkt vóór het eerste gebruik): de

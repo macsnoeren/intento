@@ -3,7 +3,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z, type ZodType } from 'zod';
-import { turnRequestSchema, turnResponseSchema } from './agent-contract.js';
+import {
+  questionStrategyKeySchema,
+  turnRequestSchema,
+  turnResponseSchema,
+} from './agent-contract.js';
+import { QUESTION_STRATEGY_CATALOG, QUESTION_STRATEGY_KEYS } from './index.js';
 
 /**
  * De zod-contracten tegen dezelfde voorbeeldbestanden als pydantic (N1.4, INTENTO-NEW-DESIGN §34).
@@ -100,5 +105,17 @@ describe('agentcontract v1: dezelfde sleutels als de instellingen', () => {
       await import('./agent-contract.js');
     expect(questionStrategyKeySchema.options).toEqual([...QUESTION_STRATEGY_KEYS]);
     expect(interactionModeSettingSchema.options).toEqual([...INTERACTION_MODES]);
+  });
+});
+
+describe('vraagstrategieën (N6.4, INTENTO-NEW-DESIGN §7.1)', () => {
+  const contract = JSON.parse(
+    readFileSync(join(FIXTURES, '..', 'question_strategies.json'), 'utf8'),
+  ) as unknown;
+
+  it('heeft dezelfde sleutels als contracts/question_strategies.json (en dus als de agentdienst)', () => {
+    expect([...QUESTION_STRATEGY_KEYS]).toEqual(contract);
+    expect(QUESTION_STRATEGY_CATALOG.map((strategy) => strategy.key)).toEqual(contract);
+    expect(questionStrategyKeySchema.options).toEqual(contract);
   });
 });

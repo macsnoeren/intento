@@ -20,6 +20,7 @@ from .agents.envelope import AgentResult, LlmAttempt, run_agent
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
 from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_icon, rule_question
+from .agents.strategies import instruction_for
 from .contracts import (
     CONTRACT_VERSION,
     AgentDecision,
@@ -30,6 +31,7 @@ from .contracts import (
     Presentation,
     Proposal,
     SessionState,
+    Settings,
     ShareState,
     TurnRequest,
     TurnResponse,
@@ -48,9 +50,12 @@ class ProtocolError(ValueError):
 class _Turn:
     """Verzamelt wat één beurt oplevert: inferences en agentbeslissingen."""
 
-    def __init__(self, clock: Callable[[], float], llm: LlmProvider | None) -> None:
+    def __init__(
+        self, clock: Callable[[], float], llm: LlmProvider | None, settings: Settings
+    ) -> None:
         self.clock = clock
         self.llm = llm
+        self.settings = settings
         self.inferences: list[Inference] = []
         self.decisions: list[AgentDecision] = []
 
@@ -86,7 +91,7 @@ def step(
 ) -> TurnResponse:
     """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels."""
     vocabulary = VocabularyIndex(request.vocabulary)
-    turn = _Turn(clock, llm)
+    turn = _Turn(clock, llm, request.settings)
     event = request.event
 
     if event.type == "start":
@@ -219,7 +224,14 @@ def _ask_next(
     if turn.llm is not None:
         provider, prompt = turn.llm, question_prompt()
         question_attempt = LlmAttempt(
-            run=lambda: llm_question(provider, prompt, target, state, vocabulary),
+            run=lambda: llm_question(
+                provider,
+                prompt,
+                target,
+                state,
+                vocabulary,
+                strategy=instruction_for(turn.settings.question_strategy),
+            ),
             model=provider.model,
             prompt_version=prompt.id,
         )

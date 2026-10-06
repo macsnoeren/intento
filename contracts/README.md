@@ -22,3 +22,8 @@ cd agent-service && .venv/bin/python -c "import json; from agent_service.contrac
 print(json.dumps({'turn_request': field_paths(TurnRequest.model_json_schema()), \
 'turn_response': field_paths(TurnResponse.model_json_schema())}, indent=2))" > ../contracts/fields.json
 ```
+
+`question_strategies.json` bevat de sleutels van de vraagstrategieën (INTENTO-NEW-DESIGN §7.1), in
+volgorde. `shared/` (`QUESTION_STRATEGY_KEYS`, de catalogus en het contractschema) en de agentdienst
+(`agents/strategies.py`) worden er allebei tegen getest; een strategie toevoegen of hernoemen gebeurt
+dus aan beide kanten en hier.
