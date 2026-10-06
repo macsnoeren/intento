@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.2 — provenance-tabellen
+
+- Migratie `provenance`: `PresentationEvent` (Presented), `ObservedEvent` (Observed), `Inference`
+  (Inferred) en `AgentDecision` (agentaanroepen), elk in een eigen tabel en nooit samengevoegd.
+  Schermtekst, labels, voorgestelde boodschap en inference-payload staan versleuteld; de structuur van
+  de opties (positie, representatie, concept) blijft leesbaar voor Experience.
+- Repository `server/src/communication/provenance.ts` (`recordPresentation`, `recordObserved`,
+  `recordInferences`, `recordDecisions` met `invalid`-markering, `readProvenance` per organisatie en
+  gebruiker). Tests: gescheiden opslag, versleuteling, isolatie, cascade.
+
 ### N4.1 — sessietabellen
 
 - Migratie `communication_sessions`: `CommunicationSession` (gebruiker, organisatie, status

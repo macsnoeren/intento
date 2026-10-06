@@ -372,9 +372,13 @@ model CommunicationSession {
   endedAt        DateTime?
   currentTurn    Int       @default(0)
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  turns        SessionTurn[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  turns              SessionTurn[]
+  presentationEvents PresentationEvent[]
+  observedEvents     ObservedEvent[]
+  inferences         Inference[]
+  agentDecisions     AgentDecision[]
 
   @@index([userId, status])
   @@index([organizationId, startedAt])
@@ -396,4 +400,81 @@ model SessionTurn {
   session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, turn])
+}
+
+// --- Provenance (INTENTO-NEW-DESIGN §2.5, §26, §27, §41) ---------------------------------------------
+// Presented, Observed en Inferred staan elk in een eigen tabel en worden nooit samengevoegd. Presented
+// en Observed legt de backend vast; Inferred en de agentbeslissingen komen van de agentdienst. Alles
+// verdwijnt met het gesprek (cascade), dus binnen de bewaartermijn (§53).
+
+/// **Presented**: wat er op het scherm stond, op het moment dat het naar de tablet ging. `optionsJson`
+/// bevat per optie verwijzing, soort, item/contact, concept, representatie en plek — geen labels, want
+/// een label kan een contactnaam zijn. Tekst en labels staan versleuteld in `contentEncrypted`.
+model PresentationEvent {
+  id               String   @id @default(cuid())
+  sessionId        String
+  turn             Int
+  kind             String
+  mode             String
+  optionsJson      Json
+  contentEncrypted String
+  createdAt        DateTime @default(now())
+
+  session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, turn])
+}
+
+/// **Observed**: wat de gebruiker deed. `type`: `start`, `answer_yes`, `answer_no`, `select_option`,
+/// `none_of_these`, `back`, `stop`. `optionRef` en `position` (plek van de gekozen optie, door de backend
+/// uit de presentatie afgeleid) bij een keuze; `responseTimeMs` gemeten op de tablet.
+model ObservedEvent {
+  id             String   @id @default(cuid())
+  sessionId      String
+  turn           Int
+  type           String
+  optionRef      String?
+  position       Int?
+  responseTimeMs Int?
+  createdAt      DateTime @default(now())
+
+  session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, turn])
+}
+
+/// **Inferred**: wat een agent concludeert. Nooit een feit (§36). De payload is versleuteld.
+model Inference {
+  id               String   @id @default(cuid())
+  sessionId        String
+  turn             Int
+  agent            String
+  kind             String
+  payloadEncrypted String
+  confidence       Float?
+  createdAt        DateTime @default(now())
+
+  session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, turn])
+}
+
+/// Eén agentaanroep (§27): agent, status (`success`/`fallback`/`failed`, of `invalid` als de backend
+/// het antwoord verwierp), model, promptversie, duur en validatie. Geen prompttekst, geen inhoud.
+model AgentDecision {
+  id            String   @id @default(cuid())
+  sessionId     String
+  turn          Int
+  agent         String
+  status        String
+  model         String?
+  promptVersion String?
+  latencyMs     Int
+  validation    String?
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, turn])
 }

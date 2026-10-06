@@ -265,7 +265,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   `stateEncrypted`, `presentationEncrypted`, createdAt). Repository met versleuteling (bestaande crypto).
   *Acceptatie:* tests: opslaan/lezen ontsleutelt correct; in de db staat geen leesbare state; isolatie.
 
-- [ ] **N4.2 Provenance-tabellen**
+- [x] **N4.2 Provenance-tabellen**
   *ONTWERP: §26, §27, §39, §41.* Migratie: `PresentationEvent` (turn, kind, mode, tekst versleuteld,
   opties met volgorde en representatie), `ObservedEvent` (turn, type, optionRef, responseTimeMs),
   `Inference` (turn, agent, kind, payload versleuteld, confidence), `AgentDecision` (turn, agent,

@@ -23,6 +23,10 @@ export function testEnv(overrides: Record<string, string> = {}): Env {
 export async function resetAuthData(): Promise<void> {
   // Audit-log staat los van de tenant-boom (geen FK's); apart legen zodat tests schoon starten.
   await prisma.auditLog.deleteMany();
+  await prisma.presentationEvent.deleteMany();
+  await prisma.observedEvent.deleteMany();
+  await prisma.inference.deleteMany();
+  await prisma.agentDecision.deleteMany();
   await prisma.sessionTurn.deleteMany();
   await prisma.communicationSession.deleteMany();
   await prisma.deviceLinkCode.deleteMany();
