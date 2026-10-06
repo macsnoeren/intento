@@ -343,7 +343,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N5 — De LLM-laag in de agentdienst
 
-- [ ] **N5.1 Provider-interface en FakeProvider**
+- [x] **N5.1 Provider-interface en FakeProvider**
   *ONTWERP: §35.* `LlmProvider.complete_json(system, user, schema, timeout) -> dict`; `FakeProvider` met
   vaste antwoorden per aanroep, die ook alle prompts bewaart (voor tests als "contactnamen komen nooit in
   een prompt").

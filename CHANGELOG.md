@@ -28,6 +28,12 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N5.1 — provider-interface en FakeProvider
+
+- `agent_service/llm/`: `LlmProvider` (één methode `complete_json(system, user, schema, timeout)`),
+  `LlmError` met een reden en zonder prompt of antwoord in de melding, en `FakeProvider` met vaste
+  antwoorden per aanroep (object, fout of functie) die elke prompt bewaart.
+
 ### N4.14 — oude tablet-CSS opgeruimd
 
 - `styles.css` van ±2.090 naar ±1.500 regels: de klassen van de oude gespreksflow (keuzeraster,

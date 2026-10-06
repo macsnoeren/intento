@@ -29,6 +29,18 @@ Fouten hebben dezelfde vorm als in de backend: `{ "error": { "code": "…", "mes
 `POST /v1/experience` volgt in N12.4. Het log bevat per beurt alleen de gebeurtenis, de fase, de soort
 presentatie en de duur.
 
+## LLM-laag
+
+Agents praten nooit rechtstreeks met een model maar met een **`LlmProvider`** (`agent_service/llm/`,
+INTENTO-NEW-DESIGN §35): één methode `complete_json(system, user, schema, timeout) -> dict`. Wat eruit
+komt is een JSON-object, of een `LlmError` met een reden (`timeout`, `unavailable`, `unauthorized`,
+`http_error`, `invalid_json`, `no_response`); de agent valideert het zelf en valt bij elke fout terug
+op zijn regels. De foutmelding bevat nooit de prompt of het antwoord.
+
+`FakeProvider` geeft vaste antwoorden in volgorde (een object, een `LlmError` om te gooien, of een
+functie van de aanroep) en **bewaart elke prompt**, zodat tests ook kunnen controleren wat er níet naar
+een model gaat (namen en e-mailadressen van contacten, V6).
+
 ## Opzet en draaien
 
 Python ≥ 3.11. De HTTP-laag draait op de standaardbibliotheek.
