@@ -8,6 +8,7 @@ import {
   vocabularyListResponseSchema,
   vocabularyUpdateRequestSchema,
   vocabularyUploadFieldsSchema,
+  externalImportRequestSchema,
   externalSearchQuerySchema,
   externalSearchResponseSchema,
   type ExternalSearchResponse,
@@ -26,7 +27,7 @@ import { availableTo, buildSearchText, parseVocabularyItem } from '../vocabulary
 import { vocabularyItemToPublic } from '../vocabulary/serialize.js';
 import { checkImage } from '../vocabulary/image-check.js';
 import { writeStoredFile } from '../storage/files.js';
-import type { OpenSymbolsClient } from '../vocabulary/opensymbols.js';
+import { assertSafeImageUrl, type OpenSymbolsClient } from '../vocabulary/opensymbols.js';
 import { isLicenseAllowed, normalizeLicense } from '../vocabulary/licenses.js';
 
 const idParamsSchema = z.object({ id: z.string().min(1).max(200) });
@@ -89,6 +90,8 @@ export interface VocabularyRoutesDeps {
  *
  * `GET /vocabulary/external/search?q=` — zoeken in OpenSymbols, met per resultaat de licentiesleutel en
  *   of die toegestaan is. Alleen de beheerder.
+ * `POST /vocabulary/import` — een extern symbool overnemen: licentie en afbeelding opnieuw bij de bron
+ *   opgehaald, alleen een toegestane licentie, https van een bekende host, groottelimiet, typecontrole.
  * `POST /vocabulary/upload` — eigen afbeelding + woord (multipart; alleen PNG/JPEG/WebP op inhoud,
  *   groottelimiet, verplicht vinkje voor de rechten, licentie `own`). Alleen de beheerder. Geaudit.
  * `POST /vocabulary/:id/retire` en `…/restore` — intrekken en terugzetten, met dezelfde rechten. Een
@@ -313,6 +316,129 @@ export function registerVocabularyRoutes(
           };
         }),
       });
+    },
+  );
+
+  // Een extern symbool importeren (N8.5, §15, §53).
+  app.post(
+    '/vocabulary/import',
+    {
+      preHandler: authorize(prisma, { roles: ['ADMIN'] }),
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const account = requireAccount(request);
+      const body = externalImportRequestSchema.parse(request.body);
+      if (!openSymbols.isConfigured()) {
+        throw new HttpError(
+          503,
+          'EXTERNAL_SOURCE_UNAVAILABLE',
+          'Importeren uit een externe bron is niet ingesteld (OPENSYMBOLS_SECRET).',
+        );
+      }
+      // Licentie, auteur en afbeelding komen van de bron zelf, nooit van de client.
+      let found;
+      try {
+        found = await openSymbols.search(body.query, 'nl');
+      } catch (error) {
+        request.log.warn({ err: error }, 'Zoeken in OpenSymbols mislukte');
+        throw new HttpError(502, 'EXTERNAL_SEARCH_FAILED', 'De externe bron gaf geen antwoord.');
+      }
+      const symbol = found.find((result) => result.id === body.id);
+      if (!symbol) {
+        throw new HttpError(
+          404,
+          'EXTERNAL_SYMBOL_NOT_FOUND',
+          'Dat symbool staat niet (meer) bij de bron.',
+        );
+      }
+      const license = normalizeLicense(symbol.license, symbol.licenseUrl);
+      if (!isLicenseAllowed(license, env.VOCABULARY_ALLOWED_LICENSES)) {
+        throw new HttpError(
+          422,
+          'LICENSE_NOT_ALLOWED',
+          `De licentie (${symbol.license}) staat niet op de lijst van toegestane licenties.`,
+        );
+      }
+      const url = assertSafeImageUrl(symbol.imageUrl);
+      if (!env.VOCABULARY_IMAGE_HOSTS.includes(url.hostname.toLowerCase())) {
+        throw new HttpError(
+          422,
+          'IMAGE_HOST_NOT_ALLOWED',
+          'De afbeelding staat op een onbekende host.',
+        );
+      }
+      const sourceRef = `${account.organizationId}/${symbol.id}`;
+      const existing = await prisma.vocabularyItem.findUnique({
+        where: { sourceName_sourceRef: { sourceName: 'OpenSymbols', sourceRef } },
+      });
+      if (existing) {
+        throw new HttpError(409, 'ALREADY_IMPORTED', 'Dit symbool is al geïmporteerd.');
+      }
+
+      let bytes: Uint8Array;
+      try {
+        bytes = (await openSymbols.fetchImage(url.toString())).bytes;
+      } catch (error) {
+        if (error instanceof HttpError && error.statusCode === 413) {
+          throw new HttpError(422, 'IMAGE_TOO_LARGE', error.message);
+        }
+        request.log.warn({ err: error }, 'Afbeelding ophalen mislukte');
+        throw new HttpError(
+          502,
+          'EXTERNAL_IMAGE_FAILED',
+          'De afbeelding kon niet worden opgehaald.',
+        );
+      }
+      if (bytes.byteLength > env.UPLOAD_MAX_BYTES) {
+        throw new HttpError(422, 'IMAGE_TOO_LARGE', 'De afbeelding is te groot.');
+      }
+      // Ook hier telt de inhoud; een externe import is nooit SVG (§53, V8).
+      const checked = checkImage(bytes, { maxBytes: env.UPLOAD_MAX_BYTES, allowSvg: false });
+      if (!checked.ok) {
+        throw new HttpError(422, 'UNSUPPORTED_IMAGE', 'Alleen PNG, JPEG of WebP.');
+      }
+
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      const assetPath = `external/${account.organizationId}/${sha256}.${checked.extension}`;
+      await writeStoredFile(env.STORAGE_DIR, assetPath, bytes);
+      const labels = [body.label, ...(body.synonyms ?? [])].filter(
+        (label, index, list) =>
+          list.findIndex((l) => l.toLowerCase() === label.toLowerCase()) === index,
+      );
+      const now = new Date();
+      const created = await prisma.vocabularyItem.create({
+        data: {
+          organizationId: account.organizationId,
+          labels,
+          concepts: body.concepts,
+          contexts: body.contexts?.length ? body.contexts : ['other'],
+          searchText: buildSearchText(labels, body.concepts),
+          status: 'approved',
+          labelStatus: 'reviewed',
+          source: 'external',
+          licenseKey: license.key,
+          licenseUrl: symbol.licenseUrl,
+          author: symbol.author,
+          authorUrl: symbol.authorUrl,
+          sourceName: 'OpenSymbols',
+          sourceUrl: symbol.sourceUrl,
+          sourceRef,
+          importedAt: now,
+          assetPath,
+          mimeType: checked.mimeType,
+          sha256,
+          bytes: bytes.byteLength,
+          createdById: account.id,
+        },
+      });
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.VOCABULARY_IMPORT,
+        targetType: 'vocabularyItem',
+        targetId: created.id,
+        metadata: { externalId: symbol.id, licenseKey: license.key, sha256 },
+      });
+      return reply.status(201).send(vocabularyItemToPublic(parseVocabularyItem(created), env, now));
     },
   );
 

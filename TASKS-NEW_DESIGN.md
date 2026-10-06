@@ -499,7 +499,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   licentie, auteur en `allowed: true/false`.
   *Acceptatie:* tests met een nep-OpenSymbols-client; rol.
 
-- [ ] **N8.5 Importeren uit een externe bron**
+- [x] **N8.5 Importeren uit een externe bron**
   *ONTWERP: §15, §53.* `POST /vocabulary/import`: alleen een toegestane licentie; de afbeelding wordt
   gedownload (alleen https, bekende host, groottelimiet, time-out, typecontrole) en in de eigen opslag
   gezet; licentie, auteur en bron opgeslagen. Audit-log.

@@ -1070,6 +1070,33 @@ export const vocabularyUploadFieldsSchema = z.strictObject({
 });
 export type VocabularyUploadFields = z.infer<typeof vocabularyUploadFieldsSchema>;
 
+/**
+ * Een extern symbool importeren (`POST /vocabulary/import`, N8.5, §15). Bewust alleen de zoekopdracht
+ * en het id: licentie, auteur en afbeelding haalt de server zelf opnieuw op bij de bron, zodat een
+ * client nooit een licentie kan "opgeven".
+ */
+export const externalImportRequestSchema = z.strictObject({
+  query: z.string().trim().min(1).max(100),
+  id: z.string().trim().min(1).max(200),
+  label: vocabularyLabelSchema,
+  synonyms: z.array(vocabularyLabelSchema).max(19).optional(),
+  concepts: z
+    .array(conceptKeySchema)
+    .min(1)
+    .max(10)
+    .refine((list) => new Set(list).size === list.length, {
+      message: 'Elk concept mag maar één keer voorkomen.',
+    }),
+  contexts: z
+    .array(vocabularyContextSchema)
+    .max(VOCABULARY_CONTEXTS.length)
+    .refine((list) => new Set(list).size === list.length, {
+      message: 'Elke context mag maar één keer voorkomen.',
+    })
+    .optional(),
+});
+export type ExternalImportRequest = z.infer<typeof externalImportRequestSchema>;
+
 /** Eén bron in de bronvermelding (`GET /vocabulary/attributions`, §15): wie, welke licentie, welke symbolen. */
 export const attributionSourceSchema = z.object({
   sourceName: z.string(),

@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.5 — importeren uit een externe bron
+
+- `POST /vocabulary/import` (alleen de beheerder): de server haalt licentie, auteur en afbeelding
+  opnieuw bij OpenSymbols op (de client stuurt alleen zoekopdracht en id), staat alleen toegestane
+  licenties toe, downloadt alleen via https van `VOCABULARY_IMAGE_HOSTS` (nieuw) met limiet, time-out
+  en typecontrole (geen SVG), kopieert naar de eigen opslag en slaat licentie, auteur en bron op. Per
+  organisatie één keer. Audit `vocabulary.import`.
+- Tests: niet-toegestane en onbekende licentie, andere host, te groot (gemeten en aangekondigd), SVG,
+  onbekend id, begeleider, dubbel, twee organisaties. De standaardhosts zijn die waar OpenSymbols zijn
+  afbeeldingen serveert; niet tegen de live API gecontroleerd (geen `OPENSYMBOLS_SECRET` hier).
+
 ### N8.4 — zoeken in een externe bron
 
 - `GET /vocabulary/external/search?q=` (alleen de beheerder, rate limit): zoekt via de bestaande

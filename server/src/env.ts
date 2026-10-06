@@ -170,6 +170,20 @@ const envSchema = z
           .filter((part) => part.length > 0),
       )
       .pipe(z.array(z.enum(LICENSE_FAMILIES)).min(1)),
+    // Van welke hosts een geïmporteerde afbeelding gedownload mag worden (INTENTO-NEW-DESIGN §53), met
+    // komma's. Alleen https; een import van een andere host wordt geweigerd (422).
+    VOCABULARY_IMAGE_HOSTS: z
+      .string()
+      .default('d18vdu4p71yql0.cloudfront.net,s3.amazonaws.com,opensymbols.s3.amazonaws.com')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((part) => part.trim().toLowerCase())
+          .filter((part) => part.length > 0),
+      )
+      .pipe(
+        z.array(z.string().regex(/^[a-z0-9.-]+$/, 'Een hostnaam, zonder schema of pad.')).min(1),
+      ),
     // OpenSymbols-integratie: zoeken in en importeren uit een externe bron (INTENTO-NEW-DESIGN §15).
     // De client praat nooit rechtstreeks met externe diensten; de backend doet het namens hem.
     // Basis-URL van de API (moet https zijn buiten test — SSRF/vertrouwelijkheid).

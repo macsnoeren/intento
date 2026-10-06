@@ -340,6 +340,15 @@
 - **Rechten**: het vinkje "wij mogen deze afbeelding gebruiken" is verplicht; de licentie wordt `own` met
   de uploader en de datum. Elke upload staat in het audit-log.
 
+### Externe import (N8.5, INTENTO-NEW-DESIGN §53)
+
+- **De bron is de waarheid.** De client stuurt alleen zoekopdracht en id; licentie, auteur en
+  afbeeldings-URL haalt de server opnieuw bij OpenSymbols op. Een client kan dus geen licentie opgeven.
+- **Alleen toegestane licenties** (`VOCABULARY_ALLOWED_LICENSES`); onbekend is nooit toegestaan.
+- **Download:** alleen https, SSRF-guard (geen interne adressen), alleen hosts uit
+  `VOCABULARY_IMAGE_HOSTS`, geen redirects, time-out, groottelimiet, typecontrole op inhoud (geen SVG).
+  De afbeelding wordt gekopieerd; er wordt nooit live naar de bron gelinkt.
+
 ### Agentdienst (ADR-0017)
 
 - **Alleen de backend.** De tablet en de beheeromgeving praten nooit met de agentdienst. In compose
