@@ -296,7 +296,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Observed opslaan vóór de agentaanroep.
   *Acceptatie:* tests: dubbele tik geeft 409; Observed staat er ook als de agent faalt.
 
-- [ ] **N4.7 Terug en Stoppen**
+- [x] **N4.7 Terug en Stoppen**
   *ONTWERP: §48, §51.* `back` zet de vorige momentopname terug, zonder agentaanroep (Observed `back`);
   niet mogelijk op beurt 0. `stop` → status `stopped` (Observed `stop`).
   *Acceptatie:* tests: na Terug is de presentatie exact gelijk aan die van de vorige beurt.

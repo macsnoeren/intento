@@ -21,7 +21,9 @@ import { AgentUnavailableError, type AgentClient } from '../agents/client.js';
 import { checkTurnResponse } from '../agents/invariants.js';
 import { DEFAULT_PROFILE, profileFromModel } from '../users/serialize.js';
 import {
+  availableTo,
   listAvailableVocabulary,
+  parseVocabularyItem,
   toVocabularyEntry,
   type VocabularyItem,
 } from '../vocabulary/repository.js';
@@ -368,4 +370,76 @@ export async function answerConversation(
     event,
     state: current.state,
   });
+}
+
+/** De Vocabulary-items die op dit scherm staan (alleen beschikbaar en `approved`), voor de afbeeldingen. */
+async function itemsOnScreen(
+  prisma: PrismaClient,
+  organizationId: string,
+  presentation: Presentation,
+): Promise<Map<string, VocabularyItem>> {
+  const ids = presentation.options
+    .map((option) => option.vocabulary_item_id)
+    .filter((id): id is string => Boolean(id));
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.vocabularyItem.findMany({
+    where: { id: { in: ids }, status: 'approved', ...availableTo(organizationId) },
+  });
+  return new Map(rows.map((row) => [row.id, parseVocabularyItem(row)]));
+}
+
+/**
+ * ↩ Terug (§48): het laatste antwoord ongedaan maken en het vorige scherm **exact** terugzetten, zonder
+ * de agentdienst. Beurten zijn append-only, dus Terug maakt een nieuwe beurt met de momentopname van de
+ * vorige; die wijst zelf weer naar de beurt daarvoor, zodat nog eens Terug verder teruggaat. Niet op
+ * het eerste scherm, en niet meer na een verzending (een verstuurd bericht is niet terug te halen).
+ */
+export async function goBack(
+  deps: ConversationDeps,
+  device: DeviceModel,
+  sessionId: string,
+  turn: number,
+): Promise<CommunicationTurn> {
+  const { prisma, encryptor, env } = deps;
+  const now = deps.now ?? (() => new Date());
+  const session = await loadActiveSession(prisma, device, sessionId);
+  if (turn !== session.currentTurn) {
+    throw new HttpError(409, 'STALE_TURN', 'Dit scherm is al beantwoord.');
+  }
+  const current = await loadTurn(prisma, encryptor, session.id, session.currentTurn);
+  if (!current) throw new HttpError(409, 'STALE_TURN', 'Dit scherm is al beantwoord.');
+  if (current.previousTurn === null) {
+    throw new HttpError(409, 'CANNOT_GO_BACK', 'Dit is het eerste scherm.');
+  }
+  if (current.state.share.sent_to.length > 0) {
+    throw new HttpError(409, 'CANNOT_GO_BACK', 'Het bericht is al verstuurd.');
+  }
+  const previous = await loadTurn(prisma, encryptor, session.id, current.previousTurn);
+  if (!previous) throw new HttpError(409, 'CANNOT_GO_BACK', 'Het vorige scherm bestaat niet meer.');
+
+  await recordObserved(prisma, session.id, current.turn, { type: 'back' });
+  const next = (await lastTurnNumber(prisma, session.id)) + 1;
+  await saveTurn(prisma, encryptor, session.id, {
+    turn: next,
+    previousTurn: previous.previousTurn,
+    state: previous.state,
+    presentation: previous.presentation,
+  });
+  await recordPresentation(prisma, encryptor, session.id, next, previous.presentation);
+
+  const items = await itemsOnScreen(prisma, session.organizationId, previous.presentation);
+  return toTabletTurn(env, session.id, next, previous.presentation, items, now());
+}
+
+/** ⏹ Stoppen (§48): het gesprek eindigt; er wordt niets vastgesteld of verstuurd. */
+export async function stopConversation(
+  deps: ConversationDeps,
+  device: DeviceModel,
+  sessionId: string,
+): Promise<void> {
+  const { prisma } = deps;
+  const now = deps.now ?? (() => new Date());
+  const session = await loadActiveSession(prisma, device, sessionId);
+  await recordObserved(prisma, session.id, session.currentTurn, { type: 'stop' });
+  await endSession(prisma, session.id, 'stopped', now());
 }

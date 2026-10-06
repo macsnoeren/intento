@@ -12,6 +12,8 @@ import {
   testEnv,
 } from '../test/auth-helpers.js';
 import { createVocabularyItem } from '../test/vocabulary-helpers.js';
+import { createEncryptor } from '../crypto/encryption.js';
+import { loadTurn } from '../communication/sessions.js';
 import { fakeAgents, simpleResponder } from '../test/agent-helpers.js';
 
 /** Gesprek starten op de tablet (N4.5, INTENTO-NEW-DESIGN §51, §52). */
@@ -438,5 +440,146 @@ describe('POST /communication/sessions/:id/answer', () => {
     const res = await answer(cookie, turn.sessionId, { turn: 0, answer: 'yes' });
     expect(res.statusCode).toBe(409);
     expect(res.json()).toMatchObject({ error: { code: 'SESSION_ENDED' } });
+  });
+});
+
+describe('↩ Terug en ⏹ Stoppen', () => {
+  let app: FastifyInstance;
+  let agents: FakeAgentClient;
+  const env = testEnv();
+  const encryptor = createEncryptor(env);
+
+  beforeEach(async () => {
+    await resetAuthData();
+    await prisma.vocabularyItem.deleteMany();
+    agents = fakeAgents();
+    app = await buildApp({ env, agents });
+    await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain', sortOrder: 1 });
+    await createVocabularyItem(prisma, { label: 'eten', concept: 'eat', sortOrder: 2 });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    await resetAuthData();
+    await prisma.vocabularyItem.deleteMany();
+  });
+
+  async function post(cookie: string, url: string, payload?: Record<string, unknown>) {
+    return app.inject({ method: 'POST', url, headers: { cookie }, payload });
+  }
+
+  async function begin(userId: string) {
+    const cookie = await deviceCookie(app, userId);
+    const res = await post(cookie, '/communication/sessions');
+    return { cookie, first: communicationTurnSchema.parse(res.json()) };
+  }
+
+  it('zet na Terug exact het vorige scherm terug, zonder agentaanroep', async () => {
+    const user = await seedUser('Sanne');
+    const { cookie, first } = await begin(user.id);
+    const base = `/communication/sessions/${first.sessionId}`;
+    const second = communicationTurnSchema.parse(
+      (await post(cookie, `${base}/answer`, { turn: 0, answer: 'no' })).json(),
+    );
+    const third = communicationTurnSchema.parse(
+      (await post(cookie, `${base}/answer`, { turn: 1, answer: 'yes' })).json(),
+    );
+    expect(third.presentation.kind).toBe('confirm_message');
+    const calls = agents.requests.length;
+
+    // Terug van "Bedoel je: Eten?" → "Eten?"
+    const back = await post(cookie, `${base}/back`, { turn: 2 });
+    expect(back.statusCode).toBe(200);
+    const backTurn = communicationTurnSchema.parse(back.json());
+    expect(backTurn.turn).toBe(3);
+    expect(backTurn.presentation).toEqual(second.presentation);
+    expect(agents.requests).toHaveLength(calls);
+
+    // De momentopname is exact die van beurt 1 (state én presentatie).
+    const restored = await loadTurn(prisma, encryptor, first.sessionId, 3);
+    const original = await loadTurn(prisma, encryptor, first.sessionId, 1);
+    expect(restored?.state).toEqual(original?.state);
+    expect(restored?.presentation).toEqual(original?.presentation);
+    expect(restored?.previousTurn).toBe(0);
+
+    // Nog eens Terug → het eerste scherm; daarna kan het niet verder.
+    const backAgain = communicationTurnSchema.parse(
+      (await post(cookie, `${base}/back`, { turn: 3 })).json(),
+    );
+    expect(backAgain.presentation).toEqual(first.presentation);
+    const noFurther = await post(cookie, `${base}/back`, { turn: 4 });
+    expect(noFurther.statusCode).toBe(409);
+    expect(noFurther.json()).toMatchObject({ error: { code: 'CANNOT_GO_BACK' } });
+
+    // Na Terug gaat het gesprek gewoon verder vanaf dat scherm.
+    const onward = await post(cookie, `${base}/answer`, { turn: 4, answer: 'yes' });
+    expect(onward.statusCode).toBe(200);
+    expect(agents.requests.at(-1)?.state?.last_presentation?.text).toBe('Pijn?');
+
+    const observed = await prisma.observedEvent.findMany({
+      where: { sessionId: first.sessionId, type: 'back' },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(observed.map((event) => event.turn)).toEqual([2, 3]);
+    expect(await prisma.presentationEvent.count({ where: { sessionId: first.sessionId } })).toBe(6);
+  });
+
+  it('kan niet terug op beurt 0 en weigert een verouderde beurt', async () => {
+    const user = await seedUser('Sanne');
+    const { cookie, first } = await begin(user.id);
+    const base = `/communication/sessions/${first.sessionId}`;
+    const atStart = await post(cookie, `${base}/back`, { turn: 0 });
+    expect(atStart.statusCode).toBe(409);
+    expect(atStart.json()).toMatchObject({ error: { code: 'CANNOT_GO_BACK' } });
+
+    await post(cookie, `${base}/answer`, { turn: 0, answer: 'no' });
+    expect((await post(cookie, `${base}/back`, { turn: 1 })).statusCode).toBe(200);
+    const doubleTap = await post(cookie, `${base}/back`, { turn: 1 });
+    expect(doubleTap.statusCode).toBe(409);
+    expect(doubleTap.json()).toMatchObject({ error: { code: 'STALE_TURN' } });
+    expect((await post(cookie, `${base}/back`, {})).statusCode).toBe(400);
+  });
+
+  it('Stoppen sluit het gesprek af en legt Observed stop vast', async () => {
+    const user = await seedUser('Sanne');
+    const { cookie, first } = await begin(user.id);
+    const base = `/communication/sessions/${first.sessionId}`;
+    const res = await post(cookie, `${base}/stop`);
+    expect(res.statusCode).toBe(204);
+    const session = await prisma.communicationSession.findUniqueOrThrow({
+      where: { id: first.sessionId },
+    });
+    expect(session.status).toBe('stopped');
+    expect(session.endedAt).not.toBeNull();
+    expect(
+      await prisma.observedEvent.findFirst({ where: { sessionId: first.sessionId, type: 'stop' } }),
+    ).toMatchObject({ turn: 0 });
+
+    // Daarna kan er niets meer: geen antwoord, geen Terug, geen tweede stop.
+    expect((await post(cookie, `${base}/answer`, { turn: 0, answer: 'yes' })).statusCode).toBe(409);
+    expect((await post(cookie, `${base}/back`, { turn: 0 })).statusCode).toBe(409);
+    expect((await post(cookie, `${base}/stop`)).statusCode).toBe(409);
+  });
+
+  it('isoleert Terug en Stoppen per gebruiker', async () => {
+    const orgA = await seedOrganization('A');
+    const orgB = await seedOrganization('B');
+    const a = await seedUser('Sanne', orgA);
+    const b = await seedUser('Tom', orgB);
+    const { cookie, first } = await begin(a.id);
+    await post(cookie, `/communication/sessions/${first.sessionId}/answer`, {
+      turn: 0,
+      answer: 'no',
+    });
+    const other = await deviceCookie(app, b.id);
+    const base = `/communication/sessions/${first.sessionId}`;
+    expect((await post(other, `${base}/back`, { turn: 1 })).statusCode).toBe(404);
+    expect((await post(other, `${base}/stop`)).statusCode).toBe(404);
+    expect(
+      await prisma.communicationSession.findUniqueOrThrow({ where: { id: first.sessionId } }),
+    ).toMatchObject({ status: 'active', currentTurn: 1 });
   });
 });

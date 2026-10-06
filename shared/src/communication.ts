@@ -56,3 +56,7 @@ export const answerRequestSchema = z.union([
   z.strictObject({ turn: turnNumber, noneOfThese: z.literal(true), responseTimeMs }),
 ]);
 export type AnswerRequest = z.infer<typeof answerRequestSchema>;
+
+/** ↩ Terug vanaf het scherm van beurt `turn`; een verouderde beurt (dubbele tik) geeft 409. */
+export const backRequestSchema = z.strictObject({ turn: turnNumber });
+export type BackRequest = z.infer<typeof backRequestSchema>;

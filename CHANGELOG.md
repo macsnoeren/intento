@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.7 — Terug en Stoppen
+
+- `POST /communication/sessions/:id/back` met `{ turn }`: zet de vorige momentopname exact terug als
+  nieuwe beurt (append-only, `previousTurn` wijst verder terug), zonder agentaanroep, met Observed
+  `back`. Niet op het eerste scherm of na een verzending (409 `CANNOT_GO_BACK`); een dubbele tik geeft
+  409 `STALE_TURN`.
+- `POST /communication/sessions/:id/stop`: Observed `stop`, gesprek `stopped`, `204`.
+
 ### N4.6 — antwoorden
 
 - `POST /communication/sessions/:id/answer` met `{ turn, answer }`, `{ turn, optionRef }` of
