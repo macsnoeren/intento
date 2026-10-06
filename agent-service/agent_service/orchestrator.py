@@ -1,8 +1,10 @@
 """De orchestrator: één zuivere functie per beurt (INTENTO-NEW-DESIGN §4).
 
 `step(request) -> TurnResponse` krijgt de vorige Session State en de gebeurtenis, en geeft de nieuwe
-toestand plus wat de tablet moet tonen. Geen I/O, geen klok, geen toeval: dezelfde invoer geeft altijd
-dezelfde uitvoer. De orchestrator is zelf geen LLM; hij bepaalt welke agent aan de beurt is.
+toestand plus wat de tablet moet tonen. Geen I/O en geen toeval; de klok dient alleen om de duur per
+agent te meten (`latency_ms`). De orchestrator is zelf geen LLM; hij bepaalt welke agent aan de beurt
+is. Elke agent draait via `run_agent` (§34): een falende agent levert een terugval of `failed` op, nooit
+een exceptie.
 
 Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `done`, en `stopped`. De deelfasen
 (`share_ask`, `share_contact`, `confirm_send`) komen in fase N11.
@@ -10,6 +12,11 @@ Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `done`, en `st
 
 from __future__ import annotations
 
+import time
+from collections.abc import Callable
+from typing import Any
+
+from .agents.envelope import AgentResult, run_agent
 from .agents.rules import capitalize, rule_hypotheses, rule_icon, rule_question
 from .contracts import (
     CONTRACT_VERSION,
@@ -38,22 +45,13 @@ class ProtocolError(ValueError):
 class _Turn:
     """Verzamelt wat één beurt oplevert: inferences en agentbeslissingen."""
 
-    def __init__(self) -> None:
+    def __init__(self, clock: Callable[[], float]) -> None:
+        self.clock = clock
         self.inferences: list[Inference] = []
         self.decisions: list[AgentDecision] = []
 
-    def decide(self, agent: str, reason: str) -> None:
-        self.decisions.append(
-            AgentDecision(
-                agent=agent,
-                status="success",
-                model=None,
-                prompt_version="rules-v1",
-                latency_ms=0,
-                validation="skipped",
-                reason=reason,
-            )
-        )
+    def record(self, result: AgentResult[Any]) -> None:
+        self.decisions.append(result.to_decision())
 
 
 def new_state(request: TurnRequest) -> SessionState:
@@ -77,10 +75,10 @@ def new_state(request: TurnRequest) -> SessionState:
     )
 
 
-def step(request: TurnRequest) -> TurnResponse:
+def step(request: TurnRequest, clock: Callable[[], float] = time.monotonic) -> TurnResponse:
     """Verwerkt één beurt."""
     vocabulary = VocabularyIndex(request.vocabulary)
-    turn = _Turn()
+    turn = _Turn(clock)
     event = request.event
 
     if event.type == "start":
@@ -125,10 +123,16 @@ def step(request: TurnRequest) -> TurnResponse:
 
 
 def _update_hypotheses(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> None:
-    hypotheses = rule_hypotheses(state, vocabulary)
+    result = run_agent(
+        "intent-agent",
+        rules=lambda: rule_hypotheses(state, vocabulary),
+        rules_reason="startconcepten in vaste volgorde",
+        clock=turn.clock,
+    )
+    turn.record(result)
+    hypotheses = result.value or []
     state.intent_hypotheses = hypotheses
     state.current_intent = hypotheses[0] if hypotheses else None
-    turn.decide("intent-agent", "startconcepten in vaste volgorde")
     turn.inferences.append(
         Inference(
             agent="intent-agent",
@@ -149,11 +153,29 @@ def _ask_next(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> 
     state.phase = "clarify"
     _update_hypotheses(state, vocabulary, turn)
     if state.current_intent is None:
-        return Presentation(kind="ask_stop", mode="binary", text=ASK_STOP_TEXT, options=[])
-    question = rule_question(state.current_intent)
-    turn.decide("question-agent", "één concept per vraag")
-    option = rule_icon(question.concept, state.current_intent.label, vocabulary)
-    turn.decide("icon-agent", "exact")
+        return _ask_stop()
+    intent = state.current_intent
+    question_result = run_agent(
+        "question-agent",
+        rules=lambda: rule_question(intent),
+        rules_reason="één concept per vraag",
+        clock=turn.clock,
+    )
+    turn.record(question_result)
+    question = question_result.value
+    if question is None:
+        return _ask_stop()
+    icon_result = run_agent(
+        "icon-agent",
+        rules=lambda: rule_icon(question.concept, intent.label, vocabulary),
+        rules_reason="exact",
+        clock=turn.clock,
+    )
+    turn.record(icon_result)
+    option = icon_result.value
+    if option is None:
+        # Zonder pictogram geen binary vraag (I4): dan liever "Wil je stoppen?" dan een leeg scherm.
+        return _ask_stop()
     state.questions_asked.append(
         AskedQuestion(turn=state.turn, concept=question.concept, text=question.text)
     )
@@ -195,7 +217,11 @@ def _propose(
     message = capitalize(intent.label)
     state.phase = "confirm_message"
     state.proposal = Proposal(message=message, concepts=[intent.concept], confidence=0.9)
-    turn.decide("intent-agent", "voorstel na JA")
+    turn.record(
+        run_agent(
+            "intent-agent", rules=lambda: message, rules_reason="voorstel na JA", clock=turn.clock
+        )
+    )
     turn.inferences.append(
         Inference(
             agent="intent-agent",
@@ -247,6 +273,10 @@ def _confirm(
 
 
 # --- stoppen ----------------------------------------------------------------------------------------
+
+
+def _ask_stop() -> Presentation:
+    return Presentation(kind="ask_stop", mode="binary", text=ASK_STOP_TEXT, options=[])
 
 
 def _stop(state: SessionState) -> Presentation:

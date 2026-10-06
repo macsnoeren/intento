@@ -59,6 +59,9 @@ server niet uit elkaar lopen.
   "{Label}?", Icon = het item van dat concept) als terugval. `vocabulary.py` is een alleen-lezen index
   op de meegestuurde Vocabulary. `llm/` is de provider-laag (§35): `LlmProvider.complete_json(system,
   user, schema, timeout)` met `FakeProvider` (vaste antwoorden, bewaart alle prompts) voor de tests.
+  Elke agent draait via `agents/envelope.py` (`run_agent` → `AgentResult` → `AgentDecision`): eerst
+  het LLM-deel, bij elke fout de regels, nooit een exceptie naar buiten. Prompts staan als
+  versiebestanden in `prompts/`.
 - `server/src/agents/client.ts` — de **client naar de agentdienst** (N4.3): `POST /v1/turn` met de
   API-key als Bearer, een harde time-out (`AGENT_TIMEOUT_MS`), een groottegrens op het antwoord en
   zod-validatie tegen het contract (plus: zelfde gesprek en beurt). Elke fout wordt één

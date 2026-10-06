@@ -47,6 +47,20 @@ draaien alle agents op hun regels.
 functie van de aanroep) en **bewaart elke prompt**, zodat tests ook kunnen controleren wat er níet naar
 een model gaat (namen en e-mailadressen van contacten, V6).
 
+## Agents: envelop en prompts
+
+Elke agent draait via **`run_agent`** (`agent_service/agents/envelope.py`, §34) en levert een
+`AgentResult`: waarde, status (`success`; `fallback` als de regels het overnamen na een mislukte
+LLM-poging; `failed` als ook de regels niets opleverden), zekerheid, aannames en meta (model,
+promptversie, duur). De orchestrator zet elk resultaat om in een `AgentDecision`. Een fout in het
+LLM-deel — time-out, ongeldige JSON, een antwoord dat niet door pydantic komt, een bug — leidt altijd
+tot de terugval; er gaat nooit een exceptie naar buiten. Zonder taalmodel zíjn de regels de agent
+(`success`, promptversie `rules-v1`). De reden noemt alleen de soort fout of de veldnamen, nooit inhoud.
+
+Prompts staan als **versiebestanden** in `agent_service/prompts/` (`<naam>-v<n>.md`); `load_prompt`
+pakt de hoogste versie, en die versie komt mee in de `AgentDecision`. Een prompt wijzigen is een nieuw
+bestand met een hoger nummer.
+
 ## Opzet en draaien
 
 Python ≥ 3.11. De HTTP-laag draait op de standaardbibliotheek.

@@ -112,6 +112,7 @@ class OllamaProvider:
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 raw = response.read(self._max_response_bytes + 1)
         except urllib.error.HTTPError as error:
+            error.close()  # de foutrespons houdt anders de verbinding open
             if error.code in (401, 403):
                 raise LlmError("unauthorized", f"status {error.code}") from None
             raise LlmError("http_error", f"status {error.code}") from None

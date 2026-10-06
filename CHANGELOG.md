@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N5.3 — agent-envelop
+
+- `agent_service/agents/envelope.py`: `AgentResult` (waarde, status success/fallback/failed,
+  confidence, aannames, meta met model, promptversie en duur) en `run_agent`, dat eerst het LLM-deel
+  probeert en bij elke fout terugvalt op de regels; nooit een exceptie naar buiten. `to_decision()`
+  maakt er de `AgentDecision` van. De orchestrator laat elke agent hierdoorheen lopen; faalt de
+  Question- of Icon-agent helemaal, dan volgt "Wil je stoppen?" in plaats van een leeg scherm.
+- `agent_service/prompts/`: prompts als versiebestanden (`question-v1.md`) met `load_prompt`.
+- Fix (N5.2): een HTTP-foutrespons van Ollama wordt nu gesloten (ResourceWarning).
+
 ### N5.2 — OllamaProvider (lokaal en cloud)
 
 - `agent_service/llm/ollama.py`: `POST /api/chat` met `format` = JSON-schema en `stream: false`;

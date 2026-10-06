@@ -25,6 +25,10 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["agent_service*"]
 
+[tool.setuptools.package-data]
+# De prompts zijn versiebestanden naast de code (§34); ze moeten mee in een geïnstalleerd pakket.
+"agent_service.prompts" = ["*.md"]
+
 [tool.ruff.lint]
 # Expliciet, zodat de uitkomst niet afhangt van een gebruikersconfig op de machine.
 # E501 blijft uit (de formatter bewaakt de regellengte van code; commentaar mag een woord uitlopen).

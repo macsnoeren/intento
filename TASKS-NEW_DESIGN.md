@@ -355,7 +355,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   weghalen (les uit de oude TO.2); hooguit één nieuwe poging bij ongeldige JSON.
   *Acceptatie:* unittests tegen een nep-HTTP-server: kaal, gefencet, met inleiding, time-out, 401.
 
-- [ ] **N5.3 Agent-envelop**
+- [x] **N5.3 Agent-envelop**
   *ONTWERP: §34.* Gemeenschappelijke vorm `AgentResult` (status success/fallback/failed, confidence,
   aannames, meta met model, promptversie en duur). De orchestrator zet elk resultaat om in een
   `AgentDecision` in de `TurnResponse`. Prompts staan als versiebestanden in `agent_service/prompts/`.
