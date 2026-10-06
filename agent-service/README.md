@@ -83,8 +83,15 @@ Agent (niet naar andere agents). De sleutels zijn getest tegen `contracts/questi
 
 **Icon Agent, stap 1** (`agents/icon.py`, §8): exact op concept, label of synoniem van een item
 (hoofdletters, spaties en `_` maken niet uit) → `strong`/`exact`, zonder LLM. Het woord onder het
-pictogram is altijd een woord van dat item (I1). Er wordt nooit een pictogram verzonnen; zonder
-treffer volgt (vanaf N6.6) het dichtstbijzijnde pictogram met een gap.
+pictogram is altijd een woord van dat item (I1). Er wordt nooit een pictogram verzonnen.
+
+**Icon Agent, stap 2 en 3** (§8, §17): zonder exacte treffer noemt het model verwante woorden, een
+tekstzoekopdracht maakt daar hooguit tien kandidaten van, en het model kiest er één met een schema dat
+alleen die ids (of `none`) toelaat — een verzonnen id wordt geweigerd. Dat wordt een `stand_in` met het
+woord van de gebruiker eronder, en een `Gap` in hetzelfde antwoord (I5). Niets in de buurt, geen
+taalmodel of uitval: het pictogram "geen afbeelding" (`no_image`), ook met een gap. "Bedoel je …?"
+toont hetzelfde pictogram als de vraag over dat concept. De Intent Agent (prompt `intent-v3`) mag een
+eigen concept noemen als niets in de Vocabulary past (bv. `dizziness`/"duizelig").
 
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).

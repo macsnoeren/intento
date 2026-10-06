@@ -5,15 +5,16 @@ de afgewezen concepten en een **compacte** Vocabulary, en geeft hypotheses (conc
 aannames, `needs_clarification` en — als hij zeker is — de zin. Terugval: de startconcepten in volgorde
 (`rules.rule_hypotheses`).
 
-Wat het model teruggeeft wordt gevalideerd (pydantic) en nagekeken: afgewezen concepten, dubbele
-concepten en concepten zonder symbool in de Vocabulary vallen eruit. Blijft er niets over, dan telt
-dat als een mislukte poging en nemen de regels het over. (Concepten zonder symbool krijgen in N6.6 een
-dichtstbijzijnd pictogram; tot dan houdt de agent zich aan wat te tonen is.)
+Wat het model teruggeeft wordt gevalideerd (pydantic) en nagekeken: afgewezen en dubbele concepten
+vallen eruit. Een concept uit de Vocabulary krijgt het woord van dat item (I1); een concept dat er
+niet in staat (bv. "dizziness"/"duizelig") mag, en krijgt bij de vraag het dichtstbijzijnde pictogram
+met een gap (Icon Agent, §8). Blijft er niets over, dan nemen de regels het over.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Annotated, Any
 
@@ -30,6 +31,8 @@ INTENT_TIMEOUT_SECONDS = 10.0
 #: Hoeveel woorden hooguit in de prompt gaan: de hele startset (±3.400) past niet.
 MAX_PROMPT_WORDS = 150
 MAX_HYPOTHESES = 5
+#: Een eigen concept: kleine letters, cijfers en underscores.
+_CONCEPT_CHARS = re.compile(r"[^a-z0-9]+")
 
 
 class IntentHypothesis(BaseModel):
@@ -156,21 +159,22 @@ def llm_intent(
     for item in sorted(output.hypotheses, key=lambda h: h.confidence, reverse=True):
         entry = vocabulary.for_concept(item.concept)
         if entry is None:
-            continue
-        key = normalize(vocabulary.concept(entry))
+            # Geen item met dit concept: een eigen concept met het woord van het model.
+            concept = _CONCEPT_CHARS.sub("_", item.concept.lower()).strip("_")[:100]
+            label = " ".join(item.label.split())
+            if not concept or not label:
+                continue
+        else:
+            # Concept en woord zoals in de Vocabulary: het pictogram toont dat item, en een ander
+            # woord bij dat pictogram zou de betekenis stilzwijgend veranderen (I1). Een synoniem mag.
+            concept = vocabulary.concept(entry)
+            labels = {normalize(label): label for label in entry.labels}
+            label = labels.get(normalize(item.label), vocabulary.label(entry))
+        key = normalize(concept)
         if key in rejected or key in seen:
             continue
         seen.add(key)
-        # Concept en woord zoals in de Vocabulary: het pictogram toont dat item, en een ander woord bij
-        # dat pictogram zou de betekenis stilzwijgend veranderen (I1). Een synoniem van het item mag.
-        labels = {normalize(label): label for label in entry.labels}
-        hypotheses.append(
-            Hypothesis(
-                concept=vocabulary.concept(entry),
-                label=labels.get(normalize(item.label), vocabulary.label(entry)),
-                confidence=item.confidence,
-            )
-        )
+        hypotheses.append(Hypothesis(concept=concept, label=label, confidence=item.confidence))
     if not hypotheses:
         raise ValueError("geen bruikbare hypothese")
     return IntentResult(

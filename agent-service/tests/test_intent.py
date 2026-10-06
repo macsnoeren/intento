@@ -41,7 +41,7 @@ class IntentAgentTest(unittest.TestCase):
         decision = intent_decision(response)
         self.assertEqual(
             (decision.status, decision.model, decision.prompt_version, decision.validation),
-            ("success", "fake-model", "intent-v2", "valid"),
+            ("success", "fake-model", "intent-v3", "valid"),
         )
         payload = response.inferences[0].payload
         self.assertIs(payload["needs_clarification"], True)
@@ -64,23 +64,27 @@ class IntentAgentTest(unittest.TestCase):
             [h.concept for h in response.state.intent_hypotheses], ["pain", "eat", "drink"]
         )
 
-    def test_afgewezen_onbekend_en_dubbel_vallen_eruit(self) -> None:
+    def test_afgewezen_en_dubbel_vallen_eruit_een_eigen_concept_mag(self) -> None:
         first = step(request(START))  # regels: "Pijn?"
         llm = FakeProvider(
             [
                 hypotheses(
                     ("pain", "pijn", 0.9),  # net afgewezen
-                    ("teleport", "teleporteren", 0.8),  # bestaat niet
+                    ("Dizziness!", "duizelig", 0.8),  # geen item: een eigen concept
                     ("eat", "eten", 0.5),
                     ("EAT", "eten", 0.4),  # dubbel
                 )
             ]
         )
         response = step(answer(first, NO), llm=llm)
-        self.assertEqual([h.concept for h in response.state.intent_hypotheses], ["eat"])
+        self.assertEqual(
+            [(h.concept, h.label) for h in response.state.intent_hypotheses],
+            [("dizziness", "duizelig"), ("eat", "eten")],
+        )
 
     def test_niets_bruikbaars_is_een_terugval(self) -> None:
-        llm = FakeProvider([hypotheses(("teleport", "teleporteren", 0.9))])
+        # Alleen een onbruikbaar concept (na opschonen leeg): niets over, dus de regels.
+        llm = FakeProvider([hypotheses(("!!!", "iets", 0.9))])
         response = step(request(START), llm=llm)
         self.assertEqual(intent_decision(response).status, "fallback")
         self.assertEqual(intent_decision(response).reason, "fout: ValueError")

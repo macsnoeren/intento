@@ -28,6 +28,18 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.6 — Icon Agent: het dichtstbijzijnde pictogram
+
+- Zonder exacte treffer: verwante woorden van het model → tekstzoekopdracht (≤ 10 kandidaten) → het
+  model kiest met een schema dat alleen die ids of `none` toelaat; een verzonnen id wordt geweigerd.
+  Resultaat: `stand_in` met het woord van de gebruiker + een `Gap` (prompt `icon-v1`). Niets in de buurt,
+  geen model of uitval: "geen afbeelding" met een gap.
+- De orchestrator zet de gaps in de `TurnResponse`; "Bedoel je …?" toont hetzelfde pictogram als de
+  vraag (met de gap). De Intent Agent mag een eigen concept noemen (prompt `intent-v3`).
+- Gemeten met `gpt-oss:120b-cloud`: "duizelig" → "ziek" (0,85), "ruimteschip" → "geen afbeelding", ±1–2 s.
+  "dorst" gaf de ene keer "drinken" (0,9) en de andere keer "geen afbeelding": de keuze van het model
+  wisselt; N6.13 meet dat.
+
 ### N6.5 — Icon Agent: exact
 
 - `agent_service/agents/icon.py`: exact op concept, label of synoniem (genormaliseerd voor

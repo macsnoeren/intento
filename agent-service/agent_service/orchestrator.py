@@ -17,7 +17,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .agents.envelope import AgentResult, LlmAttempt, run_agent
-from .agents.icon import exact_option
+from .agents.icon import IconMatch, closest_match, exact_match, icon_prompt, no_image
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
 from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
@@ -27,8 +27,10 @@ from .contracts import (
     AgentDecision,
     Answer,
     AskedQuestion,
+    Gap,
     Hypothesis,
     Inference,
+    Option,
     Presentation,
     Proposal,
     SessionState,
@@ -59,6 +61,7 @@ class _Turn:
         self.settings = settings
         self.inferences: list[Inference] = []
         self.decisions: list[AgentDecision] = []
+        self.gaps: list[Gap] = []
 
     def record(self, result: AgentResult[Any]) -> None:
         self.decisions.append(result.to_decision())
@@ -129,7 +132,7 @@ def step(
         presentation=presentation,
         inferences=turn.inferences,
         decisions=turn.decisions,
-        gaps=[],
+        gaps=turn.gaps,
     )
 
 
@@ -247,14 +250,7 @@ def _ask_next(
     question = question_result.value
     if question is None:
         return _ask_stop()
-    icon_result = run_agent(
-        "icon-agent",
-        rules=lambda: exact_option(question.concept, target.label, vocabulary),
-        rules_reason="exact",
-        clock=turn.clock,
-    )
-    turn.record(icon_result)
-    option = icon_result.value
+    option = _pictogram(question.concept, target.label, vocabulary, turn)
     if option is None:
         # Zonder pictogram geen binary vraag (I4): dan liever "Wil je stoppen?" dan een leeg scherm.
         return _ask_stop()
@@ -262,6 +258,44 @@ def _ask_next(
         AskedQuestion(turn=state.turn, concept=question.concept, text=question.text)
     )
     return Presentation(kind="question", mode="binary", text=question.text, options=[option])
+
+
+def _pictogram(concept: str, label: str, vocabulary: VocabularyIndex, turn: _Turn) -> Option | None:
+    """De Icon Agent (§8): exact uit de Vocabulary, anders het dichtstbijzijnde pictogram (met het
+    model) of "geen afbeelding" — bij een benadering altijd met een gap (§17, I5)."""
+    exact = exact_match(concept, label, vocabulary)
+    if exact is not None:
+        result: AgentResult[IconMatch] = run_agent(
+            "icon-agent",
+            rules=lambda: exact,
+            rules_reason=f"exact ({exact.matched_on})",
+            clock=turn.clock,
+        )
+    else:
+        attempt: LlmAttempt[IconMatch] | None = None
+        if turn.llm is not None:
+            provider, prompt = turn.llm, icon_prompt()
+            attempt = LlmAttempt(
+                run=lambda: closest_match(provider, prompt, concept, label, vocabulary),
+                model=provider.model,
+                prompt_version=prompt.id,
+            )
+        result = run_agent(
+            "icon-agent",
+            rules=lambda: no_image(concept, label, vocabulary),
+            llm=attempt,
+            rules_reason="geen afbeelding",
+            confidence=lambda match: match.confidence,
+            clock=turn.clock,
+        )
+    turn.record(result)
+    match = result.value
+    if match is None:
+        return None
+    gap = match.gap()
+    if gap is not None:
+        turn.gaps.append(gap)
+    return match.option()
 
 
 def _asked(state: SessionState) -> Hypothesis:
@@ -334,7 +368,7 @@ def _propose(
             confidence=0.9,
         )
     )
-    option = exact_option(intent.concept, intent.label, vocabulary)
+    option = _proposal_pictogram(state, intent, vocabulary, turn)
     return Presentation(
         kind="confirm_message",
         mode="binary",
@@ -374,6 +408,34 @@ def _confirm(
     state.rejected_concepts.extend(c for c in proposal.concepts if c not in state.rejected_concepts)
     state.proposal = None
     return _ask_next(state, vocabulary, turn)
+
+
+def _proposal_pictogram(
+    state: SessionState, intent: Hypothesis, vocabulary: VocabularyIndex, turn: _Turn
+) -> Option:
+    """Het pictogram bij "Bedoel je …?": hetzelfde als bij de vraag over dit concept, zodat de
+    gebruiker het herkent; een benadering houdt zijn gap (I5)."""
+    last = state.last_presentation
+    shown = next((o for o in (last.options if last else []) if o.concept == intent.concept), None)
+    if shown is None:
+        exact = exact_match(intent.concept, intent.label, vocabulary)
+        if exact is not None:
+            return exact.option()
+        shown = no_image(intent.concept, intent.label, vocabulary).option()
+    option = shown.model_copy(update={"position": 0})
+    if option.representation == "stand_in" and option.vocabulary_item_id and option.concept:
+        entry = vocabulary.get(option.vocabulary_item_id)
+        turn.gaps.append(
+            Gap(
+                type="vocabulary_gap",
+                concept=option.concept,
+                label=option.label,
+                context=entry.contexts[0] if entry and entry.contexts else None,
+                best_available_item_id=option.vocabulary_item_id,
+                confidence=0.0,
+            )
+        )
+    return option
 
 
 # --- stoppen ----------------------------------------------------------------------------------------

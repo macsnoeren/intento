@@ -396,7 +396,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *ONTWERP: §8 (stap 1).* Concept, label of synoniem van een item → `strong`/`exact`. Zonder LLM.
   *Acceptatie:* unittests (concept, label, synoniem, hoofdletters/spaties, geen treffer).
 
-- [ ] **N6.6 Icon Agent: het dichtstbijzijnde pictogram**
+- [x] **N6.6 Icon Agent: het dichtstbijzijnde pictogram**
   *ONTWERP: §8 (stap 2–3), §17.* Geen exacte treffer → een korte lijst kandidaten (op tekst en context)
   → de LLM kiest, met een schema dat alleen bestaande ids toelaat. Zwakke match → `stand_in` met het
   woord van de gebruiker als label + een `Gap`; niets in de buurt → het pictogram "geen afbeelding".
