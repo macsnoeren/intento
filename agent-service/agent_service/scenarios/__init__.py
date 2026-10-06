@@ -115,6 +115,12 @@ class SimulatedUser:
             return None
         if presentation.kind == "ask_stop":
             return {"type": "answer_yes"}
+        if presentation.kind == "question" and presentation.mode == "multi":
+            # Multi-icon: de eerste tegel die bij het doel hoort, anders "Geen van deze".
+            for option in presentation.options:
+                if (option.concept in self.goal) or normalize(option.label) in self.words:
+                    return {"type": "select_option", "option_ref": option.ref}
+            return {"type": "none_of_these"}
         if presentation.kind == "confirm_message":
             concepts = set(state.proposal.concepts) if state.proposal else self._shown(presentation)
             yes = (bool(concepts) and concepts <= self.goal) or self._recognizes(presentation)

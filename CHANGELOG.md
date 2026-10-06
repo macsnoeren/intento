@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N7.1 — Multi-icon in de agentdienst
+
+- Een gesprek begint in de ingestelde vorm (`multi` bij Multi-icon). In multi-icon: een onderwerpvraag
+  (prompt `question_multi-v1`, terugval "Wat bedoel je?", gekeurd met V1 t/m V6) met 2 tot
+  `options_per_screen` verschillende tegels uit de hypotheses. Een gekozen tegel telt als JA; "Geen van
+  deze" wijst alle getoonde concepten af. Bevestigingen blijven binary. Gebeurtenissen die niet bij het
+  scherm passen geven een protocolfout.
+- De gesimuleerde gebruiker kiest tegels; scenario "dorst → water" in multi-icon. Via de backend
+  gerookt met het echte model: "Wat heb je nodig?" met vier tegels, daarna "Bedoel je: Drinken?".
+
 ### N6.16 — S1: geen voorstel op een gok
 
 - Bij het maximum aantal vragen legt de orchestrator alleen voor wat de gebruiker bevestigde, of de

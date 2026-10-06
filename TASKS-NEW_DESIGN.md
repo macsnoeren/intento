@@ -466,7 +466,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N7 — Multi-icon Mode
 
-- [ ] **N7.1 Multi-icon in de agentdienst**
+- [x] **N7.1 Multi-icon in de agentdienst**
   *ONTWERP: §7, §13.* Question en Icon Agent leveren voor multi-icon één onderwerp met N verschillende
   opties (`optionsPerScreen`); "Geen van deze" = alle getoonde opties niet gekozen. Een bevestiging blijft
   binary.

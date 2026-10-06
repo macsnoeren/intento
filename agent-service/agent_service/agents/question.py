@@ -99,3 +99,59 @@ def llm_question(
 
 def question_prompt() -> Prompt:
     return load_prompt("question")
+
+
+# --- Multi-icon: de vraag boven de tegels (§13) -----------------------------------------------------
+
+#: De regelgebaseerde vraag boven de tegels.
+RULES_MULTI_TEXT = "Wat bedoel je?"
+
+
+class MultiQuestionOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: Annotated[str, Field(min_length=3, max_length=80)]
+    confidence: Annotated[float, Field(ge=0.0, le=1.0)]
+
+
+def llm_multi_question(
+    provider: LlmProvider,
+    prompt: Prompt,
+    options: list[Hypothesis],
+    state: SessionState,
+    vocabulary: VocabularyIndex,
+    strategy: str = "",
+    rejected_because: list[str] | None = None,
+    timeout: float = QUESTION_TIMEOUT_SECONDS,
+) -> str:
+    """De onderwerpvraag boven de tegels. Gooit bij elk probleem (de terugval volgt)."""
+    payload: dict[str, object] = {
+        "opties": [{"concept": o.concept, "label": o.label} for o in options],
+        "antwoorden": [
+            {
+                "concept": concept,
+                "label": _label(vocabulary, concept),
+                "antwoord": "ja" if answer.answer in ("yes", "selected") else "nee",
+            }
+            for answer in state.answers
+            for concept in answer.concepts
+        ],
+        "gesteld": [question.text for question in state.questions_asked],
+        "strategie": strategy,
+    }
+    if rejected_because:
+        payload["afgekeurd"] = rejected_because
+    raw = provider.complete_json(
+        prompt.text,
+        json.dumps(payload, ensure_ascii=False),
+        MultiQuestionOutput.model_json_schema(),
+        timeout,
+    )
+    text = " ".join(MultiQuestionOutput.model_validate(raw).text.split())
+    if not text.endswith("?") or _URL.search(text):
+        raise ValueError("geen geldige vraag")
+    return text
+
+
+def multi_question_prompt() -> Prompt:
+    return load_prompt("question_multi")

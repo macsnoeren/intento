@@ -123,6 +123,14 @@ hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de re
 antwoordt de dienst altijd binnen de time-out van de backend (`AGENT_TIMEOUT_MS`, 30 s). Gemeten duur
 per agent en per beurt: zie `docs/architecture.md`.
 
+**Multi-icon** (§13): een gesprek begint in de ingestelde vorm. In multi-icon worden de eerste
+2 tot `options_per_screen` hypotheses waarover nog niets gevraagd of gekozen is tegels, elk met een
+pictogram van de Icon Agent (dubbele tegels vallen weg), met een onderwerpvraag van de Question Agent
+(prompt `question_multi-v1`, terugval "Wat bedoel je?"). Een gekozen tegel telt als JA op dat concept
+(verder als bij binary: verfijnen of voorstellen); "Geen van deze" wijst alle getoonde concepten af.
+Bevestigingen ("Bedoel je …?", "Wil je stoppen?") blijven binary. Minder dan twee tegels mogelijk: het
+gekozen concept voorstellen, anders "Wil je stoppen?".
+
 **Safety Agent, regels** (`agents/safety.py`, §10): S1 maximum aantal vragen (instelling
 `max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, of de bovenste
 als die minstens 0,5 zeker is; nooit een gok), anders en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen

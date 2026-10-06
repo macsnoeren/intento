@@ -35,7 +35,14 @@ from .agents.intent import (
     llm_intent,
     rules_intent,
 )
-from .agents.question import QUESTION_TIMEOUT_SECONDS, llm_question, question_prompt
+from .agents.question import (
+    QUESTION_TIMEOUT_SECONDS,
+    RULES_MULTI_TEXT,
+    llm_multi_question,
+    llm_question,
+    multi_question_prompt,
+    question_prompt,
+)
 from .agents.rules import Question, capitalize, rule_question
 from .agents.safety import (
     SAFETY_TIMEOUT_SECONDS,
@@ -60,12 +67,14 @@ from .contracts import (
     AgentDecision,
     Answer,
     AskedQuestion,
+    Event,
     Gap,
     Hypothesis,
     Inference,
     Option,
     Presentation,
     Proposal,
+    SelectOptionEvent,
     SessionState,
     Settings,
     ShareState,
@@ -136,7 +145,8 @@ def new_state(request: TurnRequest) -> SessionState:
         session_id=request.session_id,
         phase="clarify",
         turn=request.turn,
-        interaction_mode="binary",
+        # De ingestelde vorm; "AI kiest" begint in Binary (§14).
+        interaction_mode="multi" if request.settings.interaction_mode == "multi" else "binary",
         mode_since_turn=request.turn,
         current_intent=None,
         intent_hypotheses=[],
@@ -190,17 +200,23 @@ def step(
             raise ProtocolError("Er staat geen vraag open.")
         if state.phase in ("done", "stopped"):
             raise ProtocolError(f"Het gesprek is al afgelopen ({state.phase}).")
-        if event.type not in ("answer_yes", "answer_no"):
-            # Multi-icon komt in N7; tot dan is elke vraag binary.
-            raise ProtocolError(f"Gebeurtenis {event.type} past niet bij een binary vraag.")
-        yes = event.type == "answer_yes"
-
-        if last.kind == "ask_stop":
-            presentation = _stop(state) if yes else _restart(state, vocabulary, turn)
-        elif state.phase == "confirm_message":
-            presentation = _confirm(state, yes, vocabulary, turn)
+        tiles = last.kind == "question" and last.mode == "multi"
+        if event.type == "select_option" or event.type == "none_of_these":
+            if not tiles:
+                raise ProtocolError(
+                    f"Gebeurtenis {event.type} past alleen bij een multi-icon vraag."
+                )
+            presentation = _answer_multi(state, event, vocabulary, turn)
         else:
-            presentation = _answer_question(state, yes, vocabulary, turn)
+            if tiles:
+                raise ProtocolError("Een multi-icon vraag vraagt een keuze of 'Geen van deze'.")
+            yes = event.type == "answer_yes"
+            if last.kind == "ask_stop":
+                presentation = _stop(state) if yes else _restart(state, vocabulary, turn)
+            elif state.phase == "confirm_message":
+                presentation = _confirm(state, yes, vocabulary, turn)
+            else:
+                presentation = _answer_question(state, yes, vocabulary, turn)
 
     state.last_presentation = presentation
     return TurnResponse(
@@ -266,18 +282,18 @@ def _update_hypotheses(
     return result
 
 
+def _next_targets(state: SessionState, limit: int) -> list[Hypothesis]:
+    """De eerste hypotheses waarover nog niets gevraagd of gekozen is (en die niet zijn afgewezen)."""
+    done = {q.concept for q in state.questions_asked if q.concept}
+    done |= {c for a in state.answers if a.answer in ("yes", "selected") for c in a.concepts}
+    done |= set(state.rejected_concepts)
+    return [h for h in state.intent_hypotheses if h.concept not in done][:limit]
+
+
 def _next_target(state: SessionState) -> Hypothesis | None:
     """De eerste hypothese waarover nog geen vraag gesteld is (en die niet is afgewezen)."""
-    asked = {q.concept for q in state.questions_asked if q.concept}
-    rejected = set(state.rejected_concepts)
-    return next(
-        (
-            h
-            for h in state.intent_hypotheses
-            if h.concept not in asked and h.concept not in rejected
-        ),
-        None,
-    )
+    targets = _next_targets(state, 1)
+    return targets[0] if targets else None
 
 
 def _confirmed(state: SessionState) -> Hypothesis | None:
@@ -324,6 +340,8 @@ def _ask_next(
         return _propose(
             state, hypothesis, vocabulary, turn, message=message, confidence=hypothesis.confidence
         )
+    if state.interaction_mode == "multi":
+        return _ask_multi(state, vocabulary, turn)
     target = _next_target(state)
     if target is None:
         confirmed = _confirmed(state)
@@ -429,15 +447,28 @@ def _validate(
     vocabulary: VocabularyIndex,
     turn: _Turn,
 ) -> list[Finding]:
-    """Keurt de vraag met het pictogram erbij; `clarify` (V5) is hier geen afkeuring."""
+    """Keurt een binary vraag met het pictogram erbij."""
     presentation = Presentation(
         kind="question", mode="binary", text=question.text, options=[option]
     )
+    return _validate_presentation(state, presentation, question.concept, vocabulary, turn)
+
+
+def _validate_presentation(
+    state: SessionState,
+    presentation: Presentation,
+    concept: str | None,
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+) -> list[Finding]:
+    """Keurt de vraag met de pictogrammen erbij; `clarify` (V5) is hier geen afkeuring."""
+    question = Question(concept=concept or "", text=presentation.text)
+    label = ", ".join(o.label for o in presentation.options)
     findings = [
         f
         for f in validate_question(
-            concept=question.concept,
-            text=question.text,
+            concept=concept,
+            text=presentation.text,
             presentation=presentation,
             gaps=turn.gaps,
             state=state,
@@ -465,8 +496,8 @@ def _validate(
                     llm,
                     prompt,
                     text=question.text,
-                    concept=question.concept,
-                    label=option.label,
+                    concept=concept,
+                    label=label,
                     state=state,
                     timeout=timeout,
                 ),
@@ -487,8 +518,8 @@ def _validate(
                     llm,
                     prompt,
                     text=question.text,
-                    concept=question.concept,
-                    label=option.label,
+                    concept=concept,
+                    label=label,
                     state=state,
                     timeout=timeout,
                 ),
@@ -794,4 +825,123 @@ def _restart(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> P
     state.rejected_concepts = []
     # Opnieuw beginnen: ook de gestelde vragen tellen niet meer mee (de provenance bewaart ze).
     state.questions_asked = []
+    return _ask_next(state, vocabulary, turn)
+
+
+# --- multi-icon (§13) -------------------------------------------------------------------------------
+
+
+def _ask_multi(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> Presentation:
+    """Een onderwerpvraag met 2 tot `options_per_screen` verschillende tegels.
+
+    Te weinig om uit te kiezen: voorstellen wat de gebruiker koos, anders "Wil je stoppen?".
+    """
+    targets = _next_targets(state, turn.settings.options_per_screen)
+    options: list[Option] = []
+    shown: set[tuple[str | None, str]] = set()
+    chosen: list[Hypothesis] = []
+    for target in targets:
+        option = _pictogram(target.concept, target.label, vocabulary, turn)
+        key = (option.vocabulary_item_id, option.label.lower()) if option else None
+        if option is None or key is None or key in shown:
+            continue
+        shown.add(key)
+        chosen.append(target)
+        options.append(option.model_copy(update={"position": len(options)}))
+    if len(options) < 2:
+        confirmed = _confirmed(state)
+        return _propose(state, confirmed, vocabulary, turn) if confirmed else _ask_stop()
+    text = _validated_multi_question(state, chosen, options, vocabulary, turn)
+    state.questions_asked.append(AskedQuestion(turn=state.turn, concept=None, text=text))
+    return Presentation(kind="question", mode="multi", text=text, options=options)
+
+
+def _validated_multi_question(
+    state: SessionState,
+    targets: list[Hypothesis],
+    options: list[Option],
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+) -> str:
+    """De vraag boven de tegels, gekeurd zoals een binary vraag (V1 t/m V6); anders de terugval."""
+    rejected_because: list[str] = []
+    for _ in range(MAX_QUESTION_ATTEMPTS if turn.llm is not None else 1):
+        attempt: LlmAttempt[str] | None = None
+        timeout = turn.budget(QUESTION_TIMEOUT_SECONDS)
+        if turn.llm is not None and timeout is not None:
+            provider, prompt = turn.llm, multi_question_prompt()
+            reasons = list(rejected_because)
+            attempt = LlmAttempt(
+                run=lambda: llm_multi_question(
+                    provider,
+                    prompt,
+                    targets,
+                    state,
+                    vocabulary,
+                    strategy=instruction_for(turn.settings.question_strategy),
+                    rejected_because=reasons or None,
+                    timeout=timeout,
+                ),
+                model=provider.model,
+                prompt_version=prompt.id,
+            )
+        result = run_agent(
+            "question-agent",
+            rules=lambda: RULES_MULTI_TEXT,
+            llm=attempt,
+            rules_reason="onderwerpvraag",
+            clock=turn.clock,
+        )
+        turn.record(result)
+        text = result.value or RULES_MULTI_TEXT
+        presentation = Presentation(kind="question", mode="multi", text=text, options=options)
+        findings = _validate_presentation(state, presentation, None, vocabulary, turn)
+        if not findings or result.status != "success":
+            return text
+        rejected_because = [f.reason for f in findings]
+    turn.record(
+        AgentResult(
+            agent="question-agent",
+            status="fallback",
+            value=RULES_MULTI_TEXT,
+            meta=AgentMeta(model=None, prompt_version=RULES_VERSION, latency_ms=0),
+            validation="invalid",
+            reason=f"na {MAX_QUESTION_ATTEMPTS} afgekeurde vragen: {'; '.join(rejected_because)}",
+        )
+    )
+    return RULES_MULTI_TEXT
+
+
+def _answer_multi(
+    state: SessionState, event: Event, vocabulary: VocabularyIndex, turn: _Turn
+) -> Presentation:
+    """Een tegel gekozen (telt als JA op dat concept) of "Geen van deze" (alle getoonde afgewezen)."""
+    last = state.last_presentation
+    assert last is not None
+    if isinstance(event, SelectOptionEvent):
+        chosen = next((o for o in last.options if o.ref == event.option_ref), None)
+        if chosen is None or chosen.concept is None:
+            raise ProtocolError("Die keuze stond niet op het scherm.")
+        state.answers.append(
+            Answer(
+                turn=state.turn, answer="selected", concepts=[chosen.concept], option_ref=chosen.ref
+            )
+        )
+        known = next((h for h in state.intent_hypotheses if h.concept == chosen.concept), None)
+        picked = Hypothesis(
+            concept=chosen.concept,
+            label=chosen.label,
+            confidence=known.confidence if known else 0.5,
+        )
+        if turn.llm is None:
+            # De regels kunnen niet verfijnen: een keuze is meteen het voorstel.
+            return _propose(state, picked, vocabulary, turn)
+        result = _update_hypotheses(state, vocabulary, turn)
+        if result.status != "success":
+            return _propose(state, picked, vocabulary, turn)
+        return _ask_next(state, vocabulary, turn, refresh=False)
+
+    shown = [o.concept for o in last.options if o.concept]
+    state.answers.append(Answer(turn=state.turn, answer="none_of_these", concepts=shown))
+    state.rejected_concepts.extend(c for c in shown if c not in state.rejected_concepts)
     return _ask_next(state, vocabulary, turn)
