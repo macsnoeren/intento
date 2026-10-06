@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.15 — startset: woorden voor ziek zijn
+
+- Vertaald en geseed: "niezen" (verkouden, Mulberry 5723) en "het warm hebben" (warm, zweten, Mulberry
+  4804) in de context `health`; de startset telt nu 101 platformitems.
+- Mulberry en de Corona-set hebben geen symbool voor "ziek", "misselijk" of "duizelig": die lopen via het
+  dichtstbijzijnde pictogram met een gap, tot een beheerder een eigen afbeelding toevoegt. Een
+  herlabeling van de thermometer naar "koorts" is teruggedraaid omdat de import bestaande labels bewust
+  niet overschrijft (anders lopen installaties uiteen); dat staat nu in `vocabulary/README.md`.
+
 ### N6.14 — Intent Agent: breder zoeken na een reeks NEE
 
 - De Intent Agent krijgt `nee_op_rij` (NEE sinds het laatste JA) en prompt `intent-v4`: na drie NEE een

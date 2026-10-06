@@ -514,6 +514,24 @@
       "context": "feelings",
       "is_start": true,
       "status": "reviewed"
+    },
+    {
+      "id": 5723,
+      "label": "niezen",
+      "synonyms": ["verkouden"],
+      "concept": "sneeze",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4804,
+      "label": "het warm hebben",
+      "synonyms": ["warm", "zweten"],
+      "concept": "feel_hot",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
     }
   ]
 }

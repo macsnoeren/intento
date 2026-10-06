@@ -446,11 +446,16 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* scenario "duizelig" slaagt met de FakeProvider; de eval met `gpt-oss:120b-cloud` haalt
   "duizelig" in minstens 2 van de 3 rondes.
 
-- [ ] **N6.15 Startset: woorden voor ziek zijn**
-  *ONTWERP: §15.1.* Ontdekt bij N6.13: de 99 platformitems missen "ziek", "misselijk", "duizelig",
-  "koorts", "hoofdpijn" heeft wel een item. Mulberry heeft de symbolen; de Nederlandse vertalingen en het
-  seeden ontbreken.
-  *Acceptatie:* de import seedt ze met licentie en bron; de Vocabulary-pagina toont ze.
+- [x] **N6.15 Startset: woorden voor ziek zijn**
+  *ONTWERP: §15.1.* Ontdekt bij N6.13: de 99 platformitems missen woorden voor ziek zijn.
+  *Uitkomst:* Mulberry en de Corona-set hebben **geen** symbool voor "ziek", "misselijk" of "duizelig";
+  wel voor niezen/verkouden (5723) en het warm hebben (4804), die nu vertaald en geseed zijn (101
+  platformitems; "dokter", "hoofdpijn", "buikpijn", "overgeven", "hoesten", "benauwd" waren er al). Een
+  eigen label "koorts" op de thermometer (44457) is teruggedraaid: de seed overschrijft bewust geen
+  labels van bestaande items, dus oude en nieuwe installaties zouden uit elkaar lopen. Voor de ontbrekende
+  woorden werkt het ontwerp zoals bedoeld: het dichtstbijzijnde pictogram met een gap, tot een beheerder
+  een eigen afbeelding toevoegt (fase N8).
+  *Acceptatie:* de import seedt de nieuwe items met licentie en bron; de Vocabulary-pagina toont ze.
 
 - [ ] **N6.16 S1: geen voorstel op een gok**
   *ONTWERP: §10 (S1).* Ontdekt bij N6.13: bij het maximum legt de orchestrator de beste hypothese voor,

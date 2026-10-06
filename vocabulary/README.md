@@ -38,3 +38,9 @@ de Vocabulary tot de bron ze weer vrijgeeft.
   Nederlandse vertaling komen in de Vocabulary.
 
 De kernset (N2.5) telt 57 Mulberry-woorden en alle 42 zorgsymbolen van de Plus Collection.
+
+**Woorden die ontbreken.** Niet elk woord heeft een symbool in de bronnen: Mulberry en de Corona-set
+hebben bijvoorbeeld geen symbool voor "ziek", "misselijk" of "duizelig" (N6.15). Zo'n woord krijgt
+tijdens een gesprek het dichtstbijzijnde pictogram met een gap (INTENTO-NEW-DESIGN §8, §17), tot een
+beheerder een eigen afbeelding toevoegt. Let op: de import overschrijft de labels van een bestaand item
+niet; een vertaling achteraf aanpassen geldt dus alleen voor nieuwe installaties.
