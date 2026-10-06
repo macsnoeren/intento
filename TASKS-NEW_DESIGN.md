@@ -259,7 +259,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N4 — Eén gesprek van begin tot eind (zonder LLM)
 
-- [ ] **N4.1 Sessietabellen**
+- [x] **N4.1 Sessietabellen**
   *ONTWERP: §5, §39.* Migratie: `CommunicationSession` (userId, organizationId, status
   active/confirmed/stopped, startedAt, endedAt, currentTurn) en `SessionTurn` (sessionId, turn,
   `stateEncrypted`, `presentationEncrypted`, createdAt). Repository met versleuteling (bestaande crypto).

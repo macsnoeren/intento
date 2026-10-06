@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.1 — sessietabellen
+
+- Migratie `communication_sessions`: `CommunicationSession` (gebruiker, organisatie, status
+  active/confirmed/stopped, start, einde, huidige beurt) en `SessionTurn` (versleutelde momentopname van
+  state en presentatie per beurt; append-only met `previousTurn` voor een exacte ↩ Terug).
+- Repository `server/src/communication/sessions.ts` met versleuteling (bestaande AES-256-GCM) en zod bij
+  het lezen. Tests: opslaan/lezen ontsleutelt correct, geen leesbare state in de database, isolatie.
+
 ### N3.4 — begeleider: gekoppelde gebruikers en hun instellingen
 
 - `GET /caregiver/users`: de gebruikers waaraan het ingelogde account als begeleider gekoppeld is
