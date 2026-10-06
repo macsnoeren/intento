@@ -1,5 +1,8 @@
 import {
   communicationTurnSchema,
+  externalSearchResponseSchema,
+  type ExternalImportRequest,
+  type ExternalSearchResponse,
   currentSessionResponseSchema,
   type AnswerRequest,
   type CommunicationTurn,
@@ -122,6 +125,10 @@ export interface Api {
   listVocabulary(query?: Partial<VocabularyListQuery>): Promise<VocabularyListResponse>;
   /** Een item bewerken (alleen beheerder; platformitems alleen de platformbeheerder). */
   updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
+  /** Zoeken in een externe bron (OpenSymbols), met licentie en of die toegestaan is. */
+  searchExternal(query: string): Promise<ExternalSearchResponse>;
+  /** Een extern symbool importeren; licentie en afbeelding haalt de server zelf bij de bron. */
+  importExternal(body: ExternalImportRequest): Promise<VocabularyItemPublic>;
   /** Eigen afbeelding + woord toevoegen (multipart). Alleen de beheerder. */
   uploadVocabularyItem(upload: VocabularyUpload): Promise<VocabularyItemPublic>;
   /** De bronvermelding van de Vocabulary. */
@@ -389,6 +396,16 @@ export const httpApi: Api & DeviceApi = {
         method: 'POST',
         body: '{}',
       }),
+    );
+  },
+  async searchExternal(query) {
+    return externalSearchResponseSchema.parse(
+      await request(`/vocabulary/external/search?q=${encodeURIComponent(query)}`),
+    );
+  },
+  async importExternal(body) {
+    return vocabularyItemPublicSchema.parse(
+      await request('/vocabulary/import', { method: 'POST', body: JSON.stringify(body) }),
     );
   },
   async uploadVocabularyItem(upload) {

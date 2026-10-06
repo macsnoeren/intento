@@ -98,6 +98,8 @@ server niet uit elkaar lopen.
 - `VocabularyUploadDialog.tsx` — eigen afbeelding + woord (N8.2): bestand met voorbeeld, woord,
   synoniemen, concepten, contexten en het verplichte rechtenvinkje; opent na opslaan het nieuwe item.
   Alleen zichtbaar voor de beheerder.
+- `ExternalImportDialog.tsx` — importeren uit OpenSymbols (N8.6): zoeken, per resultaat de licentie,
+  niet-toegestane resultaten gemarkeerd en niet te kiezen, dan woord, concepten en contexten.
 - **Schil en huisstijl (T17.1)** — drie componenten die elke ingelogde pagina dezelfde vorm geven:
   `AppShell.tsx` (zijbalk met menu + kopbalk met paginatitel en account), `AdminNav.tsx` (het menu
   zelf: gegroepeerd en gefilterd op rol, met `NavIcon.tsx` voor de lijnicoontjes) en `AuthLayout.tsx`

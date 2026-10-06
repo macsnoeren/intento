@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.6 — importeren: beheer-UI
+
+- "+ Uit externe bron" op de Vocabulary-pagina (alleen de beheerder): zoeken in OpenSymbols, per
+  resultaat afbeelding, naam, licentie en auteur; resultaten met een niet-toegestane of onbekende licentie
+  zijn gemarkeerd en niet te kiezen. Na een keuze: Nederlands woord, synoniemen, concepten (voorgevuld uit
+  de naam) en contexten, dan importeren; het nieuwe item opent. `Api.searchExternal`/`importExternal`.
+- Componenttests; in de browser gerookt tot de melding dat de externe bron niet is ingesteld (geen
+  `OPENSYMBOLS_SECRET` in deze omgeving, dus geen echte zoekresultaten).
+
 ### N8.5 — importeren uit een externe bron
 
 - `POST /vocabulary/import` (alleen de beheerder): de server haalt licentie, auteur en afbeelding

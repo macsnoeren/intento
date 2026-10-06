@@ -505,7 +505,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   gezet; licentie, auteur en bron opgeslagen. Audit-log.
   *Acceptatie:* tests: niet-toegestane licentie → 422, te groot → 422, andere host → 422, geslaagd → item.
 
-- [ ] **N8.6 Importeren: beheer-UI**
+- [x] **N8.6 Importeren: beheer-UI**
   *ONTWERP: §49.* Zoeken, licentie zien (niet-toegestane resultaten gemarkeerd en niet te kiezen),
   importeren met label.
   *Acceptatie:* componenttest; rooktest.

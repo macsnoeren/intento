@@ -1548,3 +1548,74 @@ body {
   margin-left: auto;
   align-self: flex-end;
 }
+
+/* Importeren uit een externe bron (N8.6). */
+.toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.external-import {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.external-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.external-result {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  background: var(--intento-surface);
+  color: var(--intento-fg);
+  cursor: pointer;
+}
+
+.external-result:hover:not(:disabled) {
+  border-color: var(--intento-accent);
+}
+
+.external-result--blocked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.external-result__image {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+}
+
+.external-result__name {
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.external-result__meta {
+  font-size: 0.8rem;
+  color: var(--intento-muted);
+}
+
+.external-chosen {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}

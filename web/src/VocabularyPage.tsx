@@ -10,6 +10,7 @@ import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 import { Modal } from './Modal.tsx';
 import { VocabularyUploadDialog } from './VocabularyUploadDialog.tsx';
+import { ExternalImportDialog } from './ExternalImportDialog.tsx';
 import { VocabularyItemDetail } from './VocabularyItemDetail.tsx';
 
 /**
@@ -80,6 +81,7 @@ export function VocabularyPage({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<VocabularyItemPublic | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,15 +180,34 @@ export function VocabularyPage({
           </select>
         </label>
         {account.role === 'ADMIN' ? (
-          <button
-            className="button button--primary toolbar__end"
-            type="button"
-            onClick={() => setUploading(true)}
-          >
-            + Eigen afbeelding toevoegen
-          </button>
+          <div className="toolbar__end toolbar__actions">
+            <button className="button" type="button" onClick={() => setImporting(true)}>
+              + Uit externe bron
+            </button>
+            <button
+              className="button button--primary"
+              type="button"
+              onClick={() => setUploading(true)}
+            >
+              + Eigen afbeelding toevoegen
+            </button>
+          </div>
         ) : null}
       </div>
+
+      {importing ? (
+        <Modal title="Uit externe bron importeren" onClose={() => setImporting(false)}>
+          <ExternalImportDialog
+            api={api}
+            onCancel={() => setImporting(false)}
+            onCreated={(item) => {
+              setImporting(false);
+              void load();
+              setSelected(item);
+            }}
+          />
+        </Modal>
+      ) : null}
 
       {uploading ? (
         <Modal title="Eigen afbeelding toevoegen" onClose={() => setUploading(false)}>
