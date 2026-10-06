@@ -64,6 +64,7 @@ Het model volgt INTENTO-NEW-DESIGN §39. Nu bestaat:
 | **CaregiverAssignment** | `userId` + `accountId` (samengestelde PK), `createdAt` | Koppeling begeleider↔gebruiker (T2.2, DESIGN §2, FR-017). Many-to-many tussen een CAREGIVER-`Account` en een `User`. Stuurt de toegang: een begeleider ziet/beheert alléén gekoppelde gebruikers. Samengestelde sleutel voorkomt dubbele koppelingen; tenant-grens (zelfde organisatie) op de API-grens bewaakt. |
 | **Device** | `id`, `userId`, `type`, `tokenHash` (uniek), `lastActive`, `createdAt` | Gekoppelde tablet (T2.3, DESIGN §6.2, FR-018), aan **precies één** `User` gebonden. Alleen de **SHA-256-hash** van het langlevende apparaat-token staat in de db; het rauwe token leeft in de `intento_device`-cookie. Geeft alléén toegang tot de eigen gebruiker. `lastActive` voor monitoring (geen communicatie-inhoud). |
 | **DeviceLinkCode** | `id`, `codeHash` (uniek), `userId`, `usedAt`, `expiresAt`, `createdAt` | Koppelcode die een beheerder genereert (T2.3, FR-018). Alleen de **SHA-256-hash** staat in de db; codes zijn **eenmalig** (`usedAt`) en **verlopen** (`expiresAt`). Wisselt op `POST /devices/link` in voor een `Device`. |
+| **VocabularyItem** | `id`, `organizationId?`, `labels`, `concepts`, `contexts` (JSON-arrays), `searchText`, `partOfSpeech?`, `isStart`, `sortOrder`, `status`, `labelStatus`, `source`, `licenseKey`, `licenseUrl?`, `author?`, `authorUrl?`, `sourceName?`, `sourceUrl?`, `sourceRef?`, `importedAt?`, `assetPath?`, `mimeType?`, `sha256?`, `bytes?`, `createdById?`, `createdAt`, `updatedAt` | De eigen Vocabulary (INTENTO-NEW-DESIGN §15). `organizationId` null = platformitem (startset); anders van één organisatie. Een organisatie ziet platform + eigen items, nooit die van een andere (`listAvailableVocabulary`). `status` `approved`/`retired` (nooit verwijderd), `labelStatus` `reviewed`/`machine`, `source` `seed`/`external`/`own`. Licentie en herkomst per item; `(sourceName, sourceRef)` uniek zodat een import nooit dubbelt. De JSON-lijsten worden bij het lezen met zod gevalideerd. |
 | **AuditLog** | `id`, `action`, `outcome`, `accountId?`, `organizationId?`, `targetType?`, `targetId?`, `ip?`, `metadataJson?`, `createdAt` | Append-only spoor van een **gevoelige actie** (T8.2, DESIGN §9.4): login (geslaagd én mislukt), instellingen, persoonlijke context, profielexport/-import en beheeracties (gebruikers, begeleider-koppelingen, worker-tokens, conceptvoorstellen). `action` = stabiele sleutel (`audit/actions.ts`, bv. `auth.login`, `user.settings.update`); `outcome` = `success`/`failure`. Bevat **nooit communicatie-inhoud of vrije-tekst-PII**: alleen wie (`accountId`), waar (`organizationId`), wat (`targetType`/`targetId`) en een kleine, niet-gevoelige `metadataJson` (bv. een mislukkingsreden — nooit een e-mailadres, zodat het log geen enumeratie oplevert). `accountId`/`organizationId` zijn `null` bij pre-auth acties (mislukte login). **Bewust géén FK's** naar `Account`/`Organization`: het spoor is onafhankelijk en moet een verwijderde actor/tenant overleven (cascade zou juist het bewijs wissen). De lijst-API filtert op `organizationId` → een ADMIN ziet alleen het eigen-tenant-spoor. `ip` blijft server-side (niet in de publieke vorm). Indexen op `(organizationId, createdAt)`, `accountId` en `action`. |
 
 Relaties: `Account.organizationId → Organization` (cascade delete); `Session.accountId →
@@ -73,8 +74,10 @@ Account` (cascade delete); `EmailVerificationToken.accountId → Account` (casca
 User` en `CaregiverAssignment.accountId → Account` (beide cascade delete — de koppeling
 verdwijnt als de gebruiker of het begeleider-account wordt verwijderd); `Device.userId →
 User` en `DeviceLinkCode.userId → User` (beide cascade delete — apparaten en openstaande codes
-verdwijnen met de gebruiker). Zo verdwijnt bij het verwijderen van een organisatie/gebruiker
-netjes alle onderliggende data.
+verdwijnen met de gebruiker); `VocabularyItem.organizationId → Organization` (cascade delete — de
+eigen items verdwijnen met de organisatie; platformitems hebben geen organisatie) en
+`VocabularyItem.createdById → Account` (set null). Zo verdwijnt bij het verwijderen van een
+organisatie/gebruiker netjes alle onderliggende data.
 
 ## Seed
 
@@ -125,3 +128,5 @@ het wachtwoord blijven ongemoeid. De Vocabulary-startset komt in N2.7 in de seed
   `AiJob`, `WorkerToken`) en de profielvelden `iconsPerScreen`, `aiLearningEnabled`, `supportMode`,
   `contextIndicator`, `conversationStrategy` en `speechHints`. Geen datamigratie: de herbouw is zonder
   backward compatibiliteit (INTENTO-NEW-DESIGN §55).
+- **`vocabulary_item`** (N2.1) — nieuwe tabel `VocabularyItem` met licentie-, herkomst- en assetvelden,
+  uniek op `(sourceName, sourceRef)`, indexen op `(organizationId, status)` en `(status, labelStatus)`.

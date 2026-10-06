@@ -45,8 +45,9 @@ model Organization {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
-  accounts Account[]
-  users    User[]
+  accounts        Account[]
+  users           User[]
+  vocabularyItems VocabularyItem[]
 }
 
 /// De communicerende persoon (DESIGN §2, §6.2). Staat bewust los van `Account`: een
@@ -145,6 +146,7 @@ model Account {
   caregiverLinks          CaregiverAssignment[]
   /// Openstaande/gebruikte e-mailverificatietokens van dit account.
   emailVerificationTokens EmailVerificationToken[]
+  vocabularyItems         VocabularyItem[]
 
   @@index([organizationId])
 }
@@ -287,4 +289,57 @@ model Session {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
+}
+
+/// Eén symbool in de **eigen Vocabulary** van Intento (INTENTO-NEW-DESIGN §15, §39). Geen persoonlijke
+/// inhoud. Tijdens een gesprek gebruikt Intento alleen `approved` items die voor de organisatie
+/// beschikbaar zijn: de platformitems (`organizationId` null, de startset) plus die van de eigen
+/// organisatie — nooit die van een andere.
+///
+/// - `labels`, `concepts`, `contexts` zijn JSON-arrays van strings (op de grens met zod gevalideerd).
+///   Het eerste label is het hoofdlabel; de rest zijn synoniemen.
+/// - `searchText`: vooraf in kleine letters samengevoegde labels + concepten, zodat zoeken op SQLite en
+///   PostgreSQL hetzelfde werkt zonder databasespecifieke opties.
+/// - `status`: `approved` (bruikbaar) of `retired` (ingetrokken: niet meer aangeboden, wel bewaard zolang
+///   de provenance ernaar verwijst). Een item wordt nooit verwijderd.
+/// - `labelStatus`: `reviewed` (door een mens) of `machine` (machinevertaling, nog na te kijken).
+/// - `source`: `seed` (startset), `external` (import) of `own` (eigen afbeelding + woord).
+/// - Licentie en herkomst per item; `(sourceName, sourceRef)` is uniek, zodat een import nooit dubbelt.
+/// - De afbeelding staat in de bestandsopslag (`assetPath`, relatief aan `STORAGE_DIR`), met het
+///   gecontroleerde `mimeType`, `sha256` en `bytes`.
+model VocabularyItem {
+  id             String    @id @default(cuid())
+  organizationId String?
+  labels         Json
+  concepts       Json
+  contexts       Json
+  searchText     String
+  partOfSpeech   String?
+  isStart        Boolean   @default(false)
+  sortOrder      Int       @default(0)
+  status         String    @default("approved")
+  labelStatus    String    @default("reviewed")
+  source         String
+  licenseKey     String
+  licenseUrl     String?
+  author         String?
+  authorUrl      String?
+  sourceName     String?
+  sourceUrl      String?
+  sourceRef      String?
+  importedAt     DateTime?
+  assetPath      String?
+  mimeType       String?
+  sha256         String?
+  bytes          Int?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    Account?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([sourceName, sourceRef])
+  @@index([organizationId, status])
+  @@index([status, labelStatus])
 }

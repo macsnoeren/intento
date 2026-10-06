@@ -128,7 +128,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N2 — Vocabulary: de basis en de startset (Mulberry)
 
-- [ ] **N2.1 Model `VocabularyItem`**
+- [x] **N2.1 Model `VocabularyItem`**
   *ONTWERP: §15, §39.* Migratie: id, `organizationId` (null = platform), labels, concepten, contexten
   (JSON), `partOfSpeech`, `isStart`, `sortOrder`, `status` (approved/retired), `labelStatus`
   (reviewed/machine), `source` (seed/external/own), licentievelden (`licenseKey`, `licenseUrl`,

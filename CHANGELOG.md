@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.1 — model `VocabularyItem`
+
+- Migratie `vocabulary_item`: de eigen Vocabulary met labels, concepten en contexten (JSON), woordsoort,
+  startconcept, volgorde, status (`approved`/`retired`), labelstatus (`reviewed`/`machine`), bron
+  (`seed`/`external`/`own`), licentie- en herkomstvelden en assetvelden. Uniek op
+  `(sourceName, sourceRef)`, zodat een import nooit dubbelt.
+- `server/src/vocabulary/repository.ts`: `listAvailableVocabulary(orgId)` (platform + eigen organisatie,
+  alleen approved), zod-validatie van de JSON-lijsten, een portabele `searchText` en de omzetting naar
+  het agentcontract. Isolatietest: organisatie A ziet nooit items van organisatie B.
+
 ### N1.7 — de agentdienst in Docker
 
 - `agent-service/Dockerfile` (Python 3.12-slim + pydantic, niet-root, healthcheck op `/health`) en de
