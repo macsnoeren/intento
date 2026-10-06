@@ -18,8 +18,9 @@ services:
       dockerfile: server/Dockerfile
     env_file: [.env.docker]
     environment:
-      # De database staat op het volume hieronder, niet in het image.
+      # De database en de afbeeldingen staan op de volumes hieronder, niet in het image.
       DATABASE_URL: file:/data/intento.db
+      STORAGE_DIR: /storage
       # NODE_ENV komt bewust uit `.env.docker` en staat hier niet vast. Het image draait standaard op
       # `production`, en dan eist de prod-guard in `env.ts` terecht https, echte secrets, een SMTP-URL
       # en `COOKIE_SECURE=true`. Voor een lokale http://localhost-stack zet je hem in `.env.docker` op
@@ -34,6 +35,7 @@ services:
       AGENT_ALLOW_INSECURE_HTTP: 'true'
     volumes:
       - intento-db:/data
+      - intento-storage:/storage
     ports:
       # De API krijgt een eigen poort: de web-app kan hem niet delen (route `/operator` botst met de
       # API-tak `/operator/*`). Zie ADR-0016.
@@ -104,4 +106,5 @@ services:
 
 volumes:
   intento-db:
+  intento-storage:
   intento-voices:

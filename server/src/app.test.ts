@@ -106,6 +106,7 @@ describe('loadEnv prod-guards', () => {
         NODE_ENV: 'production',
         SIGNING_SECRET: 'een-echte-secret',
         ENCRYPTION_KEY: 'een-echte-sleutel',
+        ASSET_URL_SECRET: 'een-echte-asset-sleutel',
         COOKIE_SECURE: 'false',
       }),
     ).toThrow(/COOKIE_SECURE/);
@@ -117,6 +118,7 @@ describe('loadEnv prod-guards', () => {
         NODE_ENV: 'production',
         SIGNING_SECRET: 'een-echte-secret',
         ENCRYPTION_KEY: 'een-echte-sleutel',
+        ASSET_URL_SECRET: 'een-echte-asset-sleutel',
         COOKIE_SECURE: 'true',
         SMTP_HOST: 'mail.intento.test',
         EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
@@ -132,6 +134,7 @@ describe('loadEnv prod-guards', () => {
       NODE_ENV: 'production',
       SIGNING_SECRET: 'een-echte-secret',
       ENCRYPTION_KEY: 'een-echte-sleutel',
+      ASSET_URL_SECRET: 'een-echte-asset-sleutel',
       COOKIE_SECURE: 'true',
       SMTP_HOST: 'mail.intento.test',
       EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
@@ -146,10 +149,25 @@ describe('loadEnv prod-guards', () => {
     expect(() => loadEnv({ ...base, SPEECH_SERVICE_TOKEN: 'spr_geheim' })).not.toThrow();
   });
 
+  it('eist in productie een eigen ASSET_URL_SECRET (N2.2)', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'production',
+        SIGNING_SECRET: 'een-echte-secret',
+        ENCRYPTION_KEY: 'een-echte-sleutel',
+        COOKIE_SECURE: 'true',
+        SMTP_HOST: 'mail.intento.test',
+        EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+        APP_BASE_URL: 'https://app.intento.test',
+      }),
+    ).toThrow(/ASSET_URL_SECRET mag in productie niet de dev-default zijn/);
+  });
+
   it('eist een gedeeld geheim zodra de agentdienst geconfigureerd is (N1.7)', () => {
     const base = {
       SIGNING_SECRET: 'een-echte-secret',
       ENCRYPTION_KEY: 'een-echte-sleutel',
+      ASSET_URL_SECRET: 'een-echte-asset-sleutel',
       AGENT_SERVICE_URL: 'http://agents:5003',
     };
     expect(() => loadEnv(base)).toThrow(/AGENT_SERVICE_TOKEN is verplicht/);
@@ -165,6 +183,7 @@ describe('loadEnv prod-guards', () => {
       NODE_ENV: 'production',
       SIGNING_SECRET: 'een-echte-secret',
       ENCRYPTION_KEY: 'een-echte-sleutel',
+      ASSET_URL_SECRET: 'een-echte-asset-sleutel',
       COOKIE_SECURE: 'true',
       SMTP_HOST: 'mail.intento.test',
       EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
@@ -220,6 +239,7 @@ describe('loadEnv prod-guards', () => {
         NODE_ENV: 'production',
         SIGNING_SECRET: 'een-echte-secret',
         ENCRYPTION_KEY: 'een-echte-sleutel',
+        ASSET_URL_SECRET: 'een-echte-asset-sleutel',
         COOKIE_SECURE: 'true',
         EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
       }),
@@ -232,6 +252,7 @@ describe('loadEnv prod-guards', () => {
         NODE_ENV: 'production',
         SIGNING_SECRET: 'een-echte-secret',
         ENCRYPTION_KEY: 'een-echte-sleutel',
+        ASSET_URL_SECRET: 'een-echte-asset-sleutel',
         COOKIE_SECURE: 'true',
         SMTP_HOST: 'mail.mijndomein.nl',
         SMTP_USER: 'noreply@jmnl.nl',
@@ -286,6 +307,7 @@ describe('loadEnv prod-guards', () => {
         NODE_ENV: 'production',
         SIGNING_SECRET: 'een-echte-secret',
         ENCRYPTION_KEY: 'een-echte-sleutel',
+        ASSET_URL_SECRET: 'een-echte-asset-sleutel',
         COOKIE_SECURE: 'true',
         SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
         EMAIL_VERIFICATION_URL_BASE: 'http://app.intento.test/verify-email',
@@ -300,6 +322,7 @@ describe('loadEnv prod-guards', () => {
         NODE_ENV: 'production',
         SIGNING_SECRET: 'een-echte-secret',
         ENCRYPTION_KEY: 'een-echte-sleutel',
+        ASSET_URL_SECRET: 'een-echte-asset-sleutel',
         COOKIE_SECURE: 'true',
         SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
         EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
@@ -313,6 +336,7 @@ describe('loadEnv prod-guards', () => {
       NODE_ENV: 'production',
       SIGNING_SECRET: 'een-echte-secret',
       ENCRYPTION_KEY: 'een-echte-sleutel',
+      ASSET_URL_SECRET: 'een-echte-asset-sleutel',
       COOKIE_SECURE: 'true',
       SMTP_URL: 'smtps://user:pass@smtp.intento.test:465',
       EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',

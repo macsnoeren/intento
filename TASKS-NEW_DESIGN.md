@@ -138,7 +138,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   eigen organisatie, alleen approved.
   *Acceptatie:* migratie schoon op een lege db; isolatietest (org A ziet nooit items van org B).
 
-- [ ] **N2.2 Afbeeldingen opslaan en veilig serveren**
+- [x] **N2.2 Afbeeldingen opslaan en veilig serveren**
   *ONTWERP: §20, §51, §53.* Bestandsopslag in `STORAGE_DIR` (volume in compose). `GET /assets/:id` alleen
   met een ondertekende, vervallende URL (HMAC met `ASSET_URL_SECRET`, `exp`); headers: juist
   content-type, `nosniff`, voor SVG een CSP zonder scripts en externe resources, CORP zodat de web-app

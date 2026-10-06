@@ -163,6 +163,12 @@ dezelfde lijst gebruiken. Een stem-id is de naam van een Piper-model (`nl_NL-pim
 `#<spreker>` voor een meersprekermodel, of de sleutel `device` voor "de tablet spreekt zelf". Zie
 [ADR-0015](adr/0015-speech-synthesis-piper.md) en [`speech-service/README.md`](../speech-service/README.md).
 
+### Afbeeldingen (N2.2, INTENTO-NEW-DESIGN §51, §53)
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/assets/{id}?exp=…&sig=…` | geen sessie; ondertekende URL | De afbeelding van een Vocabulary-item. De backend geeft de URL uit (`signedAssetUrl`) aan wie het item mag zien; de handtekening is een HMAC-SHA256 over `id.exp` met `ASSET_URL_SECRET` en verloopt na `ASSET_URL_TTL_SECONDS`. Ongeldig of verlopen → `403 INVALID_ASSET_SIGNATURE`; onbekend, ingetrokken of zonder bestand → `404 ASSET_NOT_FOUND`. Headers: het opgeslagen `Content-Type`, `nosniff`, `Cross-Origin-Resource-Policy: cross-origin` (de web-app laadt hem als `<img>` vanaf een andere origin) en voor SVG een CSP zonder scripts en externe resources. |
+
 ### Beheerdashboard
 
 `GET /admin/dashboard` (ADMIN; geen sessie → `401`, andere rol → `403`): beknopt overzicht van de **eigen

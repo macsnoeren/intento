@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.2 — afbeeldingen opslaan en veilig serveren
+
+- Bestandsopslag in `STORAGE_DIR` (in compose het volume `intento-storage`), met atomair schrijven en
+  een controle tegen padmanipulatie bij elk gebruik.
+- `GET /assets/:id` alleen met een ondertekende, vervallende URL (HMAC met `ASSET_URL_SECRET`, `exp`);
+  helper `signedAssetUrl(item)`. Headers: juist content-type, `nosniff`, CORP `cross-origin` (zodat de
+  web-app hem mag laden) en voor SVG een CSP zonder scripts en externe resources.
+- Env: `STORAGE_DIR`, `ASSET_URL_SECRET` (prod-guard tegen de dev-default), `ASSET_URL_TTL_SECONDS`.
+
 ### N2.1 — model `VocabularyItem`
 
 - Migratie `vocabulary_item`: de eigen Vocabulary met labels, concepten en contexten (JSON), woordsoort,

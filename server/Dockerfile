@@ -71,7 +71,8 @@ COPY docker/entrypoint-server.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # De database staat op een volume, niet in het image: `/data` is van de container-gebruiker.
-RUN mkdir -p /data && chown -R node:node /data /app
+# Ook de bestandsopslag (afbeeldingen van de Vocabulary) is een volume: `/storage`.
+RUN mkdir -p /data /storage && chown -R node:node /data /storage /app
 
 USER node
 WORKDIR /app/server

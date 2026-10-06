@@ -21,8 +21,15 @@
 - [x] **Cross-Origin-Resource-Policy (CORP)** — helmet zet globaal `same-origin`: geen enkele
       andere origin mag een API-antwoord als subresource inladen. De oude uitzondering voor
       pictogrammen (`/aac/images`) is met de AAC-bibliotheek verdwenen; de Vocabulary-afbeeldingen
-      krijgen hun eigen, route-scoped uitzondering in N2.2 (`/assets/:id`), want de web-client laadt
-      ze vanaf een andere origin als `<img src>` en daar doet CORS niets, CORP wél.
+      hebben hun eigen, route-scoped uitzondering op `GET /assets/:id` (`cross-origin`), want de
+      web-client laadt ze vanaf een andere origin als `<img src>` en daar doet CORS niets, CORP wél.
+- [x] **Afbeeldingen alleen via ondertekende, vervallende URL's (N2.2)** — `GET /assets/:id` eist een
+      HMAC-handtekening over `id.exp` (`ASSET_URL_SECRET`, in productie geen dev-default) en een
+      niet-verlopen `exp`; vergelijking in constante tijd. Een ingetrokken item wordt niet meer
+      geserveerd. De bestanden staan in `STORAGE_DIR`, buiten de webroot; elk opslagpad wordt bij gebruik
+      opnieuw gecontroleerd tegen padmanipulatie (`../`, absoluut). SVG gaat altijd met een CSP zonder
+      scripts en externe resources (`default-src 'none'; …; sandbox`) en `nosniff`. Getest in
+      `routes/assets.test.ts`.
 - [x] **Secrets via env** — `SIGNING_SECRET`/`ENCRYPTION_KEY` uit env, nooit in code.
       **Prod-guard:** de server weigert te starten in productie met dev-default-secrets
       of met `COOKIE_SECURE=false`. Getest in `app.test.ts`.

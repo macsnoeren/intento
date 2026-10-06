@@ -37,3 +37,6 @@ npm-debug.log*
 # Compose-omgeving met geheimen (fase 19); het sjabloon `.env.docker.example` staat hierboven expliciet
 # uitgezonderd en hoort wél in git.
 .env.docker
+
+# Bestandsopslag van de Vocabulary (afbeeldingen); hoort niet in git.
+server/storage/

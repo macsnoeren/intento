@@ -135,6 +135,20 @@ const envSchema = z
     // Strenge rate limiting op /devices/link (publiek): tegen het raden van koppelcodes.
     DEVICE_LINK_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(10),
     DEVICE_LINK_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
+    // --- Bestandsopslag en afbeeldingen (INTENTO-NEW-DESIGN §20, §51, §53) ---
+    // Map voor de afbeeldingen van de Vocabulary (buiten de webroot; in compose een volume). Relatief
+    // aan de werkmap van de server.
+    STORAGE_DIR: z.string().min(1).default('./storage'),
+    // Geheim waarmee afbeeldings-URL's ondertekend worden (HMAC). Wie het kent, kan elke afbeelding
+    // opvragen; in productie dus een echte, eigen waarde.
+    ASSET_URL_SECRET: z.string().min(1).default('dev-only-change-me'),
+    // Hoe lang een ondertekende afbeeldings-URL geldig is, in seconden (standaard een uur).
+    ASSET_URL_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(7 * 24 * 3600)
+      .default(3600),
     // Maximale grootte (bytes) van een afbeelding die binnenkomt: een upload door de beheerder of een
     // import uit een externe bron (INTENTO-NEW-DESIGN §53). Groter wordt geweigerd. Standaard 1 MB.
     UPLOAD_MAX_BYTES: z.coerce
@@ -357,7 +371,7 @@ const envSchema = z
       }
     }
     if (value.NODE_ENV !== 'production') return;
-    for (const key of ['SIGNING_SECRET', 'ENCRYPTION_KEY'] as const) {
+    for (const key of ['SIGNING_SECRET', 'ENCRYPTION_KEY', 'ASSET_URL_SECRET'] as const) {
       if (DEV_SECRET_DEFAULTS.has(value[key])) {
         ctx.addIssue({
           code: 'custom',
