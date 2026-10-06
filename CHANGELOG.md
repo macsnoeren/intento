@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.4 — manifest van de Global Symbols-sets
+
+- `npm run vocabulary:manifest -- <slug>` haalt via de openbare API van Global Symbols alle pictos van
+  een set op (zod op elke pagina, 300 ms pauze, time-out, alleen https-afbeeldingen) en schrijft
+  `vocabulary/sources/<slug>.manifest.json`: id, woordsoort, afbeeldings-URL, formaat, labels in eng/deu/fra,
+  plus naam, uitgever en licentie van de set.
+- De manifesten van `mulberry` (3.439 pictos) en `corona-symbols` (42) staan in de repo.
+
 ### N2.3 — afbeeldingscontrole
 
 - `server/src/vocabulary/image-check.ts`: één controle voor alle binnenkomende afbeeldingen. SVG:

@@ -15,7 +15,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "vocabulary:manifest": "tsx src/scripts/vocabulary-manifest.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

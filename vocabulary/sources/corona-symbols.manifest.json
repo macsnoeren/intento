@@ -1,0 +1,478 @@
+{
+  "slug": "corona-symbols",
+  "name": "Mulberry Plus Collection",
+  "publisher": "Mulberry and Global Symbols",
+  "publisher_url": "https://globalsymbols.com/symbolsets?locale=en",
+  "licence": {
+    "name": "Creative Commons BY SA 4.0",
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "version": "4.0",
+    "properties": "by-sa"
+  },
+  "source": "https://globalsymbols.com/api/v1/pictos?symbolset=corona-symbols",
+  "total": 42,
+  "items": [
+    {
+      "id": 44375,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44374/86_44375_27894d06-030d-45a2-a6e2-16f894bbc90a.png",
+      "format": "png",
+      "labels": {
+        "eng": "suction",
+        "deu": null,
+        "fra": "succion"
+      }
+    },
+    {
+      "id": 44378,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44377/86_44378_1c461b8d-1f1d-43b9-ac2c-f7b699584bcd.png",
+      "format": "png",
+      "labels": {
+        "eng": "blanket and fan",
+        "deu": null,
+        "fra": "couverture et ventilateur"
+      }
+    },
+    {
+      "id": 44395,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44394/86_44395_9e827cda-c072-459d-9912-d8cdaed5e6f2.png",
+      "format": "png",
+      "labels": {
+        "eng": "letters and numbers",
+        "deu": null,
+        "fra": "lettres et chiffres"
+      }
+    },
+    {
+      "id": 44400,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44399/86_44400_86870e6b-f258-4ed0-aefe-5f0634359c05.png",
+      "format": "png",
+      "labels": {
+        "eng": "mouth with toothbrush",
+        "deu": null,
+        "fra": "bouche avec brosse à dents"
+      }
+    },
+    {
+      "id": 44432,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44431/86_44432_a5d616f6-dc49-4b99-99af-4214824d41cc.png",
+      "format": "png",
+      "labels": {
+        "eng": "back ache female",
+        "deu": null,
+        "fra": "mal de dos femme"
+      }
+    },
+    {
+      "id": 44434,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44433/86_44434_ac0ef786-c989-490d-8931-6249cfe8b1f7.png",
+      "format": "png",
+      "labels": {
+        "eng": "can't smell",
+        "deu": null,
+        "fra": "ne peut pas sentir"
+      }
+    },
+    {
+      "id": 44435,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44434/86_44435_828e188c-3ce9-4cc9-acab-379b23e1feeb.png",
+      "format": "png",
+      "labels": {
+        "eng": "can't taste",
+        "deu": null,
+        "fra": "ne peut pas goûter"
+      }
+    },
+    {
+      "id": 44436,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44435/86_44436_d6dece5e-8aa1-450f-944d-d780fe391703.png",
+      "format": "png",
+      "labels": {
+        "eng": "can't taste",
+        "deu": null,
+        "fra": "ne peut pas goûter"
+      }
+    },
+    {
+      "id": 44437,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44436/86_44437_ba8964b0-8201-441f-a8f8-7181c96d00e7.png",
+      "format": "png",
+      "labels": {
+        "eng": "chat",
+        "deu": null,
+        "fra": "bavarder"
+      }
+    },
+    {
+      "id": 44438,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44437/86_44438_6deeeaf6-1c3e-4f22-bcbf-0074848c8c68.png",
+      "format": "png",
+      "labels": {
+        "eng": "chest pain",
+        "deu": null,
+        "fra": "douleur de poitrine"
+      }
+    },
+    {
+      "id": 44439,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44438/86_44439_3eda1d63-6fbf-41c2-9d30-9e880e0c9fd2.png",
+      "format": "png",
+      "labels": {
+        "eng": "cough",
+        "deu": null,
+        "fra": "tousser"
+      }
+    },
+    {
+      "id": 44440,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44439/86_44440_6c1afe7c-5818-4bfe-9989-8d47d032e3fb.png",
+      "format": "png",
+      "labels": {
+        "eng": "cough",
+        "deu": null,
+        "fra": "tousser"
+      }
+    },
+    {
+      "id": 44441,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44440/86_44441_28ae6f99-e1e6-4964-b80b-052f0c887055.png",
+      "format": "png",
+      "labels": {
+        "eng": "do",
+        "deu": null,
+        "fra": "à faire"
+      }
+    },
+    {
+      "id": 44442,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44441/86_44442_0782df73-ac85-4083-baf2-89d0b59d71bf.png",
+      "format": "png",
+      "labels": {
+        "eng": "feelings",
+        "deu": null,
+        "fra": "sentiments"
+      }
+    },
+    {
+      "id": 44444,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44443/86_44444_336cec20-f6b3-42e6-9e8a-77073ec70e20.png",
+      "format": "png",
+      "labels": {
+        "eng": "help",
+        "deu": null,
+        "fra": "aider"
+      }
+    },
+    {
+      "id": 44445,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44444/86_44445_0529c285-f923-48dc-a386-8bb41d5c2f06.png",
+      "format": "png",
+      "labels": {
+        "eng": "hot face",
+        "deu": null,
+        "fra": "visage chaud"
+      }
+    },
+    {
+      "id": 44446,
+      "part_of_speech": "pronoun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44445/86_44446_3a01b24b-b4a1-4977-9eb6-b9d22dba8a02.png",
+      "format": "png",
+      "labels": {
+        "eng": "I",
+        "deu": null,
+        "fra": "je"
+      }
+    },
+    {
+      "id": 44447,
+      "part_of_speech": "adjective",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44446/86_44447_b8d63740-06a9-45b1-9bcd-7a1235ab4c0a.png",
+      "format": "png",
+      "labels": {
+        "eng": "neutral",
+        "deu": null,
+        "fra": "neutre"
+      }
+    },
+    {
+      "id": 44448,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44447/86_44448_9f220db6-5f5d-4420-ac9e-f2097b8976b8.png",
+      "format": "png",
+      "labels": {
+        "eng": "no visits",
+        "deu": null,
+        "fra": "pas de visites"
+      }
+    },
+    {
+      "id": 44449,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44448/86_44449_85296177-5923-4374-a045-79fd3515184e.png",
+      "format": "png",
+      "labels": {
+        "eng": "pain",
+        "deu": null,
+        "fra": "douleur"
+      }
+    },
+    {
+      "id": 44450,
+      "part_of_speech": "adverb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44449/86_44450_1e94e689-23be-4872-8c72-fe5eb9a97b33.png",
+      "format": "png",
+      "labels": {
+        "eng": "please",
+        "deu": null,
+        "fra": "S'il vous plaît"
+      }
+    },
+    {
+      "id": 44451,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44450/86_44451_c319bc7c-b791-42ea-8ab4-27f0f8aa4d0c.png",
+      "format": "png",
+      "labels": {
+        "eng": "syringe and pills",
+        "deu": null,
+        "fra": "seringue et pilules"
+      }
+    },
+    {
+      "id": 44452,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44451/86_44452_9c1a3fff-f0ae-4a63-9837-c57107235849.png",
+      "format": "png",
+      "labels": {
+        "eng": "throat",
+        "deu": null,
+        "fra": "gorge"
+      }
+    },
+    {
+      "id": 44454,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44453/86_44454_b65e63ce-a357-4965-988a-1cf10429743c.png",
+      "format": "png",
+      "labels": {
+        "eng": "want",
+        "deu": null,
+        "fra": "vouloir"
+      }
+    },
+    {
+      "id": 44457,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44456/86_44457_3cb02d91-5fb1-48a3-884a-adc8284c8268.png",
+      "format": "png",
+      "labels": {
+        "eng": "thermometer hot",
+        "deu": null,
+        "fra": "thermomètre chaud"
+      }
+    },
+    {
+      "id": 44458,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44457/86_44458_373c6e08-89d8-4f4a-bb9b-9827e11da82e.png",
+      "format": "png",
+      "labels": {
+        "eng": "thermometer cold",
+        "deu": null,
+        "fra": "thermomètre froid"
+      }
+    },
+    {
+      "id": 44459,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44458/86_44459_cea0e842-1ca2-47ac-b2d5-77676b1920af.png",
+      "format": "png",
+      "labels": {
+        "eng": "turn body",
+        "deu": null,
+        "fra": "tourner le corps"
+      }
+    },
+    {
+      "id": 44460,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44459/86_44460_0e8fa445-99aa-4161-abb9-ce0454692308.png",
+      "format": "png",
+      "labels": {
+        "eng": "feelings",
+        "deu": null,
+        "fra": "sentiments"
+      }
+    },
+    {
+      "id": 44490,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44489/86_44490_15bdc950-2a0b-4f53-8cf3-14f2f3043b8f.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "heart tablets",
+        "deu": null,
+        "fra": "comprimés de coeur"
+      }
+    },
+    {
+      "id": 44494,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44493/86_44494_ff759eec-218a-4c97-9144-cb93b586e965.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "respiratory stress",
+        "deu": null,
+        "fra": "stress respiratoire"
+      }
+    },
+    {
+      "id": 44495,
+      "part_of_speech": "verb",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44494/86_44495_830cc832-f7cd-4b9e-a737-401ee8e944df.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "can't breathe",
+        "deu": null,
+        "fra": "ne peut pas respirer"
+      }
+    },
+    {
+      "id": 44496,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44495/86_44496_578e5d47-8a5c-44a3-883d-3d7f497f6848.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "droplet transmission",
+        "deu": null,
+        "fra": "transmission de gouttelettes"
+      }
+    },
+    {
+      "id": 44497,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44496/86_44497_902e31a8-0018-42c0-8425-574b96672da0.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "air bridge",
+        "deu": null,
+        "fra": "Pont aérien"
+      }
+    },
+    {
+      "id": 44498,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44497/86_44498_7b49a73a-3918-4987-8ed6-9a2ee8dffd51.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "airborne",
+        "deu": null,
+        "fra": "aéroporté"
+      }
+    },
+    {
+      "id": 44499,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44498/86_44499_261d6fec-4a36-4535-842a-bc1cc2602e41.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "antiviral medicines",
+        "deu": null,
+        "fra": "médicaments antiviraux"
+      }
+    },
+    {
+      "id": 44500,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44499/86_44500_e7e6b743-94d3-4dbf-b320-ce632dbc510a.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "COVID-19",
+        "deu": null,
+        "fra": "COVID-19"
+      }
+    },
+    {
+      "id": 44501,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44500/86_44501_a1920cbc-bbc5-481c-a3d7-509a8a4d16ba.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "antibody testing",
+        "deu": null,
+        "fra": "test d'anticorps"
+      }
+    },
+    {
+      "id": 44502,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/44501/86_44502_fbf86f57-8178-4db8-a0dc-fe76dcddd886.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "side head",
+        "deu": null,
+        "fra": "tête de côté"
+      }
+    },
+    {
+      "id": 47482,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/47481/86_47482_62b7efc6-9b4d-4c27-ae9e-34f37bdd120e.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "ventilator",
+        "deu": null,
+        "fra": "ventilateur"
+      }
+    },
+    {
+      "id": 48637,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/48636/86_48637_afcb1336-b71d-4b2d-85d6-f5fd9ad122d4.png",
+      "format": "png",
+      "labels": {
+        "eng": "one o'clock",
+        "deu": null,
+        "fra": "une heure"
+      }
+    },
+    {
+      "id": 49174,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/49173/86_49174_68793474-3b55-474d-9955-17f6eb99a642.svg",
+      "format": "svg",
+      "labels": {
+        "eng": "4 o'clock",
+        "deu": null,
+        "fra": "4 heures"
+      }
+    },
+    {
+      "id": 57753,
+      "part_of_speech": "noun",
+      "image_url": "https://globalsymbols.com/uploads/production/image/imagefile/57752/86_57753_ca8aa3ed-0543-4537-ad26-9f0e020f7419.PNG",
+      "format": "png",
+      "labels": {
+        "eng": "pillow",
+        "deu": null,
+        "fra": null
+      }
+    }
+  ]
+}

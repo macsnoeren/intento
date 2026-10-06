@@ -154,7 +154,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests met goede en kwade voorbeelden per regel, plus een echte Mulberry-SVG als
   fixture die geaccepteerd wordt.
 
-- [ ] **N2.4 Manifest van de Global Symbols-sets**
+- [x] **N2.4 Manifest van de Global Symbols-sets**
   *ONTWERP: §15.1 (stap 1).* Script `npm run vocabulary:manifest -- <slug>`: haalt via
   `https://globalsymbols.com/api/v1/pictos?symbolset=<slug>&page=…&per_page=…` alle pictos op (zod op
   elke pagina, beleefd tempo, time-out) en schrijft `vocabulary/sources/<slug>.manifest.json`: id,

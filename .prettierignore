@@ -11,3 +11,5 @@ PROJECT-NODEJS/
 **/.ruff_cache/
 **/.audit-deps/
 **/*.egg-info/
+# Gegenereerde manifesten van de startset (npm run vocabulary:manifest).
+vocabulary/sources/

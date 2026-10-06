@@ -35,7 +35,8 @@
     "format:check": "prettier --check .",
     "test": "npm run test --workspaces --if-present",
     "check:python": "bash scripts/python.sh check",
-    "audit:python": "bash scripts/python.sh audit"
+    "audit:python": "bash scripts/python.sh audit",
+    "vocabulary:manifest": "npm run vocabulary:manifest --workspace=server --"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
