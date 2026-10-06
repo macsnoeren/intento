@@ -8,6 +8,9 @@ import {
   vocabularyListResponseSchema,
   vocabularyUpdateRequestSchema,
   vocabularyUploadFieldsSchema,
+  externalSearchQuerySchema,
+  externalSearchResponseSchema,
+  type ExternalSearchResponse,
   type VocabularyItemPublic,
   type VocabularyListResponse,
 } from '@intento/shared';
@@ -23,6 +26,8 @@ import { availableTo, buildSearchText, parseVocabularyItem } from '../vocabulary
 import { vocabularyItemToPublic } from '../vocabulary/serialize.js';
 import { checkImage } from '../vocabulary/image-check.js';
 import { writeStoredFile } from '../storage/files.js';
+import type { OpenSymbolsClient } from '../vocabulary/opensymbols.js';
+import { isLicenseAllowed, normalizeLicense } from '../vocabulary/licenses.js';
 
 const idParamsSchema = z.object({ id: z.string().min(1).max(200) });
 
@@ -65,6 +70,7 @@ function linkOrNull(value: string | null): string | null {
 export interface VocabularyRoutesDeps {
   env: Env;
   prisma: PrismaClient;
+  openSymbols: OpenSymbolsClient;
 }
 
 /**
@@ -81,15 +87,20 @@ export interface VocabularyRoutesDeps {
  * `GET /vocabulary/attributions` — de bronvermelding: per bron (naam, licentie, maker) de symbolen die
  * deze organisatie gebruikt. Voor iedereen binnen de organisatie, ook de tablet.
  *
+ * `GET /vocabulary/external/search?q=` — zoeken in OpenSymbols, met per resultaat de licentiesleutel en
+ *   of die toegestaan is. Alleen de beheerder.
  * `POST /vocabulary/upload` — eigen afbeelding + woord (multipart; alleen PNG/JPEG/WebP op inhoud,
  *   groottelimiet, verplicht vinkje voor de rechten, licentie `own`). Alleen de beheerder. Geaudit.
  * `POST /vocabulary/:id/retire` en `…/restore` — intrekken en terugzetten, met dezelfde rechten. Een
  * item wordt nooit verwijderd: de provenance kan ernaar verwijzen. Ingetrokken gaat het niet meer naar
  * de agentdienst (`listAvailableVocabulary` neemt alleen `approved`). Geaudit.
  */
+/** Hooguit zoveel resultaten uit een externe bron per zoekopdracht. */
+const MAX_EXTERNAL_RESULTS = 50;
+
 export function registerVocabularyRoutes(
   app: FastifyInstance,
-  { env, prisma }: VocabularyRoutesDeps,
+  { env, prisma, openSymbols }: VocabularyRoutesDeps,
 ): void {
   app.get(
     '/vocabulary',
@@ -266,6 +277,42 @@ export function registerVocabularyRoutes(
         metadata: { mimeType: checked.mimeType, bytes: bytes.byteLength, sha256 },
       });
       return reply.status(201).send(vocabularyItemToPublic(parseVocabularyItem(created), env, now));
+    },
+  );
+
+  // Zoeken in een externe bron (N8.4, §15): de backend praat namens de beheer-UI met OpenSymbols.
+  app.get(
+    '/vocabulary/external/search',
+    {
+      preHandler: authorize(prisma, { roles: ['ADMIN'] }),
+      config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    },
+    async (request): Promise<ExternalSearchResponse> => {
+      const { q } = externalSearchQuerySchema.parse(request.query);
+      if (!openSymbols.isConfigured()) {
+        throw new HttpError(
+          503,
+          'EXTERNAL_SOURCE_UNAVAILABLE',
+          'Zoeken in een externe bron is niet ingesteld (OPENSYMBOLS_SECRET).',
+        );
+      }
+      let found;
+      try {
+        found = await openSymbols.search(q, 'nl');
+      } catch (error) {
+        request.log.warn({ err: error }, 'Zoeken in OpenSymbols mislukte');
+        throw new HttpError(502, 'EXTERNAL_SEARCH_FAILED', 'De externe bron gaf geen antwoord.');
+      }
+      return externalSearchResponseSchema.parse({
+        results: found.slice(0, MAX_EXTERNAL_RESULTS).map((result) => {
+          const license = normalizeLicense(result.license, result.licenseUrl);
+          return {
+            ...result,
+            licenseKey: license.key,
+            allowed: isLicenseAllowed(license, env.VOCABULARY_ALLOWED_LICENSES),
+          };
+        }),
+      });
     },
   );
 

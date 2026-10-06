@@ -494,7 +494,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   de licentieteksten van OpenSymbols naar vaste sleutels omzet.
   *Acceptatie:* unittests voor de omzetting, inclusief onbekend → niet toegestaan.
 
-- [ ] **N8.4 Zoeken in een externe bron**
+- [x] **N8.4 Zoeken in een externe bron**
   *ONTWERP: §15.* `GET /vocabulary/external/search?q=` via de OpenSymbols-client; elk resultaat met
   licentie, auteur en `allowed: true/false`.
   *Acceptatie:* tests met een nep-OpenSymbols-client; rol.

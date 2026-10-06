@@ -752,6 +752,23 @@ export const openSymbolsSearchResponseSchema = z.object({
 });
 export type OpenSymbolsSearchResponse = z.infer<typeof openSymbolsSearchResponseSchema>;
 
+/** Zoeken in een externe bron (`GET /vocabulary/external/search?q=`, N8.4, §15). */
+export const externalSearchQuerySchema = z.strictObject({
+  q: z.string().trim().min(1, 'Geef een zoekwoord.').max(100),
+});
+
+/** Eén extern resultaat, met de licentie als vaste sleutel en of die toegestaan is. */
+export const externalSymbolSchema = openSymbolsResultSchema.extend({
+  licenseKey: z.string(),
+  allowed: z.boolean(),
+});
+export type ExternalSymbol = z.infer<typeof externalSymbolSchema>;
+
+export const externalSearchResponseSchema = z.object({
+  results: z.array(externalSymbolSchema),
+});
+export type ExternalSearchResponse = z.infer<typeof externalSearchResponseSchema>;
+
 // --- Beheerdashboard ---
 
 /**

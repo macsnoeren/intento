@@ -24,6 +24,7 @@ import { registerVocabularyRoutes } from './routes/vocabulary.js';
 import { registerOrganizationRoutes } from './routes/organization.js';
 import { registerCommunicationRoutes } from './routes/communication.js';
 import { createAgentClient, type AgentClient } from './agents/client.js';
+import { createOpenSymbolsClient, type OpenSymbolsClient } from './vocabulary/opensymbols.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createSpeechService, type SpeechService } from './speech/index.js';
 import { createEncryptor } from './crypto/encryption.js';
@@ -44,6 +45,8 @@ export interface BuildAppOptions {
   speech?: SpeechService;
   /** Client naar de agentdienst; standaard uit de env, in tests een `FakeAgentClient`. */
   agents?: AgentClient;
+  /** Client naar OpenSymbols (externe bron); standaard uit de env, in tests een nep. */
+  openSymbols?: OpenSymbolsClient;
 }
 
 /**
@@ -58,6 +61,7 @@ export async function buildApp({
   mail = createMailTransport(env),
   speech = createSpeechService(env),
   agents = createAgentClient(env),
+  openSymbols = createOpenSymbolsClient(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
   // Veldversleuteling at-rest: één instantie per app; de sleutel wordt uit `ENCRYPTION_KEY` afgeleid.
   const encryptor = createEncryptor(env);
@@ -121,7 +125,7 @@ export async function buildApp({
   // Afbeeldingen van de Vocabulary, alleen via een ondertekende, vervallende URL.
   registerAssetRoutes(app, { env, prisma });
   // Vocabulary in de beheeromgeving (N2.9 e.v.).
-  registerVocabularyRoutes(app, { env, prisma });
+  registerVocabularyRoutes(app, { env, prisma, openSymbols });
   // Organisatie-instellingen: bewaartermijn (N3.3).
   registerOrganizationRoutes(app, { env, prisma });
   // Gesprekken op de tablet: de backend praat namens de tablet met de agentdienst (N4.5 e.v.).

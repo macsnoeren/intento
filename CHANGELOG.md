@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.4 — zoeken in een externe bron
+
+- `GET /vocabulary/external/search?q=` (alleen de beheerder, rate limit): zoekt via de bestaande
+  OpenSymbols-client en geeft per resultaat de vaste licentiesleutel en `allowed`. Zonder configuratie
+  503, bij een fout van de bron 502. `buildApp({ openSymbols })` voor een nep-client in tests.
+- Tests met een nep-client (licenties, eigen lijst, rol, validatie, 503/502). Niet gerookt tegen de echte
+  OpenSymbols-API: er is in deze omgeving geen `OPENSYMBOLS_SECRET`; de dev-server geeft netjes 503.
+
 ### N8.3 — toegestane licenties
 
 - `server/src/vocabulary/licenses.ts`: licentieteksten en -URL's van externe bronnen ("CC BY-SA",
