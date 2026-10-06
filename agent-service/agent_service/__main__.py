@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import logging
 import sys
+from functools import partial
 
 from .config import ConfigError, ServiceConfig
+from .llm import LlmProvider, OllamaProvider
+from .orchestrator import step
 from .server import AgentServer
 
 
@@ -22,7 +25,16 @@ def main() -> int:
         log.error("Configuratiefout: %s", exc)
         return 1
 
-    server = AgentServer(config)
+    provider: LlmProvider | None = None
+    if config.ollama is not None:
+        provider = OllamaProvider(
+            config.ollama.url, config.ollama.model, api_key=config.ollama.api_key
+        )
+        log.info("Taalmodel: %s via %s", config.ollama.model, config.ollama.url)
+    else:
+        log.info("Geen taalmodel (OLLAMA_URL leeg): alle agents draaien op hun regels.")
+
+    server = AgentServer(config, handle_turn=partial(step, llm=provider))
     log.info("Agentdienst luistert op http://%s:%d", config.host, config.port)
     try:
         server.serve_forever()

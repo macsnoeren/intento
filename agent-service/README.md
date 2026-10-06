@@ -57,6 +57,14 @@ LLM-deel — time-out, ongeldige JSON, een antwoord dat niet door pydantic komt,
 tot de terugval; er gaat nooit een exceptie naar buiten. Zonder taalmodel zíjn de regels de agent
 (`success`, promptversie `rules-v1`). De reden noemt alleen de soort fout of de veldnamen, nooit inhoud.
 
+**Intent Agent v1** (`agents/intent.py`, §6): krijgt de antwoorden, wat er getoond werd, de huidige
+hypotheses, de afgewezen concepten en een compacte Vocabulary (de startwoorden plus woorden uit
+dezelfde contexten, hooguit 150) en geeft hypotheses, aannames, `needs_clarification` en eventueel de
+zin. Het antwoord wordt gevalideerd en nagekeken: afgewezen, dubbele en onbekende concepten vallen eruit,
+en het woord bij een symbool blijft een woord van dat item (I1). Terugval: de startconcepten in
+volgorde. De sleutels in de invoer heten bewust hetzelfde als in het antwoordschema: anders neemt een
+model de invoersleutels over. Contactnamen gaan nooit mee.
+
 Prompts staan als **versiebestanden** in `agent_service/prompts/` (`<naam>-v<n>.md`); `load_prompt`
 pakt de hoogste versie, en die versie komt mee in de `AgentDecision`. Een prompt wijzigen is een nieuw
 bestand met een hoger nummer.

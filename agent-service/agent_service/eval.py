@@ -29,11 +29,10 @@ from .scenarios import SCENARIOS, Engine, Scenario, ScenarioResult, play
 
 
 def engine_for(provider: LlmProvider | None) -> Engine:
-    """De orchestrator met deze provider. (De LLM-agents komen in N6; tot dan alleen regels.)"""
-    del provider
+    """De orchestrator met deze provider."""
 
     def engine(request: TurnRequest) -> TurnResponse:
-        return step(request)
+        return step(request, llm=provider)
 
     return engine
 

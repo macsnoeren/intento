@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.1 — Intent Agent v1
+
+- `agent_service/agents/intent.py` met prompt `intent-v1`: hypotheses (concept, label, confidence),
+  aannames, `needs_clarification` en eventueel de zin, uit de antwoorden, het getoonde scherm, de
+  vorige hypotheses, de afgewezen concepten en een compacte Vocabulary (≤ 150 woorden). Gevalideerd en
+  nagekeken (afgewezen/dubbel/onbekend eruit; het woord bij een symbool blijft van dat item, I1);
+  terugval op de startconcepten.
+- `step(request, llm=…)`: de dienst bouwt bij het starten een `OllamaProvider` uit de config; zonder
+  `OLLAMA_URL` alleen regels. De eval-CLI geeft de provider door.
+- Gemeten met `gpt-oss:120b-cloud`: 12/12 geslaagd, gemiddeld ±1,1 s per aanroep. Een eerste versie van
+  de prompt met Nederlandse sleutels in de invoer viel 4 van de 6 keer door de validatie (het model nam
+  de invoersleutels over); de invoer gebruikt nu dezelfde sleutels als het schema.
+
 ### N5.4 — scenario-opstelling
 
 - `agent_service/scenarios/`: een gesimuleerde gebruiker met een doel (set concepten) speelt een heel

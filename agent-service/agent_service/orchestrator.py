@@ -16,8 +16,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from .agents.envelope import AgentResult, run_agent
-from .agents.rules import capitalize, rule_hypotheses, rule_icon, rule_question
+from .agents.envelope import AgentResult, LlmAttempt, run_agent
+from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
+from .agents.rules import capitalize, rule_icon, rule_question
 from .contracts import (
     CONTRACT_VERSION,
     AgentDecision,
@@ -32,6 +33,7 @@ from .contracts import (
     TurnRequest,
     TurnResponse,
 )
+from .llm import LlmProvider
 from .vocabulary import VocabularyIndex
 
 #: Tekst van de vraag die volgt als er niets meer te vragen valt.
@@ -45,8 +47,9 @@ class ProtocolError(ValueError):
 class _Turn:
     """Verzamelt wat één beurt oplevert: inferences en agentbeslissingen."""
 
-    def __init__(self, clock: Callable[[], float]) -> None:
+    def __init__(self, clock: Callable[[], float], llm: LlmProvider | None) -> None:
         self.clock = clock
+        self.llm = llm
         self.inferences: list[Inference] = []
         self.decisions: list[AgentDecision] = []
 
@@ -75,10 +78,14 @@ def new_state(request: TurnRequest) -> SessionState:
     )
 
 
-def step(request: TurnRequest, clock: Callable[[], float] = time.monotonic) -> TurnResponse:
-    """Verwerkt één beurt."""
+def step(
+    request: TurnRequest,
+    llm: LlmProvider | None = None,
+    clock: Callable[[], float] = time.monotonic,
+) -> TurnResponse:
+    """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels."""
     vocabulary = VocabularyIndex(request.vocabulary)
-    turn = _Turn(clock)
+    turn = _Turn(clock, llm)
     event = request.event
 
     if event.type == "start":
@@ -123,16 +130,28 @@ def step(request: TurnRequest, clock: Callable[[], float] = time.monotonic) -> T
 
 
 def _update_hypotheses(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> None:
+    attempt: LlmAttempt[IntentResult] | None = None
+    if turn.llm is not None:
+        provider, prompt = turn.llm, intent_prompt()
+        attempt = LlmAttempt(
+            run=lambda: llm_intent(provider, prompt, state, vocabulary),
+            model=provider.model,
+            prompt_version=prompt.id,
+        )
     result = run_agent(
         "intent-agent",
-        rules=lambda: rule_hypotheses(state, vocabulary),
+        rules=lambda: rules_intent(state, vocabulary),
+        llm=attempt,
         rules_reason="startconcepten in vaste volgorde",
+        confidence=lambda r: r.hypotheses[0].confidence if r.hypotheses else None,
         clock=turn.clock,
     )
     turn.record(result)
-    hypotheses = result.value or []
+    intent = result.value or IntentResult(hypotheses=[])
+    hypotheses = intent.hypotheses
     state.intent_hypotheses = hypotheses
     state.current_intent = hypotheses[0] if hypotheses else None
+    state.assumptions = intent.assumptions
     turn.inferences.append(
         Inference(
             agent="intent-agent",
@@ -141,7 +160,9 @@ def _update_hypotheses(state: SessionState, vocabulary: VocabularyIndex, turn: _
                 "hypotheses": [
                     {"concept": h.concept, "label": h.label, "confidence": h.confidence}
                     for h in hypotheses
-                ]
+                ],
+                "assumptions": intent.assumptions,
+                "needs_clarification": intent.needs_clarification,
             },
             confidence=hypotheses[0].confidence if hypotheses else None,
         )

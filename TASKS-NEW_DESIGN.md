@@ -370,7 +370,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N6 — De agents (Binary Mode)
 
-- [ ] **N6.1 Intent Agent v1**
+- [x] **N6.1 Intent Agent v1**
   *ONTWERP: §6.* LLM-agent: input = antwoorden (concept, label, JA/NEE), getoonde opties, huidige
   hypotheses, compacte Vocabulary; output = hypotheses (concept, label, confidence), alternatieven,
   aannames, `needs_clarification`. Prompt `intent-v1`. Terugval = de regels uit N1.5.
