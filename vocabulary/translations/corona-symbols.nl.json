@@ -1,0 +1,384 @@
+{
+  "slug": "corona-symbols",
+  "language": "nl",
+  "items": [
+    {
+      "id": 44375,
+      "label": "afzuigen",
+      "synonyms": ["slijm wegzuigen"],
+      "concept": "suction",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44378,
+      "label": "deken en ventilator",
+      "synonyms": [],
+      "concept": "blanket_and_fan",
+      "context": "things",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44395,
+      "label": "letters en cijfers",
+      "synonyms": ["spellen"],
+      "concept": "letters_and_numbers",
+      "context": "other",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44400,
+      "label": "mondverzorging",
+      "synonyms": ["mond schoonmaken"],
+      "concept": "mouth_care",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44432,
+      "label": "rugpijn",
+      "synonyms": ["pijn in mijn rug"],
+      "concept": "back_ache",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44434,
+      "label": "kan niet ruiken",
+      "synonyms": ["geen reuk"],
+      "concept": "cant_smell",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44435,
+      "label": "kan niet proeven",
+      "synonyms": ["geen smaak"],
+      "concept": "cant_taste",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44436,
+      "label": "proef niets",
+      "synonyms": ["smaak kwijt"],
+      "concept": "cant_taste_2",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44437,
+      "label": "praten",
+      "synonyms": ["kletsen"],
+      "concept": "chat",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44438,
+      "label": "pijn op de borst",
+      "synonyms": ["borstpijn"],
+      "concept": "chest_pain",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44439,
+      "label": "hoesten",
+      "synonyms": ["hoest"],
+      "concept": "cough",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44440,
+      "label": "hoestbui",
+      "synonyms": [],
+      "concept": "cough_2",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44441,
+      "label": "doen",
+      "synonyms": [],
+      "concept": "do",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44442,
+      "label": "gevoelens",
+      "synonyms": ["hoe ik me voel"],
+      "concept": "feelings",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44444,
+      "label": "hulp",
+      "synonyms": ["help", "helpen"],
+      "concept": "help",
+      "context": "other",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 44445,
+      "label": "warm gezicht",
+      "synonyms": ["rood gezicht"],
+      "concept": "hot_face",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44446,
+      "label": "ik",
+      "synonyms": [],
+      "concept": "i",
+      "context": "people",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44447,
+      "label": "neutraal",
+      "synonyms": ["gaat wel"],
+      "concept": "neutral",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44448,
+      "label": "geen bezoek",
+      "synonyms": [],
+      "concept": "no_visits",
+      "context": "other",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44449,
+      "label": "pijn",
+      "synonyms": ["zeer", "au"],
+      "concept": "pain",
+      "context": "health",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 44450,
+      "label": "alsjeblieft",
+      "synonyms": ["graag"],
+      "concept": "please",
+      "context": "other",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44451,
+      "label": "injectie en pillen",
+      "synonyms": ["prik"],
+      "concept": "syringe_and_pills",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44452,
+      "label": "keel",
+      "synonyms": [],
+      "concept": "throat",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44454,
+      "label": "willen",
+      "synonyms": ["ik wil"],
+      "concept": "want",
+      "context": "other",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44457,
+      "label": "warm",
+      "synonyms": ["het is warm"],
+      "concept": "thermometer_hot",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44458,
+      "label": "koud",
+      "synonyms": ["het is koud"],
+      "concept": "thermometer_cold",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44459,
+      "label": "omdraaien",
+      "synonyms": ["draaien in bed"],
+      "concept": "turn_body",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44460,
+      "label": "hoe voel je je",
+      "synonyms": [],
+      "concept": "feelings_2",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44490,
+      "label": "hartmedicijnen",
+      "synonyms": [],
+      "concept": "heart_tablets",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44494,
+      "label": "benauwd",
+      "synonyms": ["ademnood"],
+      "concept": "respiratory_stress",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44495,
+      "label": "kan niet ademen",
+      "synonyms": ["geen lucht"],
+      "concept": "cant_breathe",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44496,
+      "label": "druppelbesmetting",
+      "synonyms": [],
+      "concept": "droplet_transmission",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44497,
+      "label": "luchtbrug",
+      "synonyms": [],
+      "concept": "air_bridge",
+      "context": "other",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44498,
+      "label": "via de lucht",
+      "synonyms": [],
+      "concept": "airborne",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44499,
+      "label": "antivirale medicijnen",
+      "synonyms": [],
+      "concept": "antiviral_medicines",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44500,
+      "label": "corona",
+      "synonyms": ["covid"],
+      "concept": "covid_19",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44501,
+      "label": "antistoftest",
+      "synonyms": [],
+      "concept": "antibody_testing",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 44502,
+      "label": "zijkant hoofd",
+      "synonyms": [],
+      "concept": "side_head",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 47482,
+      "label": "beademingsapparaat",
+      "synonyms": ["beademing"],
+      "concept": "ventilator",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 48637,
+      "label": "één uur",
+      "synonyms": [],
+      "concept": "one_oclock",
+      "context": "time",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 49174,
+      "label": "vier uur",
+      "synonyms": [],
+      "concept": "four_oclock",
+      "context": "time",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 57753,
+      "label": "kussen",
+      "synonyms": ["hoofdkussen"],
+      "concept": "pillow",
+      "context": "things",
+      "is_start": false,
+      "status": "reviewed"
+    }
+  ]
+}

@@ -164,7 +164,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests tegen een nep-HTTP-server (paginering, ongeldige pagina → fout); de manifesten
   tellen 3.439 en 42 items.
 
-- [ ] **N2.5 Kernvertaling met de hand**
+- [x] **N2.5 Kernvertaling met de hand**
   *ONTWERP: §15.1 (stap 3), §6 (start).* `vocabulary/translations/<slug>.nl.json`, per Global Symbols-id:
   Nederlands label, synoniemen, concept (taalneutrale sleutel uit het Engelse label), context (vaste
   lijst), `isStart`, `status: reviewed`. ±80 woorden: ±8 startconcepten (pijn, eten, drinken, toilet,

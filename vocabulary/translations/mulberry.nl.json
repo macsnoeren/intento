@@ -1,0 +1,519 @@
+{
+  "slug": "mulberry",
+  "language": "nl",
+  "items": [
+    {
+      "id": 3131,
+      "label": "bang",
+      "synonyms": ["angstig"],
+      "concept": "afraid",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3153,
+      "label": "boos",
+      "synonyms": ["kwaad"],
+      "concept": "angry",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3160,
+      "label": "appel",
+      "synonyms": [],
+      "concept": "apple",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3161,
+      "label": "appelsap",
+      "synonyms": ["sap"],
+      "concept": "apple_juice",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3168,
+      "label": "arm",
+      "synonyms": [],
+      "concept": "arm",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3198,
+      "label": "rug",
+      "synonyms": [],
+      "concept": "back",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3245,
+      "label": "bad",
+      "synonyms": ["in bad"],
+      "concept": "bath",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3265,
+      "label": "bedtijd",
+      "synonyms": [],
+      "concept": "bed_time",
+      "context": "time",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3363,
+      "label": "brood",
+      "synonyms": ["boterham"],
+      "concept": "bread",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3405,
+      "label": "tanden poetsen",
+      "synonyms": [],
+      "concept": "brush_teeth",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3567,
+      "label": "borst",
+      "synonyms": [],
+      "concept": "chest",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3666,
+      "label": "koffie",
+      "synonyms": [],
+      "concept": "coffee",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 3973,
+      "label": "papa",
+      "synonyms": ["vader"],
+      "concept": "dad",
+      "context": "people",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4038,
+      "label": "dokter",
+      "synonyms": ["arts"],
+      "concept": "doctor",
+      "context": "people",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4075,
+      "label": "drinken",
+      "synonyms": ["iets drinken"],
+      "concept": "drink",
+      "context": "food_drink",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 4106,
+      "label": "oor",
+      "synonyms": ["oren"],
+      "concept": "ear",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4157,
+      "label": "enthousiast",
+      "synonyms": ["opgewonden"],
+      "concept": "excited",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4166,
+      "label": "oog",
+      "synonyms": ["ogen"],
+      "concept": "eye",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4536,
+      "label": "voet",
+      "synonyms": [],
+      "concept": "foot",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4608,
+      "label": "fruit",
+      "synonyms": ["vruchten"],
+      "concept": "fruit",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4637,
+      "label": "bril",
+      "synonyms": [],
+      "concept": "glasses",
+      "context": "things",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4730,
+      "label": "blij",
+      "synonyms": ["vrolijk", "gelukkig"],
+      "concept": "happy",
+      "context": "feelings",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 4743,
+      "label": "hoofd",
+      "synonyms": [],
+      "concept": "head",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4748,
+      "label": "hoofdpijn",
+      "synonyms": [],
+      "concept": "headache",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4810,
+      "label": "honger",
+      "synonyms": ["trek"],
+      "concept": "hungry",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4890,
+      "label": "knie",
+      "synonyms": [],
+      "concept": "knee",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 4930,
+      "label": "been",
+      "synonyms": [],
+      "concept": "leg",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5032,
+      "label": "medicijnen",
+      "synonyms": ["medicijn", "pillen"],
+      "concept": "medicine",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5050,
+      "label": "melk",
+      "synonyms": [],
+      "concept": "milk",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5076,
+      "label": "telefoon",
+      "synonyms": ["mobiel", "bellen"],
+      "concept": "mobile_phone",
+      "context": "things",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5092,
+      "label": "meer",
+      "synonyms": ["nog meer", "nog een keer"],
+      "concept": "more",
+      "context": "other",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5101,
+      "label": "mond",
+      "synonyms": [],
+      "concept": "mouth",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5108,
+      "label": "mama",
+      "synonyms": ["moeder"],
+      "concept": "mum",
+      "context": "people",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5111,
+      "label": "muziek",
+      "synonyms": ["muziek luisteren"],
+      "concept": "music",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5129,
+      "label": "luier",
+      "synonyms": ["incontinentiemateriaal"],
+      "concept": "nappy",
+      "context": "things",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5132,
+      "label": "nek",
+      "synonyms": [],
+      "concept": "neck",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5170,
+      "label": "verpleegkundige",
+      "synonyms": ["zuster", "verpleger"],
+      "concept": "nurse",
+      "context": "people",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5219,
+      "label": "buiten",
+      "synonyms": ["naar buiten"],
+      "concept": "outside",
+      "context": "places",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5546,
+      "label": "verdrietig",
+      "synonyms": ["triest"],
+      "concept": "sad",
+      "context": "feelings",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 5668,
+      "label": "schouder",
+      "synonyms": [],
+      "concept": "shoulder",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5669,
+      "label": "douchen",
+      "synonyms": ["douche"],
+      "concept": "shower",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5818,
+      "label": "buik",
+      "synonyms": ["maag"],
+      "concept": "stomach",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5820,
+      "label": "buikpijn",
+      "synonyms": ["maagpijn"],
+      "concept": "stomach_ache",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5908,
+      "label": "thee",
+      "synonyms": [],
+      "concept": "tea",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5940,
+      "label": "dorst",
+      "synonyms": [],
+      "concept": "thirsty",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 5983,
+      "label": "toilet",
+      "synonyms": ["wc", "naar de wc"],
+      "concept": "toilet",
+      "context": "places",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 5995,
+      "label": "tand",
+      "synonyms": ["tanden", "kies"],
+      "concept": "tooth",
+      "context": "body",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 6103,
+      "label": "overgeven",
+      "synonyms": ["spugen"],
+      "concept": "vomit",
+      "context": "health",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 6125,
+      "label": "handen wassen",
+      "synonyms": [],
+      "concept": "wash_hands",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 6135,
+      "label": "water",
+      "synonyms": [],
+      "concept": "water",
+      "context": "food_drink",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 6160,
+      "label": "rolstoel",
+      "synonyms": [],
+      "concept": "wheelchair",
+      "context": "things",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 6204,
+      "label": "bezorgd",
+      "synonyms": ["ongerust"],
+      "concept": "worried",
+      "context": "feelings",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 49189,
+      "label": "eten",
+      "synonyms": ["iets eten"],
+      "concept": "eat",
+      "context": "food_drink",
+      "is_start": true,
+      "status": "reviewed"
+    },
+    {
+      "id": 100407,
+      "label": "knuffelen",
+      "synonyms": ["knuffel"],
+      "concept": "hug",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 100545,
+      "label": "slapen",
+      "synonyms": ["naar bed"],
+      "concept": "sleep",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 100615,
+      "label": "lopen",
+      "synonyms": ["wandelen"],
+      "concept": "walk",
+      "context": "activities",
+      "is_start": false,
+      "status": "reviewed"
+    },
+    {
+      "id": 100628,
+      "label": "moe",
+      "synonyms": ["slaperig", "geeuwen"],
+      "concept": "tired",
+      "context": "feelings",
+      "is_start": true,
+      "status": "reviewed"
+    }
+  ]
+}

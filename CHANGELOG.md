@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.5 — kernvertaling met de hand
+
+- `vocabulary/translations/mulberry.nl.json` (57 woorden) en `corona-symbols.nl.json` (alle 42
+  zorgsymbolen): Nederlands label, synoniemen, concept, context uit de vaste lijst, startconcept en
+  status `reviewed`. Startconcepten: pijn, eten, drinken, toilet, moe, blij, verdrietig, hulp.
+- Zod-schema voor het vertaalbestand (`server/src/vocabulary/translation.ts`); de test eist dat elk id
+  in het manifest bestaat, dat elk concept uniek is (over beide bestanden) en dat precies de acht
+  startconcepten gemarkeerd zijn.
+
 ### N2.4 — manifest van de Global Symbols-sets
 
 - `npm run vocabulary:manifest -- <slug>` haalt via de openbare API van Global Symbols alle pictos van
