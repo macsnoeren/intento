@@ -213,7 +213,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (platformitems alleen de platformbeheerder). Audit-log.
   *Acceptatie:* tests: validatie, rol, isolatie, platformitem door een org-beheerder → 403.
 
-- [ ] **N2.12 Beheer: item-detailscherm**
+- [x] **N2.12 Beheer: item-detailscherm**
   *ONTWERP: §49.* Detailscherm (het bestaande overzicht → detail-patroon uit `docs/architecture.md`) met het formulier
   van N2.11.
   *Acceptatie:* componenttest; rooktest.

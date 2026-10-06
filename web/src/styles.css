@@ -1861,3 +1861,26 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* Gegevens als paren (licentie, maker, bron): label links, waarde rechts; op een smal scherm onder elkaar. */
+.definition-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.definition-list dt {
+  color: var(--intento-muted);
+}
+
+.definition-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 40rem) {
+  .definition-list {
+    grid-template-columns: 1fr;
+  }
+}

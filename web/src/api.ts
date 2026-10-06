@@ -20,7 +20,10 @@ import {
   verifyEmailResponseSchema,
   type AccountListResponse,
   type AuditLogListResponse,
+  type VocabularyItemPublic,
   type VocabularyListQuery,
+  type VocabularyUpdateRequest,
+  vocabularyItemPublicSchema,
   type VocabularyListResponse,
   vocabularyListResponseSchema,
   type AuthResponse,
@@ -107,6 +110,8 @@ export interface Api {
   listAuditLogs(): Promise<AuditLogListResponse>;
   /** De Vocabulary van de eigen organisatie (platform + eigen), gepagineerd en doorzoekbaar. */
   listVocabulary(query?: Partial<VocabularyListQuery>): Promise<VocabularyListResponse>;
+  /** Een item bewerken (alleen beheerder; platformitems alleen de platformbeheerder). */
+  updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
   /**
    * Platform-operatorconsole (INTENTO-NEW-DESIGN §53). Deze vijf calls gaan naar de aparte
    * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
@@ -320,6 +325,14 @@ export const httpApi: Api & DeviceApi = {
     const qs = params.toString();
     const suffix = qs ? `?${qs}` : '';
     return vocabularyListResponseSchema.parse(await request(`/vocabulary${suffix}`));
+  },
+  async updateVocabularyItem(id, body) {
+    return vocabularyItemPublicSchema.parse(
+      await request(`/vocabulary/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    );
   },
   async listOperatorOrganizations() {
     return operatorOrganizationListResponseSchema.parse(await request('/operator/organizations'));

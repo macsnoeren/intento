@@ -3,6 +3,7 @@ import type { AccountPublic, VocabularyItemPublic, VocabularyListResponse } from
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
+import { VocabularyItemDetail } from './VocabularyItemDetail.tsx';
 
 /**
  * Beheeromgeving — Vocabulary (INTENTO-NEW-DESIGN §15, §49).
@@ -27,10 +28,16 @@ function sourceLabel(item: VocabularyItemPublic): string {
   return item.license.sourceName ?? 'Onbekende bron';
 }
 
-function VocabularyTile({ item }: { item: VocabularyItemPublic }): React.JSX.Element {
+function VocabularyTile({
+  item,
+  onOpen,
+}: {
+  item: VocabularyItemPublic;
+  onOpen: () => void;
+}): React.JSX.Element {
   const label = item.labels[0] ?? '';
   return (
-    <div className="symbol-card" aria-label={label}>
+    <button className="symbol-card" type="button" aria-label={label} onClick={onOpen}>
       {item.imageUrl ? (
         <img className="symbol-card__image" src={apiUrl(item.imageUrl)} alt="" loading="lazy" />
       ) : (
@@ -42,7 +49,7 @@ function VocabularyTile({ item }: { item: VocabularyItemPublic }): React.JSX.Ele
       {item.labelStatus === 'machine' ? (
         <span className="badge badge--warn">Machinevertaling</span>
       ) : null}
-    </div>
+    </button>
   );
 }
 
@@ -63,6 +70,7 @@ export function VocabularyPage({
   const [data, setData] = useState<VocabularyListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<VocabularyItemPublic | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,6 +95,28 @@ export function VocabularyPage({
   }
 
   const pages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
+
+  if (selected) {
+    return (
+      <VocabularyItemDetail
+        key={selected.id}
+        api={api}
+        account={account}
+        item={selected}
+        onBack={() => setSelected(null)}
+        onSaved={(updated) => {
+          setSelected(updated);
+          setData((current) =>
+            current
+              ? { ...current, items: current.items.map((i) => (i.id === updated.id ? updated : i)) }
+              : current,
+          );
+        }}
+        onLogout={onLogout}
+        onNavigate={onNavigate}
+      />
+    );
+  }
 
   return (
     <AppShell
@@ -137,7 +167,7 @@ export function VocabularyPage({
           <ul className="symbol-grid">
             {data.items.map((item) => (
               <li key={item.id}>
-                <VocabularyTile item={item} />
+                <VocabularyTile item={item} onOpen={() => setSelected(item)} />
               </li>
             ))}
           </ul>

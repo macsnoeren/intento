@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.12 — beheer: item-detailscherm
+
+- Een tegel opent het detailscherm (overzicht → detail): pictogram, licentie, maker en bron met links,
+  vertaalstatus, en voor de beheerder het formulier van N2.11 (labels, concepten, contexten als vaste
+  keuzes, startconcept, volgorde), met validatie vóór het versturen en de melding van de server bij een
+  weigering. Een begeleider ziet het item alleen-lezen.
+- Componenttests; rooktest in de browser: tegel openen, synoniem toevoegen, opslaan, terugzoeken.
+
 ### N2.11 — een item bewerken
 
 - `PATCH /vocabulary/:id`: labels, concepten, contexten, startconcept en volgorde; een gewijzigd label
