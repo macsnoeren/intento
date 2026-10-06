@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { vocabularyListResponseSchema } from '@intento/shared';
+import { attributionListResponseSchema, vocabularyListResponseSchema } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import {
@@ -377,5 +377,74 @@ describe('POST /vocabulary/:id/retire en /restore', () => {
     });
     expect(res.json()).toMatchObject({ error: { code: 'PLATFORM_ITEM' } });
     expect(await prisma.vocabularyItem.count({ where: { status: 'retired' } })).toBe(0);
+  });
+});
+
+/** Bronvermelding (N2.14, INTENTO-NEW-DESIGN §15). */
+describe('GET /vocabulary/attributions', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await prisma.vocabularyItem.deleteMany();
+    await resetAuthData();
+    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '1000' }) });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('noemt elk CC BY-item met auteur en bron, ook voor de tablet; niets van een andere organisatie', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const other = await seedAccount('b@intento.local', 'pw', 'ADMIN');
+    const ccBy = [
+      await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain' }),
+      await createVocabularyItem(prisma, { label: 'eten', concept: 'eat' }),
+    ];
+    await createVocabularyItem(prisma, {
+      label: 'kat',
+      concept: 'cat',
+      organizationId: admin.organizationId,
+    });
+    await createVocabularyItem(prisma, {
+      label: 'geheim',
+      concept: 'secret',
+      organizationId: other.organizationId,
+    });
+    await createVocabularyItem(prisma, { label: 'oud', concept: 'old', status: 'retired' });
+
+    const user = await seedUser('Sanne', admin.organizationId);
+    for (const cookie of [
+      await loginCookie(app, admin.email, admin.password),
+      await deviceCookie(app, user.id),
+    ]) {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/vocabulary/attributions',
+        headers: { cookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const { sources } = attributionListResponseSchema.parse(res.json());
+
+      const mulberry = sources.find((s) => s.sourceName === 'Mulberry Symbols');
+      expect(mulberry).toMatchObject({
+        licenseKey: 'CC-BY-SA-4.0',
+        author: 'Steve Lee',
+        sourceUrl: 'https://globalsymbols.com/symbolsets/mulberry',
+        requiresAttribution: true,
+      });
+      for (const id of ccBy) expect(mulberry!.items.map((i) => i.id)).toContain(id);
+
+      const own = sources.find((s) => s.sourceName === 'Eigen afbeeldingen');
+      expect(own).toMatchObject({ requiresAttribution: false, items: [{ label: 'kat' }] });
+      expect(JSON.stringify(sources)).not.toContain('geheim');
+      expect(JSON.stringify(sources)).not.toContain('oud');
+    }
+  });
+
+  it('is niet publiek', async () => {
+    expect((await app.inject({ method: 'GET', url: '/vocabulary/attributions' })).statusCode).toBe(
+      401,
+    );
   });
 });

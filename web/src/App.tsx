@@ -7,6 +7,7 @@ import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
 import { VocabularyPage } from './VocabularyPage.tsx';
+import { AttributionsPage } from './AttributionsPage.tsx';
 import { AccountPage } from './AccountPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
@@ -167,6 +168,13 @@ export function App({
             onLogout={() => void handleLogout()}
             onNavigate={setView}
           />
+        ) : view === 'sources' ? (
+          <AttributionsPage
+            api={api}
+            account={account}
+            onLogout={() => void handleLogout()}
+            onNavigate={setView}
+          />
         ) : (
           <AccountPage
             api={api}
@@ -224,6 +232,20 @@ export function App({
       <>
         {banner}
         <VocabularyPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  if (view === 'sources') {
+    return (
+      <>
+        {banner}
+        <AttributionsPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

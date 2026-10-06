@@ -1,29 +1,40 @@
-import type { preHandlerAsyncHookHandler } from 'fastify';
+import type { FastifyRequest } from 'fastify';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { HttpError } from '../errors.js';
 import { findAccountBySessionToken } from './session.js';
 import { readSessionToken } from './request.js';
 import { findDeviceByToken, readDeviceToken } from './device.js';
+import { assertOrganizationActive } from './organization-status.js';
 
 /**
- * Toegangsguard voor **gedeelde, niet-tenant-gebonden app-data**: een ingelogd account óf een
- * gekoppeld apparaat mag erbij.
+ * De organisatie van wie er belt: een ingelogd account óf een gekoppeld apparaat (tablet).
  *
- * Gebruikt door de AAC-bibliotheek (`/aac/search`, `/aac/topics`) en de AI-status (`/ai/status`): dat
- * zijn geen persoonsgegevens, maar bewust ook niet publiek — alleen geauthenticeerde clients (beheer-UI,
- * begeleider) én de tablet (device-token, nodig tijdens communicatie) komen erbij. Zonder een van beide: 401.
- *
- * Bewust géén tenant-filtering hier: de routes erachter mogen **alleen** organisatie-onafhankelijke data
- * teruggeven. Alles wat aan een gebruiker of organisatie hangt, hoort achter `authorize` + `tenantScope`.
+ * Voor data die binnen een organisatie voor iedereen zichtbaar mag zijn — ook voor de tablet — maar
+ * niet publiek, zoals de bronvermelding van de Vocabulary (INTENTO-NEW-DESIGN §15). De route erachter
+ * filtert zelf op de teruggegeven organisatie. Zonder account of apparaat: 401; een gedeactiveerde
+ * organisatie: 403.
  */
-export function authorizeAccountOrDevice(prisma: PrismaClient): preHandlerAsyncHookHandler {
-  return async (request) => {
-    const sessionToken = readSessionToken(request);
-    if (sessionToken && (await findAccountBySessionToken(prisma, sessionToken))) return;
+export async function resolveCallerOrganization(
+  prisma: PrismaClient,
+  request: FastifyRequest,
+): Promise<string> {
+  const sessionToken = readSessionToken(request);
+  const account = sessionToken ? await findAccountBySessionToken(prisma, sessionToken) : null;
+  let organizationId = account?.organizationId ?? null;
 
+  if (!organizationId) {
     const deviceToken = readDeviceToken(request);
-    if (deviceToken && (await findDeviceByToken(prisma, deviceToken))) return;
+    const device = deviceToken ? await findDeviceByToken(prisma, deviceToken) : null;
+    if (device) {
+      const user = await prisma.user.findUnique({
+        where: { id: device.userId },
+        select: { organizationId: true },
+      });
+      organizationId = user?.organizationId ?? null;
+    }
+  }
 
-    throw new HttpError(401, 'NOT_AUTHENTICATED', 'Niet ingelogd.');
-  };
+  if (!organizationId) throw new HttpError(401, 'NOT_AUTHENTICATED', 'Niet ingelogd.');
+  await assertOrganizationActive(prisma, organizationId);
+  return organizationId;
 }

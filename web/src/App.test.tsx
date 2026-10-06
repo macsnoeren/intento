@@ -230,6 +230,9 @@ function fakeApi(
         caregivers: { total: 0 },
       });
     },
+    listAttributions() {
+      return Promise.resolve({ sources: [] });
+    },
     setVocabularyItemStatus() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },

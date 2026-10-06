@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  attributionListResponseSchema,
+  type AttributionListResponse,
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
   vocabularyUpdateRequestSchema,
@@ -10,6 +12,7 @@ import {
 import type { Env } from '../env.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
+import { resolveCallerOrganization } from '../auth/account-or-device.js';
 import type { AccountModel, VocabularyItemModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { recordAudit } from '../audit/audit.js';
@@ -46,6 +49,15 @@ export async function loadManageableItem(
   throw new HttpError(403, 'FORBIDDEN', 'Je hebt geen toegang tot dit symbool.');
 }
 
+/** Vraagt deze licentie om naamsvermelding? Alle CC BY-varianten wel; CC0 en eigen afbeeldingen niet. */
+export function requiresAttribution(licenseKey: string): boolean {
+  return /^CC-BY(?:-|$)/i.test(licenseKey);
+}
+
+function linkOrNull(value: string | null): string | null {
+  return value && /^https?:\/\//i.test(value) ? value : null;
+}
+
 export interface VocabularyRoutesDeps {
   env: Env;
   prisma: PrismaClient;
@@ -61,6 +73,9 @@ export interface VocabularyRoutesDeps {
  * `PATCH /vocabulary/:id` — labels, concepten, contexten, startconcept en volgorde bewerken. Alleen de
  * beheerder, alleen items van de eigen organisatie; platformitems alleen de platformbeheerder. Een
  * gewijzigd label is daarmee nagekeken (`labelStatus: reviewed`). Geaudit.
+ *
+ * `GET /vocabulary/attributions` — de bronvermelding: per bron (naam, licentie, maker) de symbolen die
+ * deze organisatie gebruikt. Voor iedereen binnen de organisatie, ook de tablet.
  *
  * `POST /vocabulary/:id/retire` en `…/restore` — intrekken en terugzetten, met dezelfde rechten. Een
  * item wordt nooit verwijderd: de provenance kan ernaar verwijzen. Ingetrokken gaat het niet meer naar
@@ -165,4 +180,35 @@ export function registerVocabularyRoutes(
       },
     );
   }
+
+  app.get('/vocabulary/attributions', async (request): Promise<AttributionListResponse> => {
+    const organizationId = await resolveCallerOrganization(prisma, request);
+    const rows = await prisma.vocabularyItem.findMany({
+      where: { status: 'approved', ...availableTo(organizationId) },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    });
+    const groups = new Map<string, AttributionListResponse['sources'][number]>();
+    for (const row of rows) {
+      const item = parseVocabularyItem(row);
+      const sourceName =
+        item.source === 'own' ? 'Eigen afbeeldingen' : (item.sourceName ?? 'Onbekende bron');
+      const key = `${sourceName}|${item.licenseKey}|${item.author ?? ''}`;
+      let group = groups.get(key);
+      if (!group) {
+        group = {
+          sourceName,
+          sourceUrl: linkOrNull(item.sourceUrl),
+          licenseKey: item.licenseKey,
+          licenseUrl: linkOrNull(item.licenseUrl),
+          author: item.author,
+          authorUrl: linkOrNull(item.authorUrl),
+          requiresAttribution: requiresAttribution(item.licenseKey),
+          items: [],
+        };
+        groups.set(key, group);
+      }
+      group.items.push({ id: item.id, label: item.labels[0] ?? item.id });
+    }
+    return attributionListResponseSchema.parse({ sources: [...groups.values()] });
+  });
 }

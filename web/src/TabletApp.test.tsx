@@ -66,6 +66,22 @@ function fakeDeviceApi(options: { linked?: boolean; names?: string[] } = {}): {
       speakText() {
         return Promise.resolve(new Blob());
       },
+      listAttributions() {
+        return Promise.resolve({
+          sources: [
+            {
+              sourceName: 'Mulberry Symbols',
+              sourceUrl: 'https://globalsymbols.com/symbolsets/mulberry',
+              licenseKey: 'CC-BY-SA-4.0',
+              licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+              author: 'Steve Lee',
+              authorUrl: null,
+              requiresAttribution: true,
+              items: [{ id: 'v-1', label: 'pijn' }],
+            },
+          ],
+        });
+      },
     },
   };
 }
@@ -84,8 +100,8 @@ describe('gebruikersapp op de tablet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Koppelen' }));
 
     expect(await screen.findByRole('heading', { name: 'Nog niet beschikbaar' })).toBeTruthy();
-    // Er staat geen enkele knop van de oude gespreksflow meer op het scherm.
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    // Er staat geen enkele knop van de oude gespreksflow meer op het scherm; alleen de bronnenlink.
+    expect(screen.queryAllByRole('button').map((b) => b.textContent)).toEqual(['Bronnen']);
   });
 
   it('toont een fout bij een ongeldige koppelcode', async () => {
@@ -117,5 +133,15 @@ describe('gebruikersapp op de tablet', () => {
 
     expect(await screen.findByText('Sanne B.')).toBeTruthy();
     await waitFor(() => expect(calls()).toBe(2));
+  });
+
+  it('toont via "Bronnen" de bronvermelding en gaat terug (N2.14)', async () => {
+    render(<TabletApp api={fakeDeviceApi({ linked: true }).api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Bronnen' }));
+    expect(await screen.findByRole('link', { name: 'Mulberry Symbols' })).toBeTruthy();
+    expect(screen.getByText('CC BY-SA 4.0')).toBeTruthy();
+    expect(screen.getByText('Steve Lee')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '↩ Terug' }));
+    expect(await screen.findByRole('heading', { name: 'Nog niet beschikbaar' })).toBeTruthy();
   });
 });

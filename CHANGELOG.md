@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.14 — bronvermelding
+
+- `GET /vocabulary/attributions` voor iedereen binnen de organisatie (account óf tablet): per bron de
+  licentie, maker en symbolen. `auth/account-or-device.ts` bepaalt daarvoor de organisatie van wie belt.
+- Pagina "Bronnen" in de beheeromgeving (ook voor de begeleider) en een link "Bronnen" op het startscherm
+  van de tablet. Bij Mulberry staan beide licenties (CC BY-SA 4.0 via Global Symbols, CC BY-SA 2.0 UK
+  van het project zelf).
+- Test: elk CC BY-item staat in de lijst met auteur en bron, ook voor de tablet, niets van een andere
+  organisatie; component- en browserrooktest.
+
 ### N2.13 — een item intrekken
 
 - `POST /vocabulary/:id/retire` en `/restore`: status `retired`/`approved`; nooit verwijderen. Een

@@ -20,6 +20,8 @@ import {
   verifyEmailResponseSchema,
   type AccountListResponse,
   type AuditLogListResponse,
+  type AttributionListResponse,
+  attributionListResponseSchema,
   type VocabularyItemPublic,
   type VocabularyListQuery,
   type VocabularyUpdateRequest,
@@ -112,6 +114,8 @@ export interface Api {
   listVocabulary(query?: Partial<VocabularyListQuery>): Promise<VocabularyListResponse>;
   /** Een item bewerken (alleen beheerder; platformitems alleen de platformbeheerder). */
   updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
+  /** De bronvermelding van de Vocabulary. */
+  listAttributions(): Promise<AttributionListResponse>;
   /** Een item intrekken (`retire`) of terugzetten (`restore`). */
   setVocabularyItemStatus(id: string, action: 'retire' | 'restore'): Promise<VocabularyItemPublic>;
   /**
@@ -149,6 +153,8 @@ export interface DeviceApi {
   deviceMe(): Promise<DeviceSessionResponse>;
   /** Koppelcode inwisselen voor een apparaat-token (cookie) en de sessie teruggeven. */
   linkDevice(code: string): Promise<DeviceSessionResponse>;
+  /** De bronvermelding van de Vocabulary (ook voor de tablet, INTENTO-NEW-DESIGN §15). */
+  listAttributions(): Promise<AttributionListResponse>;
   /**
    * Laat de tekst op het scherm uitspreken. De **stem** komt uit het profiel van de gebruiker
    * achter de apparaatsessie; de tablet stuurt alleen de tekst mee. Werkt de spraakdienst niet, dan
@@ -327,6 +333,9 @@ export const httpApi: Api & DeviceApi = {
     const qs = params.toString();
     const suffix = qs ? `?${qs}` : '';
     return vocabularyListResponseSchema.parse(await request(`/vocabulary${suffix}`));
+  },
+  async listAttributions() {
+    return attributionListResponseSchema.parse(await request('/vocabulary/attributions'));
   },
   async setVocabularyItemStatus(id, action) {
     return vocabularyItemPublicSchema.parse(

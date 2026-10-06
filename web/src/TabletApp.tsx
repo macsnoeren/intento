@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { DeviceSessionResponse } from '@intento/shared';
+import type { AttributionSource, DeviceSessionResponse } from '@intento/shared';
 import { ApiRequestError, httpApi, type DeviceApi } from './api.ts';
 import { AuthLayout } from './AuthLayout.tsx';
 import { BrandMark, BRAND_NAME } from './Brand.tsx';
+import { AttributionList } from './AttributionList.tsx';
 
 /**
  * Vaste kopbalk van de gebruikersapp: linksboven het beeldmerk met de naam, rechtsboven wie
@@ -50,6 +51,7 @@ function TabletHeader({
 export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JSX.Element {
   const [session, setSession] = useState<DeviceSessionResponse | null>(null);
   const [checking, setChecking] = useState(true);
+  const [showSources, setShowSources] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -110,14 +112,93 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
     return <DeviceLinkScreen api={api} onLinked={setSession} />;
   }
 
-  return <NotYetAvailableScreen userName={session.user.name} />;
+  if (showSources) {
+    return (
+      <SourcesScreen api={api} userName={session.user.name} onBack={() => setShowSources(false)} />
+    );
+  }
+
+  return (
+    <NotYetAvailableScreen
+      userName={session.user.name}
+      onShowSources={() => setShowSources(true)}
+    />
+  );
+}
+
+/** De link "Bronnen" onderaan het startscherm: klein en apart, want het is geen bediening. */
+function SourcesLink({ onClick }: { onClick: () => void }): React.JSX.Element {
+  return (
+    <p className="tablet__footer">
+      <button className="link-button" type="button" onClick={onClick}>
+        Bronnen
+      </button>
+    </p>
+  );
+}
+
+/**
+ * Bronvermelding op de tablet (INTENTO-NEW-DESIGN §15): van wie de pictogrammen komen. Een licentie
+ * als CC BY vraagt om naamsvermelding, ook waar de gebruiker de symbolen ziet.
+ */
+function SourcesScreen({
+  api,
+  userName,
+  onBack,
+}: {
+  api: DeviceApi;
+  userName: string;
+  onBack: () => void;
+}): React.JSX.Element {
+  const [sources, setSources] = useState<AttributionSource[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .listAttributions()
+      .then((response) => {
+        if (active) setSources(response.sources);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api]);
+
+  return (
+    <main className="tablet">
+      <TabletHeader userName={userName} />
+      <section className="tablet__sources">
+        <h1 className="tablet__prompt">Bronnen</h1>
+        {error ? (
+          <p className="muted">De bronnen konden niet worden geladen.</p>
+        ) : sources ? (
+          <AttributionList sources={sources} />
+        ) : (
+          <p className="muted">Laden…</p>
+        )}
+        <button className="button" type="button" onClick={onBack}>
+          ↩ Terug
+        </button>
+      </section>
+    </main>
+  );
 }
 
 /**
  * Rustig scherm voor een gekoppelde tablet zolang de nieuwe gespreksflow er nog niet is (ADR-0017).
- * Geen knoppen: er is niets te doen, en een knop die niets doet verwart meer dan geen knop.
+ * Alleen de link naar de bronvermelding: er is verder niets te doen.
  */
-function NotYetAvailableScreen({ userName }: { userName: string }): React.JSX.Element {
+function NotYetAvailableScreen({
+  userName,
+  onShowSources,
+}: {
+  userName: string;
+  onShowSources: () => void;
+}): React.JSX.Element {
   return (
     <main className="tablet">
       <TabletHeader userName={userName} />
@@ -127,6 +208,7 @@ function NotYetAvailableScreen({ userName }: { userName: string }): React.JSX.El
           Deze tablet is gekoppeld. Het praten met pictogrammen komt binnenkort.
         </p>
       </section>
+      <SourcesLink onClick={onShowSources} />
     </main>
   );
 }

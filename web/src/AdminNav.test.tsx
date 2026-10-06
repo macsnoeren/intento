@@ -11,7 +11,14 @@ describe('hoofdmenu', () => {
     render(<AdminNav active="dashboard" onNavigate={() => {}} />);
     const nav = screen.getByRole('navigation', { name: 'Beheer' });
 
-    for (const label of ['Dashboard', 'Gebruikers', 'Vocabulary', 'Audit-log', 'Mijn account']) {
+    for (const label of [
+      'Dashboard',
+      'Gebruikers',
+      'Vocabulary',
+      'Bronnen',
+      'Audit-log',
+      'Mijn account',
+    ]) {
       expect(within(nav).getByRole('button', { name: label }), label).toBeTruthy();
     }
 
@@ -35,7 +42,7 @@ describe('hoofdmenu', () => {
     }
   });
 
-  it('geeft een begeleider alleen de Vocabulary (lezen) en zijn eigen account', () => {
+  it('geeft een begeleider alleen de Vocabulary en bronnen (lezen) en zijn eigen account', () => {
     render(<AdminNav active="account" role="CAREGIVER" onNavigate={() => {}} />);
     const nav = screen.getByRole('navigation', { name: 'Beheer' });
 
@@ -43,7 +50,7 @@ describe('hoofdmenu', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Vocabulary', 'Mijn account']);
+    ).toEqual(['Vocabulary', 'Bronnen', 'Mijn account']);
     // Geen ingangen naar beheer dat de server hem toch weigert.
     expect(within(nav).queryByRole('button', { name: 'Gebruikers' })).toBeNull();
     expect(within(nav).queryByRole('button', { name: 'Worker-tokens' })).toBeNull();

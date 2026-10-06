@@ -930,3 +930,22 @@ export const vocabularyUpdateRequestSchema = z
     message: 'Geef minstens één veld om te wijzigen.',
   });
 export type VocabularyUpdateRequest = z.infer<typeof vocabularyUpdateRequestSchema>;
+
+/** Eén bron in de bronvermelding (`GET /vocabulary/attributions`, §15): wie, welke licentie, welke symbolen. */
+export const attributionSourceSchema = z.object({
+  sourceName: z.string(),
+  sourceUrl: webLinkUrlSchema.nullable(),
+  licenseKey: z.string(),
+  licenseUrl: webLinkUrlSchema.nullable(),
+  author: z.string().nullable(),
+  authorUrl: webLinkUrlSchema.nullable(),
+  /** Of deze licentie naamsvermelding vraagt (CC BY en afgeleiden). */
+  requiresAttribution: z.boolean(),
+  items: z.array(z.object({ id: z.string(), label: z.string() })),
+});
+export type AttributionSource = z.infer<typeof attributionSourceSchema>;
+
+export const attributionListResponseSchema = z.object({
+  sources: z.array(attributionSourceSchema),
+});
+export type AttributionListResponse = z.infer<typeof attributionListResponseSchema>;

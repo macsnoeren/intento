@@ -224,7 +224,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   detailscherm. Audit-log.
   *Acceptatie:* tests: ingetrokken item valt uit `listAvailableVocabulary`; rol en isolatie.
 
-- [ ] **N2.14 Bronvermelding**
+- [x] **N2.14 Bronvermelding**
   *ONTWERP: §15.* `GET /vocabulary/attributions` (publiek binnen de organisatie, ook voor de tablet) +
   pagina "Bronnen" in de beheeromgeving + link "Bronnen" op het startscherm van de tablet.
   *Acceptatie:* test: elk item met een CC BY-licentie staat in de lijst met auteur en bron.
