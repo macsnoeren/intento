@@ -108,6 +108,16 @@ def prompt_words(state: SessionState, vocabulary: VocabularyIndex) -> list[dict[
     ]
 
 
+def no_streak(state: SessionState) -> int:
+    """Hoeveel keer de gebruiker sinds zijn laatste JA (of sinds het begin) NEE zei."""
+    streak = 0
+    for answer in reversed(state.answers):
+        if answer.answer in ("yes", "selected"):
+            break
+        streak += 1
+    return streak
+
+
 def prompt_input(state: SessionState, vocabulary: VocabularyIndex) -> str:
     """De gebruikersprompt: alleen concepten en woorden, nooit namen of contactgegevens (V6).
 
@@ -136,6 +146,7 @@ def prompt_input(state: SessionState, vocabulary: VocabularyIndex) -> str:
             for h in state.intent_hypotheses
         ],
         "afgewezen": state.rejected_concepts,
+        "nee_op_rij": no_streak(state),
         "vocabulary": prompt_words(state, vocabulary),
     }
     return json.dumps(payload, ensure_ascii=False)

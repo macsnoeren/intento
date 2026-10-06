@@ -63,7 +63,9 @@ dezelfde contexten, hooguit 150) en geeft hypotheses, aannames, `needs_clarifica
 zin. Het antwoord wordt gevalideerd en nagekeken: afgewezen, dubbele en onbekende concepten vallen eruit,
 en het woord bij een symbool blijft een woord van dat item (I1). Terugval: de startconcepten in
 volgorde. De sleutels in de invoer heten bewust hetzelfde als in het antwoordschema: anders neemt een
-model de invoersleutels over. Contactnamen gaan nooit mee.
+model de invoersleutels over. Contactnamen gaan nooit mee. Met `nee_op_rij` (hoeveel NEE sinds het laatste JA) en prompt
+`intent-v4` probeert de agent na drie NEE een breder onderwerp ("niet lekker") in plaats van de rest van
+de lijst af te lopen.
 
 **Hypotheses door het gesprek heen** (§36, §37): de hypotheses, aannames en onzekerheden staan in de
 Session State en gaan elke beurt als inference `intent_hypotheses` mee. De vraag gaat steeds over de

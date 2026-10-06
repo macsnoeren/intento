@@ -193,6 +193,9 @@ Op de tablet (120b, standaard) duurt een gesprek "dorst" met vier schermen ±15 
 - **Duizelig slaagt nooit.** De startset heeft geen woorden voor ziek zijn (geen "ziek", "misselijk",
   "duizelig"), en na een reeks NEE's loopt de Intent Agent de gevoelens uit de Vocabulary af in plaats
   van breder te zoeken; bij het maximum (S1) legt hij een gok met lage zekerheid voor. Zie N6.14–N6.16.
+  **Na N6.14** (prompt `intent-v4`, breder zoeken na drie NEE) slaagt "duizelig" 3 van de 3 keer met
+  `gpt-oss:120b-cloud` ("Ziek.", "Duizelig.", "Niet lekker."), met 4–11 vragen en een beurt-mediaan
+  van 3,5 s.
 - **Time-outs.** Per agent: Intent 10 s, Question 10 s, Icon 8 s per stap, Validation en Safety 8 s.
   Samen kon dat in het slechtste geval boven de 30 s van de backend (`AGENT_TIMEOUT_MS`) uitkomen.
   Daarom heeft elke beurt nu een **tijdsbudget** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke

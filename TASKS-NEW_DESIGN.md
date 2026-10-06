@@ -438,7 +438,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   aanmaken als de duur onwerkbaar is.
   *Acceptatie:* het rapport staat in de docs; een rooktest op de tablet met echte Ollama.
 
-- [ ] **N6.14 Intent Agent: breder zoeken na een reeks NEE**
+- [x] **N6.14 Intent Agent: breder zoeken na een reeks NEE**
   *ONTWERP: §6, §36.* Ontdekt bij N6.13: na NEE op alle startconcepten loopt de Intent Agent de
   gevoelens uit de Vocabulary af (blij, verdrietig, bang, …) in plaats van een breder onderwerp te
   proberen ("niet lekker", "iets met je lichaam"). Prompt `intent-v4` en/of een regel in de orchestrator

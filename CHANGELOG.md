@@ -28,6 +28,12 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.14 — Intent Agent: breder zoeken na een reeks NEE
+
+- De Intent Agent krijgt `nee_op_rij` (NEE sinds het laatste JA) en prompt `intent-v4`: na drie NEE een
+  breder onderwerp ("niet lekker"), daarna preciezer. Scenario "duizelig" slaagt met de FakeProvider;
+  gemeten met `gpt-oss:120b-cloud` 3/3 (was 0/3), 4–11 vragen.
+
 ### N6.13 — meten met echte Ollama
 
 - Eval-CLI uitgebreid: meetscenario's hoofdpijn, dorst en duizelig (`--set meting`), een eigen
