@@ -3,8 +3,8 @@
 #   cp .env.docker.example .env.docker   # vul de geheimen in
 #   docker compose up -d --build
 #
-# Drie onderdelen, elk een eigen image: de backend, de web-app en de spraakdienst. De agentdienst
-# (agent-service/) komt erbij in N1.7. De oude AI-worker is verdwenen (ADR-0017).
+# Vier onderdelen, elk een eigen image: de backend, de web-app, de spraakdienst en de agentdienst
+# (ADR-0017). Spraak- en agentdienst hebben geen poort naar buiten; alleen de backend praat ermee.
 #
 # De database is bewust **SQLite op een volume** (ADR-0016): het schema, de migratielijn en de
 # runtime-adapter zijn nu SQLite, en die overstap hoort een eigen, zichtbare taak te zijn.
@@ -27,6 +27,11 @@ services:
       # De spraakdienst is binnen het compose-netwerk bereikbaar op zijn servicenaam.
       SPEECH_PROVIDER: http
       SPEECH_SERVICE_URL: http://speech:5002
+      # De agentdienst, ook op zijn servicenaam. Plain http mag hier: hij publiceert geen poort en
+      # weigert alles zonder het gedeelde geheim.
+      AGENT_SERVICE_URL: http://agents:5003
+      AGENT_SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in .env.docker}'
+      AGENT_ALLOW_INSECURE_HTTP: 'true'
     volumes:
       - intento-db:/data
     ports:
@@ -83,6 +88,18 @@ services:
       speech-voices:
         condition: service_completed_successfully
     # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen, niet de host of het netwerk.
+    restart: unless-stopped
+
+  # --- Agentdienst (N1.7) -------------------------------------------------------------------------
+  agents:
+    build:
+      context: agent-service
+    environment:
+      HOST: 0.0.0.0
+      PORT: '5003'
+      # Verplicht: de dienst start niet zonder, en de backend stuurt dezelfde waarde mee.
+      SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in .env.docker}'
+    # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen.
     restart: unless-stopped
 
 volumes:

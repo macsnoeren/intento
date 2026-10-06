@@ -98,7 +98,7 @@ De vier onderdelen hebben elk een eigen image; `compose.yaml` zet ze samen neer.
 runtime-adapter zijn nu SQLite en de overstap naar PostgreSQL hoort een eigen, zichtbare stap te zijn.
 
 ```bash
-cp .env.docker.example .env.docker    # vul de geheimen in (SIGNING_SECRET, ENCRYPTION_KEY, SPEECH_SERVICE_TOKEN)
+cp .env.docker.example .env.docker    # vul de geheimen in (SIGNING_SECRET, ENCRYPTION_KEY, SPEECH_SERVICE_TOKEN, AGENT_SERVICE_TOKEN)
 npm run docker:build
 npm run docker:up                     # web op http://localhost:8080, API op http://localhost:3000
 npm run docker:logs                   # meekijken
@@ -111,8 +111,8 @@ ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig he
 **Wat waar draait.** `server` migreert bij elke start automatisch (`prisma migrate deploy`) en draait
 als niet-root; `web` is een nginx met SPA-fallback, zodat een harde refresh op `/tablet` werkt;
 `speech` luistert alleen op het compose-netwerk en krijgt zijn stemmen uit een volume dat een
-eenmalige init-dienst vult. De oude AI-worker is verdwenen (ADR-0017); de agentdienst komt er in
-N1.7 bij.
+eenmalige init-dienst vult. `agents` (de agentdienst) luistert eveneens alleen op het compose-netwerk
+en weigert alles zonder `AGENT_SERVICE_TOKEN`; zet dat geheim in `.env.docker`.
 
 De web-app bakt de API-URL in bij de **build** (`VITE_API_URL`): wijs je hem naar een andere host, dan
 hoort daar `npm run docker:build` bij. Dat de API een eigen poort heeft is een bewuste keuze — de SPA

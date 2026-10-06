@@ -120,7 +120,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   alleen fase, duur en status.
   *Acceptatie:* tests: zonder key 401, ongeldige body 400, geldige start → geldige `TurnResponse`.
 
-- [ ] **N1.7 De agentdienst in Docker**
+- [x] **N1.7 De agentdienst in Docker**
   *ONTWERP: §3.1.* Dockerfile + compose-service `agents` (geen `ports:`, `SERVICE_TOKEN` verplicht,
   healthcheck op `/health`). Backend-env `AGENT_SERVICE_URL` en `AGENT_SERVICE_TOKEN` in `env.ts`,
   `.env.example` en `.env.docker.example`.

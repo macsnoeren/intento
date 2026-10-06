@@ -308,6 +308,17 @@
 - **Rate limiting.** Beide endpoints zijn begrensd per IP, zodat de spraakdienst geen gratis
   audio-machine wordt.
 
+### Agentdienst (ADR-0017)
+
+- **Alleen de backend.** De tablet en de beheeromgeving praten nooit met de agentdienst. In compose
+  publiceert hij geen poort; de backend bereikt hem op het interne netwerk.
+- **Gedeeld geheim, altijd.** De agentdienst start niet zonder `SERVICE_TOKEN` (minstens 16 tekens) en
+  vergelijkt de Bearer-header in constante tijd. De backend weigert te starten met een
+  `AGENT_SERVICE_URL` zonder `AGENT_SERVICE_TOKEN`, en eist https in productie tenzij
+  `AGENT_ALLOW_INSECURE_HTTP=true` (alleen voor een gesloten containernetwerk).
+- **Geen inhoud in logs of foutmeldingen.** Het log bevat per beurt alleen gebeurtenis, fase, soort
+  presentatie en duur; een validatiefout noemt veldnamen, nooit waarden.
+
 ## Bekende afwegingen / restrisico's
 
 - `server.ts` bindt op `0.0.0.0`; op een gedeeld netwerk zonder firewall is de dev-server

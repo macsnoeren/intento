@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N1.7 — de agentdienst in Docker
+
+- `agent-service/Dockerfile` (Python 3.12-slim + pydantic, niet-root, healthcheck op `/health`) en de
+  compose-service `agents`: geen `ports:`, `SERVICE_TOKEN` verplicht uit `AGENT_SERVICE_TOKEN`.
+- Backend-env: `AGENT_SERVICE_URL`, `AGENT_SERVICE_TOKEN` (verplicht zodra de URL gezet is) en
+  `AGENT_ALLOW_INSECURE_HTTP` (https in productie, tenzij op een gesloten netwerk). In `env.ts`,
+  `.env.example` en `.env.docker.example`, met tests.
+- Gecontroleerd: na `npm run docker:up` wordt `agents` healthy en geeft `/health` vanuit de
+  servercontainer 200.
+
 ### N1.6 — `POST /v1/turn`
 
 - Het endpoint van de agentdienst: achter de API-key, body gevalideerd met pydantic, `step()` aanroepen,

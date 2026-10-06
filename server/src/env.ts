@@ -203,6 +203,16 @@ const envSchema = z
     // aftasten van adressen. Streng, want opnieuw versturen hoort zelden nodig te zijn.
     RESEND_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(3),
     RESEND_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
+    // --- Agentdienst (INTENTO-NEW-DESIGN §3.1, ADR-0017) ---
+    // De backend roept de Python-agentdienst rechtstreeks aan; de tablet nooit. Leeg = niet
+    // geconfigureerd: een gesprek starten geeft dan 503 AGENT_UNAVAILABLE in plaats van te falen.
+    AGENT_SERVICE_URL: z.string().default(''),
+    // Gedeeld geheim (Bearer) dat exact gelijk moet zijn aan SERVICE_TOKEN van de agentdienst.
+    // Verplicht zodra AGENT_SERVICE_URL gezet is: de agentdienst draait nooit zonder.
+    AGENT_SERVICE_TOKEN: z.string().default(''),
+    // Staat plain http naar de agentdienst toe in productie: alleen voor de opstelling waarin de dienst
+    // als container op een gesloten netwerk zonder gepubliceerde poort draait (zoals in compose).
+    AGENT_ALLOW_INSECURE_HTTP: booleanFromString.default(false),
     // --- Spraakuitvoer (INTENTO-NEW-DESIGN §50, §53) ---
     // De backend praat namens de tablet met de spraakdienst; de tablet nooit rechtstreeks (INTENTO-NEW-DESIGN §51).
     // `none` = geen dienst geconfigureerd: de spraakendpoints antwoorden dan met 503 SPEECH_UNAVAILABLE
@@ -238,6 +248,37 @@ const envSchema = z
     SPEECH_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(1),
   })
   .superRefine((value, ctx) => {
+    // Een geconfigureerde agentdienst heeft altijd een gedeeld geheim; in productie https, tenzij de
+    // dienst bewust op een gesloten netwerk staat.
+    if (value.AGENT_SERVICE_URL) {
+      if (!/^https?:\/\//i.test(value.AGENT_SERVICE_URL)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AGENT_SERVICE_URL'],
+          message: 'AGENT_SERVICE_URL moet een http(s)-URL zijn.',
+        });
+      }
+      if (!value.AGENT_SERVICE_TOKEN) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AGENT_SERVICE_TOKEN'],
+          message:
+            'AGENT_SERVICE_TOKEN is verplicht bij AGENT_SERVICE_URL: de agentdienst weigert elke aanroep zonder gedeeld geheim.',
+        });
+      }
+      if (
+        value.NODE_ENV === 'production' &&
+        !/^https:\/\//i.test(value.AGENT_SERVICE_URL) &&
+        !value.AGENT_ALLOW_INSECURE_HTTP
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['AGENT_SERVICE_URL'],
+          message:
+            'AGENT_SERVICE_URL moet https zijn in productie. Staat de agentdienst als container op een gesloten netwerk zonder gepubliceerde poort, zet dan AGENT_ALLOW_INSECURE_HTTP=true.',
+        });
+      }
+    }
     // Een geconfigureerde spraakdienst heeft een URL nodig; anders zou de eerste zin stilletjes falen.
     if (value.SPEECH_PROVIDER === 'http') {
       if (!value.SPEECH_SERVICE_URL) {

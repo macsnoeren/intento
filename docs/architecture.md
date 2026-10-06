@@ -140,13 +140,14 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
 
 ## Draaien in containers (fase 19)
 
-Drie images, één `compose.yaml` in de repo-root (de agentdienst komt erbij in N1.7):
+Vier images, één `compose.yaml` in de repo-root:
 
 | Dienst | Image | Bijzonderheid |
 |---|---|---|
 | `server` | `server/Dockerfile`, Debian + Node 24 | migreert in het entrypoint (`prisma migrate deploy`), draait als niet-root, SQLite op een named volume |
 | `web` | `web/Dockerfile`, nginx-alpine | statische build; `VITE_API_URL` wordt **bij de build** ingebakken |
 | `speech` | `speech-service/Dockerfile`, Python + Piper | alleen op het interne netwerk; stemmen uit een volume dat een eenmalige init-dienst vult |
+| `agents` | `agent-service/Dockerfile`, Python + pydantic | geen `ports:`, `SERVICE_TOKEN` verplicht, healthcheck op `/health`; de backend bereikt hem op `http://agents:5003` |
 
 Build-context van `server` en `web` is de **repo-root** (npm-workspaces, `shared/`). De database is
 bewust SQLite; het PostgreSQL-pad staat als losse stap op de "na de MVP"-lijst. Afwegingen:

@@ -146,6 +146,36 @@ describe('loadEnv prod-guards', () => {
     expect(() => loadEnv({ ...base, SPEECH_SERVICE_TOKEN: 'spr_geheim' })).not.toThrow();
   });
 
+  it('eist een gedeeld geheim zodra de agentdienst geconfigureerd is (N1.7)', () => {
+    const base = {
+      SIGNING_SECRET: 'een-echte-secret',
+      ENCRYPTION_KEY: 'een-echte-sleutel',
+      AGENT_SERVICE_URL: 'http://agents:5003',
+    };
+    expect(() => loadEnv(base)).toThrow(/AGENT_SERVICE_TOKEN is verplicht/);
+    expect(loadEnv({ ...base, AGENT_SERVICE_TOKEN: 'agt_geheim' }).AGENT_SERVICE_URL).toBe(
+      'http://agents:5003',
+    );
+    // Niet geconfigureerd mag: dan is er (nog) geen agentdienst.
+    expect(loadEnv({ SIGNING_SECRET: 'x', ENCRYPTION_KEY: 'y' }).AGENT_SERVICE_URL).toBe('');
+  });
+
+  it('eist https naar de agentdienst in productie, tenzij bewust op een gesloten netwerk', () => {
+    const base = {
+      NODE_ENV: 'production',
+      SIGNING_SECRET: 'een-echte-secret',
+      ENCRYPTION_KEY: 'een-echte-sleutel',
+      COOKIE_SECURE: 'true',
+      SMTP_HOST: 'mail.intento.test',
+      EMAIL_VERIFICATION_URL_BASE: 'https://app.intento.test/verify-email',
+      APP_BASE_URL: 'https://app.intento.test',
+      AGENT_SERVICE_URL: 'http://agents:5003',
+      AGENT_SERVICE_TOKEN: 'agt_geheim',
+    };
+    expect(() => loadEnv(base)).toThrow(/AGENT_SERVICE_URL moet https zijn/);
+    expect(() => loadEnv({ ...base, AGENT_ALLOW_INSECURE_HTTP: 'true' })).not.toThrow();
+  });
+
   it('vertrouwt standaard geen enkele proxy', () => {
     expect(
       loadEnv({
