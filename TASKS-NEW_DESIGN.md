@@ -334,7 +334,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   en Stoppen. Rooktest van begin tot eind in Docker.
   *Acceptatie:* componenttest; rooktest met de agentdienst gestopt en weer gestart.
 
-- [ ] **N4.14 Oude tablet-CSS opruimen**
+- [x] **N4.14 Oude tablet-CSS opruimen**
   *ONTWERP: §55.* Ontdekt bij N4.9: `styles.css` bevat nog klassen van de oude gespreksflow
   (`.option--guess`, `.option--new`, `.proposal__*`, `.topic-results`, `.tablet__question`,
   `.ai-status*`, …). Verwijderen wat geen component meer gebruikt.

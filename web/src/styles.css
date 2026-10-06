@@ -432,27 +432,6 @@ body {
   color: var(--intento-muted);
 }
 
-/* Rasters binnen een pagina: lijst links, detail rechts. */
-.admin__grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.25rem;
-}
-
-@media (min-width: 60rem) {
-  .admin__grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-}
-
-/* Rechterkolom: instellingen + gekoppelde begeleiders onder elkaar. */
-.admin__detail {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
 /* Formulieren */
 .form {
   display: flex;
@@ -726,16 +705,6 @@ body {
   font-weight: 700;
 }
 
-/* Pictogram in plaats van initialen (AAC-bibliotheek). */
-.record__image {
-  flex: none;
-  width: 3rem;
-  height: 3rem;
-  object-fit: contain;
-  border-radius: var(--intento-radius-sm);
-  background: var(--intento-bg);
-}
-
 .record__body {
   flex: 1;
   min-width: 0;
@@ -792,25 +761,6 @@ body {
 .detail-back:hover {
   color: var(--intento-accent-hover);
   text-decoration: underline;
-}
-
-/* De panelen van één item, naast elkaar in plaats van onder elkaar in een halve kolom. */
-.detail-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: start;
-  gap: 1.25rem;
-}
-
-@media (min-width: 64rem) {
-  .detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  /* Panelen met stappen of lange tekst krijgen de volle breedte. */
-  .detail-grid__wide {
-    grid-column: 1 / -1;
-  }
 }
 
 /* Onomkeerbare handelingen: apart, onderaan, met uitleg — niet tussen de gewone instellingen. */
@@ -974,66 +924,6 @@ body {
   flex: none;
 }
 
-.relation-list {
-  list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.relation-list__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  padding: 0.4rem 0.4rem 0.4rem 0.9rem;
-  font-size: 1.1rem;
-}
-
-/* Bronvermelding onder een pictogram met externe herkomst (OpenSymbols, T3.3). */
-.symbol-attribution {
-  margin-top: 0.4rem;
-  font-size: 0.85rem;
-}
-
-/* OpenSymbols-zoekresultaten (T3.3): pictogram + herkomst + koppelknop. */
-.opensymbols-results {
-  list-style: none;
-  margin: 0.8rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.opensymbols-results__item {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  padding: 0.4rem;
-}
-
-.opensymbols-results__image {
-  border-radius: 8px;
-  background: var(--intento-bg);
-  object-fit: contain;
-  flex: none;
-}
-
-.opensymbols-results__meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
 /* Koppelcode voor tabletkoppeling (T2.3). Groot en goed leesbaar om over te typen. */
 .device-code {
   margin-top: 0.9rem;
@@ -1069,67 +959,6 @@ body {
   margin: 0.2rem 0 0.6rem;
   overflow-wrap: anywhere;
   user-select: all;
-}
-
-/* AI-activiteitenoverzicht (T9.15): per AI-aanvraag wat de AI eruit gaf. Compacte, leesbare kaartjes. */
-.ai-jobs {
-  list-style: none;
-  margin: 0.8rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.ai-jobs__item {
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  padding: 0.7rem 0.9rem;
-}
-
-.ai-jobs__head {
-  margin: 0;
-}
-
-.ai-jobs__question {
-  margin: 0.3rem 0;
-  font-style: italic;
-}
-
-.ai-jobs__options {
-  margin: 0.2rem 0;
-  padding-left: 1.2rem;
-}
-
-/* AI-statusindicator (T9.4): klein lampje dat laat zien of er echt een AI meedenkt. Bewust ingetogen —
-   het mag nooit met de boodschap of de keuzes concurreren. */
-.ai-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0;
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  background: var(--intento-surface-alt, #eef2f8);
-  color: var(--intento-fg);
-}
-
-.ai-status__dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  background: currentColor;
-  flex: none;
-}
-
-.ai-status--ok .ai-status__dot {
-  color: #1a7f4b;
-}
-
-.ai-status--warn .ai-status__dot {
-  color: #b06000;
 }
 
 /* Vaste kopbalk van de gebruikersapp (T17.1): links het merk, rechts wie er communiceert. Klein en
@@ -1188,95 +1017,6 @@ body {
   color: var(--intento-fg);
 }
 
-/* Keuzeraster: grote pictogramknoppen, vloeiend van 2 tot 8 opties. */
-.option-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 1rem;
-}
-
-.option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 1.25rem;
-  min-height: 12rem;
-  border: 2px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  background: var(--intento-surface);
-  color: var(--intento-fg);
-  cursor: pointer;
-}
-
-.option {
-  box-shadow: var(--intento-shadow);
-  transition: transform 120ms ease-out;
-}
-
-.option:hover:not(:disabled) {
-  border-color: var(--intento-accent);
-}
-
-.option:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .option {
-    transition: none;
-  }
-
-  .option:active:not(:disabled) {
-    transform: none;
-  }
-}
-
-.option:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* Nieuw woord (T10.6): door de AI aangedragen omdat het begrip nog niet in de bibliotheek stond.
-   Zichtbaar anders dan een vertrouwd pictogram — een suggestie, geen bibliotheekwoord. */
-.option--new {
-  position: relative;
-  border-style: dashed;
-  border-color: var(--intento-accent);
-}
-
-/* De gok van de AI (T16.3, strategie `guess`): "🎯 Ik denk: …" — een gemarkeerde tegel tussen de
-   gewone pictogrammen. Zichtbaar anders dan een gewone optie, want de gebruiker moet kunnen zien dat
-   dit een aanname is; maar wél een tegel als alle andere, want hij kiest zelf. */
-.option--guess {
-  position: relative;
-  border-width: 3px;
-  border-color: var(--intento-accent);
-  background: var(--intento-accent-soft, #e3edff);
-}
-
-.option__badge {
-  position: absolute;
-  top: 0.4rem;
-  right: 0.5rem;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-
-.option__image {
-  width: 7.5rem;
-  height: 7.5rem;
-  object-fit: contain;
-  border-radius: 8px;
-  background: var(--intento-bg);
-}
-
-.option__label {
-  font-size: 1.35rem;
-  font-weight: 600;
-  text-align: center;
-}
-
 .tablet__done {
   display: flex;
   flex-direction: column;
@@ -1293,28 +1033,6 @@ body {
   margin: 0;
 }
 
-/* Zoekresultaten voor het onderwerp in de vraagmodus (T7.1): kleine, aanklikbare lijst met chips. */
-.topic-results {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-/* Begeleidersvraag als context boven het keuzescherm (vraagmodus, T7.1): rustig kaartje, geen afleiding. */
-.tablet__question {
-  margin: 0 auto 0.5rem;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  background: var(--intento-surface-alt, #eef2f8);
-  color: var(--intento-fg);
-  font-size: clamp(1rem, 2.2vw, 1.25rem);
-  text-align: center;
-  max-width: 40rem;
-}
-
 /* Rustig, centraal statusscherm op de tablet (bv. "Nog niet beschikbaar"): geen foutkleur. */
 .tablet__waiting {
   display: flex;
@@ -1325,56 +1043,6 @@ body {
   margin: auto;
 }
 
-.tablet__waiting-icon {
-  font-size: clamp(3rem, 10vw, 5rem);
-  margin: 0;
-  animation: tablet-waiting-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes tablet-waiting-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tablet__waiting-icon {
-    animation: none;
-  }
-}
-
-/* Voorstelscherm (T4.3): de gekozen pictogramreeks + zin + ✅/❌. */
-.proposal__symbols {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.proposal__symbol {
-  width: clamp(64px, 12vw, 96px);
-  height: auto;
-}
-
-.proposal__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.proposal__actions .button {
-  font-size: 1.5rem;
-  padding: 1rem 2.25rem;
-}
-
 /* Onderbalk met de altijd beschikbare Terug-knop. */
 .tablet__bar {
   margin-top: auto;
@@ -1382,7 +1050,7 @@ body {
   justify-content: flex-start;
 }
 
-/* Duwt "Opnieuw beginnen" naar het einde van de balk, weg van de keuzeknoppen (T10.12). */
+/* Duwt ⏹ Stoppen naar het einde van de balk, weg van ↩ Terug. */
 .tablet__bar-end {
   margin-left: auto;
 }
@@ -1423,25 +1091,6 @@ body {
 .button--link:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* Worker-tokenbeheer (T5.8). Lijst met status-badges en de eenmalige token-onthulling. */
-.panel--highlight {
-  margin-top: 1rem;
-  border-color: var(--intento-accent);
-  background: #eef4ff;
-}
-
-.token-reveal {
-  display: block;
-  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
-  font-size: 0.95rem;
-  word-break: break-all;
-  padding: 0.6rem 0.75rem;
-  margin: 0.5rem 0;
-  background: var(--intento-surface);
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
 }
 
 .token-list {
@@ -1516,107 +1165,6 @@ body {
   gap: 1rem;
 }
 
-.context-form {
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  padding: 1rem;
-  background: var(--intento-bg);
-}
-
-.wizard-step {
-  margin: 0.5rem 0 1rem;
-}
-
-.wizard-step__heading {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin: 0 0 0.25rem;
-}
-
-.wizard-step__glyph {
-  font-size: 1.8rem;
-}
-
-.wizard-step__title {
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.wizard-nav {
-  justify-content: space-between;
-}
-
-.context-chips {
-  list-style: none;
-  margin: 0.75rem 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.context-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--intento-border);
-  border-radius: 999px;
-  background: var(--intento-surface);
-}
-
-.context-chip__remove {
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--intento-muted);
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0;
-}
-
-.context-list {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.context-list__item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-}
-
-.context-list__item--editing {
-  display: block;
-}
-
-.context-list__glyph {
-  font-size: 1.6rem;
-}
-
-.context-list__text {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.context-list__name {
-  font-weight: 600;
-}
-
-.context-list__meta {
-  font-size: 0.9rem;
-  color: var(--intento-muted);
-}
-
 /* Beheerdashboard (T7.3): stat-tegels en recente activiteit. */
 .stat-grid {
   display: grid;
@@ -1648,16 +1196,6 @@ body {
   inset: 0 0 auto;
   height: 3px;
   background: var(--intento-gradient);
-}
-
-.stat-tile--action {
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-}
-
-.stat-tile--action:hover {
-  border-color: var(--intento-accent);
 }
 
 .stat-tile__value {
@@ -1699,167 +1237,6 @@ body {
   font-size: 0.8rem;
   font-weight: 400;
   color: var(--intento-muted);
-}
-
-/* Afgehandelde berichten (T13.3): zichtbaar rustiger, maar nooit weg. Een boodschap van een gebruiker
-   verdwijnt niet omdat een begeleider hem afvinkt — hij zakt alleen naar de achtergrond. */
-.activity-list__item--done {
-  background: var(--intento-bg);
-}
-
-.activity-list__item--done .activity-list__user,
-.activity-list__item--done > span:not(.badge) {
-  opacity: 0.7;
-}
-
-/* Reviewlijst van AI-conceptvoorstellen (T7.3). */
-.review-list {
-  list-style: none;
-  margin: 1rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.review-list__item {
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-}
-
-.review__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.review__concept {
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.review__reason {
-  margin: 0.35rem 0 0.6rem;
-}
-
-.review__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.review__link {
-  flex: 1 1 18rem;
-  min-width: 0;
-}
-
-.review__search {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.review__results {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.review__result {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.review__result img {
-  border-radius: 6px;
-}
-
-.badge--pending {
-  color: #7a4a00;
-  border-color: #f0c98a;
-  background: #fff4e5;
-}
-
-.badge--approved {
-  color: #1f7a3d;
-  border-color: #1f7a3d;
-  background: #e7f6ec;
-}
-
-.badge--rejected {
-  color: var(--intento-muted);
-  background: var(--intento-bg);
-}
-
-/* Gespreksverloop (T12.1): een gesprek van begin tot eind teruglezen. Per stap de gestelde vraag, het
-   aanbod dat de gebruiker zag, en zijn keuze — die laatste zichtbaar gemarkeerd, want dat is waar het
-   oog naartoe moet. */
-.transcript {
-  list-style: none;
-  margin: 1rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.transcript__step {
-  border: 1px solid var(--intento-border);
-  border-radius: var(--intento-radius);
-  padding: 0.75rem;
-}
-
-.transcript__question {
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-}
-
-.transcript__options {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.transcript__option {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--intento-border);
-  border-radius: 999px;
-  background: var(--intento-bg);
-}
-
-/* De keuze van de gebruiker: niet alleen kleur — ook een dikkere rand en vet, zodat het verschil ook
-   zonder kleurwaarneming te zien is. */
-.transcript__option--chosen {
-  border-width: 2px;
-  border-color: #1f7a3d;
-  background: #e7f6ec;
-  font-weight: 600;
-}
-
-/* Tekst die alleen voor schermlezers bedoeld is (bv. "gekozen door de gebruiker" bij een pictogram
-   waar dat visueel al uit de opmaak blijkt). */
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 }
 
 /* Gegevens als paren (licentie, maker, bron): label links, waarde rechts; op een smal scherm onder elkaar. */

@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.14 — oude tablet-CSS opgeruimd
+
+- `styles.css` van ±2.090 naar ±1.500 regels: de klassen van de oude gespreksflow (keuzeraster,
+  gok-tegel, voorstelscherm, vraagmodus, AI-wachtrij en -status, contexten, review, wizard, …) zijn weg.
+- Nieuwe test `styles.test.ts`: elke klasse in `styles.css` moet als klassenaam in een component staan.
+  Tablet en beheer gerookt in de browser: ongewijzigd.
+
 ### N4.13 — tablet: "Even geen hulp"
 
 - Bij 503 `AGENT_UNAVAILABLE` (of een onbereikbare backend) toont de tablet "Het lukt nu even niet" met
