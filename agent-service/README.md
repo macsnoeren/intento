@@ -103,6 +103,12 @@ Afgekeurd → de Question Agent nog eens, met de reden in `afgekeurd` (prompt `q
 ongeldige vragen volgt de regelgebaseerde vraag. Contactnamen gaan alleen mee om te controleren dat ze
 nooit in een vraag staan (V2); ze komen nooit in een prompt.
 
+Met `AGENT_LLM_VALIDATION=true` beoordeelt ook het model elke vraag die door de regels kwam (prompt
+`validation-v1`): begrijpelijk, passend, sturend. Een afkeuring telt als regel `LLM` en gaat als reden
+mee naar de nieuwe poging. Valt het model uit, dan tellen alleen de regels (`fallback` in de
+beslissing). Standaard uit: het kost een modelaanroep per vraag (gemeten ±0,8 s met
+`gpt-oss:120b-cloud`).
+
 **Het voorstel** (§6, §31): met een taalmodel stelt de orchestrator "Bedoel je: …?" voor zodra de
 bovenste hypothese een confidence ≥ `AGENT_PROPOSE_THRESHOLD` (standaard 0,85) heeft, de gebruiker
 minstens één keer antwoordde en de zin door V7 komt (3 tot 120 tekens, geen naam of URL). De zin is die

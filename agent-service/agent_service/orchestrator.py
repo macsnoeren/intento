@@ -24,7 +24,14 @@ from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
 from .agents.safety import SafetyFinding, s1_question_limit, s2_proposal_needs_answer
 from .agents.strategies import instruction_for
-from .agents.validation import DEFAULT_PROPOSE_THRESHOLD, Finding, v7_proposal, validate_question
+from .agents.validation import (
+    DEFAULT_PROPOSE_THRESHOLD,
+    Finding,
+    llm_validate,
+    v7_proposal,
+    validate_question,
+    validation_prompt,
+)
 from .contracts import (
     CONTRACT_VERSION,
     AgentDecision,
@@ -63,8 +70,10 @@ class _Turn:
         settings: Settings,
         names: list[str],
         propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
+        llm_validation: bool = False,
     ) -> None:
         self.clock = clock
+        self.llm_validation = llm_validation
         self.llm = llm
         self.settings = settings
         self.propose_threshold = propose_threshold
@@ -106,11 +115,18 @@ def step(
     llm: LlmProvider | None = None,
     clock: Callable[[], float] = time.monotonic,
     propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
+    llm_validation: bool = False,
 ) -> TurnResponse:
-    """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels."""
+    """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels; `llm_validation` zet het
+    LLM-deel van de Validation Agent aan (`AGENT_LLM_VALIDATION`)."""
     vocabulary = VocabularyIndex(request.vocabulary)
     turn = _Turn(
-        clock, llm, request.settings, [c.name for c in request.contacts], propose_threshold
+        clock,
+        llm,
+        request.settings,
+        [c.name for c in request.contacts],
+        propose_threshold,
+        llm_validation,
     )
     event = request.event
 
@@ -371,18 +387,53 @@ def _validate(
         )
         if f.action == "reject"
     ]
+    if findings or turn.llm is None or not turn.llm_validation:
+        _record_validation(turn, findings, None)
+        return findings
+    # Het LLM-deel (§9): alleen als de regels niets vonden. Valt het model uit, dan tellen de regels.
+    provider, prompt = turn.llm, validation_prompt()
+    result = run_agent(
+        "validation-agent",
+        rules=lambda: list[Finding](),
+        llm=LlmAttempt(
+            run=lambda: llm_validate(
+                provider,
+                prompt,
+                text=question.text,
+                concept=question.concept,
+                label=option.label,
+                state=state,
+            ),
+            model=provider.model,
+            prompt_version=prompt.id,
+        ),
+        rules_reason="alleen regels",
+        clock=turn.clock,
+    )
+    findings = result.value or []
+    _record_validation(turn, findings, result)
+    return findings
+
+
+def _record_validation(
+    turn: _Turn, findings: list[Finding], llm_result: AgentResult[list[Finding]] | None
+) -> None:
+    """Eén `validation-agent`-beslissing per keuring: valid of invalid, met de regels die faalden."""
     reason = "; ".join(f"{f.rule}: {f.reason}" for f in findings) or None
+    if llm_result is not None and llm_result.status != "success":
+        reason = "; ".join(r for r in (reason, llm_result.reason) if r)
     turn.record(
         AgentResult(
             agent="validation-agent",
-            status="success",
+            status=llm_result.status if llm_result else "success",
             value=findings,
-            meta=AgentMeta(model=None, prompt_version=RULES_VERSION, latency_ms=0),
+            meta=llm_result.meta
+            if llm_result
+            else AgentMeta(model=None, prompt_version=RULES_VERSION, latency_ms=0),
             validation="invalid" if findings else "valid",
             reason=reason,
         )
     )
-    return findings
 
 
 def _pictogram(concept: str, label: str, vocabulary: VocabularyIndex, turn: _Turn) -> Option | None:

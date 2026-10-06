@@ -11,18 +11,23 @@ antwoord al in de agentdienst wordt opgevangen, met een reden die de Question Ag
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..contracts import Gap, Presentation, SessionState, Settings
+from ..llm import LlmProvider
+from ..prompts import Prompt, load_prompt
 from ..vocabulary import VocabularyIndex, normalize
 
 #: Standaarddrempel voor een voorstel (§6, `AGENT_PROPOSE_THRESHOLD`).
 DEFAULT_PROPOSE_THRESHOLD = 0.85
 
-Rule = Literal["V1", "V2", "V3", "V4", "V5", "V6", "V7"]
+Rule = Literal["V1", "V2", "V3", "V4", "V5", "V6", "V7", "LLM"]
 
 _URL = re.compile(r"https?://|www\.|\b[\w-]+\.(?:nl|com|org|net|be|eu)\b", re.IGNORECASE)
 
@@ -172,3 +177,61 @@ def validate_question(
         v6_option_count(presentation, presentation.mode, settings),
     ]
     return [finding for finding in checks if finding is not None]
+
+
+# --- Het LLM-deel (optioneel, `AGENT_LLM_VALIDATION`) ----------------------------------------------
+
+VALIDATION_TIMEOUT_SECONDS = 8.0
+
+
+class LlmVerdict(BaseModel):
+    """Wat het model teruggeeft over één vraag."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    valid: bool
+    reason: Annotated[str, Field(max_length=200)] | None = None
+
+
+def llm_validate(
+    provider: LlmProvider,
+    prompt: Prompt,
+    *,
+    text: str,
+    concept: str | None,
+    label: str,
+    state: SessionState,
+    timeout: float = VALIDATION_TIMEOUT_SECONDS,
+) -> list[Finding]:
+    """Laat het model beoordelen wat regels niet kunnen: begrijpelijk, passend, sturend (§9).
+
+    Gooit bij een fout van het model; de aanroeper telt dan alleen de regels.
+    """
+    payload = {
+        "vraag": text,
+        "concept": concept,
+        "label": label,
+        "antwoorden": [
+            {
+                "concepten": a.concepts,
+                "antwoord": "ja" if a.answer in ("yes", "selected") else "nee",
+            }
+            for a in state.answers
+        ],
+        "hypotheses": [{"concept": h.concept, "label": h.label} for h in state.intent_hypotheses],
+    }
+    raw = provider.complete_json(
+        prompt.text,
+        json.dumps(payload, ensure_ascii=False),
+        LlmVerdict.model_json_schema(),
+        timeout,
+    )
+    verdict = LlmVerdict.model_validate(raw)
+    if verdict.valid:
+        return []
+    reason = " ".join((verdict.reason or "de vraag is niet goed genoeg").split())[:120]
+    return [Finding("LLM", reason)]
+
+
+def validation_prompt() -> Prompt:
+    return load_prompt("validation")

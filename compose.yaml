@@ -130,6 +130,7 @@ services:
       OLLAMA_MODEL: '${OLLAMA_MODEL:-}'
       OLLAMA_API_KEY: '${OLLAMA_API_KEY:-}'
       AGENT_PROPOSE_THRESHOLD: '${AGENT_PROPOSE_THRESHOLD:-0.85}'
+      AGENT_LLM_VALIDATION: '${AGENT_LLM_VALIDATION:-false}'
     # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen.
     restart: unless-stopped
 

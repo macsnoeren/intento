@@ -81,10 +81,14 @@ class ServiceConfig:
     # Vanaf welke zekerheid de Intent Agent "Bedoel je …?" mag voorstellen (§6, V7).
     propose_threshold: float = 0.85
 
+    # Het LLM-deel van de Validation Agent (§9). Standaard uit: het kost een extra modelaanroep per vraag.
+    llm_validation: bool = False
+
     def __repr__(self) -> str:
         return (
             f"ServiceConfig(host={self.host!r}, port={self.port}, service_token='***', "
-            f"ollama={self.ollama!r}, propose_threshold={self.propose_threshold})"
+            f"ollama={self.ollama!r}, propose_threshold={self.propose_threshold}, "
+            f"llm_validation={self.llm_validation})"
         )
 
     @staticmethod
@@ -142,7 +146,17 @@ class ServiceConfig:
             service_token=token,
             ollama=_ollama_settings(optional),
             propose_threshold=threshold,
+            llm_validation=_flag(optional("AGENT_LLM_VALIDATION", "false"), "AGENT_LLM_VALIDATION"),
         )
+
+
+def _flag(value: str, key: str) -> bool:
+    lowered = value.lower()
+    if lowered in ("true", "1", "yes", "ja"):
+        return True
+    if lowered in ("false", "0", "no", "nee"):
+        return False
+    raise ConfigError(f"{key} moet true of false zijn (kreeg {value!r}).")
 
 
 def _ollama_settings(optional: Callable[[str, str], str]) -> OllamaSettings | None:

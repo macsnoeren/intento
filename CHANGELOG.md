@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.11 — Validation Agent: LLM-deel
+
+- Optioneel (`AGENT_LLM_VALIDATION`, nieuw, standaard false; in de `.env`-voorbeelden en compose): na
+  de regels beoordeelt het model of de vraag begrijpelijk is, past en stuurt (prompt `validation-v1`).
+  Een afkeuring gaat als reden mee naar de nieuwe poging van de Question Agent; bij uitval van het model
+  tellen alleen de regels. Gemeten met `gpt-oss:120b-cloud`: ±0,8 s extra per vraag.
+
 ### N6.10 — het voorstel "Bedoel je …?"
 
 - Met een taalmodel stelt de orchestrator voor bij confidence ≥ `AGENT_PROPOSE_THRESHOLD` (nieuw, 0,5–1,

@@ -423,7 +423,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   hypothese telt als afgewezen, terug naar `clarify`.
   *Acceptatie:* scenario "hoofdpijn" van start tot `done` met FakeProvider; NEE-scenario.
 
-- [ ] **N6.11 Validation Agent: LLM-deel**
+- [x] **N6.11 Validation Agent: LLM-deel**
   *ONTWERP: §9.* Optioneel (`AGENT_LLM_VALIDATION`): is de vraag begrijpelijk, past ze, stuurt ze?
   *Acceptatie:* unittests aan/uit; bij uitval van de LLM tellen alleen de regels.
 

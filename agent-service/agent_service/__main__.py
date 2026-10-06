@@ -35,7 +35,13 @@ def main() -> int:
         log.info("Geen taalmodel (OLLAMA_URL leeg): alle agents draaien op hun regels.")
 
     server = AgentServer(
-        config, handle_turn=partial(step, llm=provider, propose_threshold=config.propose_threshold)
+        config,
+        handle_turn=partial(
+            step,
+            llm=provider,
+            propose_threshold=config.propose_threshold,
+            llm_validation=config.llm_validation,
+        ),
     )
     log.info("Agentdienst luistert op http://%s:%d", config.host, config.port)
     try:
