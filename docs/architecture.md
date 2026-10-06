@@ -84,7 +84,9 @@ server niet uit elkaar lopen.
   `TabletConversation.tsx` (het gesprek: startscherm, binary scherm met pictogram, vraag, JA links/NEE
   rechts, ↩ Terug en ⏹ Stoppen; "Bedoel je …?" met alle pictogrammen van de boodschap; Klaar met de
   boodschap groot en "Nieuw gesprek"; hervat een lopend gesprek en meet de reactietijd; met voorlezen
-  aan gaat letterlijk de schermtekst — of op Klaar de boodschap — naar `speech.ts`), `api.ts`
+  aan gaat letterlijk de schermtekst — of op Klaar de boodschap — naar `speech.ts`; bij 503
+  `AGENT_UNAVAILABLE` of een onbereikbare backend "Het lukt nu even niet" met Opnieuw proberen — exact
+  dezelfde handeling, met hetzelfde antwoord — en Stoppen), `api.ts`
   (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
   `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
   `styles.css`.

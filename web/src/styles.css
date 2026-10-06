@@ -2071,3 +2071,16 @@ body {
   font-size: 1.35rem;
   padding: 1rem 2rem;
 }
+
+/* "Het lukt nu even niet" (§48): rustig, geen foutkleur; opnieuw proberen of stoppen. */
+.tablet__unavailable-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.tablet__unavailable-actions .button {
+  font-size: 1.35rem;
+  padding: 1rem 2rem;
+}

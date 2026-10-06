@@ -329,7 +329,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   `speech.ts`), met "🔊 Nog eens" op het Klaar-scherm.
   *Acceptatie:* componenttest: precies de schermtekst gaat naar de spraaklaag.
 
-- [ ] **N4.13 Tablet: "Even geen hulp"**
+- [x] **N4.13 Tablet: "Even geen hulp"**
   *ONTWERP: §48, §52.* Bij 503 `AGENT_UNAVAILABLE` het scherm "Het lukt nu even niet" met Opnieuw proberen
   en Stoppen. Rooktest van begin tot eind in Docker.
   *Acceptatie:* componenttest; rooktest met de agentdienst gestopt en weer gestart.

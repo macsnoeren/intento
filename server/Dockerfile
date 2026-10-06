@@ -50,8 +50,12 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 # `dumb-init` zorgt dat SIGTERM bij Node aankomt (netjes stoppen i.p.v. na tien seconden gekilld).
+# `openssl`: Prisma kiest zijn schema-engine op de OpenSSL-versie van het systeem. Zonder OpenSSL hier
+# gokt hij `openssl-1.1.x`, terwijl de builder de engine voor `openssl-3.0.x` meegaf — en dan haalt
+# `migrate deploy` bij elke start een engine van internet. Zonder netwerk (of DNS) start de server dan
+# niet. Met OpenSSL gebruikt hij de engine die al in het image zit.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends dumb-init \
+    && apt-get install -y --no-install-recommends dumb-init openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # In een npm-workspaces-installatie staan de pakketten **gehesen** in de root-`node_modules`; er is dus

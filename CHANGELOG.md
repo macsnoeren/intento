@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.13 — tablet: "Even geen hulp"
+
+- Bij 503 `AGENT_UNAVAILABLE` (of een onbereikbare backend) toont de tablet "Het lukt nu even niet" met
+  Opnieuw proberen en Stoppen. Opnieuw proberen herhaalt precies dezelfde handeling: het antwoord
+  (beurt én reactietijd) ligt vast op het moment van de tik. Stoppen gaat altijd terug naar het begin.
+- Rooktest in Docker: gesprek starten, agentdienst stoppen, "Het lukt nu even niet", agentdienst weer
+  starten, opnieuw proberen en door tot Klaar.
+- **Fix in het server-image:** de runtime-laag had geen OpenSSL, waardoor Prisma bij elke start een
+  andere schema-engine van internet probeerde te halen (zonder DNS startte de server niet). `openssl`
+  staat nu in de runtime-laag; `migrate deploy` werkt offline met de engine uit het image.
+
 ### N4.12 — tablet: voorlezen
 
 - Met voorlezen aan spreekt de tablet op elk nieuw scherm precies de schermtekst uit (de vraag, "Bedoel

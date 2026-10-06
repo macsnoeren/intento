@@ -86,6 +86,8 @@ function fakeDeviceApi(
     names?: string[];
     resume?: CommunicationTurn | null;
     failAnswer?: ApiRequestError;
+    /** Zoveel keer geeft start/antwoord eerst 503 AGENT_UNAVAILABLE. */
+    unavailable?: { start?: number; answer?: number };
   } = {},
 ): {
   api: DeviceApi;
@@ -95,6 +97,11 @@ function fakeDeviceApi(
   const log: Call[] = [];
   const history: CommunicationTurn[] = [];
   let current: CommunicationTurn | null = options.resume ?? null;
+  const unavailable = { start: 0, answer: 0, ...options.unavailable };
+  const noHelp = (): Promise<never> =>
+    Promise.reject(
+      new ApiRequestError(503, 'AGENT_UNAVAILABLE', 'De hulp is even niet beschikbaar.'),
+    );
   let linked = options.linked ?? false;
   const names = options.names ?? ['Sanne'];
   let calls = 0;
@@ -109,6 +116,10 @@ function fakeDeviceApi(
     api: {
       startConversation() {
         log.push(['start']);
+        if (unavailable.start > 0) {
+          unavailable.start -= 1;
+          return noHelp();
+        }
         return Promise.resolve(show(screen0(0, 'pijn', false)));
       },
       currentConversation() {
@@ -117,6 +128,10 @@ function fakeDeviceApi(
       answerConversation(sessionId, answer) {
         log.push(['answer', sessionId, answer]);
         if (options.failAnswer) return Promise.reject(options.failAnswer);
+        if (unavailable.answer > 0) {
+          unavailable.answer -= 1;
+          return noHelp();
+        }
         const turn = (current?.turn ?? 0) + 1;
         const yes = 'answer' in answer && answer.answer === 'yes';
         const shown = current?.presentation;
@@ -457,5 +472,49 @@ describe('voorlezen (N4.12)', () => {
     await screen.findByRole('heading', { name: 'Pijn', level: 1 });
     expect(speech.spoken).toEqual([]);
     expect(screen.queryByRole('button', { name: '🔊 Nog eens' })).toBeNull();
+  });
+});
+
+describe('"Het lukt nu even niet" (N4.13)', () => {
+  it('toont het scherm bij een mislukte start; Opnieuw proberen lukt daarna', async () => {
+    const fake = fakeDeviceApi({ linked: true, unavailable: { start: 1 } });
+    render(<TabletApp api={fake.api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    expect(await screen.findByRole('heading', { name: 'Het lukt nu even niet' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Opnieuw proberen' }));
+    expect(await screen.findByRole('heading', { name: 'Pijn?' })).toBeTruthy();
+    expect(fake.log.filter((call) => call[0] === 'start')).toHaveLength(2);
+  });
+
+  it('probeert hetzelfde antwoord opnieuw, met dezelfde beurt', async () => {
+    const fake = fakeDeviceApi({ linked: true, unavailable: { answer: 2 } });
+    render(<TabletApp api={fake.api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
+    fireEvent.click(screen.getByRole('button', { name: 'NEE' }));
+    await screen.findByRole('heading', { name: 'Het lukt nu even niet' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Opnieuw proberen' }));
+    await screen.findByRole('heading', { name: 'Het lukt nu even niet' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Opnieuw proberen' }));
+    expect(await screen.findByRole('heading', { name: 'Eten?' })).toBeTruthy();
+
+    const answers = fake.log.filter((call) => call[0] === 'answer');
+    expect(answers).toHaveLength(3);
+    expect(new Set(answers.map((call) => JSON.stringify(call[2])))).toHaveProperty('size', 1);
+  });
+
+  it('Stoppen gaat terug naar het begin en stopt het gesprek', async () => {
+    const fake = fakeDeviceApi({ linked: true, unavailable: { answer: 1 } });
+    render(<TabletApp api={fake.api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    await screen.findByRole('heading', { name: 'Het lukt nu even niet' });
+
+    fireEvent.click(screen.getByRole('button', { name: '⏹ Stoppen' }));
+    expect(await screen.findByRole('button', { name: 'Ik wil iets zeggen' })).toBeTruthy();
+    expect(fake.log.at(-1)).toEqual(['stop', 's-1']);
   });
 });

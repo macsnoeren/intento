@@ -22,6 +22,18 @@ function errorMessage(error: unknown): string {
   return error instanceof ApiRequestError ? error.message : 'Er ging iets mis.';
 }
 
+/**
+ * De hulp is er even niet (§48, §52): de agentdienst is onbereikbaar of gaf een antwoord dat de backend
+ * verwierp — of de backend zelf is even weg. Voor de gebruiker is dat hetzelfde: "Het lukt nu even
+ * niet", met opnieuw proberen of stoppen.
+ */
+function isUnavailable(error: unknown): boolean {
+  return (
+    error instanceof ApiRequestError &&
+    ((error.status === 503 && error.code === 'AGENT_UNAVAILABLE') || error.status === 0)
+  );
+}
+
 export function TabletConversation({
   api,
   showText,
@@ -42,6 +54,8 @@ export function TabletConversation({
   const [turn, setTurn] = useState<CommunicationTurn | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** De handeling die mislukte omdat de hulp er niet was; "Opnieuw proberen" doet hem nog eens. */
+  const [retry, setRetry] = useState<(() => Promise<CommunicationTurn | null>) | null>(null);
   const shownAt = useRef(Date.now());
 
   // Een lopend gesprek hervatten (na herladen); anders het startscherm.
@@ -86,9 +100,14 @@ export function TabletConversation({
       setError(null);
       try {
         setTurn(await action());
+        setRetry(null);
       } catch (err) {
-        if (err instanceof ApiRequestError && err.status === 409) {
+        if (isUnavailable(err)) {
+          // Het scherm blijft wat het was; de gebruiker kiest zelf: opnieuw of stoppen.
+          setRetry(() => action);
+        } else if (err instanceof ApiRequestError && err.status === 409) {
           // Al beantwoord (dubbele tik) of het gesprek is voorbij: toon wat de backend nu heeft.
+          setRetry(null);
           setTurn(await api.currentConversation().catch(() => null));
         } else {
           setError(errorMessage(err));
@@ -102,14 +121,15 @@ export function TabletConversation({
 
   const start = (): Promise<void> => act(() => api.startConversation());
 
-  const answer = (current: CommunicationTurn, given: Answer): Promise<void> =>
-    act(() =>
-      api.answerConversation(current.sessionId, {
-        turn: current.turn,
-        ...given,
-        responseTimeMs: Math.max(0, Math.round(Date.now() - shownAt.current)),
-      }),
-    );
+  const answer = (current: CommunicationTurn, given: Answer): Promise<void> => {
+    // Het antwoord ligt vast op het moment van de tik: "Opnieuw proberen" stuurt precies hetzelfde.
+    const body = {
+      turn: current.turn,
+      ...given,
+      responseTimeMs: Math.max(0, Math.round(Date.now() - shownAt.current)),
+    };
+    return act(() => api.answerConversation(current.sessionId, body));
+  };
 
   const back = (current: CommunicationTurn): Promise<void> =>
     act(() => api.goBack(current.sessionId, current.turn));
@@ -120,6 +140,14 @@ export function TabletConversation({
       return null;
     });
 
+  /** Stoppen vanaf "Het lukt nu even niet": lukt ook dat niet, dan toch terug naar het begin. */
+  const giveUp = async (): Promise<void> => {
+    const current = turn;
+    setRetry(null);
+    setTurn(null);
+    if (current) await api.stopConversation(current.sessionId).catch(() => undefined);
+  };
+
   if (loading) {
     return <p className="muted tablet__waiting">Even geduld…</p>;
   }
@@ -129,6 +157,28 @@ export function TabletConversation({
       {error}
     </p>
   ) : null;
+
+  if (retry) {
+    return (
+      <section className="tablet__waiting tablet__unavailable" role="alert">
+        <h1 className="tablet__prompt">Het lukt nu even niet</h1>
+        <p className="muted">De hulp is even niet bereikbaar. Probeer het zo nog eens.</p>
+        <div className="tablet__unavailable-actions">
+          <button
+            className="button button--primary"
+            type="button"
+            disabled={busy}
+            onClick={() => void act(retry)}
+          >
+            Opnieuw proberen
+          </button>
+          <button className="button" type="button" disabled={busy} onClick={() => void giveUp()}>
+            ⏹ Stoppen
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   if (!turn || turn.presentation.kind === 'stopped') {
     return (
