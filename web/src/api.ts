@@ -1,4 +1,8 @@
 import {
+  communicationTurnSchema,
+  currentSessionResponseSchema,
+  type AnswerRequest,
+  type CommunicationTurn,
   accountListResponseSchema,
   apiErrorSchema,
   auditLogListResponseSchema,
@@ -169,6 +173,16 @@ export interface DeviceApi {
    * gooit dit — de tablet valt dan terug op de stem van het apparaat zelf.
    */
   speakText(text: string): Promise<Blob>;
+  /** Start een gesprek (een lopend gesprek wordt gestopt). 503 `AGENT_UNAVAILABLE` als de hulp er niet is. */
+  startConversation(): Promise<CommunicationTurn>;
+  /** Het lopende gesprek om te hervatten, of `null`. */
+  currentConversation(): Promise<CommunicationTurn | null>;
+  /** Antwoord op het huidige scherm; 409 als dat scherm al beantwoord is. */
+  answerConversation(sessionId: string, answer: AnswerRequest): Promise<CommunicationTurn>;
+  /** ↩ Terug vanaf het scherm van `turn`. */
+  goBack(sessionId: string, turn: number): Promise<CommunicationTurn>;
+  /** ⏹ Stoppen. */
+  stopConversation(sessionId: string): Promise<void>;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -417,6 +431,36 @@ export const httpApi: Api & DeviceApi = {
   },
   async deviceMe() {
     return deviceSessionResponseSchema.parse(await request('/device/me'));
+  },
+  async startConversation() {
+    return communicationTurnSchema.parse(
+      await request('/communication/sessions', { method: 'POST' }),
+    );
+  },
+  async currentConversation() {
+    return currentSessionResponseSchema.parse(await request('/communication/sessions/current'))
+      .current;
+  },
+  async answerConversation(sessionId, answer) {
+    return communicationTurnSchema.parse(
+      await request(`/communication/sessions/${encodeURIComponent(sessionId)}/answer`, {
+        method: 'POST',
+        body: JSON.stringify(answer),
+      }),
+    );
+  },
+  async goBack(sessionId, turn) {
+    return communicationTurnSchema.parse(
+      await request(`/communication/sessions/${encodeURIComponent(sessionId)}/back`, {
+        method: 'POST',
+        body: JSON.stringify({ turn }),
+      }),
+    );
+  },
+  async stopConversation(sessionId) {
+    await request(`/communication/sessions/${encodeURIComponent(sessionId)}/stop`, {
+      method: 'POST',
+    });
   },
   async linkDevice(code) {
     return deviceSessionResponseSchema.parse(

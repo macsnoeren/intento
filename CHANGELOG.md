@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.9 — tablet: start- en binary scherm
+
+- `TabletConversation.tsx`: startscherm met één grote knop ("Ik wil iets zeggen"), binary scherm met
+  pictogram (label volgens "tekst tonen"), vraag, ✔ JA links (groen) en ✖ NEE rechts (rood), en
+  apart ↩ Terug en ⏹ Stoppen. Hervat een lopend gesprek na herladen; meet de reactietijd en stuurt die
+  mee; bij een verouderd scherm (409) haalt hij het actuele scherm op.
+- `DeviceApi`: `startConversation`, `currentConversation`, `answerConversation`, `goBack`,
+  `stopConversation`. Een beurt heeft nu `canGoBack`, zodat Terug op het eerste scherm ontbreekt.
+- Nieuwe taak N4.14: oude tablet-CSS opruimen.
+
 ### N4.8 — hervatten
 
 - `GET /communication/sessions/current` (apparaatsessie): `{ current }` met het huidige scherm van het

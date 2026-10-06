@@ -1,13 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { CommunicationProfile, DeviceSessionResponse, UserPublic } from '@intento/shared';
+import type {
+  AnswerRequest,
+  CommunicationProfile,
+  CommunicationTurn,
+  DeviceSessionResponse,
+  UserPublic,
+} from '@intento/shared';
 import { TabletApp } from './TabletApp.tsx';
 import { ApiRequestError, type DeviceApi } from './api.ts';
 
 /**
  * Web-tests voor de gebruikersapp op de tablet. Draaien tegen een in-memory `DeviceApi`, zodat
- * koppelen en het scherm daarna zonder netwerk getest worden. De gespreksflow wordt herbouwd
- * (ADR-0017); tot dan toont een gekoppelde tablet "Nog niet beschikbaar".
+ * koppelen en het gesprek zonder netwerk getest worden: de nep-backend vraagt "Pijn?", "Eten?", …
+ * en onthoudt elke aanroep, zodat te controleren is dat JA, NEE, Terug en Stoppen de juiste API
+ * aanroepen.
  */
 
 function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationProfile {
@@ -43,16 +50,87 @@ function sessionFor(user: UserPublic): DeviceSessionResponse {
 }
 
 /** Nep-tablet-backend; `linked` bepaalt of het apparaat al gekoppeld is. Telt de `deviceMe`-aanroepen. */
-function fakeDeviceApi(options: { linked?: boolean; names?: string[] } = {}): {
+type Call =
+  ['start'] | ['answer', string, AnswerRequest] | ['back', string, number] | ['stop', string];
+
+const WORDS = ['pijn', 'eten', 'drinken'];
+
+function screen0(turn: number, word: string, canGoBack: boolean): CommunicationTurn {
+  return {
+    sessionId: 's-1',
+    turn,
+    canGoBack,
+    presentation: {
+      kind: 'question',
+      mode: 'binary',
+      text: `${word.charAt(0).toUpperCase()}${word.slice(1)}?`,
+      message: null,
+      options: [
+        {
+          ref: `v-${word}`,
+          kind: 'symbol',
+          label: word,
+          imageUrl: `/assets/v-${word}?exp=1&sig=x`,
+          representation: 'exact',
+          position: 0,
+        },
+      ],
+    },
+  };
+}
+
+function fakeDeviceApi(
+  options: {
+    linked?: boolean;
+    names?: string[];
+    resume?: CommunicationTurn | null;
+    failAnswer?: ApiRequestError;
+  } = {},
+): {
   api: DeviceApi;
   calls: () => number;
+  log: Call[];
 } {
+  const log: Call[] = [];
+  const history: CommunicationTurn[] = [];
+  let current: CommunicationTurn | null = options.resume ?? null;
   let linked = options.linked ?? false;
   const names = options.names ?? ['Sanne'];
   let calls = 0;
+  const show = (turn: CommunicationTurn): CommunicationTurn => {
+    current = turn;
+    history.push(turn);
+    return turn;
+  };
   return {
     calls: () => calls,
+    log,
     api: {
+      startConversation() {
+        log.push(['start']);
+        return Promise.resolve(show(screen0(0, 'pijn', false)));
+      },
+      currentConversation() {
+        return Promise.resolve(current);
+      },
+      answerConversation(sessionId, answer) {
+        log.push(['answer', sessionId, answer]);
+        if (options.failAnswer) return Promise.reject(options.failAnswer);
+        const turn = (current?.turn ?? 0) + 1;
+        const word = WORDS[turn % WORDS.length] ?? 'pijn';
+        return Promise.resolve(show(screen0(turn, word, true)));
+      },
+      goBack(sessionId, turn) {
+        log.push(['back', sessionId, turn]);
+        const previous = history.at(-2);
+        if (!previous) return Promise.reject(new ApiRequestError(409, 'CANNOT_GO_BACK', 'Nee.'));
+        return Promise.resolve(show({ ...previous, turn: turn + 1 }));
+      },
+      stopConversation(sessionId) {
+        log.push(['stop', sessionId]);
+        current = null;
+        return Promise.resolve();
+      },
       deviceMe() {
         calls += 1;
         if (!linked) {
@@ -97,16 +175,19 @@ describe('gebruikersapp op de tablet', () => {
     expect(await screen.findByRole('button', { name: 'Koppelen' })).toBeTruthy();
   });
 
-  it('koppelt met een geldige code en toont daarna "Nog niet beschikbaar"', async () => {
+  it('koppelt met een geldige code en toont daarna het startscherm', async () => {
     render(<TabletApp api={fakeDeviceApi({ linked: false }).api} />);
     await screen.findByRole('button', { name: 'Koppelen' });
 
     fireEvent.change(screen.getByLabelText('Koppelcode'), { target: { value: 'ABCD2345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Koppelen' }));
 
-    expect(await screen.findByRole('heading', { name: 'Nog niet beschikbaar' })).toBeTruthy();
-    // Er staat geen enkele knop van de oude gespreksflow meer op het scherm; alleen de bronnenlink.
-    expect(screen.queryAllByRole('button').map((b) => b.textContent)).toEqual(['Bronnen']);
+    expect(await screen.findByRole('button', { name: 'Ik wil iets zeggen' })).toBeTruthy();
+    // Eén grote knop om te beginnen, plus de bronnenlink; verder niets.
+    expect(screen.queryAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Ik wil iets zeggen',
+      'Bronnen',
+    ]);
   });
 
   it('toont een fout bij een ongeldige koppelcode', async () => {
@@ -121,7 +202,8 @@ describe('gebruikersapp op de tablet', () => {
 
   it('zet de naam van de app en van de gebruiker in de kopbalk', async () => {
     render(<TabletApp api={fakeDeviceApi({ linked: true }).api} />);
-    await screen.findByRole('heading', { name: 'Nog niet beschikbaar' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
 
     const header = screen.getByRole('banner');
     expect(within(header).getByText('Intento')).toBeTruthy();
@@ -147,6 +229,95 @@ describe('gebruikersapp op de tablet', () => {
     expect(screen.getByText('CC BY-SA 4.0')).toBeTruthy();
     expect(screen.getByText('Steve Lee')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '↩ Terug' }));
-    expect(await screen.findByRole('heading', { name: 'Nog niet beschikbaar' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Ik wil iets zeggen' })).toBeTruthy();
+  });
+});
+
+describe('gesprek op de tablet: start en binary (N4.9)', () => {
+  async function started(fake = fakeDeviceApi({ linked: true })) {
+    render(<TabletApp api={fake.api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
+    return fake;
+  }
+
+  it('start met één knop en toont pictogram, vraag, JA links en NEE rechts', async () => {
+    const fake = await started();
+    expect(fake.log).toEqual([['start']]);
+    // Het woord staat eronder, dus het plaatje zelf is decoratief (alt="").
+    const image = document.querySelector('img.pictogram__image');
+    expect(image?.getAttribute('alt')).toBe('');
+    expect(image?.getAttribute('src')).toMatch(/\/assets\/v-pijn\?exp=1&sig=x$/);
+    expect(screen.getByText('pijn')).toBeTruthy();
+    const answers = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(answers.indexOf('✔ JA')).toBeLessThan(answers.indexOf('✖ NEE'));
+    // Op het eerste scherm kan Terug niet; Stoppen wel.
+    expect(screen.queryByRole('button', { name: '↩ Terug' })).toBeNull();
+    expect(screen.getByRole('button', { name: '⏹ Stoppen' })).toBeTruthy();
+  });
+
+  it('JA en NEE sturen het antwoord met beurt en reactietijd', async () => {
+    const fake = await started();
+    fireEvent.click(screen.getByRole('button', { name: 'NEE' }));
+    await screen.findByRole('heading', { name: 'Eten?' });
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    await screen.findByRole('heading', { name: 'Drinken?' });
+
+    const answers = fake.log.filter((call) => call[0] === 'answer');
+    expect(answers.map((call) => [call[1], { ...call[2], responseTimeMs: 0 }])).toEqual([
+      ['s-1', { turn: 0, answer: 'no', responseTimeMs: 0 }],
+      ['s-1', { turn: 1, answer: 'yes', responseTimeMs: 0 }],
+    ]);
+    for (const call of answers) {
+      const time = call[2].responseTimeMs;
+      expect(typeof time === 'number' && time >= 0).toBe(true);
+    }
+  });
+
+  it('↩ Terug vraagt het vorige scherm op', async () => {
+    const fake = await started();
+    fireEvent.click(screen.getByRole('button', { name: 'NEE' }));
+    await screen.findByRole('heading', { name: 'Eten?' });
+    fireEvent.click(screen.getByRole('button', { name: '↩ Terug' }));
+    expect(await screen.findByRole('heading', { name: 'Pijn?' })).toBeTruthy();
+    expect(fake.log.at(-1)).toEqual(['back', 's-1', 1]);
+  });
+
+  it('⏹ Stoppen beëindigt het gesprek en toont het startscherm', async () => {
+    const fake = await started();
+    fireEvent.click(screen.getByRole('button', { name: '⏹ Stoppen' }));
+    expect(await screen.findByRole('button', { name: 'Ik wil iets zeggen' })).toBeTruthy();
+    expect(fake.log.at(-1)).toEqual(['stop', 's-1']);
+  });
+
+  it('hervat een lopend gesprek na herladen', async () => {
+    const fake = fakeDeviceApi({ linked: true, resume: screen0(3, 'eten', true) });
+    render(<TabletApp api={fake.api} />);
+    expect(await screen.findByRole('heading', { name: 'Eten?' })).toBeTruthy();
+    expect(fake.log).toEqual([]);
+  });
+
+  it('haalt bij een al beantwoord scherm (409) het actuele scherm op', async () => {
+    const fake = fakeDeviceApi({
+      linked: true,
+      failAnswer: new ApiRequestError(409, 'STALE_TURN', 'Dit scherm is al beantwoord.'),
+    });
+    await started(fake);
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    await waitFor(() => expect(fake.log.filter((call) => call[0] === 'answer')).toHaveLength(1));
+    expect(await screen.findByRole('heading', { name: 'Pijn?' })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('toont zonder "tekst tonen" geen label, maar wel een alt-tekst', async () => {
+    const fake = fakeDeviceApi({ linked: true });
+    const original = fake.api.deviceMe.bind(fake.api);
+    fake.api.deviceMe = async () => {
+      const session = await original();
+      return sessionFor(makeUser(session.user.name, profile({ showText: false })));
+    };
+    await started(fake);
+    expect(screen.queryByText('pijn')).toBeNull();
+    expect(screen.getByRole('img', { name: 'pijn' })).toBeTruthy();
   });
 });

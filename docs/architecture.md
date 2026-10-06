@@ -80,7 +80,9 @@ server niet uit elkaar lopen.
   [adr/0015](adr/0015-speech-synthesis-piper.md).
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
-  `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm; de gespreksflow is in herbouw), `api.ts`
+  `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm, kopbalk, bronnen) met
+  `TabletConversation.tsx` (het gesprek: startscherm, binary scherm met pictogram, vraag, JA links/NEE
+  rechts, ↩ Terug en ⏹ Stoppen; hervat een lopend gesprek en meet de reactietijd), `api.ts`
   (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
   `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
   `styles.css`.

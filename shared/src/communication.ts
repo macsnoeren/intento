@@ -38,6 +38,8 @@ export const communicationTurnSchema = z.strictObject({
   sessionId: z.string().min(1),
   turn: z.number().int().nonnegative(),
   presentation: tabletPresentationSchema,
+  /** Kan ↩ Terug hier? Niet op het eerste scherm en niet meer na een verzending (§48). */
+  canGoBack: z.boolean(),
 });
 export type CommunicationTurn = z.infer<typeof communicationTurnSchema>;
 

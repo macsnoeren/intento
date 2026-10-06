@@ -73,6 +73,7 @@ describe('POST /communication/sessions', () => {
     expect(res.statusCode).toBe(201);
     const body = communicationTurnSchema.parse(res.json());
     expect(body.turn).toBe(0);
+    expect(body.canGoBack).toBe(false);
     expect(body.presentation).toMatchObject({ kind: 'question', mode: 'binary', text: 'Pijn?' });
     expect(body.presentation.options).toHaveLength(1);
     expect(body.presentation.options[0]?.label).toBe('pijn');
@@ -300,6 +301,7 @@ describe('POST /communication/sessions/:id/answer', () => {
     expect(res.statusCode).toBe(200);
     const next = communicationTurnSchema.parse(res.json());
     expect(next.turn).toBe(1);
+    expect(next.canGoBack).toBe(true);
     expect(next.presentation).toMatchObject({
       kind: 'confirm_message',
       text: 'Bedoel je: Pijn?',
@@ -515,6 +517,7 @@ describe('↩ Terug en ⏹ Stoppen', () => {
       (await post(cookie, `${base}/back`, { turn: 3 })).json(),
     );
     expect(backAgain.presentation).toEqual(first.presentation);
+    expect(backAgain.canGoBack).toBe(false);
     const noFurther = await post(cookie, `${base}/back`, { turn: 4 });
     expect(noFurther.statusCode).toBe(409);
     expect(noFurther.json()).toMatchObject({ error: { code: 'CANNOT_GO_BACK' } });

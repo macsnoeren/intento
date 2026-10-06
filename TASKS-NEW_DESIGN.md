@@ -306,7 +306,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   of `null`.
   *Acceptatie:* tests: na herladen dezelfde presentatie; een gestopt gesprek wordt niet hervat.
 
-- [ ] **N4.9 Tablet: start- en binary scherm**
+- [x] **N4.9 Tablet: start- en binary scherm**
   *ONTWERP: §12, §48.* Startscherm met één grote knop; binary scherm met pictogram, vraag, ✔ JA / ✖ NEE
   (vaste plek en kleur), ↩ Terug, ⏹ Stoppen. Meet de reactietijd en stuurt die mee.
   *Acceptatie:* componenttests (JA, NEE, Terug, Stoppen roepen de juiste API aan); rooktest met de
@@ -333,6 +333,13 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *ONTWERP: §48, §52.* Bij 503 `AGENT_UNAVAILABLE` het scherm "Het lukt nu even niet" met Opnieuw proberen
   en Stoppen. Rooktest van begin tot eind in Docker.
   *Acceptatie:* componenttest; rooktest met de agentdienst gestopt en weer gestart.
+
+- [ ] **N4.14 Oude tablet-CSS opruimen**
+  *ONTWERP: §55.* Ontdekt bij N4.9: `styles.css` bevat nog klassen van de oude gespreksflow
+  (`.option--guess`, `.option--new`, `.proposal__*`, `.topic-results`, `.tablet__question`,
+  `.ai-status*`, …). Verwijderen wat geen component meer gebruikt.
+  *Acceptatie:* geen klasse in `styles.css` zonder gebruik in `web/src` (grep-check); tablet en beheer
+  zien er in de rooktest hetzelfde uit.
 
 ## Fase N5 — De LLM-laag in de agentdienst
 

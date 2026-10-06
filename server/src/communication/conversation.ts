@@ -103,14 +103,15 @@ export function toAgentSettings(profile: CommunicationProfile): AgentSettings {
 export function toTabletTurn(
   env: Env,
   sessionId: string,
-  turn: number,
+  snapshot: { turn: number; previousTurn: number | null; state: SessionState },
   presentation: Presentation,
   items: Map<string, VocabularyItem>,
   now: Date,
 ): CommunicationTurn {
   return communicationTurnSchema.parse({
     sessionId,
-    turn,
+    turn: snapshot.turn,
+    canGoBack: snapshot.previousTurn !== null && snapshot.state.share.sent_to.length === 0,
     presentation: {
       kind: presentation.kind,
       mode: presentation.mode,
@@ -216,7 +217,14 @@ export async function runAgentTurn(
     await endSession(prisma, session.id, 'stopped', now());
   }
 
-  return toTabletTurn(deps.env, session.id, turn, response.presentation, items, now());
+  return toTabletTurn(
+    deps.env,
+    session.id,
+    { turn, previousTurn: input.previousTurn, state: response.state },
+    response.presentation,
+    items,
+    now(),
+  );
 }
 
 /** Een beslissing namens de backend als de agentdienst zelf niets bruikbaars teruggaf. */
@@ -429,7 +437,14 @@ export async function goBack(
   await recordPresentation(prisma, encryptor, session.id, next, previous.presentation);
 
   const items = await itemsOnScreen(prisma, session.organizationId, previous.presentation);
-  return toTabletTurn(env, session.id, next, previous.presentation, items, now());
+  return toTabletTurn(
+    env,
+    session.id,
+    { turn: next, previousTurn: previous.previousTurn, state: previous.state },
+    previous.presentation,
+    items,
+    now(),
+  );
 }
 
 /** ⏹ Stoppen (§48): het gesprek eindigt; er wordt niets vastgesteld of verstuurd. */
@@ -461,5 +476,5 @@ export async function currentConversation(
   const current = await loadTurn(prisma, encryptor, session.id, session.currentTurn);
   if (!current) return null;
   const items = await itemsOnScreen(prisma, session.organizationId, current.presentation);
-  return toTabletTurn(env, session.id, current.turn, current.presentation, items, now());
+  return toTabletTurn(env, session.id, current, current.presentation, items, now());
 }

@@ -186,7 +186,7 @@ Alleen met een **apparaatsessie** (device-cookie); de tablet praat nooit met de 
 geeft altijd `communicationTurnSchema`: `{ sessionId, turn, presentation }`, waarbij de presentatie
 alleen bevat wat de tablet toont (`kind`, `mode`, `text`, `message`, en per optie `ref`, `kind`,
 `label`, ondertekende `imageUrl`, `representation`, `position`) — geen concepten, Vocabulary-ids of
-contact-ids. Rate limit 60 per minuut.
+contact-ids — plus `canGoBack` (of ↩ Terug hier kan: niet op het eerste scherm, niet na een verzending). Rate limit 60 per minuut.
 
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|

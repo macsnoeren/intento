@@ -4,6 +4,7 @@ import { ApiRequestError, httpApi, type DeviceApi } from './api.ts';
 import { AuthLayout } from './AuthLayout.tsx';
 import { BrandMark, BRAND_NAME } from './Brand.tsx';
 import { AttributionList } from './AttributionList.tsx';
+import { TabletConversation } from './TabletConversation.tsx';
 
 /**
  * Vaste kopbalk van de gebruikersapp: linksboven het beeldmerk met de naam, rechtsboven wie
@@ -43,8 +44,8 @@ function TabletHeader({
  * dagelijkse login. Bij het openen wordt eerst de apparaatsessie opgehaald (`GET /device/me`);
  * ontbreekt die, dan verschijnt het koppelscherm om een koppelcode in te wisselen.
  *
- * De gespreksflow wordt herbouwd (ADR-0017). Tot die er is, toont een gekoppelde tablet een rustig
- * scherm "Nog niet beschikbaar".
+ * Daarna het gesprek (`TabletConversation`): startscherm, de schermen die de backend teruggeeft, en
+ * ↩ Terug / ⏹ Stoppen.
  *
  * `api` is injecteerbaar zodat tests een in-memory backend kunnen meegeven.
  */
@@ -119,10 +120,14 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
   }
 
   return (
-    <NotYetAvailableScreen
-      userName={session.user.name}
-      onShowSources={() => setShowSources(true)}
-    />
+    <main className="tablet">
+      <TabletHeader userName={session.user.name} />
+      <TabletConversation
+        api={api}
+        showText={session.user.communicationProfile.showText}
+        footer={<SourcesLink onClick={() => setShowSources(true)} />}
+      />
+    </main>
   );
 }
 
@@ -184,31 +189,6 @@ function SourcesScreen({
           ↩ Terug
         </button>
       </section>
-    </main>
-  );
-}
-
-/**
- * Rustig scherm voor een gekoppelde tablet zolang de nieuwe gespreksflow er nog niet is (ADR-0017).
- * Alleen de link naar de bronvermelding: er is verder niets te doen.
- */
-function NotYetAvailableScreen({
-  userName,
-  onShowSources,
-}: {
-  userName: string;
-  onShowSources: () => void;
-}): React.JSX.Element {
-  return (
-    <main className="tablet">
-      <TabletHeader userName={userName} />
-      <section className="tablet__waiting" role="status">
-        <h1 className="tablet__prompt">Nog niet beschikbaar</h1>
-        <p className="muted">
-          Deze tablet is gekoppeld. Het praten met pictogrammen komt binnenkort.
-        </p>
-      </section>
-      <SourcesLink onClick={onShowSources} />
     </main>
   );
 }
