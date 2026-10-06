@@ -290,7 +290,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   ondertekende URL's terug.
   *Acceptatie:* tests met `FakeAgentClient`; een apparaat van org A kan geen sessie van org B zien.
 
-- [ ] **N4.6 Antwoorden**
+- [x] **N4.6 Antwoorden**
   *ONTWERP: §26, §51.* `POST /communication/sessions/:id/answer`: `{ turn, answer }` /
   `{ turn, optionRef }` / `{ turn, noneOfThese }` + `responseTimeMs`. Een verouderde `turn` → 409.
   Observed opslaan vóór de agentaanroep.

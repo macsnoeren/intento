@@ -4,6 +4,7 @@ import {
   type AgentDecision,
   type AgentEvent,
   type AgentSettings,
+  type AnswerRequest,
   type CommunicationProfile,
   type CommunicationTurn,
   type Presentation,
@@ -25,12 +26,20 @@ import {
   type VocabularyItem,
 } from '../vocabulary/repository.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
-import { createSession, endSession, saveTurn } from './sessions.js';
+import {
+  createSession,
+  endSession,
+  findSessionForUser,
+  lastTurnNumber,
+  loadTurn,
+  saveTurn,
+} from './sessions.js';
 import {
   recordDecisions,
   recordInferences,
   recordObserved,
   recordPresentation,
+  type ObservedInput,
 } from './provenance.js';
 
 /**
@@ -199,6 +208,10 @@ export async function runAgentTurn(
   await recordPresentation(prisma, encryptor, session.id, turn, response.presentation);
   await recordInferences(prisma, encryptor, session.id, turn, response.inferences);
   await recordDecisions(prisma, session.id, turn, response.decisions);
+  // JA op "Wil je stoppen?": de agent sloot het gesprek af, dus het gesprek is voorbij.
+  if (response.presentation.kind === 'stopped') {
+    await endSession(prisma, session.id, 'stopped', now());
+  }
 
   return toTabletTurn(deps.env, session.id, turn, response.presentation, items, now());
 }
@@ -254,4 +267,105 @@ export async function startConversation(
     await endSession(prisma, session.id, 'stopped', now());
     throw error;
   }
+}
+
+/** Schermen waarop de gebruiker kiest uit opties (en waar multi-icon dus tegels toont). */
+const CHOICE_KINDS = new Set(['question', 'share_contact']);
+
+/** Wat de gebruiker op dit scherm mag antwoorden, en welke gebeurtenis dat voor de agent is. */
+function toEvent(
+  presentation: Presentation,
+  body: AnswerRequest,
+): { event: AgentEvent; observed: ObservedInput } {
+  if (presentation.kind === 'done' || presentation.kind === 'stopped') {
+    throw new HttpError(409, 'NOTHING_TO_ANSWER', 'Op dit scherm valt niets te antwoorden.');
+  }
+  const tiles = presentation.mode === 'multi' && CHOICE_KINDS.has(presentation.kind);
+  const responseTimeMs = body.responseTimeMs ?? null;
+
+  if ('answer' in body) {
+    if (tiles) {
+      throw new HttpError(400, 'ANSWER_NOT_ALLOWED', 'Kies een tegel of "Geen van deze".');
+    }
+    const shown = presentation.options[0];
+    const type = body.answer === 'yes' ? 'answer_yes' : 'answer_no';
+    return {
+      event: { type },
+      observed: {
+        type,
+        optionRef: shown?.ref ?? null,
+        position: shown?.position ?? null,
+        responseTimeMs,
+      },
+    };
+  }
+  if (!tiles) {
+    throw new HttpError(400, 'ANSWER_NOT_ALLOWED', 'Dit scherm vraagt JA of NEE.');
+  }
+  if ('optionRef' in body) {
+    const chosen = presentation.options.find((option) => option.ref === body.optionRef);
+    if (!chosen) {
+      throw new HttpError(400, 'UNKNOWN_OPTION', 'Die keuze stond niet op het scherm.');
+    }
+    return {
+      event: { type: 'select_option', option_ref: chosen.ref },
+      observed: {
+        type: 'select_option',
+        optionRef: chosen.ref,
+        position: chosen.position,
+        responseTimeMs,
+      },
+    };
+  }
+  return {
+    event: { type: 'none_of_these' },
+    observed: { type: 'none_of_these', responseTimeMs },
+  };
+}
+
+/** Het lopende gesprek van de gebruiker achter dit apparaat; anders 404 of 409. */
+export async function loadActiveSession(
+  prisma: PrismaClient,
+  device: DeviceModel,
+  sessionId: string,
+): Promise<CommunicationSessionModel> {
+  const session = await findSessionForUser(prisma, sessionId, device.userId);
+  if (!session) throw new HttpError(404, 'SESSION_NOT_FOUND', 'Gesprek niet gevonden.');
+  if (session.status !== 'active') {
+    throw new HttpError(409, 'SESSION_ENDED', 'Dit gesprek is al afgelopen.');
+  }
+  return session;
+}
+
+/**
+ * Een antwoord op het huidige scherm. Observed staat vast vóór de agentaanroep, zodat het er ook is
+ * als de agent faalt; het hoort bij de beurt van het scherm dat beantwoord werd. Het nieuwe scherm
+ * krijgt het volgende beurtnummer (beurten zijn append-only).
+ */
+export async function answerConversation(
+  deps: ConversationDeps,
+  device: DeviceModel,
+  sessionId: string,
+  body: AnswerRequest,
+): Promise<CommunicationTurn> {
+  const { prisma, encryptor } = deps;
+  const session = await loadActiveSession(prisma, device, sessionId);
+  if (body.turn !== session.currentTurn) {
+    throw new HttpError(409, 'STALE_TURN', 'Dit scherm is al beantwoord.');
+  }
+  const current = await loadTurn(prisma, encryptor, session.id, session.currentTurn);
+  if (!current) throw new HttpError(409, 'STALE_TURN', 'Dit scherm is al beantwoord.');
+
+  const { event, observed } = toEvent(current.presentation, body);
+  await recordObserved(prisma, session.id, current.turn, observed);
+
+  const user = await loadConversationUser(prisma, device);
+  return runAgentTurn(deps, {
+    session,
+    user,
+    turn: (await lastTurnNumber(prisma, session.id)) + 1,
+    previousTurn: current.turn,
+    event,
+    state: current.state,
+  });
 }

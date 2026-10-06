@@ -4,7 +4,8 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import type { AgentClient } from '../agents/client.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
-import { startConversation } from '../communication/conversation.js';
+import { answerRequestSchema } from '@intento/shared';
+import { answerConversation, startConversation } from '../communication/conversation.js';
 
 /**
  * Gesprekken op de tablet (INTENTO-NEW-DESIGN §51). Alleen met een apparaatsessie: het apparaat hoort
@@ -13,6 +14,8 @@ import { startConversation } from '../communication/conversation.js';
  *
  * - `POST /communication/sessions` — start een gesprek (een lopend gesprek wordt gestopt). Antwoord:
  *   `{ sessionId, turn, presentation }`. Is de agentdienst er niet: 503 `AGENT_UNAVAILABLE`.
+ * - `POST /communication/sessions/:id/answer` — JA/NEE, een gekozen tegel of "Geen van deze" op het
+ *   huidige scherm. Een verouderde `turn` geeft 409 `STALE_TURN`.
  */
 export function registerCommunicationRoutes(
   app: FastifyInstance,
@@ -29,6 +32,16 @@ export function registerCommunicationRoutes(
       const device = requireDevice(request);
       const turn = await startConversation(deps, device);
       return reply.status(201).send(turn);
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/communication/sessions/:id/answer',
+    { preHandler: deviceAuthorize(prisma), config: { rateLimit } },
+    async (request) => {
+      const device = requireDevice(request);
+      const body = answerRequestSchema.parse(request.body);
+      return answerConversation(deps, device, request.params.id, body);
     },
   );
 }

@@ -40,3 +40,19 @@ export const communicationTurnSchema = z.strictObject({
   presentation: tabletPresentationSchema,
 });
 export type CommunicationTurn = z.infer<typeof communicationTurnSchema>;
+
+/** Hoe lang de gebruiker over een antwoord deed (ms, gemeten op de tablet); hooguit een uur. */
+const responseTimeMs = z.number().int().min(0).max(3_600_000).optional();
+const turnNumber = z.number().int().nonnegative();
+
+/**
+ * Een antwoord op het huidige scherm (§51): JA/NEE, een gekozen optie, of "Geen van deze". `turn` is de
+ * beurt van het scherm waarop de gebruiker antwoordde; is dat niet meer het huidige scherm (dubbele
+ * tik, tweede tabblad), dan 409.
+ */
+export const answerRequestSchema = z.union([
+  z.strictObject({ turn: turnNumber, answer: z.enum(['yes', 'no']), responseTimeMs }),
+  z.strictObject({ turn: turnNumber, optionRef: z.string().min(1).max(200), responseTimeMs }),
+  z.strictObject({ turn: turnNumber, noneOfThese: z.literal(true), responseTimeMs }),
+]);
+export type AnswerRequest = z.infer<typeof answerRequestSchema>;

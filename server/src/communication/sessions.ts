@@ -4,7 +4,8 @@ import {
   type Presentation,
   type SessionState,
 } from '@intento/shared';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import { Prisma, type PrismaClient } from '../generated/prisma/client.js';
+import { HttpError } from '../errors.js';
 import type { CommunicationSessionModel } from '../generated/prisma/models.js';
 import type { Encryptor } from '../crypto/encryption.js';
 
@@ -58,8 +59,27 @@ export function findActiveSession(
   });
 }
 
-/** Slaat een momentopname op (versleuteld) en maakt hem de huidige beurt van het gesprek. */
+/**
+ * Slaat een momentopname op (versleuteld) en maakt hem de huidige beurt van het gesprek. Bestaat die
+ * beurt al (twee antwoorden tegelijk op hetzelfde scherm), dan wint de eerste en krijgt de tweede 409.
+ */
 export async function saveTurn(
+  prisma: PrismaClient,
+  encryptor: Encryptor,
+  sessionId: string,
+  snapshot: TurnSnapshot,
+): Promise<void> {
+  try {
+    await writeTurn(prisma, encryptor, sessionId, snapshot);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new HttpError(409, 'STALE_TURN', 'Dit scherm is al beantwoord.');
+    }
+    throw error;
+  }
+}
+
+async function writeTurn(
   prisma: PrismaClient,
   encryptor: Encryptor,
   sessionId: string,

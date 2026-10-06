@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.6 — antwoorden
+
+- `POST /communication/sessions/:id/answer` met `{ turn, answer }`, `{ turn, optionRef }` of
+  `{ turn, noneOfThese }` plus `responseTimeMs` (`answerRequestSchema` in shared). Het antwoord moet
+  bij het scherm passen (JA/NEE vs. tegels; de ref moet op het scherm staan).
+- Observed (type, ref, plek, reactietijd) wordt vóór de agentaanroep vastgelegd, bij de beurt van het
+  beantwoorde scherm. Een verouderde beurt of twee antwoorden tegelijk → 409 `STALE_TURN` (ook in de
+  database: de unieke beurt wint één keer). JA op "Wil je stoppen?" sluit het gesprek af.
+
 ### N4.5 — gesprek starten
 
 - `POST /communication/sessions` (apparaatsessie): stopt een lopend gesprek, start een nieuw, legt
