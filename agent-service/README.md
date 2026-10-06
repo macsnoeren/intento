@@ -116,6 +116,11 @@ van de Intent Agent ("Ik heb hoofdpijn."), anders het woord. De schermtekst is p
 "Bedoel je: {zin zonder slotpunt}?", zoals de backend controleert (I2). NEE → die hypothese is
 afgewezen en het gesprek gaat terug naar `clarify`. Zonder taalmodel is een JA meteen het voorstel.
 
+**Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke modelaanroep krijgt
+hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de regels het over. Zo
+antwoordt de dienst altijd binnen de time-out van de backend (`AGENT_TIMEOUT_MS`, 30 s). Gemeten duur
+per agent en per beurt: zie `docs/architecture.md`.
+
 **Safety Agent, regels** (`agents/safety.py`, §10): S1 maximum aantal vragen (instelling
 `max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, anders de
 bovenste), en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen

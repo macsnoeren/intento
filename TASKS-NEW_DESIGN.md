@@ -432,11 +432,32 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Safety draaien tegelijk (threads).
   *Acceptatie:* unittests; een test laat zien dat de totale duur ongeveer de langste van de twee is.
 
-- [ ] **N6.13 Meten met echte Ollama**
+- [x] **N6.13 Meten met echte Ollama**
   *ONTWERP: §54.* De eval-CLI tegen echte Ollama (lokaal en/of cloud) met de scenario's hoofdpijn, dorst
   en duizelig. Duur per agent en per beurt in `docs/architecture.md`; time-outs bijstellen. Nieuwe taken
   aanmaken als de duur onwerkbaar is.
   *Acceptatie:* het rapport staat in de docs; een rooktest op de tablet met echte Ollama.
+
+- [ ] **N6.14 Intent Agent: breder zoeken na een reeks NEE**
+  *ONTWERP: §6, §36.* Ontdekt bij N6.13: na NEE op alle startconcepten loopt de Intent Agent de
+  gevoelens uit de Vocabulary af (blij, verdrietig, bang, …) in plaats van een breder onderwerp te
+  proberen ("niet lekker", "iets met je lichaam"). Prompt `intent-v4` en/of een regel in de orchestrator
+  die na een aantal NEE's een categorie voorstelt.
+  *Acceptatie:* scenario "duizelig" slaagt met de FakeProvider; de eval met `gpt-oss:120b-cloud` haalt
+  "duizelig" in minstens 2 van de 3 rondes.
+
+- [ ] **N6.15 Startset: woorden voor ziek zijn**
+  *ONTWERP: §15.1.* Ontdekt bij N6.13: de 99 platformitems missen "ziek", "misselijk", "duizelig",
+  "koorts", "hoofdpijn" heeft wel een item. Mulberry heeft de symbolen; de Nederlandse vertalingen en het
+  seeden ontbreken.
+  *Acceptatie:* de import seedt ze met licentie en bron; de Vocabulary-pagina toont ze.
+
+- [ ] **N6.16 S1: geen voorstel op een gok**
+  *ONTWERP: §10 (S1).* Ontdekt bij N6.13: bij het maximum legt de orchestrator de beste hypothese voor,
+  ook als die een zekerheid van 0,25 heeft en nergens een JA op kwam ("Bedoel je: Eenzaam?"). Besluiten
+  (ontwerp bijwerken): alleen voorstellen als er een JA was of de zekerheid boven een ondergrens ligt,
+  anders meteen "Wil je stoppen?".
+  *Acceptatie:* unittest en scenario; ontwerp §10 bijgewerkt.
 
 ## Fase N7 — Multi-icon Mode
 

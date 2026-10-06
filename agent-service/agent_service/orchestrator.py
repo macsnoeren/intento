@@ -20,11 +20,25 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
-from .agents.icon import IconMatch, closest_match, exact_match, icon_prompt, no_image
-from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
-from .agents.question import llm_question, question_prompt
+from .agents.icon import (
+    ICON_TIMEOUT_SECONDS,
+    IconMatch,
+    closest_match,
+    exact_match,
+    icon_prompt,
+    no_image,
+)
+from .agents.intent import (
+    INTENT_TIMEOUT_SECONDS,
+    IntentResult,
+    intent_prompt,
+    llm_intent,
+    rules_intent,
+)
+from .agents.question import QUESTION_TIMEOUT_SECONDS, llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
 from .agents.safety import (
+    SAFETY_TIMEOUT_SECONDS,
     SafetyFinding,
     llm_safety,
     s1_question_limit,
@@ -34,6 +48,7 @@ from .agents.safety import (
 from .agents.strategies import instruction_for
 from .agents.validation import (
     DEFAULT_PROPOSE_THRESHOLD,
+    VALIDATION_TIMEOUT_SECONDS,
     Finding,
     llm_validate,
     v7_proposal,
@@ -63,6 +78,11 @@ from .vocabulary import VocabularyIndex
 #: Tekst van de vraag die volgt als er niets meer te vragen valt.
 ASK_STOP_TEXT = "Wil je stoppen?"
 
+#: Hoe lang één beurt mag duren (s). Moet ruim onder `AGENT_TIMEOUT_MS` van de backend (30 s) blijven.
+DEFAULT_TURN_BUDGET_SECONDS = 25.0
+#: Minder tijd over dan dit: geen modelaanroep meer, de regels nemen het over.
+MIN_LLM_SECONDS = 1.0
+
 
 class ProtocolError(ValueError):
     """De gebeurtenis past niet bij de toestand (bv. een antwoord zonder lopend gesprek)."""
@@ -80,8 +100,11 @@ class _Turn:
         propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
         llm_validation: bool = False,
         llm_safety: bool = False,
+        turn_budget: float = DEFAULT_TURN_BUDGET_SECONDS,
     ) -> None:
         self.clock = clock
+        #: Uiterlijk dan moet de beurt klaar zijn; daarna geen modelaanroepen meer (`budget`).
+        self.deadline = clock() + turn_budget
         self.llm_validation = llm_validation
         self.llm_safety = llm_safety
         self.llm = llm
@@ -97,6 +120,15 @@ class _Turn:
 
     def record(self, result: AgentResult[Any]) -> None:
         self.decisions.append(result.to_decision())
+
+    def budget(self, timeout: float) -> float | None:
+        """Hoe lang een modelaanroep mag duren: de time-out van de agent, maar nooit langer dan wat er
+        van de beurt over is. `None` als er geen model is of minder dan `MIN_LLM_SECONDS` over: dan
+        nemen de regels het over, zodat de dienst altijd binnen de time-out van de backend antwoordt."""
+        if self.llm is None:
+            return None
+        remaining = self.deadline - self.clock()
+        return min(timeout, remaining) if remaining >= MIN_LLM_SECONDS else None
 
 
 def new_state(request: TurnRequest) -> SessionState:
@@ -127,6 +159,7 @@ def step(
     propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
     llm_validation: bool = False,
     llm_safety: bool = False,
+    turn_budget: float = DEFAULT_TURN_BUDGET_SECONDS,
 ) -> TurnResponse:
     """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels; `llm_validation` en
     `llm_safety` zetten de LLM-delen van de Validation en Safety Agent aan (`AGENT_LLM_VALIDATION`,
@@ -140,6 +173,7 @@ def step(
         propose_threshold,
         llm_validation,
         llm_safety,
+        turn_budget,
     )
     event = request.event
 
@@ -189,10 +223,11 @@ def _update_hypotheses(
 ) -> AgentResult[IntentResult]:
     """De Intent Agent werkt de hypotheses bij; ze staan in de state en gaan als inference mee."""
     attempt: LlmAttempt[IntentResult] | None = None
-    if turn.llm is not None:
+    timeout = turn.budget(INTENT_TIMEOUT_SECONDS)
+    if turn.llm is not None and timeout is not None:
         provider, prompt = turn.llm, intent_prompt()
         attempt = LlmAttempt(
-            run=lambda: llm_intent(provider, prompt, state, vocabulary),
+            run=lambda: llm_intent(provider, prompt, state, vocabulary, timeout),
             model=provider.model,
             prompt_version=prompt.id,
         )
@@ -349,7 +384,8 @@ def _question_agent(
     rejected_because: list[str],
 ) -> AgentResult[Question]:
     attempt: LlmAttempt[Question] | None = None
-    if turn.llm is not None:
+    timeout = turn.budget(QUESTION_TIMEOUT_SECONDS)
+    if turn.llm is not None and timeout is not None:
         provider, prompt = turn.llm, question_prompt()
         attempt = LlmAttempt(
             run=lambda: llm_question(
@@ -360,6 +396,7 @@ def _question_agent(
                 vocabulary,
                 strategy=instruction_for(turn.settings.question_strategy),
                 rejected_because=rejected_because or None,
+                timeout=timeout,
             ),
             model=provider.model,
             prompt_version=prompt.id,
@@ -401,7 +438,8 @@ def _validate(
         if f.action == "reject"
     ]
     llm = turn.llm
-    if findings or llm is None or not (turn.llm_validation or turn.llm_safety):
+    timeout = turn.budget(max(VALIDATION_TIMEOUT_SECONDS, SAFETY_TIMEOUT_SECONDS))
+    if findings or llm is None or timeout is None or not (turn.llm_validation or turn.llm_safety):
         _record_validation(turn, findings, None)
         return findings
 
@@ -420,6 +458,7 @@ def _validate(
                     concept=question.concept,
                     label=option.label,
                     state=state,
+                    timeout=timeout,
                 ),
                 model=llm.model,
                 prompt_version=prompt.id,
@@ -441,6 +480,7 @@ def _validate(
                     concept=question.concept,
                     label=option.label,
                     state=state,
+                    timeout=timeout,
                 ),
                 model=llm.model,
                 prompt_version=prompt.id,
@@ -506,10 +546,11 @@ def _pictogram(concept: str, label: str, vocabulary: VocabularyIndex, turn: _Tur
         )
     else:
         attempt: LlmAttempt[IconMatch] | None = None
-        if turn.llm is not None:
+        timeout = turn.budget(ICON_TIMEOUT_SECONDS)
+        if turn.llm is not None and timeout is not None:
             provider, prompt = turn.llm, icon_prompt()
             attempt = LlmAttempt(
-                run=lambda: closest_match(provider, prompt, concept, label, vocabulary),
+                run=lambda: closest_match(provider, prompt, concept, label, vocabulary, timeout),
                 model=provider.model,
                 prompt_version=prompt.id,
             )

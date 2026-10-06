@@ -87,11 +87,15 @@ class ServiceConfig:
     # Het LLM-deel van de Safety Agent (§10). Standaard uit; draait tegelijk met de Validation Agent.
     llm_safety: bool = False
 
+    # Hoe lang één beurt hooguit duurt (s); daarna nemen de regels het over. Onder AGENT_TIMEOUT_MS houden.
+    turn_budget: float = 25.0
+
     def __repr__(self) -> str:
         return (
             f"ServiceConfig(host={self.host!r}, port={self.port}, service_token='***', "
             f"ollama={self.ollama!r}, propose_threshold={self.propose_threshold}, "
-            f"llm_validation={self.llm_validation}, llm_safety={self.llm_safety})"
+            f"llm_validation={self.llm_validation}, llm_safety={self.llm_safety}, "
+            f"turn_budget={self.turn_budget})"
         )
 
     @staticmethod
@@ -151,7 +155,20 @@ class ServiceConfig:
             propose_threshold=threshold,
             llm_validation=_flag(optional("AGENT_LLM_VALIDATION", "false"), "AGENT_LLM_VALIDATION"),
             llm_safety=_flag(optional("AGENT_LLM_SAFETY", "false"), "AGENT_LLM_SAFETY"),
+            turn_budget=_seconds(
+                optional("AGENT_TURN_BUDGET_SECONDS", "25"), "AGENT_TURN_BUDGET_SECONDS"
+            ),
         )
+
+
+def _seconds(value: str, key: str) -> float:
+    try:
+        seconds = float(value)
+    except ValueError as exc:
+        raise ConfigError(f"{key} moet een getal zijn (kreeg {value!r}).") from exc
+    if not 2 <= seconds <= 110:
+        raise ConfigError(f"{key} moet tussen 2 en 110 seconden liggen (kreeg {seconds}).")
+    return seconds
 
 
 def _flag(value: str, key: str) -> bool:

@@ -16,7 +16,8 @@
   "overrides": {
     "@prisma/dev": "^0.24.14",
     "deepmerge-ts": "^8.0.2",
-    "mysql2": "^3.24.3"
+    "mysql2": "^3.24.3",
+    "shell-quote": "^1.12.0"
   },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",

@@ -28,6 +28,23 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.13 — meten met echte Ollama
+
+- Eval-CLI uitgebreid: meetscenario's hoofdpijn, dorst en duizelig (`--set meting`), een eigen
+  Vocabulary (`--vocabulary`), `--llm-validation`/`--llm-safety`, duur per beurt (mediaan, p90, max) en
+  per agent (gem., max). De gesimuleerde gebruiker herkent ook Nederlandse woorden.
+- Gemeten met Ollama Cloud (alleen cloudmodellen): `gpt-oss:120b-cloud` 6/9, beurt mediaan 3,9 s, p90
+  5,8 s; met Validation + Safety 4,6 s / 6,4 s; `gpt-oss:20b-cloud` trager en vaker time-outs. Hoofdpijn
+  en dorst slagen altijd, duizelig nooit. Tabletrooktest met het echte model: "dorst" in ±15 s. Het
+  rapport staat in `docs/architecture.md`.
+- **Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, nieuw, standaard 25 s): de time-outs per agent
+  konden samen boven de 30 s van de backend uitkomen; nu krijgt elke modelaanroep hooguit de resterende
+  tijd.
+- Nieuwe taken N6.14 (breder zoeken na veel NEE), N6.15 (woorden voor ziek zijn in de startset) en
+  N6.16 (S1: geen voorstel op een gok).
+- Beveiliging: nieuwe kritieke advisory voor `shell-quote` (GHSA-pqg4-j6r4-53mv, via de dev-tool
+  `concurrently`, die 1.9.0 vastpint): override naar `shell-quote@^1.12.0`; `npm audit` weer 0.
+
 ### N6.12 — Safety Agent: LLM-deel, tegelijk met Validation
 
 - Optioneel (`AGENT_LLM_SAFETY`, nieuw, standaard false; in de `.env`-voorbeelden en compose): het model

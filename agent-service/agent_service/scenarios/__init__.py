@@ -26,6 +26,7 @@ from ..contracts import (
     TurnResponse,
     VocabularyEntry,
 )
+from ..vocabulary import normalize
 
 #: Eén beurt van de agentdienst: verzoek erin, antwoord eruit (in de dienst: `step`).
 Engine = Callable[[TurnRequest], TurnResponse]
@@ -66,10 +67,13 @@ def scenario_vocabulary() -> list[VocabularyEntry]:
 @dataclass(frozen=True)
 class Scenario:
     name: str
-    #: Wat de gebruiker bedoelt.
+    #: Wat de gebruiker bedoelt: concepten (en eventueel Nederlandse woorden, zie `words`).
     goal: frozenset[str]
     vocabulary: list[VocabularyEntry] = field(default_factory=scenario_vocabulary)
     settings: dict[str, Any] = field(default_factory=dict)
+    #: Woorden die de gebruiker herkent als "dat bedoel ik". Een model noemt een eigen concept niet
+    #: altijd hetzelfde (`dizzy`, `dizziness`), maar het woord eronder ("duizelig") wel.
+    words: frozenset[str] = frozenset()
 
 
 #: De scenario's die met de regelgebaseerde agents al moeten slagen.
@@ -78,12 +82,32 @@ SCENARIOS: list[Scenario] = [
     Scenario(name="bedoelt dorst", goal=frozenset({"drink"})),
 ]
 
+#: De meetscenario's met een taalmodel (§54, N6.13).
+EVAL_SCENARIOS: list[Scenario] = [
+    Scenario(
+        name="hoofdpijn",
+        goal=frozenset({"pain", "head", "headache", "head_pain"}),
+        words=frozenset({"pijn", "hoofd", "hoofdpijn", "pijn aan je hoofd"}),
+    ),
+    Scenario(
+        name="dorst",
+        goal=frozenset({"drink", "thirst", "thirsty", "water"}),
+        words=frozenset({"drinken", "dorst", "dorstig", "water"}),
+    ),
+    Scenario(
+        name="duizelig",
+        goal=frozenset({"dizzy", "dizziness", "vertigo", "unwell", "sick"}),
+        words=frozenset({"duizelig", "draaierig", "ziek", "niet lekker"}),
+    ),
+]
+
 
 class SimulatedUser:
-    """Antwoordt naar zijn doel: JA als het getoonde concept erbij hoort."""
+    """Antwoordt naar zijn doel: JA als het getoonde concept (of woord) erbij hoort."""
 
-    def __init__(self, goal: frozenset[str]) -> None:
+    def __init__(self, goal: frozenset[str], words: frozenset[str] = frozenset()) -> None:
         self.goal = goal
+        self.words = frozenset(normalize(w) for w in words)
 
     def respond(self, presentation: Presentation, state: SessionState) -> dict[str, Any] | None:
         """De gebeurtenis bij dit scherm, of `None` als het gesprek voorbij is."""
@@ -93,10 +117,24 @@ class SimulatedUser:
             return {"type": "answer_yes"}
         if presentation.kind == "confirm_message":
             concepts = set(state.proposal.concepts) if state.proposal else self._shown(presentation)
-            yes = bool(concepts) and concepts <= self.goal
+            yes = (bool(concepts) and concepts <= self.goal) or self._recognizes(presentation)
         else:
-            yes = bool(self._shown(presentation) & self.goal)
+            yes = bool(self._shown(presentation) & self.goal) or self._recognizes(presentation)
         return {"type": "answer_yes" if yes else "answer_no"}
+
+    def means(self, concepts: list[str], message: str | None) -> bool:
+        """Is een bevestigde boodschap wat de gebruiker bedoelde?"""
+        if concepts and set(concepts) <= self.goal:
+            return True
+        text = normalize(message or "")
+        return any(word in text for word in self.words)
+
+    def _recognizes(self, presentation: Presentation) -> bool:
+        labels = {normalize(o.label) for o in presentation.options}
+        return bool(labels & self.words) or (
+            presentation.message is not None
+            and any(w in normalize(presentation.message) for w in self.words)
+        )
 
     @staticmethod
     def _shown(presentation: Presentation) -> set[str]:
@@ -115,6 +153,8 @@ class ScenarioResult:
     decisions: list[AgentDecision]
     #: Waarom een scenario niet slaagde (of `None`).
     failure: str | None = None
+    #: Hoe lang elke beurt duurde (ms), in volgorde.
+    turn_ms: list[int] = field(default_factory=list)
 
 
 def _settings(overrides: dict[str, Any]) -> Settings:
@@ -137,7 +177,8 @@ def play(
     clock: Callable[[], float] = time.monotonic,
 ) -> ScenarioResult:
     """Speelt één scenario van start tot het einde (of tot `max_turns`)."""
-    user = SimulatedUser(scenario.goal)
+    user = SimulatedUser(scenario.goal, scenario.words)
+    turn_ms: list[int] = []
     settings = _settings(scenario.settings)
     started = clock()
     decisions: list[AgentDecision] = []
@@ -160,6 +201,7 @@ def play(
             duration_ms=round((clock() - started) * 1000),
             decisions=decisions,
             failure=failure,
+            turn_ms=turn_ms,
         )
 
     while event is not None:
@@ -178,7 +220,9 @@ def play(
                 "experience": None,
             }
         )
+        before = clock()
         response = engine(request)
+        turn_ms.append(round((clock() - before) * 1000))
         decisions.extend(response.decisions)
         state = response.state
         if response.presentation.kind == "question":
@@ -189,7 +233,7 @@ def play(
     assert response is not None
     if response.presentation.kind != "done" or state is None or not state.communication_intent:
         return result(False, f"geëindigd met {response.presentation.kind}")
-    confirmed = set(state.communication_intent.concepts)
-    if not confirmed <= scenario.goal:
-        return result(False, f"bevestigd: {sorted(confirmed)}, bedoeld: {sorted(scenario.goal)}")
+    confirmed = state.communication_intent
+    if not user.means(list(confirmed.concepts), confirmed.message):
+        return result(False, f"bevestigd: {sorted(confirmed.concepts)} ({confirmed.message!r})")
     return result(True, None)

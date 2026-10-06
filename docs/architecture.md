@@ -165,6 +165,40 @@ en omgekeerd, dus de tablet-UI hoeft geen beheer-`Api` te kennen (en andersom).
   gedeactiveerde omgeving onmiddellijk stopt. In de web-bundel is het een aparte route-tak
   (`routes.tsx` → `/operator`). Zie [adr/0011](adr/0011-platform-operator-console.md).
 
+## Gemeten duur van de agents (N6.13)
+
+Gemeten op 6 oktober 2026 met `python -m agent_service.eval --set meting --runs 3`, met de echte
+startset (99 platformitems) en via de lokale Ollama-proxy naar Ollama Cloud. De scenario's: een
+gesimuleerde gebruiker bedoelt **hoofdpijn**, **dorst** of **duizelig** en zegt JA als het getoonde
+woord of concept erbij hoort. Elke meting draaide alleen; tegelijk draaiende metingen deelden het
+cloudmodel en waren twee tot drie keer trager (time-outs, terugval op de regels).
+
+| Opstelling | Geslaagd | Vragen gem. | Beurt mediaan | Beurt p90 | Beurt max |
+|---|---|---|---|---|---|
+| `gpt-oss:120b-cloud`, standaard | 6/9 | 5,2 | 3,9 s | 5,8 s | 8,4 s |
+| `gpt-oss:120b-cloud`, Validation + Safety met LLM | 6/9 | 6,2 | 4,6 s | 6,4 s | 17,5 s |
+| `gpt-oss:20b-cloud`, standaard (1 ronde) | 2/3 | 4,7 | 12,3 s | 14,3 s | 15,4 s |
+
+Gemiddelde duur per agentaanroep (120b, met Validation en Safety): Intent ±2,0 s, Question ±1,0 s,
+Validation ±1,1 s, Safety ±1,3 s (die twee tegelijk), Icon ±0,2 s (meestal exact, zonder model). Met
+20b duurt de Intent Agent ±7,8 s en haalt hij in 8 van de 19 aanroepen de time-out van 10 s niet.
+Op de tablet (120b, standaard) duurt een gesprek "dorst" met vier schermen ±15 s, ±3–4 s per scherm.
+
+**Conclusies.**
+
+- **Model:** `gpt-oss:120b-cloud` is sneller én beter dan `gpt-oss:20b-cloud`. Lokale modellen zijn
+  niet gemeten (bewuste keuze: alleen cloudmodellen).
+- **Hoofdpijn en dorst slagen altijd** (1–4 vragen). Soms is de boodschap algemener dan bedoeld
+  ("Pijn." in plaats van "Ik heb hoofdpijn.") — de gebruiker kan dan NEE zeggen.
+- **Duizelig slaagt nooit.** De startset heeft geen woorden voor ziek zijn (geen "ziek", "misselijk",
+  "duizelig"), en na een reeks NEE's loopt de Intent Agent de gevoelens uit de Vocabulary af in plaats
+  van breder te zoeken; bij het maximum (S1) legt hij een gok met lage zekerheid voor. Zie N6.14–N6.16.
+- **Time-outs.** Per agent: Intent 10 s, Question 10 s, Icon 8 s per stap, Validation en Safety 8 s.
+  Samen kon dat in het slechtste geval boven de 30 s van de backend (`AGENT_TIMEOUT_MS`) uitkomen.
+  Daarom heeft elke beurt nu een **tijdsbudget** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke
+  modelaanroep krijgt hooguit de resterende tijd, en met minder dan 1 s over nemen de regels het over.
+  In de metingen onder belasting bleef de langste beurt daardoor op 25,05 s.
+
 ## Draaien in containers (fase 19)
 
 Vier images, één `compose.yaml` in de repo-root:

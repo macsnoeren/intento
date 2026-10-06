@@ -132,6 +132,7 @@ services:
       AGENT_PROPOSE_THRESHOLD: '${AGENT_PROPOSE_THRESHOLD:-0.85}'
       AGENT_LLM_VALIDATION: '${AGENT_LLM_VALIDATION:-false}'
       AGENT_LLM_SAFETY: '${AGENT_LLM_SAFETY:-false}'
+      AGENT_TURN_BUDGET_SECONDS: '${AGENT_TURN_BUDGET_SECONDS:-25}'
     # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen.
     restart: unless-stopped
 
