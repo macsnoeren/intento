@@ -83,7 +83,8 @@ server niet uit elkaar lopen.
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm, kopbalk, bronnen) met
   `TabletConversation.tsx` (het gesprek: startscherm, binary scherm met pictogram, vraag, JA links/NEE
   rechts, ↩ Terug en ⏹ Stoppen; "Bedoel je …?" met alle pictogrammen van de boodschap; Klaar met de
-  boodschap groot en "Nieuw gesprek"; hervat een lopend gesprek en meet de reactietijd), `api.ts`
+  boodschap groot en "Nieuw gesprek"; hervat een lopend gesprek en meet de reactietijd; met voorlezen
+  aan gaat letterlijk de schermtekst — of op Klaar de boodschap — naar `speech.ts`), `api.ts`
   (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
   `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
   `styles.css`.

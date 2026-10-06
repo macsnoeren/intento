@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.12 — tablet: voorlezen
+
+- Met voorlezen aan spreekt de tablet op elk nieuw scherm precies de schermtekst uit (de vraag, "Bedoel
+  je: …?") en op Klaar de bevestigde boodschap, met "🔊 Nog eens". De stem komt uit het profiel
+  (`speech.ts`: spraakdienst, met de apparaatstem als vangnet); een tik ontgrendelt het geluid.
+- `TabletApp` accepteert een `speech`-poort voor tests.
+
 ### N4.11 — tablet: "Bedoel je …?" en Klaar
 
 - Het voorstelscherm toont alle pictogrammen van de boodschap naast elkaar, "Bedoel je: …?" en JA/NEE

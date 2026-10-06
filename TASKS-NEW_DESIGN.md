@@ -324,7 +324,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (boodschap groot, "Nieuw gesprek").
   *Acceptatie:* componenttests; rooktest van start tot Klaar.
 
-- [ ] **N4.12 Tablet: voorlezen**
+- [x] **N4.12 Tablet: voorlezen**
   *ONTWERP: §48.* Met voorlezen aan spreekt de tablet de vraag en de bevestigde boodschap uit (bestaande
   `speech.ts`), met "🔊 Nog eens" op het Klaar-scherm.
   *Acceptatie:* componenttest: precies de schermtekst gaat naar de spraaklaag.

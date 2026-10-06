@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CommunicationTurn, TabletOption } from '@intento/shared';
 import { ApiRequestError, apiUrl, type DeviceApi } from './api.ts';
 import { BrandMark } from './Brand.tsx';
+import type { SpeechPort } from './speech.ts';
 
 /**
  * Het gesprek op de tablet (INTENTO-NEW-DESIGN §12, §48).
@@ -24,11 +25,16 @@ function errorMessage(error: unknown): string {
 export function TabletConversation({
   api,
   showText,
+  speech,
+  speaks,
   footer,
 }: {
   api: DeviceApi;
   /** Labels onder de pictogrammen tonen (instelling `showText`). */
   showText: boolean;
+  /** De spraaklaag; spreekt alleen als `speaks` (instelling "voorlezen") aanstaat. */
+  speech: SpeechPort;
+  speaks: boolean;
   /** Wat onder het startscherm staat (de link naar de bronnen). */
   footer?: React.ReactNode;
 }): React.JSX.Element {
@@ -61,9 +67,21 @@ export function TabletConversation({
     shownAt.current = Date.now();
   }, [turn]);
 
+  // Voorlezen (§48): op elk nieuw scherm precies de tekst die er staat — de vraag, of op Klaar de
+  // bevestigde boodschap. Op het startscherm is er niets te zeggen.
+  const spoken = turn ? spokenText(turn) : null;
+  useEffect(() => {
+    if (!speaks) return;
+    if (spoken) speech.speak(spoken);
+    else speech.stop();
+  }, [spoken, turn, speaks, speech]);
+  useEffect(() => () => speech.stop(), [speech]);
+
   /** Voert een handeling uit; bij een verouderd scherm haalt hij het actuele scherm op. */
   const act = useCallback(
     async (action: () => Promise<CommunicationTurn | null>): Promise<void> => {
+      // Een tik is het moment om het geluid te ontgrendelen (Safari op iOS).
+      if (speaks) speech.unlock();
       setBusy(true);
       setError(null);
       try {
@@ -79,7 +97,7 @@ export function TabletConversation({
         setBusy(false);
       }
     },
-    [api],
+    [api, speaks, speech],
   );
 
   const start = (): Promise<void> => act(() => api.startConversation());
@@ -148,6 +166,11 @@ export function TabletConversation({
       <>
         <section className="tablet__done">
           <h1 className="tablet__message">{presentation.message ?? presentation.text}</h1>
+          {speaks && spoken ? (
+            <button className="button" type="button" onClick={() => speech.speak(spoken)}>
+              🔊 Nog eens
+            </button>
+          ) : null}
           <button
             className="button button--primary tablet__new"
             type="button"
@@ -212,6 +235,14 @@ export function TabletConversation({
       {controls}
     </>
   );
+}
+
+/** Wat er voorgelezen wordt: letterlijk de schermtekst, of op Klaar de boodschap. */
+function spokenText(turn: CommunicationTurn): string | null {
+  const { presentation } = turn;
+  if (presentation.kind === 'stopped') return null;
+  if (presentation.kind === 'done') return presentation.message ?? presentation.text;
+  return presentation.text;
 }
 
 /** Eén pictogram met (als de instelling aanstaat) het woord eronder. */

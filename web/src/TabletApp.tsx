@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AttributionSource, DeviceSessionResponse } from '@intento/shared';
 import { ApiRequestError, httpApi, type DeviceApi } from './api.ts';
 import { AuthLayout } from './AuthLayout.tsx';
 import { BrandMark, BRAND_NAME } from './Brand.tsx';
 import { AttributionList } from './AttributionList.tsx';
 import { TabletConversation } from './TabletConversation.tsx';
+import { createBrowserSpeech, silentSpeech, type SpeechPort } from './speech.ts';
 
 /**
  * Vaste kopbalk van de gebruikersapp: linksboven het beeldmerk met de naam, rechtsboven wie
@@ -47,9 +48,17 @@ function TabletHeader({
  * Daarna het gesprek (`TabletConversation`): startscherm, de schermen die de backend teruggeeft, en
  * ↩ Terug / ⏹ Stoppen.
  *
- * `api` is injecteerbaar zodat tests een in-memory backend kunnen meegeven.
+ * `api` en `speech` zijn injecteerbaar zodat tests een in-memory backend en een nep-spraaklaag kunnen
+ * meegeven.
  */
-export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JSX.Element {
+export function TabletApp({
+  api = httpApi,
+  speech: injectedSpeech,
+}: {
+  api?: DeviceApi;
+  /** Spraakpoort; standaard uit het profiel (spraakdienst of apparaatstem), in tests een nep. */
+  speech?: SpeechPort;
+} = {}): React.JSX.Element {
   const [session, setSession] = useState<DeviceSessionResponse | null>(null);
   const [checking, setChecking] = useState(true);
   const [showSources, setShowSources] = useState(false);
@@ -101,6 +110,15 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [session, refreshSession]);
 
+  // Voorlezen (§48): de stem komt uit het profiel; zonder voorlezen een poort die niets doet.
+  const speechEnabled = session?.user.communicationProfile.speechEnabled ?? false;
+  const speechVoice = session?.user.communicationProfile.speechVoice ?? 'device';
+  const speech = useMemo<SpeechPort>(() => {
+    if (injectedSpeech) return injectedSpeech;
+    if (!speechEnabled) return silentSpeech;
+    return createBrowserSpeech({ voice: speechVoice, fetchAudio: (text) => api.speakText(text) });
+  }, [injectedSpeech, api, speechEnabled, speechVoice]);
+
   if (checking) {
     return (
       <AuthLayout title="Even geduld">
@@ -125,6 +143,8 @@ export function TabletApp({ api = httpApi }: { api?: DeviceApi } = {}): React.JS
       <TabletConversation
         api={api}
         showText={session.user.communicationProfile.showText}
+        speech={speech}
+        speaks={speechEnabled}
         footer={<SourcesLink onClick={() => setShowSources(true)} />}
       />
     </main>

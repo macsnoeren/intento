@@ -9,6 +9,7 @@ import type {
 } from '@intento/shared';
 import { TabletApp } from './TabletApp.tsx';
 import { ApiRequestError, type DeviceApi } from './api.ts';
+import type { SpeechPort } from './speech.ts';
 
 /**
  * Web-tests voor de gebruikersapp op de tablet. Draaien tegen een in-memory `DeviceApi`, zodat
@@ -401,5 +402,60 @@ describe('gesprek op de tablet: "Bedoel je …?" en Klaar (N4.11)', () => {
       's-1',
       expect.objectContaining({ turn: 1, answer: 'no' }),
     ]);
+  });
+});
+
+describe('voorlezen (N4.12)', () => {
+  function recordingSpeech(): { port: SpeechPort; spoken: string[]; unlocks: () => number } {
+    const spoken: string[] = [];
+    let unlocks = 0;
+    return {
+      spoken,
+      unlocks: () => unlocks,
+      port: {
+        speak: (text) => {
+          spoken.push(...(typeof text === 'string' ? [text] : text));
+        },
+        stop: () => {},
+        unlock: () => {
+          unlocks += 1;
+        },
+      },
+    };
+  }
+
+  function withSpeech(enabled: boolean) {
+    const fake = fakeDeviceApi({ linked: true });
+    fake.api.deviceMe = () =>
+      Promise.resolve(sessionFor(makeUser('Sanne', profile({ speechEnabled: enabled }))));
+    return fake;
+  }
+
+  it('spreekt precies de schermtekst en op Klaar de boodschap, met "Nog eens"', async () => {
+    const speech = recordingSpeech();
+    render(<TabletApp api={withSpeech(true).api} speech={speech.port} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
+    expect(speech.unlocks()).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    await screen.findByRole('heading', { name: 'Bedoel je: Pijn?' });
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    await screen.findByRole('heading', { name: 'Pijn', level: 1 });
+    await waitFor(() => expect(speech.spoken).toEqual(['Pijn?', 'Bedoel je: Pijn?', 'Pijn']));
+
+    fireEvent.click(screen.getByRole('button', { name: '🔊 Nog eens' }));
+    expect(speech.spoken.at(-1)).toBe('Pijn');
+  });
+
+  it('zwijgt als voorlezen uit staat', async () => {
+    const speech = recordingSpeech();
+    render(<TabletApp api={withSpeech(false).api} speech={speech.port} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'JA' }));
+    await screen.findByRole('heading', { name: 'Pijn', level: 1 });
+    expect(speech.spoken).toEqual([]);
+    expect(screen.queryByRole('button', { name: '🔊 Nog eens' })).toBeNull();
   });
 });
