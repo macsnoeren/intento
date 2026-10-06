@@ -278,7 +278,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (503 `AGENT_UNAVAILABLE`). Plus een `FakeAgentClient` voor tests.
   *Acceptatie:* tests tegen een lokale nep-HTTP-server: goed antwoord, time-out, ongeldige vorm, 401.
 
-- [ ] **N4.4 Harde invarianten**
+- [x] **N4.4 Harde invarianten**
   *ONTWERP: §52.* Zuivere functie `checkTurnResponse(request, response)` voor I1, I4, I5, I6 en I7
   (I2 en I3 komen in N4.10 en N11.3). Schending → verwerpen + `AgentDecision` status `invalid`.
   *Acceptatie:* één test per invariant, met een geldig en een ongeldig voorbeeld.

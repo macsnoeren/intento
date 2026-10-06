@@ -63,6 +63,11 @@ server niet uit elkaar lopen.
   zod-validatie tegen het contract (plus: zelfde gesprek en beurt). Elke fout wordt één
   `AgentUnavailableError` (503 `AGENT_UNAVAILABLE`) met een interne `reason` voor log en
   `AgentDecision`. `FakeAgentClient` is de nep-agentdienst voor backendtests.
+- `server/src/agents/invariants.ts` — de **harde invarianten** (§52, N4.4): een zuivere functie
+  `checkTurnResponse(request, response)` voor I1, I4, I5, I6 en I7. Ze kijkt alleen naar wat de backend
+  zelf verstuurde (Vocabulary, contacten, instellingen, vorige toestand) en naar het antwoord; wat de
+  agent in zijn eigen state zet, telt niet als bewijs. Een schending noemt ids en aantallen, nooit
+  woorden van het scherm.
 - `server/src/communication/` — gesprekken (`sessions.ts`: versleutelde momentopname per beurt) en
   provenance (`provenance.ts`: Presented, Observed, Inferred en agentbeslissingen in eigen tabellen).
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest

@@ -341,6 +341,10 @@
   2 MB en valideert het antwoord met zod tegen het contract voordat er iets mee gebeurt. Elke fout
   (time-out, 401, 4xx/5xx, ongeldige vorm) wordt 503 `AGENT_UNAVAILABLE` met een vaste melding; de
   interne reden noemt alleen statuscode, foutcode of veldpaden, nooit inhoud.
+- **Harde invarianten in code** (§52). Na het contract toetst `checkTurnResponse` elk antwoord: alleen
+  symbolen uit de meegestuurde Vocabulary en contacten van déze gebruiker (I1), het juiste aantal
+  opties (I4), geen stand-in zonder gap (I5), geen "Bedoel je …?" zonder antwoord (I6) en geen
+  ongeoorloofde vormwissel (I7). Een schending wordt verworpen, nooit getoond.
 - **Geen inhoud in logs of foutmeldingen.** Het log bevat per beurt alleen gebeurtenis, fase, soort
   presentatie en duur; een validatiefout noemt veldnamen, nooit waarden.
 

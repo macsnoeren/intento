@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.4 — harde invarianten
+
+- `server/src/agents/invariants.ts`: zuivere functie `checkTurnResponse(request, response)` (en
+  `assertTurnResponse` met `InvariantViolationError`) voor I1, I4, I5, I6 en I7. Gebaseerd op wat de
+  backend zelf verstuurde, niet op de state van de agent.
+- I1 aangescherpt in het ontwerp: een `exact` symbool draagt een woord en concept van het item zelf
+  (anders is het een stand-in); I4: refs uniek, posities 0…n-1.
+- Tests: per invariant een geldig en ongeldig voorbeeld; de echte orchestrator doorloopt een volledig
+  gesprek zonder schending.
+
 ### N4.3 — client voor de agentdienst
 
 - `server/src/agents/client.ts`: `HttpAgentClient` (`POST /v1/turn`, API-key, time-out

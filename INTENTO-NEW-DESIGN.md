@@ -2090,10 +2090,10 @@ De backend controleert elk antwoord van de agentdienst. Dit staat in **code met 
 
 | # | Invariant |
 |---|---|
-| I1 | Elke optie verwijst naar een `approved` item dat voor deze organisatie beschikbaar is, of in een deelfase naar een bevestigd contact van déze gebruiker. |
+| I1 | Elke optie verwijst naar een `approved` item dat voor deze organisatie beschikbaar is, of in een deelfase naar een bevestigd contact van déze gebruiker. Een `exact` symbool draagt een woord en concept van dat item zelf (anders is het een `stand_in`); het pictogram van een gap staat ook in de Vocabulary. |
 | I2 | Een Communication Intent ontstaat alleen door een Observed JA op een "Bedoel je …?"-presentatie met precies die tekst. |
 | I3 | Er wordt alleen verstuurd na een Observed JA op dát contact (de binary contactvraag of de bevestiging in multi-icon), naar een contact van deze gebruiker met een bevestigd e-mailadres. |
-| I4 | Binary: precies één optie. Multi-icon: 2 tot het ingestelde aantal, verschillend. Nooit een lege presentatie. |
+| I4 | Binary: precies één optie. Multi-icon: 2 tot het ingestelde aantal, verschillend. Nooit een lege presentatie. Refs uniek, posities 0…n-1. |
 | I5 | `stand_in` kan alleen samen met een gap in hetzelfde antwoord. |
 | I6 | Geen "Bedoel je …?" zonder minstens één antwoord van de gebruiker. |
 | I7 | Een expliciet ingestelde vorm wisselt nooit; bij "AI kiest" niet binnen 3 beurten na de vorige wissel. |
