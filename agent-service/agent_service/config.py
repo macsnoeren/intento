@@ -84,11 +84,14 @@ class ServiceConfig:
     # Het LLM-deel van de Validation Agent (§9). Standaard uit: het kost een extra modelaanroep per vraag.
     llm_validation: bool = False
 
+    # Het LLM-deel van de Safety Agent (§10). Standaard uit; draait tegelijk met de Validation Agent.
+    llm_safety: bool = False
+
     def __repr__(self) -> str:
         return (
             f"ServiceConfig(host={self.host!r}, port={self.port}, service_token='***', "
             f"ollama={self.ollama!r}, propose_threshold={self.propose_threshold}, "
-            f"llm_validation={self.llm_validation})"
+            f"llm_validation={self.llm_validation}, llm_safety={self.llm_safety})"
         )
 
     @staticmethod
@@ -147,6 +150,7 @@ class ServiceConfig:
             ollama=_ollama_settings(optional),
             propose_threshold=threshold,
             llm_validation=_flag(optional("AGENT_LLM_VALIDATION", "false"), "AGENT_LLM_VALIDATION"),
+            llm_safety=_flag(optional("AGENT_LLM_SAFETY", "false"), "AGENT_LLM_SAFETY"),
         )
 
 

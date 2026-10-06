@@ -41,6 +41,7 @@ def main() -> int:
             llm=provider,
             propose_threshold=config.propose_threshold,
             llm_validation=config.llm_validation,
+            llm_safety=config.llm_safety,
         ),
     )
     log.info("Agentdienst luistert op http://%s:%d", config.host, config.port)

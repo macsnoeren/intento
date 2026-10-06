@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.12 — Safety Agent: LLM-deel, tegelijk met Validation
+
+- Optioneel (`AGENT_LLM_SAFETY`, nieuw, standaard false; in de `.env`-voorbeelden en compose): het model
+  beoordeelt of de vraag passend en niet belastend is (prompt `safety-v1`); afkeuring → nieuwe poging
+  met de reden, uitval → alleen regels.
+- Staan Validation en Safety allebei aan, dan draaien hun LLM-delen tegelijk in twee threads; een test
+  laat zien dat de duur ongeveer de langste van de twee is. Gemeten met `gpt-oss:120b-cloud`: een beurt
+  met alles aan ±5 s (keuringen samen ±2 s in plaats van ±3,5 s).
+
 ### N6.11 — Validation Agent: LLM-deel
 
 - Optioneel (`AGENT_LLM_VALIDATION`, nieuw, standaard false; in de `.env`-voorbeelden en compose): na

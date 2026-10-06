@@ -120,7 +120,11 @@ afgewezen en het gesprek gaat terug naar `clarify`. Zonder taalmodel is een JA m
 `max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, anders de
 bovenste), en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen
 na een JA op dát contact (voor de deelfase). Grijpt een regel in, dan staat dat als `safety-agent` met
-de regel in de beslissingen.
+de regel in de beslissingen. Met `AGENT_LLM_SAFETY=true` beoordeelt ook het model of een vraag passend
+en niet belastend is (prompt `safety-v1`); een afkeuring gaat als reden naar de nieuwe poging van de
+Question Agent, bij uitval tellen de regels. Staan Validation en Safety allebei aan, dan draaien hun
+LLM-delen **tegelijk** (twee threads): de wachttijd is de langste van de twee, niet de som. Gemeten met
+`gpt-oss:120b-cloud`: een beurt met alles aan ±5 s, waarvan ±2 s voor de twee keuringen samen.
 
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).

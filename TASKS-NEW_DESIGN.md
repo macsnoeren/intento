@@ -427,7 +427,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *ONTWERP: §9.* Optioneel (`AGENT_LLM_VALIDATION`): is de vraag begrijpelijk, past ze, stuurt ze?
   *Acceptatie:* unittests aan/uit; bij uitval van de LLM tellen alleen de regels.
 
-- [ ] **N6.12 Safety Agent: LLM-deel, en tegelijk met Validation**
+- [x] **N6.12 Safety Agent: LLM-deel, en tegelijk met Validation**
   *ONTWERP: §10.* Optioneel (`AGENT_LLM_SAFETY`): is de vraag passend en niet belastend? Validation en
   Safety draaien tegelijk (threads).
   *Acceptatie:* unittests; een test laat zien dat de totale duur ongeveer de langste van de twee is.

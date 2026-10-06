@@ -12,9 +12,11 @@ Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `done`, en `st
 
 from __future__ import annotations
 
+import dataclasses
 import re
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
@@ -22,7 +24,13 @@ from .agents.icon import IconMatch, closest_match, exact_match, icon_prompt, no_
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
 from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
-from .agents.safety import SafetyFinding, s1_question_limit, s2_proposal_needs_answer
+from .agents.safety import (
+    SafetyFinding,
+    llm_safety,
+    s1_question_limit,
+    s2_proposal_needs_answer,
+    safety_prompt,
+)
 from .agents.strategies import instruction_for
 from .agents.validation import (
     DEFAULT_PROPOSE_THRESHOLD,
@@ -71,9 +79,11 @@ class _Turn:
         names: list[str],
         propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
         llm_validation: bool = False,
+        llm_safety: bool = False,
     ) -> None:
         self.clock = clock
         self.llm_validation = llm_validation
+        self.llm_safety = llm_safety
         self.llm = llm
         self.settings = settings
         self.propose_threshold = propose_threshold
@@ -116,9 +126,11 @@ def step(
     clock: Callable[[], float] = time.monotonic,
     propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
     llm_validation: bool = False,
+    llm_safety: bool = False,
 ) -> TurnResponse:
-    """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels; `llm_validation` zet het
-    LLM-deel van de Validation Agent aan (`AGENT_LLM_VALIDATION`)."""
+    """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels; `llm_validation` en
+    `llm_safety` zetten de LLM-delen van de Validation en Safety Agent aan (`AGENT_LLM_VALIDATION`,
+    `AGENT_LLM_SAFETY`)."""
     vocabulary = VocabularyIndex(request.vocabulary)
     turn = _Turn(
         clock,
@@ -127,6 +139,7 @@ def step(
         [c.name for c in request.contacts],
         propose_threshold,
         llm_validation,
+        llm_safety,
     )
     event = request.event
 
@@ -387,31 +400,75 @@ def _validate(
         )
         if f.action == "reject"
     ]
-    if findings or turn.llm is None or not turn.llm_validation:
+    llm = turn.llm
+    if findings or llm is None or not (turn.llm_validation or turn.llm_safety):
         _record_validation(turn, findings, None)
         return findings
-    # Het LLM-deel (§9): alleen als de regels niets vonden. Valt het model uit, dan tellen de regels.
-    provider, prompt = turn.llm, validation_prompt()
-    result = run_agent(
-        "validation-agent",
-        rules=lambda: list[Finding](),
-        llm=LlmAttempt(
-            run=lambda: llm_validate(
-                provider,
-                prompt,
-                text=question.text,
-                concept=question.concept,
-                label=option.label,
-                state=state,
+
+    # De LLM-delen van Validation (§9) en Safety (§10), alleen als de regels niets vonden. Ze draaien
+    # tegelijk, zodat de wachttijd per beurt de langste van de twee is en niet de som (§10).
+    def validation() -> AgentResult[list[Finding]]:
+        prompt = validation_prompt()
+        return run_agent(
+            "validation-agent",
+            rules=lambda: list[Finding](),
+            llm=LlmAttempt(
+                run=lambda: llm_validate(
+                    llm,
+                    prompt,
+                    text=question.text,
+                    concept=question.concept,
+                    label=option.label,
+                    state=state,
+                ),
+                model=llm.model,
+                prompt_version=prompt.id,
             ),
-            model=provider.model,
-            prompt_version=prompt.id,
-        ),
-        rules_reason="alleen regels",
-        clock=turn.clock,
-    )
-    findings = result.value or []
-    _record_validation(turn, findings, result)
+            rules_reason="alleen regels",
+            clock=turn.clock,
+        )
+
+    def safety() -> AgentResult[list[SafetyFinding]]:
+        prompt = safety_prompt()
+        return run_agent(
+            "safety-agent",
+            rules=lambda: list[SafetyFinding](),
+            llm=LlmAttempt(
+                run=lambda: llm_safety(
+                    llm,
+                    prompt,
+                    text=question.text,
+                    concept=question.concept,
+                    label=option.label,
+                    state=state,
+                ),
+                model=llm.model,
+                prompt_version=prompt.id,
+            ),
+            rules_reason="alleen regels",
+            clock=turn.clock,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        validating = pool.submit(validation) if turn.llm_validation else None
+        guarding = pool.submit(safety) if turn.llm_safety else None
+        validated = validating.result() if validating else None
+        guarded = guarding.result() if guarding else None
+
+    if validated is not None:
+        findings = validated.value or []
+        _record_validation(turn, findings, validated)
+    else:
+        _record_validation(turn, [], None)
+    if guarded is not None:
+        unsafe = guarded.value or []
+        reason = "; ".join(f"{f.rule}: {f.reason}" for f in unsafe) or None
+        if guarded.status != "success":
+            reason = "; ".join(r for r in (reason, guarded.reason) if r)
+        turn.record(
+            dataclasses.replace(guarded, validation="invalid" if unsafe else "valid", reason=reason)
+        )
+        findings = [*findings, *(Finding("LLM", f.reason) for f in unsafe)]
     return findings
 
 
