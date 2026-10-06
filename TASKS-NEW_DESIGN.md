@@ -146,7 +146,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Helper `signedAssetUrl(item)`.
   *Acceptatie:* tests: geldige URL 200; verlopen, gemanipuleerde of ingetrokken → 403/404.
 
-- [ ] **N2.3 Afbeeldingscontrole**
+- [x] **N2.3 Afbeeldingscontrole**
   *ONTWERP: §20.* Eén module `vocabulary/image-check.ts` voor alle afbeeldingen die binnenkomen: SVG
   (geldige XML met `<svg>`-root en viewBox; geen `<script>`, `<foreignObject>`, `on…`-attributen of
   externe `href`/`src`; maximale grootte) en PNG/JPEG/WebP (magic bytes, maximale grootte). Geeft een

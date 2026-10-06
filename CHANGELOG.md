@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.3 — afbeeldingscontrole
+
+- `server/src/vocabulary/image-check.ts`: één controle voor alle binnenkomende afbeeldingen. SVG:
+  geldige XML (via `fast-xml-parser`, zonder entiteiten), `<svg>`-root met geldige `viewBox`, geen
+  `<script>`/`<foreignObject>`/animatie-elementen/`<image>`, geen `on…`-attributen, geen externe
+  `href`/`src`/`url(…)`/`@import`, geen `javascript:`, maximale grootte. PNG/JPEG/WebP op magic bytes.
+  Bij weigeren een leesbare reden.
+- Unittests per regel met goede en kwade voorbeelden, en een echte Mulberry-SVG als fixture.
+
 ### N2.2 — afbeeldingen opslaan en veilig serveren
 
 - Bestandsopslag in `STORAGE_DIR` (in compose het volume `intento-storage`), met atomair schrijven en

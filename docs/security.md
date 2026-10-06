@@ -30,6 +30,13 @@
       opnieuw gecontroleerd tegen padmanipulatie (`../`, absoluut). SVG gaat altijd met een CSP zonder
       scripts en externe resources (`default-src 'none'; …; sandbox`) en `nosniff`. Getest in
       `routes/assets.test.ts`.
+- [x] **Afbeeldingscontrole (N2.3)** — elke afbeelding die de Vocabulary binnenkomt gaat door
+      `vocabulary/image-check.ts`, dat naar de **werkelijke inhoud** kijkt: PNG/JPEG/WebP op magic bytes,
+      SVG alleen waar dat mag (de startset, V8) en dan alleen als geldige XML met `<svg>`-root en
+      `viewBox`, zonder DOCTYPE/entiteiten (XXE), zonder `<script>`, `<foreignObject>`, animatie-elementen
+      of `<image>`, zonder `on…`-attributen, zonder `javascript:`, met `href`/`src` alleen naar een
+      fragment en zonder externe `url(…)`/`@import` in stijlen. Altijd met groottelimiet. Getest per
+      regel, plus een echte Mulberry-SVG die geaccepteerd wordt.
 - [x] **Secrets via env** — `SIGNING_SECRET`/`ENCRYPTION_KEY` uit env, nooit in code.
       **Prod-guard:** de server weigert te starten in productie met dev-default-secrets
       of met `COOKIE_SECURE=false`. Getest in `app.test.ts`.
