@@ -361,7 +361,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   `AgentDecision` in de `TurnResponse`. Prompts staan als versiebestanden in `agent_service/prompts/`.
   *Acceptatie:* unittests: een falende agent levert `fallback` op, nooit een exceptie naar buiten.
 
-- [ ] **N5.4 Scenario-opstelling**
+- [x] **N5.4 Scenario-opstelling**
   *ONTWERP: §54.* `agent_service/scenarios/`: een gesimuleerde gebruiker (doel = een set concepten; zegt
   JA als het getoonde concept erbij hoort) speelt een heel gesprek via `step()`. Twee scenario's op de
   regelgebaseerde agents. CLI `python -m agent_service.eval --provider ollama` rapporteert

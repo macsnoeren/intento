@@ -88,3 +88,20 @@ npm run audit:python   # pip-audit
 Of los: `.venv/bin/python -m unittest discover -s tests -t .` en `.venv/bin/mypy`.
 
 De tests starten een echte server op een vrije poort; er is geen netwerk of LLM nodig.
+
+### Scenario's en evaluatie
+
+`agent_service/scenarios/` laat een **gesimuleerde gebruiker** een heel gesprek spelen via `step()`
+(§54): hij heeft een doel (een set concepten), zegt JA als het getoonde concept daarbij hoort en stopt
+als hem dat gevraagd wordt. Een scenario slaagt als het gesprek eindigt met een bevestigde boodschap
+waarvan alle concepten bij het doel horen. De scenario's draaien in de gewone testsuite.
+
+```bash
+.venv/bin/python -m agent_service.eval --provider fake
+OLLAMA_URL=http://127.0.0.1:11434 OLLAMA_MODEL=gpt-oss:120b-cloud \
+  .venv/bin/python -m agent_service.eval --provider ollama --runs 3
+```
+
+Het rapport geeft per scenario slagen/mislukken, aantal vragen, beurten en duur, en per agent hoe vaak
+hij draaide, met welke status en hoe lang gemiddeld. Exitcode 0 alleen als alles slaagde. Tot de
+LLM-agents er zijn (fase N6) draaien alle agents op hun regels, ook met `--provider ollama`.

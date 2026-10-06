@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N5.4 — scenario-opstelling
+
+- `agent_service/scenarios/`: een gesimuleerde gebruiker met een doel (set concepten) speelt een heel
+  gesprek via `step()`; scenario's "bedoelt pijn" en "bedoelt dorst" slagen op de regelgebaseerde
+  agents en draaien in de unittests.
+- `python -m agent_service.eval --provider fake|ollama [--runs N]`: slagingspercentage, vragen, beurten
+  en duur per scenario, en per agent aantal, status en gemiddelde duur. De provider gaat via
+  `engine_for` naar de orchestrator; de LLM-agents zelf volgen in N6.
+
 ### N5.3 — agent-envelop
 
 - `agent_service/agents/envelope.py`: `AgentResult` (waarde, status success/fallback/failed,
