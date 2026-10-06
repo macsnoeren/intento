@@ -173,7 +173,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* een test valideert het bestand en eist dat elk id in het manifest bestaat en dat elk
   concept uniek is.
 
-- [ ] **N2.6 Afbeeldingen downloaden**
+- [x] **N2.6 Afbeeldingen downloaden**
   *ONTWERP: §15.1 (stap 2), §53.* Script `npm run vocabulary:images -- <slug>`: downloadt de afbeeldingen
   uit het manifest naar `STORAGE_DIR` (alleen https van `globalsymbols.com`, groottelimiet, time-out),
   laat elke afbeelding door N2.3 gaan, slaat sha256 op en slaat bestaande bestanden over. Een overzicht

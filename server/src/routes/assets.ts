@@ -22,10 +22,11 @@ const SERVABLE = new Set(['image/svg+xml', 'image/png', 'image/jpeg', 'image/web
 
 /**
  * CSP voor een SVG: geen scripts, geen externe resources, geen formulieren of navigatie. Inline stijl
- * mag, want pictogrammen gebruiken die. `sandbox` zet het document daarbovenop in een afgeschermde
+ * mag, want pictogrammen gebruiken die; ingebedde afbeeldingen en lettertypen (`data:`) ook. `sandbox` zet het document daarbovenop in een afgeschermde
  * context, mocht iemand de afbeelding los openen.
  */
-const SVG_CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox";
+const SVG_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; sandbox";
 
 /**
  * `GET /assets/:id?exp=…&sig=…` — een afbeelding uit de Vocabulary (INTENTO-NEW-DESIGN §51, §53).

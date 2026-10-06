@@ -16,7 +16,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "vocabulary:manifest": "tsx src/scripts/vocabulary-manifest.ts"
+    "vocabulary:manifest": "tsx src/scripts/vocabulary-manifest.ts",
+    "vocabulary:images": "tsx --env-file-if-exists=.env src/scripts/vocabulary-images.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

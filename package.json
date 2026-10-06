@@ -36,7 +36,8 @@
     "test": "npm run test --workspaces --if-present",
     "check:python": "bash scripts/python.sh check",
     "audit:python": "bash scripts/python.sh audit",
-    "vocabulary:manifest": "npm run vocabulary:manifest --workspace=server --"
+    "vocabulary:manifest": "npm run vocabulary:manifest --workspace=server --",
+    "vocabulary:images": "npm run vocabulary:images --workspace=server --"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

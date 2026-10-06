@@ -7,10 +7,12 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
  * imports (PNG, JPEG, WebP). Wat niet door de controle komt, wordt niet opgeslagen. De controle kijkt
  * naar de **werkelijke inhoud**, nooit naar een extensie of een opgegeven content-type.
  *
- * SVG-regels: geldige XML met een `<svg>`-root en een geldige `viewBox`; geen DOCTYPE of entiteiten;
- * geen `<script>`, `<foreignObject>` of andere elementen die code of externe inhoud binnenhalen; geen
- * `on…`-attributen; `href`/`src` alleen naar een fragment (`#id`); geen externe `url(…)` of `@import` in
- * stijlen; geen `javascript:` ergens in een attribuut.
+ * SVG-regels: geldige XML met een `<svg>`-root en een geldige `viewBox`; geen entiteiten en geen DOCTYPE
+ * met een interne subset (een kale `<!DOCTYPE svg PUBLIC …>` mag: die wordt nooit opgehaald); geen
+ * `<script>`, `<foreignObject>` of andere elementen die code of externe inhoud binnenhalen; geen
+ * `on…`-attributen; `href`/`src` alleen naar een fragment (`#id`) of een ingebedde rasterafbeelding
+ * (`data:image/png;base64,…`); geen externe `url(…)` of `@import` in stijlen (`data:` is ingebed, niet
+ * extern); geen `javascript:` ergens in een attribuut.
  */
 
 export type CheckedMimeType = 'image/svg+xml' | 'image/png' | 'image/jpeg' | 'image/webp';
@@ -43,7 +45,6 @@ const FORBIDDEN_ELEMENTS = new Set([
   'animatemotion',
   'animatetransform',
   'animatecolor',
-  'image',
   'feimage',
 ]);
 
@@ -86,9 +87,20 @@ function hasExternalCss(css: string): boolean {
   if (/@import/i.test(css)) return true;
   const urls = css.matchAll(/url\(\s*(['"]?)(.*?)\1\s*\)/gi);
   for (const match of urls) {
-    if (!(match[2] ?? '').trim().startsWith('#')) return true;
+    const target = (match[2] ?? '').trim().toLowerCase();
+    // Een fragment of een ingebedde `data:`-resource (bv. een lettertype) is niet extern.
+    if (!target.startsWith('#') && !target.startsWith('data:')) return true;
   }
   return false;
+}
+
+/** Een fragment (`#id`) of een ingebedde rasterafbeelding; nooit een externe bron of ingebedde SVG. */
+function isInternalReference(value: string): boolean {
+  const target = value.trim();
+  return (
+    target.startsWith('#') ||
+    /^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/=\s]*$/i.test(target)
+  );
 }
 
 type Node = Record<string, unknown>;
@@ -109,7 +121,7 @@ function inspectNodes(nodes: unknown, depth: number): string | null {
         const attrValue = String(rawValue);
         if (attr.startsWith('on')) return `event-handler-attribuut ${attr}`;
         if (/javascript:/i.test(attrValue.replace(/\s+/g, ''))) return `javascript: in ${attr}`;
-        if ((attr === 'href' || attr === 'src') && !attrValue.trim().startsWith('#')) {
+        if ((attr === 'href' || attr === 'src') && !isInternalReference(attrValue)) {
           return `externe verwijzing in ${attr}`;
         }
         if (attr === 'style' && hasExternalCss(attrValue)) return 'externe resource in style';
@@ -129,7 +141,11 @@ function inspectNodes(nodes: unknown, depth: number): string | null {
 }
 
 function checkSvg(text: string): ImageCheckResult {
-  if (/<!DOCTYPE|<!ENTITY/i.test(text)) return reject('DOCTYPE of entiteiten zijn niet toegestaan');
+  // Entiteiten (XXE, "billion laughs") nooit; een DOCTYPE alleen zonder interne subset. Externe DTD's
+  // worden niet opgehaald en entiteiten niet verwerkt (`processEntities: false`).
+  if (/<!ENTITY/i.test(text) || /<!DOCTYPE[^>]*\[/i.test(text)) {
+    return reject('DOCTYPE met interne subset of entiteiten zijn niet toegestaan');
+  }
   const valid = XMLValidator.validate(text);
   if (valid !== true) return reject('geen geldige XML');
 
@@ -173,7 +189,9 @@ export function checkImage(bytes: Uint8Array, options: ImageCheckOptions): Image
   } catch {
     return reject('geen geldige UTF-8-tekst');
   }
-  if (!/^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(text)) {
+  const prolog =
+    /^\s*(?:<\?xml[^>]*\?>\s*)?(?:(?:<!--[\s\S]*?-->|<!DOCTYPE svg[^>[]*>)\s*)*<svg[\s>]/i;
+  if (!prolog.test(text)) {
     return reject('onbekend afbeeldingsformaat');
   }
   return checkSvg(text);

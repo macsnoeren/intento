@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.6 — afbeeldingen downloaden
+
+- `npm run vocabulary:images -- <slug>` downloadt de afbeeldingen uit het manifest naar `STORAGE_DIR`
+  (`seed/<slug>/…` plus een `index.json` met type, sha256 en grootte). Alleen https van
+  `globalsymbols.com`, zonder redirects, met groottelimiet (ook tijdens het lezen) en time-out; elke
+  afbeelding gaat door de afbeeldingscontrole; bestaande bestanden worden overgeslagen; aan het eind een
+  overzicht van geweigerde afbeeldingen.
+- De afbeeldingscontrole is op drie punten versoepeld na de echte import, zonder externe inhoud toe te
+  laten: een kale DOCTYPE zonder interne subset, een ingebedde rasterafbeelding (`data:image/png;…`) in
+  `<image>`, en `url(data:…)` in stijlen (ingebedde lettertypen). De SVG-CSP staat `font-src data:` toe.
+- Handmatige run: Mulberry 3.438/3.439, Plus Collection 41/42 (de bron weigert er twee met 403); een
+  tweede run downloadt niets.
+
 ### N2.5 — kernvertaling met de hand
 
 - `vocabulary/translations/mulberry.nl.json` (57 woorden) en `corona-symbols.nl.json` (alle 42

@@ -129,11 +129,44 @@ describe('afbeeldingscontrole — SVG', () => {
     ).toMatch(/javascript/);
   });
 
-  it('weigert DOCTYPE en entiteiten (XXE, "billion laughs")', () => {
+  it('weigert entiteiten en een DOCTYPE met interne subset (XXE, "billion laughs")', () => {
     const xxe = Buffer.from(
       '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x "y">]><svg viewBox="0 0 1 1">&x;</svg>',
     );
-    expect(reason(checkImage(xxe, OPTS))).toMatch(/onbekend afbeeldingsformaat|DOCTYPE/);
+    expect(reason(checkImage(xxe, OPTS))).not.toBe('ok');
+    const entityOnly = Buffer.from('<svg viewBox="0 0 1 1"><!ENTITY x "y"></svg>');
+    expect(reason(checkImage(entityOnly, OPTS))).not.toBe('ok');
+  });
+
+  it('accepteert een kale DOCTYPE zonder interne subset (zoals Fabric.js en Illustrator die schrijven)', () => {
+    const fabric = Buffer.from(
+      '<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><path d="M0 0"/></svg>',
+    );
+    expect(reason(checkImage(fabric, OPTS))).toBe('ok');
+  });
+
+  it('accepteert een ingebedde rasterafbeelding, maar geen ingebedde SVG of externe bron', () => {
+    const xlink = 'viewBox="0 0 1 1" xmlns:xlink="http://www.w3.org/1999/xlink"';
+    expect(
+      reason(
+        checkImage(svg('<image xlink:href="data:image/png;base64,iVBORw0KGgo="/>', xlink), OPTS),
+      ),
+    ).toBe('ok');
+    expect(
+      reason(
+        checkImage(svg('<image xlink:href="data:image/svg+xml;base64,PHN2Zz4="/>', xlink), OPTS),
+      ),
+    ).toMatch(/externe verwijzing/);
+    expect(
+      reason(checkImage(svg('<image xlink:href="https://evil.example/a.png"/>', xlink), OPTS)),
+    ).toMatch(/externe verwijzing/);
+  });
+
+  it('accepteert een ingebed lettertype via url(data:…) in <style>', () => {
+    const font = svg(
+      "<style>@font-face{font-family:'X';src:url(data:;base64,T1RUTwAC)}</style><text>A</text>",
+    );
+    expect(reason(checkImage(font, OPTS))).toBe('ok');
   });
 
   it('weigert te groot', () => {

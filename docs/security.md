@@ -33,10 +33,17 @@
 - [x] **Afbeeldingscontrole (N2.3)** — elke afbeelding die de Vocabulary binnenkomt gaat door
       `vocabulary/image-check.ts`, dat naar de **werkelijke inhoud** kijkt: PNG/JPEG/WebP op magic bytes,
       SVG alleen waar dat mag (de startset, V8) en dan alleen als geldige XML met `<svg>`-root en
-      `viewBox`, zonder DOCTYPE/entiteiten (XXE), zonder `<script>`, `<foreignObject>`, animatie-elementen
-      of `<image>`, zonder `on…`-attributen, zonder `javascript:`, met `href`/`src` alleen naar een
-      fragment en zonder externe `url(…)`/`@import` in stijlen. Altijd met groottelimiet. Getest per
-      regel, plus een echte Mulberry-SVG die geaccepteerd wordt.
+      `viewBox`, zonder entiteiten of DOCTYPE met interne subset (XXE), zonder `<script>`,
+      `<foreignObject>` of animatie-elementen, zonder `on…`-attributen, zonder `javascript:`, met
+      `href`/`src` alleen naar een fragment of een ingebedde **raster**afbeelding (`data:image/png;…`,
+      nooit een ingebedde SVG) en zonder externe `url(…)`/`@import` in stijlen (`data:`, bv. een ingebed
+      lettertype, is niet extern). Altijd met groottelimiet. Getest per regel, plus een echte
+      Mulberry-SVG die geaccepteerd wordt. De versoepeling voor kale DOCTYPEs, ingebedde PNG's en
+      lettertypen kwam uit de echte import (N2.6): de zorgsymbolen zijn Fabric.js-SVG's met een
+      ingebedde PNG, en 30 Mulberry-SVG's hebben een ingebed lettertype.
+- [x] **Externe downloads van de startset (N2.6)** — alleen https van `globalsymbols.com`, zonder
+      redirects, zonder inloggegevens in de URL, met time-out en een groottelimiet die ook tijdens het
+      lezen geldt (niet alleen op `Content-Length`). Elke afbeelding gaat door de afbeeldingscontrole.
 - [x] **Secrets via env** — `SIGNING_SECRET`/`ENCRYPTION_KEY` uit env, nooit in code.
       **Prod-guard:** de server weigert te starten in productie met dev-default-secrets
       of met `COOKIE_SECURE=false`. Getest in `app.test.ts`.

@@ -9,7 +9,15 @@ De startset van de Vocabulary (INTENTO-NEW-DESIGN §15.1): **Mulberry Symbols** 
 | `translations/<slug>.nl.json` | Nederlandse labels, synoniemen, concept, context, startconcept en status (`reviewed`/`machine`). | Met de hand (kernset) en via de machinevertaling (N8.7). |
 
 Het manifest maakt de import herhaalbaar, ook als de bron verandert. De afbeeldingen zelf staan niet in
-de repo; die haalt `npm run vocabulary:images -- <slug>` naar de bestandsopslag.
+de repo; die haalt `npm run vocabulary:images -- <slug>` naar de bestandsopslag (`STORAGE_DIR`, standaard
+`server/storage`): `seed/<slug>/<id>.<ext>` plus `seed/<slug>/index.json` met per id het bestand, het
+gecontroleerde type, de sha256 en de grootte. Alleen https van `globalsymbols.com`, met groottelimiet
+en time-out; elke afbeelding gaat door de afbeeldingscontrole. Wat er al staat, wordt overgeslagen. Aan
+het eind volgt een overzicht van geweigerde afbeeldingen.
+
+Stand van de import (2026-10-06): Mulberry 3.438 van 3.439 en de Plus Collection 41 van 42. De bron zelf
+weigert er twee (HTTP 403): Mulberry 95524 en het zorgsymbool "pillow" (57753); die komen dus niet in
+de Vocabulary tot de bron ze weer vrijgeeft.
 
 ## Vertaalbestand
 
