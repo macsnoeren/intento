@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
+import type { ReadableStreamDefaultReader, ReadableStreamReadResult } from 'node:stream/web';
 import { z } from 'zod';
 import { resolveStoragePath, writeStoredFile } from '../storage/files.js';
 import type { Manifest, ManifestItem } from './global-symbols.js';
@@ -89,12 +90,13 @@ async function readLimited(response: Response, maxBytes: number): Promise<Uint8A
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) return null;
   if (!response.body) return new Uint8Array(await response.arrayBuffer());
-  const reader = response.body.getReader();
+  const reader = response.body.getReader() as unknown as ReadableStreamDefaultReader<Uint8Array>;
   const chunks: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
+    const chunk: ReadableStreamReadResult<Uint8Array> = await reader.read();
+    if (chunk.done) break;
+    const value = chunk.value;
     total += value.byteLength;
     if (total > maxBytes) {
       await reader.cancel();
