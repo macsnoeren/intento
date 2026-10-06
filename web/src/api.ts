@@ -32,6 +32,7 @@ import {
   type VocabularyItemPublic,
   type VocabularyListQuery,
   type VocabularyUpdateRequest,
+  type VocabularyContext,
   vocabularyItemPublicSchema,
   type VocabularyListResponse,
   vocabularyListResponseSchema,
@@ -121,6 +122,8 @@ export interface Api {
   listVocabulary(query?: Partial<VocabularyListQuery>): Promise<VocabularyListResponse>;
   /** Een item bewerken (alleen beheerder; platformitems alleen de platformbeheerder). */
   updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
+  /** Eigen afbeelding + woord toevoegen (multipart). Alleen de beheerder. */
+  uploadVocabularyItem(upload: VocabularyUpload): Promise<VocabularyItemPublic>;
   /** De bronvermelding van de Vocabulary. */
   listAttributions(): Promise<AttributionListResponse>;
   /** De gebruikers waaraan dit account als begeleider gekoppeld is. */
@@ -183,6 +186,16 @@ export interface DeviceApi {
   goBack(sessionId: string, turn: number): Promise<CommunicationTurn>;
   /** ⏹ Stoppen. */
   stopConversation(sessionId: string): Promise<void>;
+}
+
+/** Wat de beheeromgeving meestuurt bij een eigen afbeelding (de server controleert alles opnieuw). */
+export interface VocabularyUpload {
+  file: File;
+  label: string;
+  synonyms: string[];
+  concepts: string[];
+  contexts: VocabularyContext[];
+  rightsConfirmed: boolean;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
@@ -376,6 +389,18 @@ export const httpApi: Api & DeviceApi = {
         method: 'POST',
         body: '{}',
       }),
+    );
+  },
+  async uploadVocabularyItem(upload) {
+    const form = new FormData();
+    form.set('label', upload.label);
+    form.set('synonyms', upload.synonyms.join(', '));
+    form.set('concepts', upload.concepts.join(', '));
+    form.set('contexts', upload.contexts.join(', '));
+    form.set('rightsConfirmed', upload.rightsConfirmed ? 'true' : 'false');
+    form.set('file', upload.file);
+    return vocabularyItemPublicSchema.parse(
+      await request('/vocabulary/upload', { method: 'POST', body: form }),
     );
   },
   async updateVocabularyItem(id, body) {

@@ -485,7 +485,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   datum. Alleen de beheerder. Audit-log.
   *Acceptatie:* tests: verkeerd type, te groot, valse extensie, begeleider → 403, isolatie.
 
-- [ ] **N8.2 Eigen afbeelding + woord: beheer-UI**
+- [x] **N8.2 Eigen afbeelding + woord: beheer-UI**
   *ONTWERP: §49.* Dialoog met voorbeeldweergave, woord, concepten en het vinkje.
   *Acceptatie:* componenttest; rooktest (het nieuwe woord verschijnt in een gesprek).
 

@@ -8,6 +8,8 @@ import type {
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
+import { Modal } from './Modal.tsx';
+import { VocabularyUploadDialog } from './VocabularyUploadDialog.tsx';
 import { VocabularyItemDetail } from './VocabularyItemDetail.tsx';
 
 /**
@@ -77,6 +79,7 @@ export function VocabularyPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<VocabularyItemPublic | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -174,7 +177,30 @@ export function VocabularyPage({
             <option value="retired">Ingetrokken</option>
           </select>
         </label>
+        {account.role === 'ADMIN' ? (
+          <button
+            className="button button--primary toolbar__end"
+            type="button"
+            onClick={() => setUploading(true)}
+          >
+            + Eigen afbeelding toevoegen
+          </button>
+        ) : null}
       </div>
+
+      {uploading ? (
+        <Modal title="Eigen afbeelding toevoegen" onClose={() => setUploading(false)}>
+          <VocabularyUploadDialog
+            api={api}
+            onCancel={() => setUploading(false)}
+            onCreated={(item) => {
+              setUploading(false);
+              void load();
+              setSelected(item);
+            }}
+          />
+        </Modal>
+      ) : null}
 
       {error ? (
         <p className="form__error" role="alert">

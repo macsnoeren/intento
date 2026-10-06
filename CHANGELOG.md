@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.2 — eigen afbeelding + woord: beheer-UI
+
+- "+ Eigen afbeelding toevoegen" op de Vocabulary-pagina (alleen de beheerder): dialoog met voorbeeld,
+  woord, synoniemen, concepten, contexten en het verplichte vinkje; een ander bestandstype wordt al in
+  de browser geweigerd; na opslaan opent het nieuwe item. `Api.uploadVocabularyItem` (FormData).
+- Gerookt in de browser: "ijsje" toegevoegd, als startconcept gemarkeerd, en het verschijnt als tegel
+  in een gesprek op de tablet.
+
 ### N8.1 — eigen afbeelding + woord: backend
 
 - `POST /vocabulary/upload` (multipart, alleen de beheerder): PNG, JPEG of WebP herkend aan de inhoud

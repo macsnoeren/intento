@@ -260,6 +260,9 @@ function fakeApi(
     updateVocabularyItem() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    uploadVocabularyItem() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     listVocabulary() {
       return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 24 });
     },

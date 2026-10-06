@@ -95,6 +95,9 @@ server niet uit elkaar lopen.
   (injecteerbare, zod-validerende clients naar de backend: de beheer-`Api` en de losgekoppelde
   `DeviceApi` voor de tablet), beheercomponenten (`LoginForm`, `AdminUsersPage`, `SettingsForm`),
   `styles.css`.
+- `VocabularyUploadDialog.tsx` — eigen afbeelding + woord (N8.2): bestand met voorbeeld, woord,
+  synoniemen, concepten, contexten en het verplichte rechtenvinkje; opent na opslaan het nieuwe item.
+  Alleen zichtbaar voor de beheerder.
 - **Schil en huisstijl (T17.1)** — drie componenten die elke ingelogde pagina dezelfde vorm geven:
   `AppShell.tsx` (zijbalk met menu + kopbalk met paginatitel en account), `AdminNav.tsx` (het menu
   zelf: gegroepeerd en gefilterd op rol, met `NavIcon.tsx` voor de lijnicoontjes) en `AuthLayout.tsx`

@@ -34,7 +34,7 @@ export const CONTEXT_LABELS: Record<VocabularyContext, string> = {
 };
 
 /** Komma- of regelgescheiden tekst → lijst zonder lege of dubbele onderdelen. */
-function splitList(value: string): string[] {
+export function splitList(value: string): string[] {
   const parts = value
     .split(/[\n,]/)
     .map((part) => part.trim())

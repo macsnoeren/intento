@@ -1533,3 +1533,18 @@ body {
   font-size: 1.35rem;
   padding: 0.9rem 2rem;
 }
+
+/* Eigen afbeelding toevoegen (N8.2): voorbeeld van de gekozen afbeelding. */
+.upload__preview {
+  width: 8rem;
+  height: 8rem;
+  object-fit: contain;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  background: var(--intento-surface);
+}
+
+.toolbar__end {
+  margin-left: auto;
+  align-self: flex-end;
+}
