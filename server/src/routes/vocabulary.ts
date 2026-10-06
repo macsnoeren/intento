@@ -1,14 +1,50 @@
 import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import {
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
+  vocabularyUpdateRequestSchema,
+  type VocabularyItemPublic,
   type VocabularyListResponse,
 } from '@intento/shared';
 import type { Env } from '../env.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
-import { availableTo, parseVocabularyItem } from '../vocabulary/repository.js';
+import type { AccountModel, VocabularyItemModel } from '../generated/prisma/models.js';
+import { HttpError } from '../errors.js';
+import { recordAudit } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
+import { availableTo, buildSearchText, parseVocabularyItem } from '../vocabulary/repository.js';
 import { vocabularyItemToPublic } from '../vocabulary/serialize.js';
+
+const idParamsSchema = z.object({ id: z.string().min(1).max(200) });
+
+/**
+ * Mag dit account dit item beheren? Een item van de eigen organisatie: ja. Een platformitem (de
+ * startset): alleen een beheerder van de platformorganisatie. Een item van een andere organisatie of een
+ * onbekend id: 403 zonder te verraden welke van de twee (IDOR-mitigatie, ADR-0005).
+ */
+export async function loadManageableItem(
+  prisma: PrismaClient,
+  account: AccountModel,
+  id: string,
+): Promise<VocabularyItemModel> {
+  const item = await prisma.vocabularyItem.findUnique({ where: { id } });
+  if (item && item.organizationId === account.organizationId) return item;
+  if (item && item.organizationId === null) {
+    const org = await prisma.organization.findUnique({
+      where: { id: account.organizationId },
+      select: { isPlatform: true },
+    });
+    if (org?.isPlatform) return item;
+    throw new HttpError(
+      403,
+      'PLATFORM_ITEM',
+      'Dit symbool hoort bij de startset van het platform; alleen de platformbeheerder kan het wijzigen.',
+    );
+  }
+  throw new HttpError(403, 'FORBIDDEN', 'Je hebt geen toegang tot dit symbool.');
+}
 
 export interface VocabularyRoutesDeps {
   env: Env;
@@ -21,6 +57,10 @@ export interface VocabularyRoutesDeps {
  * `GET /vocabulary` — de items die voor de eigen organisatie beschikbaar zijn (platform + eigen),
  * gepagineerd en doorzoekbaar, met ondertekende afbeeldings-URL's. Lezen mag de beheerder én de
  * begeleider; een tablet (apparaatsessie) niet. Ingetrokken items alleen met `status=retired`.
+ *
+ * `PATCH /vocabulary/:id` — labels, concepten, contexten, startconcept en volgorde bewerken. Alleen de
+ * beheerder, alleen items van de eigen organisatie; platformitems alleen de platformbeheerder. Een
+ * gewijzigd label is daarmee nagekeken (`labelStatus: reviewed`). Geaudit.
  */
 export function registerVocabularyRoutes(
   app: FastifyInstance,
@@ -54,6 +94,42 @@ export function registerVocabularyRoutes(
         page: query.page,
         pageSize: query.pageSize,
       });
+    },
+  );
+
+  app.patch(
+    '/vocabulary/:id',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<VocabularyItemPublic> => {
+      const account = requireAccount(request);
+      const { id } = idParamsSchema.parse(request.params);
+      const body = vocabularyUpdateRequestSchema.parse(request.body);
+      const current = parseVocabularyItem(await loadManageableItem(prisma, account, id));
+
+      const labels = body.labels ?? current.labels;
+      const concepts = body.concepts ?? current.concepts;
+      const updated = await prisma.vocabularyItem.update({
+        where: { id },
+        data: {
+          ...(body.labels ? { labels: body.labels, labelStatus: 'reviewed' } : {}),
+          ...(body.concepts ? { concepts: body.concepts } : {}),
+          ...(body.contexts ? { contexts: body.contexts } : {}),
+          ...(body.isStart !== undefined ? { isStart: body.isStart } : {}),
+          ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
+          searchText: buildSearchText(labels, concepts),
+        },
+      });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.VOCABULARY_UPDATE,
+        targetType: 'vocabularyItem',
+        targetId: id,
+        metadata: {
+          fields: Object.keys(body),
+          scope: current.organizationId ? 'organization' : 'platform',
+        },
+      });
+      return vocabularyItemToPublic(parseVocabularyItem(updated), env);
     },
   );
 }

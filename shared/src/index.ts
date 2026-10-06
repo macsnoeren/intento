@@ -868,3 +868,65 @@ export const vocabularyListResponseSchema = z.object({
   pageSize: z.number().int().min(1),
 });
 export type VocabularyListResponse = z.infer<typeof vocabularyListResponseSchema>;
+
+/** De vaste contexten van de Vocabulary (§15.1): gezondheid, eten en drinken, gevoelens, … */
+export const VOCABULARY_CONTEXTS = [
+  'health',
+  'food_drink',
+  'feelings',
+  'body',
+  'people',
+  'places',
+  'activities',
+  'things',
+  'time',
+  'other',
+] as const;
+export const vocabularyContextSchema = z.enum(VOCABULARY_CONTEXTS);
+export type VocabularyContext = z.infer<typeof vocabularyContextSchema>;
+
+/** Een taalneutrale conceptsleutel: kleine letters, cijfers en underscores (`chest_pain`). */
+export const conceptKeySchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/, 'Een concept bestaat uit kleine letters, cijfers en _.')
+  .max(60);
+
+const vocabularyLabelSchema = z.string().trim().min(1).max(60);
+
+/**
+ * Bewerken van een item (`PATCH /vocabulary/{id}`, §15, §16): labels (het eerste is het hoofdlabel, de
+ * rest synoniemen), concepten, contexten, startconcept en volgorde. Minstens één veld.
+ */
+export const vocabularyUpdateRequestSchema = z
+  .strictObject({
+    labels: z
+      .array(vocabularyLabelSchema)
+      .min(1)
+      .max(20)
+      .refine((list) => new Set(list.map((l) => l.toLowerCase())).size === list.length, {
+        message: 'Elk label mag maar één keer voorkomen.',
+      })
+      .optional(),
+    concepts: z
+      .array(conceptKeySchema)
+      .min(1)
+      .max(10)
+      .refine((list) => new Set(list).size === list.length, {
+        message: 'Elk concept mag maar één keer voorkomen.',
+      })
+      .optional(),
+    contexts: z
+      .array(vocabularyContextSchema)
+      .max(VOCABULARY_CONTEXTS.length)
+      .refine((list) => new Set(list).size === list.length, {
+        message: 'Elke context mag maar één keer voorkomen.',
+      })
+      .optional(),
+    isStart: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).max(100_000).optional(),
+  })
+  .refine((body) => Object.values(body).some((value) => value !== undefined), {
+    message: 'Geef minstens één veld om te wijzigen.',
+  });
+export type VocabularyUpdateRequest = z.infer<typeof vocabularyUpdateRequestSchema>;

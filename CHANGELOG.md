@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.11 — een item bewerken
+
+- `PATCH /vocabulary/:id`: labels, concepten, contexten, startconcept en volgorde; een gewijzigd label
+  wordt `reviewed`. Alleen de beheerder; alleen items van de eigen organisatie; platformitems alleen de
+  platformbeheerder (`403 PLATFORM_ITEM`). Audit-log `vocabulary.update`.
+- De vaste contextlijst en de conceptsleutel staan nu in `shared/`.
+- Tests: validatie, rol, isolatie, platformitem door een organisatiebeheerder → 403.
+
 ### N2.10 — beheer: Vocabulary-overzicht
 
 - Nieuwe pagina "Vocabulary" (menu-item, ook voor de begeleider om te lezen): tegels met pictogram, label,

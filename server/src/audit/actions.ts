@@ -29,6 +29,8 @@ export const AUDIT_ACTIONS = {
   // Profielexport/-import
   PROFILE_EXPORT: 'profile.export',
   PROFILE_IMPORT: 'profile.import',
+  // Vocabulary (INTENTO-NEW-DESIGN §15, §53)
+  VOCABULARY_UPDATE: 'vocabulary.update',
   // Platform-operatorconsole — cross-tenant beheer, altijd met de operator als actor
   OPERATOR_ORGANIZATION_CREATE: 'operator.organization.create',
   OPERATOR_ORGANIZATION_DEACTIVATE: 'operator.organization.deactivate',

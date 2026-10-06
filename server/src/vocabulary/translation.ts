@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
+import { conceptKeySchema, VOCABULARY_CONTEXTS } from '@intento/shared';
 import { manifestSchema, type Manifest } from './global-symbols.js';
 import { manifestPath, translationPath } from './paths.js';
 
@@ -11,24 +12,7 @@ import { manifestPath, translationPath } from './paths.js';
  * (`reviewed`) of door de machine gemaakt (`machine`).
  */
 
-/** De vaste contexten (§15.1): gezondheid, eten en drinken, gevoelens, lichaam, mensen, … */
-export const VOCABULARY_CONTEXTS = [
-  'health',
-  'food_drink',
-  'feelings',
-  'body',
-  'people',
-  'places',
-  'activities',
-  'things',
-  'time',
-  'other',
-] as const;
-
-/** Een taalneutrale conceptsleutel: kleine letters, cijfers en underscores (`chest_pain`). */
-export const conceptKeySchema = z
-  .string()
-  .regex(/^[a-z0-9]+(?:_[a-z0-9]+)*$/, 'geen geldige conceptsleutel');
+export { VOCABULARY_CONTEXTS };
 
 export const translationItemSchema = z.strictObject({
   id: z.number().int().positive(),

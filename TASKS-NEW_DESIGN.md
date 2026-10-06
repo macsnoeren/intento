@@ -207,7 +207,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Menu-item "Vocabulary".
   *Acceptatie:* componenttest (lege lijst, lijst, zoeken, volgende pagina); rooktest in de browser.
 
-- [ ] **N2.11 Een item bewerken**
+- [x] **N2.11 Een item bewerken**
   *ONTWERP: §15, §16.* `PATCH /vocabulary/:id`: labels, concepten, contexten, `isStart`, `sortOrder`;
   een gewijzigd label wordt `reviewed`. Alleen de beheerder, alleen items van de eigen organisatie
   (platformitems alleen de platformbeheerder). Audit-log.

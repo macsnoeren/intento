@@ -8,6 +8,7 @@ import {
   loginCookie,
   resetAuthData,
   seedAccount,
+  seedPlatformAccount,
   seedUser,
   testEnv,
 } from '../test/auth-helpers.js';
@@ -141,5 +142,143 @@ describe('GET /vocabulary', () => {
       (await list(cookie, '?status=retired')).body,
     );
     expect(retired.items.map((i) => [i.labels[0], i.imageUrl])).toEqual([['oud', null]]);
+  });
+});
+
+/** `PATCH /vocabulary/:id` (N2.11, INTENTO-NEW-DESIGN §15, §16). */
+describe('PATCH /vocabulary/:id', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await prisma.vocabularyItem.deleteMany();
+    await resetAuthData();
+    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '1000' }) });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  async function patch(cookie: string, id: string, payload: unknown) {
+    return app.inject({
+      method: 'PATCH',
+      url: `/vocabulary/${id}`,
+      headers: { cookie },
+      payload: payload as object,
+    });
+  }
+
+  it('bewerkt labels, concepten, contexten, startconcept en volgorde; een nieuw label is nagekeken', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const id = await createVocabularyItem(prisma, {
+      label: 'hoofd',
+      concept: 'head',
+      organizationId: admin.organizationId,
+      labelStatus: 'machine',
+    });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    const res = await patch(cookie, id, {
+      labels: ['kop', 'hoofd'],
+      concepts: ['head'],
+      contexts: ['body'],
+      isStart: true,
+      sortOrder: 5,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      labels: ['kop', 'hoofd'],
+      contexts: ['body'],
+      isStart: true,
+      sortOrder: 5,
+      labelStatus: 'reviewed',
+    });
+    // De zoektekst loopt mee.
+    const row = await prisma.vocabularyItem.findUniqueOrThrow({ where: { id } });
+    expect(row.searchText).toContain('kop');
+    // En het staat in het audit-log, zonder de labels zelf.
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'vocabulary.update' },
+    });
+    expect(audit.targetId).toBe(id);
+    expect(audit.metadataJson).not.toContain('kop');
+  });
+
+  it('laat het label met rust als alleen de volgorde wijzigt', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const id = await createVocabularyItem(prisma, {
+      label: 'x',
+      concept: 'x',
+      organizationId: admin.organizationId,
+      labelStatus: 'machine',
+    });
+    const res = await patch(await loginCookie(app, admin.email, admin.password), id, {
+      sortOrder: 3,
+    });
+    expect(res.json()).toMatchObject({ labelStatus: 'machine', sortOrder: 3 });
+  });
+
+  it('valideert de invoer', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const id = await createVocabularyItem(prisma, {
+      label: 'x',
+      concept: 'x',
+      organizationId: admin.organizationId,
+    });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    for (const body of [
+      {},
+      { labels: [] },
+      { labels: ['a', 'A'] },
+      { concepts: ['Hoofd Pijn'] },
+      { contexts: ['weer'] },
+      { sortOrder: -1 },
+      { labels: ['a'], status: 'retired' },
+    ]) {
+      expect((await patch(cookie, id, body)).statusCode, JSON.stringify(body)).toBe(400);
+    }
+  });
+
+  it('is alleen voor de beheerder', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const caregiver = await seedAccount('c@intento.local', 'pw', 'CAREGIVER', admin.organizationId);
+    const id = await createVocabularyItem(prisma, {
+      label: 'x',
+      concept: 'x',
+      organizationId: admin.organizationId,
+    });
+    const res = await patch(await loginCookie(app, caregiver.email, caregiver.password), id, {
+      sortOrder: 1,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('kan geen item van een andere organisatie bewerken', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const other = await seedAccount('b@intento.local', 'pw', 'ADMIN');
+    const theirs = await createVocabularyItem(prisma, {
+      label: 'x',
+      concept: 'x',
+      organizationId: other.organizationId,
+    });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    const res = await patch(cookie, theirs, { sortOrder: 1 });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'FORBIDDEN' } });
+    expect((await patch(cookie, 'bestaat-niet', { sortOrder: 1 })).statusCode).toBe(403);
+  });
+
+  it('weigert een platformitem voor een organisatiebeheerder, maar niet voor de platformbeheerder', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const platformItem = await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain' });
+    const res = await patch(await loginCookie(app, admin.email, admin.password), platformItem, {
+      sortOrder: 1,
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: { code: 'PLATFORM_ITEM' } });
+
+    const { email, password } = await seedPlatformAccount('p@intento.local', 'pw');
+    const ok = await patch(await loginCookie(app, email, password), platformItem, { sortOrder: 1 });
+    expect(ok.statusCode).toBe(200);
   });
 });
