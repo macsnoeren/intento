@@ -196,7 +196,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* een verse `npm run docker:up` levert een Vocabulary met afbeeldingen op; een tweede `up`
   downloadt niets opnieuw.
 
-- [ ] **N2.9 `GET /vocabulary`**
+- [x] **N2.9 `GET /vocabulary`**
   *ONTWERP: §49, §51.* Lijst voor de beheeromgeving (beheerder en begeleider, alleen lezen), met
   ondertekende afbeeldings-URL's, gepagineerd en doorzoekbaar (ruim 3.400 items); zod op de response.
   *Acceptatie:* tests: rollen (tablet mag niet), isolatie, paginering, zoeken, ingetrokken items alleen

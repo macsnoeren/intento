@@ -163,6 +163,12 @@ dezelfde lijst gebruiken. Een stem-id is de naam van een Piper-model (`nl_NL-pim
 `#<spreker>` voor een meersprekermodel, of de sleutel `device` voor "de tablet spreekt zelf". Zie
 [ADR-0015](adr/0015-speech-synthesis-piper.md) en [`speech-service/README.md`](../speech-service/README.md).
 
+### Vocabulary (N2.9, INTENTO-NEW-DESIGN §15, §49)
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/vocabulary?q=&status=&labelStatus=&page=&pageSize=` | ADMIN, CAREGIVER | De items die voor de eigen organisatie beschikbaar zijn (platform + eigen, nooit van een andere organisatie), gesorteerd op `sortOrder`. `q` zoekt hoofdletterongevoelig in labels, synoniemen en concepten; `status` is standaard `approved` (ingetrokken items alleen met `status=retired`); `pageSize` 1–100 (standaard 24). `200` + `vocabularyListResponseSchema` (`{ items, total, page, pageSize }`); per item `scope` (`platform`/`organization`), licentie en herkomst, en een ondertekende `imageUrl` (`null` zonder afbeelding of bij een ingetrokken item). Een tablet (apparaatsessie) krijgt `401`. |
+
 ### Afbeeldingen (N2.2, INTENTO-NEW-DESIGN §51, §53)
 
 | Methode | Pad | Rol | Beschrijving |

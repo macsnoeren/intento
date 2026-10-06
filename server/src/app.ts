@@ -20,6 +20,7 @@ import { registerAuditRoutes } from './routes/audit.js';
 import { registerOperatorRoutes } from './routes/operator.js';
 import { registerSpeechRoutes } from './routes/speech.js';
 import { registerAssetRoutes } from './routes/assets.js';
+import { registerVocabularyRoutes } from './routes/vocabulary.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createSpeechService, type SpeechService } from './speech/index.js';
 import { createEncryptor } from './crypto/encryption.js';
@@ -113,6 +114,8 @@ export async function buildApp({
   registerSpeechRoutes(app, { env, prisma, speech });
   // Afbeeldingen van de Vocabulary, alleen via een ondertekende, vervallende URL.
   registerAssetRoutes(app, { env, prisma });
+  // Vocabulary in de beheeromgeving (N2.9 e.v.).
+  registerVocabularyRoutes(app, { env, prisma });
 
   return app;
 }

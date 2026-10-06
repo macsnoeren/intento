@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.9 — `GET /vocabulary`
+
+- Lijst voor de beheeromgeving (beheerder en begeleider, alleen lezen): platform + eigen organisatie,
+  gepagineerd, doorzoekbaar op labels/synoniemen/concepten, met licentie en ondertekende afbeeldings-URL's;
+  ingetrokken items alleen met `status=retired`. Response gevalideerd met zod
+  (`vocabularyListResponseSchema` in `shared/`).
+- Tests: rollen (tablet en anoniem → 401), isolatie, paginering, zoeken, het filter `retired`.
+
 ### N2.8 — de startset in Docker
 
 - Compose-klus `vocabulary-import` (zelfde image als de server): migreert, downloadt de afbeeldingen naar

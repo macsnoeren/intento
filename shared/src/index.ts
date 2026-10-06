@@ -806,3 +806,65 @@ export const operatorOrganizationDetailSchema = z.object({
   users: z.array(operatorUserSchema),
 });
 export type OperatorOrganizationDetail = z.infer<typeof operatorOrganizationDetailSchema>;
+
+// --- Vocabulary (INTENTO-NEW-DESIGN §15, §49) ---
+
+export const vocabularyStatusSchema = z.enum(['approved', 'retired']);
+export type VocabularyStatus = z.infer<typeof vocabularyStatusSchema>;
+export const labelStatusSchema = z.enum(['reviewed', 'machine']);
+export type LabelStatus = z.infer<typeof labelStatusSchema>;
+export const vocabularySourceSchema = z.enum(['seed', 'external', 'own']);
+export type VocabularySource = z.infer<typeof vocabularySourceSchema>;
+
+/** Query van `GET /vocabulary`: zoeken, filteren op status, pagineren. */
+export const vocabularyListQuerySchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  status: vocabularyStatusSchema.default('approved'),
+  labelStatus: labelStatusSchema.optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(24),
+});
+export type VocabularyListQuery = z.infer<typeof vocabularyListQuerySchema>;
+
+/** Licentie en herkomst van één item (§15): wat de bronvermelding nodig heeft. */
+export const vocabularyLicenseSchema = z.object({
+  key: z.string(),
+  url: webLinkUrlSchema.nullable(),
+  author: z.string().nullable(),
+  authorUrl: webLinkUrlSchema.nullable(),
+  sourceName: z.string().nullable(),
+  sourceUrl: webLinkUrlSchema.nullable(),
+  sourceRef: z.string().nullable(),
+  importedAt: z.iso.datetime().nullable(),
+});
+export type VocabularyLicense = z.infer<typeof vocabularyLicenseSchema>;
+
+/** Eén Vocabulary-item zoals de beheeromgeving het ziet, met een ondertekende afbeeldings-URL. */
+export const vocabularyItemPublicSchema = z.object({
+  id: z.string(),
+  /** `platform` (startset, voor iedereen) of `organization` (van de eigen organisatie). */
+  scope: z.enum(['platform', 'organization']),
+  labels: z.array(z.string()).min(1),
+  concepts: z.array(z.string()).min(1),
+  contexts: z.array(z.string()),
+  partOfSpeech: z.string().nullable(),
+  isStart: z.boolean(),
+  sortOrder: z.number().int(),
+  status: vocabularyStatusSchema,
+  labelStatus: labelStatusSchema,
+  source: vocabularySourceSchema,
+  license: vocabularyLicenseSchema,
+  /** Relatieve, ondertekende URL (`/assets/…`); `null` zonder afbeelding of bij een ingetrokken item. */
+  imageUrl: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type VocabularyItemPublic = z.infer<typeof vocabularyItemPublicSchema>;
+
+export const vocabularyListResponseSchema = z.object({
+  items: z.array(vocabularyItemPublicSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+});
+export type VocabularyListResponse = z.infer<typeof vocabularyListResponseSchema>;
