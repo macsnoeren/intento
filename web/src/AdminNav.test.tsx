@@ -38,12 +38,13 @@ describe('hoofdmenu', () => {
       'Conceptvoorstellen',
       'Worker-tokens',
       'AI-activiteit',
+      'Mijn gebruikers',
     ]) {
       expect(within(nav).queryByRole('button', { name: label }), label).toBeNull();
     }
   });
 
-  it('geeft een begeleider alleen de Vocabulary en bronnen (lezen) en zijn eigen account', () => {
+  it('geeft een begeleider zijn gebruikers, de Vocabulary en bronnen (lezen) en zijn eigen account', () => {
     render(<AdminNav active="account" role="CAREGIVER" onNavigate={() => {}} />);
     const nav = screen.getByRole('navigation', { name: 'Beheer' });
 
@@ -51,7 +52,7 @@ describe('hoofdmenu', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Vocabulary', 'Bronnen', 'Mijn account']);
+    ).toEqual(['Mijn gebruikers', 'Vocabulary', 'Bronnen', 'Mijn account']);
     // Geen ingangen naar beheer dat de server hem toch weigert.
     expect(within(nav).queryByRole('button', { name: 'Gebruikers' })).toBeNull();
     expect(within(nav).queryByRole('button', { name: 'Worker-tokens' })).toBeNull();

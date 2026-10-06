@@ -9,6 +9,7 @@ import { AuditLogPage } from './AuditLogPage.tsx';
 import { VocabularyPage } from './VocabularyPage.tsx';
 import { AttributionsPage } from './AttributionsPage.tsx';
 import { OrganizationPage } from './OrganizationPage.tsx';
+import { CaregiverUsersPage } from './CaregiverUsersPage.tsx';
 import { AccountPage } from './AccountPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
@@ -156,13 +157,20 @@ export function App({
     <VerificationBanner api={api} email={account.email} />
   );
 
-  // Begeleider (CAREGIVER): een eigen, korter menu. De vraagmodus is vervallen (ontwerp besluit 10);
-  // instellingen en contacten van gekoppelde gebruikers komen terug in N3.4 en N10.3.
+  // Begeleider (CAREGIVER): een eigen, korter menu (V7): zijn gekoppelde gebruikers met hun
+  // instellingen, de Vocabulary en bronnen (lezen) en zijn account. Hij komt binnen op zijn gebruikers.
   if (account.role === 'CAREGIVER') {
     return (
       <>
         {banner}
-        {view === 'vocabulary' ? (
+        {view === 'my-users' || view === 'users' || view === 'dashboard' ? (
+          <CaregiverUsersPage
+            api={api}
+            account={account}
+            onLogout={() => void handleLogout()}
+            onNavigate={setView}
+          />
+        ) : view === 'vocabulary' ? (
           <VocabularyPage
             api={api}
             account={account}

@@ -3,7 +3,9 @@ import { z } from 'zod';
 import {
   caregiverListResponseSchema,
   linkCaregiverRequestSchema,
+  userListResponseSchema,
   type CaregiverListResponse,
+  type UserListResponse,
 } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
@@ -11,6 +13,7 @@ import { assertSameTenant } from '../auth/tenant.js';
 import { HttpError } from '../errors.js';
 import { recordAudit } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
+import { userToPublic } from '../users/serialize.js';
 
 export interface CaregiverRoutesDeps {
   prisma: PrismaClient;
@@ -140,6 +143,26 @@ export function registerCaregiverRoutes(
       });
 
       return buildCaregiverList(prisma, account.organizationId, id);
+    },
+  );
+
+  // De eigen gebruikers van een begeleider (N3.4, INTENTO-NEW-DESIGN §49, V7): alleen de gebruikers waaraan
+  // dít account gekoppeld is, binnen de eigen organisatie. Ook een beheerder kan begeleider zijn; die
+  // ziet hier dan zijn eigen koppelingen (het volledige overzicht staat onder /admin/users).
+  app.get(
+    '/caregiver/users',
+    { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) },
+    async (request): Promise<UserListResponse> => {
+      const account = requireAccount(request);
+      const users = await prisma.user.findMany({
+        where: {
+          organizationId: account.organizationId,
+          caregiverLinks: { some: { accountId: account.id } },
+        },
+        orderBy: { name: 'asc' },
+        include: { communicationProfile: true },
+      });
+      return userListResponseSchema.parse({ users: users.map(userToPublic) });
     },
   );
 }

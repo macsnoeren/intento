@@ -129,6 +129,7 @@ blijft wie beheerder is. Een `USER`-account kan geen begeleider zijn (`400 NOT_A
 | Methode | Pad | Rol | Beschrijving |
 |---|---|---|---|
 | GET | `/admin/users/{id}/caregivers` | ADMIN | Alle CAREGIVER- én ADMIN-accounts van de eigen organisatie met per account de `role` en of het aan deze gebruiker gekoppeld is (`caregiverListResponseSchema`). |
+| GET | `/caregiver/users` | ADMIN, CAREGIVER | De gebruikers waaraan dít account als begeleider gekoppeld is, binnen de eigen organisatie (`userListResponseSchema`, op naam). Voor het scherm "Mijn gebruikers" van de begeleider; instellingen wijzigt hij via `PUT /users/{id}/settings`. |
 | POST | `/admin/users/{id}/caregivers` | ADMIN | Koppelt (`{ accountId, linked: true }`) of ontkoppelt (`linked: false`) één begeleider (`linkCaregiverRequestSchema`); idempotent. `200` + de bijgewerkte lijst. Account is geen CAREGIVER/ADMIN → `400 NOT_A_CAREGIVER`; account uit een andere organisatie → `403 FORBIDDEN`. |
 
 ### Tabletkoppeling (T2.3)

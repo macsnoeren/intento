@@ -14,7 +14,14 @@ import { NavIcon, type NavIconName } from './NavIcon.tsx';
  * van de pagina zelf niet te verstoren.
  */
 export type AdminView =
-  'dashboard' | 'users' | 'vocabulary' | 'sources' | 'organization' | 'audit-logs' | 'account';
+  | 'my-users'
+  | 'dashboard'
+  | 'users'
+  | 'vocabulary'
+  | 'sources'
+  | 'organization'
+  | 'audit-logs'
+  | 'account';
 
 /** Rollen die een menu krijgen. Een begeleider ziet alleen wat hij mag (zie `VIEWS_BY_ROLE`). */
 export type NavRole = 'ADMIN' | 'CAREGIVER';
@@ -35,6 +42,10 @@ const GROUPS: NavGroup[] = [
   {
     label: 'Overzicht',
     items: [{ view: 'dashboard', label: 'Dashboard', icon: 'dashboard' }],
+  },
+  {
+    label: 'Begeleiden',
+    items: [{ view: 'my-users', label: 'Mijn gebruikers', icon: 'users' }],
   },
   {
     label: 'Organisatie',
@@ -61,8 +72,9 @@ const GROUPS: NavGroup[] = [
  * géén beveiliging: de autorisatie zit in de backend (ADR-0005).
  */
 const VIEWS_BY_ROLE: Record<NavRole, AdminView[] | 'all'> = {
-  ADMIN: 'all',
-  CAREGIVER: ['vocabulary', 'sources', 'account'],
+  // De beheerder ziet "Mijn gebruikers" niet: hij beheert alle gebruikers onder Gebruikers.
+  ADMIN: ['dashboard', 'users', 'vocabulary', 'sources', 'organization', 'audit-logs', 'account'],
+  CAREGIVER: ['my-users', 'vocabulary', 'sources', 'account'],
 };
 
 /** De zichtbare groepen voor een rol; groepen die daarna leeg zijn vallen weg. */

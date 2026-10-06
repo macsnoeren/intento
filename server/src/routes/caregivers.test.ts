@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { caregiverListResponseSchema } from '@intento/shared';
+import { caregiverListResponseSchema, userListResponseSchema } from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import {
@@ -305,5 +305,42 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
       });
       expect(get.statusCode).toBe(200);
     });
+  });
+});
+
+/** De eigen gebruikers van een begeleider (N3.4, INTENTO-NEW-DESIGN §49, V7). */
+describe('GET /caregiver/users', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await resetAuthData();
+    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '1000' }) });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('geeft een begeleider alleen zijn gekoppelde gebruikers, nooit die van een ander of een andere organisatie', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const cg = await seedAccount('c@intento.local', 'pw', 'CAREGIVER', admin.organizationId);
+    const other = await seedAccount('d@intento.local', 'pw', 'CAREGIVER', admin.organizationId);
+    const mine = await seedUser('Sanne', admin.organizationId);
+    const notMine = await seedUser('Tom', admin.organizationId);
+    await linkCaregiver(cg.accountId, mine.id);
+    await linkCaregiver(other.accountId, notMine.id);
+    const foreignAdmin = await seedAccount('x@intento.local', 'pw', 'ADMIN');
+    await seedUser('Vreemde', foreignAdmin.organizationId);
+
+    const cookie = await loginCookie(app, cg.email, cg.password);
+    const res = await app.inject({ method: 'GET', url: '/caregiver/users', headers: { cookie } });
+    expect(res.statusCode).toBe(200);
+    const { users } = userListResponseSchema.parse(res.json());
+    expect(users.map((u) => u.name)).toEqual(['Sanne']);
+    expect(users[0]!.communicationProfile.interactionMode).toBe('binary');
+  });
+
+  it('weigert zonder sessie', async () => {
+    expect((await app.inject({ method: 'GET', url: '/caregiver/users' })).statusCode).toBe(401);
   });
 });

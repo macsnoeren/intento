@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N3.4 — begeleider: gekoppelde gebruikers en hun instellingen
+
+- `GET /caregiver/users`: de gebruikers waaraan het ingelogde account als begeleider gekoppeld is
+  (tenant- en koppelingsgebonden).
+- Menu-item "Mijn gebruikers" voor de begeleider (zijn startscherm), met per gebruiker het
+  instellingenformulier. Ontdekt bij N0.3: met de vraagmodus verdween het enige scherm waarop een
+  begeleider zijn gebruikers zag.
+- Tests: een begeleider ziet alleen gekoppelde gebruikers; componenttest; browserrooktest als
+  begeleider.
+
 ### N3.3 — bewaartermijn per organisatie
 
 - Migratie `organization_retention`: `Organization.retentionDays` (7–365; leeg = de standaard uit de nieuwe

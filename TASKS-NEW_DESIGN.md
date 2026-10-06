@@ -250,7 +250,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Het opruimen zelf komt in N14.2. Audit-log.
   *Acceptatie:* tests: grenzen, rol, isolatie.
 
-- [ ] **N3.4 Begeleider: gekoppelde gebruikers en hun instellingen**
+- [x] **N3.4 Begeleider: gekoppelde gebruikers en hun instellingen**
   *ONTWERP: §49, V7.* Ontdekt bij N0.3: met de vraagmodus verdween het enige scherm waarop een
   begeleider zijn gekoppelde gebruikers zag. Een menu-item "Mijn gebruikers" voor de CAREGIVER met de
   gekoppelde gebruikers (lezen via een nieuw `GET /caregiver/users`, tenant- en koppelingsgebonden) en

@@ -248,6 +248,9 @@ function fakeApi(
     updateOrganizationSettings() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    listCaregiverUsers() {
+      return Promise.resolve({ users: [] });
+    },
     listAttributions() {
       return Promise.resolve({ sources: [] });
     },
@@ -559,13 +562,14 @@ describe('beheeromgeving-app', () => {
   it('geeft een begeleider een menu met zijn eigen account erin', async () => {
     render(<App api={fakeApi({ loggedIn: true, role: 'CAREGIVER' })} />);
 
-    // De vraagmodus is vervallen (N0.3); een begeleider komt binnen op zijn account.
-    expect(await screen.findByRole('heading', { name: 'Mijn account' })).toBeTruthy();
+    // Een begeleider komt binnen op zijn eigen gebruikers (N3.4).
+    expect(await screen.findByRole('heading', { name: 'Mijn gebruikers' })).toBeTruthy();
 
     // Zijn menu is kort — geen organisatiebeheer.
     const nav = screen.getByRole('navigation', { name: 'Beheer' });
     expect(within(nav).queryByRole('button', { name: 'Gebruikers' })).toBeNull();
-    expect(within(nav).getByRole('button', { name: 'Mijn account' })).toBeTruthy();
+    fireEvent.click(within(nav).getByRole('button', { name: 'Mijn account' }));
+    expect(await screen.findByRole('heading', { name: 'Mijn account' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Wachtwoord wijzigen' })).toBeTruthy();
   });
 

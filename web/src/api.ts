@@ -119,6 +119,8 @@ export interface Api {
   updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
   /** De bronvermelding van de Vocabulary. */
   listAttributions(): Promise<AttributionListResponse>;
+  /** De gebruikers waaraan dit account als begeleider gekoppeld is. */
+  listCaregiverUsers(): Promise<UserListResponse>;
   /** Bewaartermijn van de eigen organisatie (alleen beheerder). */
   getOrganizationSettings(): Promise<OrganizationSettings>;
   updateOrganizationSettings(body: UpdateOrganizationSettings): Promise<OrganizationSettings>;
@@ -347,6 +349,9 @@ export const httpApi: Api & DeviceApi = {
     return organizationSettingsSchema.parse(
       await request('/organization/settings', { method: 'PUT', body: JSON.stringify(body) }),
     );
+  },
+  async listCaregiverUsers() {
+    return userListResponseSchema.parse(await request('/caregiver/users'));
   },
   async listAttributions() {
     return attributionListResponseSchema.parse(await request('/vocabulary/attributions'));
