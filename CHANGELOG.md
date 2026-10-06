@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.10 — beheer: Vocabulary-overzicht
+
+- Nieuwe pagina "Vocabulary" (menu-item, ook voor de begeleider om te lezen): tegels met pictogram, label,
+  licentiebadge en bron, een zoekveld en paginering (24 per pagina). Een machinevertaling is gemarkeerd.
+- Componenttest (lege lijst, lijst, zoeken, volgende pagina); rooktest in de browser (Chromium via
+  Playwright): 99 symbolen, alle pictogrammen geladen, zoeken op "pijn" geeft 5 treffers.
+
 ### N2.9 — `GET /vocabulary`
 
 - Lijst voor de beheeromgeving (beheerder en begeleider, alleen lezen): platform + eigen organisatie,

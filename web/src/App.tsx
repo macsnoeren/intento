@@ -6,6 +6,7 @@ import { RegisterForm } from './RegisterForm.tsx';
 import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
+import { VocabularyPage } from './VocabularyPage.tsx';
 import { AccountPage } from './AccountPage.tsx';
 import { VerifyEmailPage } from './VerifyEmailPage.tsx';
 import { VerificationBanner } from './VerificationBanner.tsx';
@@ -159,12 +160,21 @@ export function App({
     return (
       <>
         {banner}
-        <AccountPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
+        {view === 'vocabulary' ? (
+          <VocabularyPage
+            api={api}
+            account={account}
+            onLogout={() => void handleLogout()}
+            onNavigate={setView}
+          />
+        ) : (
+          <AccountPage
+            api={api}
+            account={account}
+            onLogout={() => void handleLogout()}
+            onNavigate={setView}
+          />
+        )}
       </>
     );
   }
@@ -200,6 +210,20 @@ export function App({
       <>
         {banner}
         <AccountPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  if (view === 'vocabulary') {
+    return (
+      <>
+        {banner}
+        <VocabularyPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

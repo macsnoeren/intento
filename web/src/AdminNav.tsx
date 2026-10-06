@@ -13,7 +13,7 @@ import { NavIcon, type NavIconName } from './NavIcon.tsx';
  * De groepen zijn `role="group"` met een label in plaats van koppen: het menu hoort de koppenstructuur
  * van de pagina zelf niet te verstoren.
  */
-export type AdminView = 'dashboard' | 'users' | 'audit-logs' | 'account';
+export type AdminView = 'dashboard' | 'users' | 'vocabulary' | 'audit-logs' | 'account';
 
 /** Rollen die een menu krijgen. Een begeleider ziet alleen wat hij mag (zie `VIEWS_BY_ROLE`). */
 export type NavRole = 'ADMIN' | 'CAREGIVER';
@@ -37,7 +37,10 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: 'Organisatie',
-    items: [{ view: 'users', label: 'Gebruikers', icon: 'users' }],
+    items: [
+      { view: 'users', label: 'Gebruikers', icon: 'users' },
+      { view: 'vocabulary', label: 'Vocabulary', icon: 'library' },
+    ],
   },
   {
     label: 'Platform',
@@ -50,13 +53,13 @@ const GROUPS: NavGroup[] = [
 ];
 
 /**
- * Wat een rol in het menu ziet. Een begeleider beheert (voorlopig) alleen zijn eigen account; de
+ * Wat een rol in het menu ziet. Een begeleider leest de Vocabulary en beheert zijn eigen account; de
  * server weigert de rest sowieso, maar een menu vol knoppen die 403 opleveren is geen menu. Dit is
  * géén beveiliging: de autorisatie zit in de backend (ADR-0005).
  */
 const VIEWS_BY_ROLE: Record<NavRole, AdminView[] | 'all'> = {
   ADMIN: 'all',
-  CAREGIVER: ['account'],
+  CAREGIVER: ['vocabulary', 'account'],
 };
 
 /** De zichtbare groepen voor een rol; groepen die daarna leeg zijn vallen weg. */

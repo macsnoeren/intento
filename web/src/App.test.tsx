@@ -230,6 +230,9 @@ function fakeApi(
         caregivers: { total: 0 },
       });
     },
+    listVocabulary() {
+      return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 24 });
+    },
     listAuditLogs() {
       return Promise.resolve({ entries: [] });
     },

@@ -882,8 +882,8 @@ body {
   padding: 0;
 }
 
-/* AAC-bibliotheek: tegelraster (T3.2, tegels sinds T17.3). Een pictogrammenbibliotheek scan je op
-   beeld; het label staat er altijd bij, want het pictogram is nooit de enige aanduiding. */
+/* Vocabulary: tegelraster. Een pictogrammenverzameling scan je op beeld; het label staat er altijd bij,
+   want het pictogram is nooit de enige aanduiding. */
 .symbol-grid {
   list-style: none;
   margin: 0;
@@ -935,9 +935,27 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Het zoekformulier in de balk boven een overzicht mag de knoppen niet wegduwen. */
+/* Bladeren door een lang overzicht: vorige / pagina x van y / volgende. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.2rem;
+}
+
+/* Het zoekformulier in de balk boven een overzicht mag de knoppen niet wegduwen. Veld en knop staan
+   naast elkaar; op een smal scherm loopt de knop eronder door. */
 .toolbar__search {
   flex: 1 1 22rem;
+  margin-bottom: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.toolbar__search .field {
+  flex: 1 1 16rem;
   margin-bottom: 0;
 }
 

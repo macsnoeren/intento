@@ -202,7 +202,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* tests: rollen (tablet mag niet), isolatie, paginering, zoeken, ingetrokken items alleen
   met filter `retired`.
 
-- [ ] **N2.10 Beheer: Vocabulary-overzicht**
+- [x] **N2.10 Beheer: Vocabulary-overzicht**
   *ONTWERP: §49.* Pagina met tegels (pictogram, label, licentiebadge, bron), een zoekveld en paginering.
   Menu-item "Vocabulary".
   *Acceptatie:* componenttest (lege lijst, lijst, zoeken, volgende pagina); rooktest in de browser.

@@ -20,6 +20,9 @@ import {
   verifyEmailResponseSchema,
   type AccountListResponse,
   type AuditLogListResponse,
+  type VocabularyListQuery,
+  type VocabularyListResponse,
+  vocabularyListResponseSchema,
   type AuthResponse,
   type ChangePasswordRequest,
   type ChangePasswordResponse,
@@ -102,6 +105,8 @@ export interface Api {
   getDashboard(): Promise<DashboardResponse>;
   /** Audit-log van gevoelige acties van de eigen organisatie (nieuwste eerst) (INTENTO-NEW-DESIGN §53). */
   listAuditLogs(): Promise<AuditLogListResponse>;
+  /** De Vocabulary van de eigen organisatie (platform + eigen), gepagineerd en doorzoekbaar. */
+  listVocabulary(query?: Partial<VocabularyListQuery>): Promise<VocabularyListResponse>;
   /**
    * Platform-operatorconsole (INTENTO-NEW-DESIGN §53). Deze vijf calls gaan naar de aparte
    * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
@@ -306,6 +311,15 @@ export const httpApi: Api & DeviceApi = {
   },
   async listAuditLogs() {
     return auditLogListResponseSchema.parse(await request('/admin/audit-logs'));
+  },
+  async listVocabulary(query = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== '') params.set(key, String(value));
+    }
+    const qs = params.toString();
+    const suffix = qs ? `?${qs}` : '';
+    return vocabularyListResponseSchema.parse(await request(`/vocabulary${suffix}`));
   },
   async listOperatorOrganizations() {
     return operatorOrganizationListResponseSchema.parse(await request('/operator/organizations'));

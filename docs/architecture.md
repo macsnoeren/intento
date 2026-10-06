@@ -95,11 +95,12 @@ authenticatiepijler:
   haalt audio bij de backend op en valt terug op `speechSynthesis` van het apparaat.
 - **Beheeromgeving** — overige paden, `App.tsx`, op **account-auth** (`/auth/*`, ADMIN/CAREGIVER).
   Menu voor de beheerder: Dashboard, Gebruikers (met per gebruiker instellingen, begeleiders, tablet en
-  profiel), Audit-log en Mijn account. De oude AI-schermen (vraagmodus, gesprekken, AI-activiteit,
+  profiel), Vocabulary (tegels met pictogram, label, licentie en bron; zoeken en bladeren via de
+  gepagineerde `GET /vocabulary`), Audit-log en Mijn account. De oude AI-schermen (vraagmodus, gesprekken, AI-activiteit,
   conceptvoorstellen, voorkeuren, persoonlijke context, worker-tokens, AAC-bibliotheek, berichtenlijst)
   zijn weg (N0.3); de nieuwe beheerschermen uit INTENTO-NEW-DESIGN §49 komen per taak terug.
 - **Begeleiderinterface** — dezelfde route-tak als de beheeromgeving, maar met een **kort menu**:
-  voorlopig alleen Mijn account. Een begeleider ziet geen ingangen naar beheer dat de server hem toch
+  Vocabulary (alleen lezen) en Mijn account. Een begeleider ziet geen ingangen naar beheer dat de server hem toch
   weigert; dat menu is geen beveiliging, de autorisatie zit in de backend (ADR-0005).
 - **Platform-operatorconsole** — `/operator`, `OperatorConsole.tsx`. Draait in dezelfde schil, maar
   bewust **zonder menu**: cross-tenant beheer hoort geen knop naast "Gebruikers" te zijn (T8.3).
