@@ -272,7 +272,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   status, model, promptVersion, latencyMs, validatie, reden). Repository-functies.
   *Acceptatie:* tests: de drie soorten blijven gescheiden opgeslagen; isolatie.
 
-- [ ] **N4.3 Client voor de agentdienst**
+- [x] **N4.3 Client voor de agentdienst**
   *ONTWERP: §3.1, §51.* `AgentServiceClient` in de backend: `POST /v1/turn` met API-key en time-out
   (`AGENT_TIMEOUT_MS`), response gevalideerd met de zod-contracten; fouten → `AgentUnavailableError`
   (503 `AGENT_UNAVAILABLE`). Plus een `FakeAgentClient` voor tests.

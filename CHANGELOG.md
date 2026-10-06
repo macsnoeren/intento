@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.3 — client voor de agentdienst
+
+- `server/src/agents/client.ts`: `HttpAgentClient` (`POST /v1/turn`, API-key, time-out
+  `AGENT_TIMEOUT_MS` (nieuw, standaard 30 s), antwoord max. 2 MB, zod-validatie, zelfde gesprek en
+  beurt), `AgentUnavailableError` (503 `AGENT_UNAVAILABLE`) en `FakeAgentClient` voor tests.
+- Tests tegen een lokale nep-HTTP-server: goed antwoord, time-out, ongeldige vorm, 401, 4xx/5xx, te
+  groot, onbereikbaar. Gerookt tegen de echte agentdienst.
+
 ### N4.2 — provenance-tabellen
 
 - Migratie `provenance`: `PresentationEvent` (Presented), `ObservedEvent` (Observed), `Inference`

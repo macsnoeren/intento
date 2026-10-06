@@ -230,6 +230,9 @@ const envSchema = z
     // Staat plain http naar de agentdienst toe in productie: alleen voor de opstelling waarin de dienst
     // als container op een gesloten netwerk zonder gepubliceerde poort draait (zoals in compose).
     AGENT_ALLOW_INSECURE_HTTP: booleanFromString.default(false),
+    // Hoe lang de backend op één beurt van de agentdienst wacht. Daarbinnen vallen de LLM-aanroepen van
+    // de agents (die elk hun eigen, kortere time-out en terugval hebben). Daarna: 503 AGENT_UNAVAILABLE.
+    AGENT_TIMEOUT_MS: z.coerce.number().int().positive().max(120_000).default(30_000),
     // --- Spraakuitvoer (INTENTO-NEW-DESIGN §50, §53) ---
     // De backend praat namens de tablet met de spraakdienst; de tablet nooit rechtstreeks (INTENTO-NEW-DESIGN §51).
     // `none` = geen dienst geconfigureerd: de spraakendpoints antwoorden dan met 503 SPEECH_UNAVAILABLE

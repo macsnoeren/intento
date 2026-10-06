@@ -33,6 +33,7 @@ services:
       AGENT_SERVICE_URL: http://agents:5003
       AGENT_SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in .env.docker}'
       AGENT_ALLOW_INSECURE_HTTP: 'true'
+      AGENT_TIMEOUT_MS: '${AGENT_TIMEOUT_MS:-30000}'
     volumes:
       - intento-db:/data
       - intento-storage:/storage

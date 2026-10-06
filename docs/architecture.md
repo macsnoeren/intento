@@ -58,6 +58,13 @@ server niet uit elkaar lopen.
   regelgebaseerde agents uit `agents/rules.py` (Intent = startconcepten in volgorde, Question =
   "{Label}?", Icon = het item van dat concept) als terugval. `vocabulary.py` is een alleen-lezen index
   op de meegestuurde Vocabulary.
+- `server/src/agents/client.ts` — de **client naar de agentdienst** (N4.3): `POST /v1/turn` met de
+  API-key als Bearer, een harde time-out (`AGENT_TIMEOUT_MS`), een groottegrens op het antwoord en
+  zod-validatie tegen het contract (plus: zelfde gesprek en beurt). Elke fout wordt één
+  `AgentUnavailableError` (503 `AGENT_UNAVAILABLE`) met een interne `reason` voor log en
+  `AgentDecision`. `FakeAgentClient` is de nep-agentdienst voor backendtests.
+- `server/src/communication/` — gesprekken (`sessions.ts`: versleutelde momentopname per beurt) en
+  provenance (`provenance.ts`: Presented, Observed, Inferred en agentbeslissingen in eigen tabellen).
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client

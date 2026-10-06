@@ -337,6 +337,10 @@
   vergelijkt de Bearer-header in constante tijd. De backend weigert te starten met een
   `AGENT_SERVICE_URL` zonder `AGENT_SERVICE_TOKEN`, en eist https in productie tenzij
   `AGENT_ALLOW_INSECURE_HTTP=true` (alleen voor een gesloten containernetwerk).
+- **Het antwoord is niet vertrouwd.** De backend wacht hooguit `AGENT_TIMEOUT_MS`, leest maximaal
+  2 MB en valideert het antwoord met zod tegen het contract voordat er iets mee gebeurt. Elke fout
+  (time-out, 401, 4xx/5xx, ongeldige vorm) wordt 503 `AGENT_UNAVAILABLE` met een vaste melding; de
+  interne reden noemt alleen statuscode, foutcode of veldpaden, nooit inhoud.
 - **Geen inhoud in logs of foutmeldingen.** Het log bevat per beurt alleen gebeurtenis, fase, soort
   presentatie en duur; een validatiefout noemt veldnamen, nooit waarden.
 
