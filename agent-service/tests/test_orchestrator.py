@@ -83,7 +83,9 @@ class OrchestratorTest(unittest.TestCase):
         self.assertEqual(again.state.rejected_concepts, [])
 
     def test_is_deterministisch(self) -> None:
-        self.assertEqual(self.start(), self.start())
+        # Alleen de gemeten duur hangt van de klok af; met een vaste klok is de uitvoer gelijk.
+        fixed = request(START)
+        self.assertEqual(step(fixed, clock=lambda: 0.0), step(fixed, clock=lambda: 0.0))
 
     def test_protocolfouten(self) -> None:
         with self.assertRaises(ProtocolError):

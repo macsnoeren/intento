@@ -376,7 +376,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   aannames, `needs_clarification`. Prompt `intent-v1`. Terugval = de regels uit N1.5.
   *Acceptatie:* unittests met FakeProvider: geldig, ongeldige JSON → terugval, time-out → terugval.
 
-- [ ] **N6.2 Hypotheses in de Session State**
+- [x] **N6.2 Hypotheses in de Session State**
   *ONTWERP: §36, §37.* De orchestrator bewaart de hypotheses per beurt en geeft ze als inference terug.
   Scenario: JA pijn, NEE hoofd, NEE buik → pijn blijft, de plek is nog open.
   *Acceptatie:* unittest + scenario.

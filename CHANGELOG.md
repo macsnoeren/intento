@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.2 — hypotheses in de Session State
+
+- De orchestrator houdt hypotheses, aannames en onzekerheden bij in de state en geeft ze elke beurt als
+  inference terug. De vraag gaat over de eerste nog niet gevraagde hypothese; met een taalmodel volgt
+  op een JA een preciezere vraag zolang de Intent Agent iets open ziet, anders het voorstel. Is er
+  niets meer te vragen maar wel een JA, dan het voorstel in plaats van "Wil je stoppen?".
+- Prompt `intent-v2` met `uncertainties`. Opnieuw beginnen wist ook de gestelde vragen.
+- Scenario "JA pijn, NEE hoofd, NEE buik": pijn blijft, "waar de pijn zit" staat open, daarna
+  "Bedoel je: Pijn?".
+- Gemeten met `gpt-oss:120b-cloud`: 4/4 geslaagd, maar nu 6 vragen per gesprek (±13–16 s): het model
+  blijft verfijnen. Het maximum (N6.9) en de voorsteldrempel (N6.10) moeten dat inperken.
+- De determinismetest gebruikt een vaste klok (de gemeten duur verschilde soms 1 ms).
+
 ### N6.1 — Intent Agent v1
 
 - `agent_service/agents/intent.py` met prompt `intent-v1`: hypotheses (concept, label, confidence),

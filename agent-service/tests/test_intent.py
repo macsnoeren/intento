@@ -41,7 +41,7 @@ class IntentAgentTest(unittest.TestCase):
         decision = intent_decision(response)
         self.assertEqual(
             (decision.status, decision.model, decision.prompt_version, decision.validation),
-            ("success", "fake-model", "intent-v1", "valid"),
+            ("success", "fake-model", "intent-v2", "valid"),
         )
         payload = response.inferences[0].payload
         self.assertIs(payload["needs_clarification"], True)

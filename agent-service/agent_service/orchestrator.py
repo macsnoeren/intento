@@ -129,7 +129,10 @@ def step(
 # --- clarify ----------------------------------------------------------------------------------------
 
 
-def _update_hypotheses(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> None:
+def _update_hypotheses(
+    state: SessionState, vocabulary: VocabularyIndex, turn: _Turn
+) -> AgentResult[IntentResult]:
+    """De Intent Agent werkt de hypotheses bij; ze staan in de state en gaan als inference mee."""
     attempt: LlmAttempt[IntentResult] | None = None
     if turn.llm is not None:
         provider, prompt = turn.llm, intent_prompt()
@@ -152,6 +155,7 @@ def _update_hypotheses(state: SessionState, vocabulary: VocabularyIndex, turn: _
     state.intent_hypotheses = hypotheses
     state.current_intent = hypotheses[0] if hypotheses else None
     state.assumptions = intent.assumptions
+    state.uncertainties = intent.uncertainties
     turn.inferences.append(
         Inference(
             agent="intent-agent",
@@ -162,23 +166,57 @@ def _update_hypotheses(state: SessionState, vocabulary: VocabularyIndex, turn: _
                     for h in hypotheses
                 ],
                 "assumptions": intent.assumptions,
+                "uncertainties": intent.uncertainties,
                 "needs_clarification": intent.needs_clarification,
             },
             confidence=hypotheses[0].confidence if hypotheses else None,
         )
     )
+    return result
 
 
-def _ask_next(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> Presentation:
-    """Volgende vraag in `clarify`; zijn de concepten op, dan "Wil je stoppen?"."""
+def _next_target(state: SessionState) -> Hypothesis | None:
+    """De eerste hypothese waarover nog geen vraag gesteld is (en die niet is afgewezen)."""
+    asked = {q.concept for q in state.questions_asked if q.concept}
+    rejected = set(state.rejected_concepts)
+    return next(
+        (
+            h
+            for h in state.intent_hypotheses
+            if h.concept not in asked and h.concept not in rejected
+        ),
+        None,
+    )
+
+
+def _confirmed(state: SessionState) -> Hypothesis | None:
+    """De beste hypothese waarop de gebruiker al JA zei (en die niet later is afgewezen)."""
+    yes = {c for a in state.answers if a.answer in ("yes", "selected") for c in a.concepts}
+    rejected = set(state.rejected_concepts)
+    return next(
+        (h for h in state.intent_hypotheses if h.concept in yes and h.concept not in rejected),
+        None,
+    )
+
+
+def _ask_next(
+    state: SessionState, vocabulary: VocabularyIndex, turn: _Turn, *, refresh: bool = True
+) -> Presentation:
+    """Volgende vraag in `clarify`, over de eerste hypothese die nog niet gevraagd is.
+
+    Is er niets meer te vragen: heeft de gebruiker al ergens JA op gezegd, dan dat voorstellen; anders
+    "Wil je stoppen?".
+    """
     state.phase = "clarify"
-    _update_hypotheses(state, vocabulary, turn)
-    if state.current_intent is None:
-        return _ask_stop()
-    intent = state.current_intent
+    if refresh:
+        _update_hypotheses(state, vocabulary, turn)
+    target = _next_target(state)
+    if target is None:
+        confirmed = _confirmed(state)
+        return _propose(state, confirmed, vocabulary, turn) if confirmed else _ask_stop()
     question_result = run_agent(
         "question-agent",
-        rules=lambda: rule_question(intent),
+        rules=lambda: rule_question(target),
         rules_reason="één concept per vraag",
         clock=turn.clock,
     )
@@ -188,7 +226,7 @@ def _ask_next(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> 
         return _ask_stop()
     icon_result = run_agent(
         "icon-agent",
-        rules=lambda: rule_icon(question.concept, intent.label, vocabulary),
+        rules=lambda: rule_icon(question.concept, target.label, vocabulary),
         rules_reason="exact",
         clock=turn.clock,
     )
@@ -203,24 +241,46 @@ def _ask_next(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> 
     return Presentation(kind="question", mode="binary", text=question.text, options=[option])
 
 
+def _asked(state: SessionState) -> Hypothesis:
+    """Het concept van de vraag die open staat, met het woord dat erbij getoond werd."""
+    last = state.last_presentation
+    question = state.questions_asked[-1] if state.questions_asked else None
+    if question is None or question.concept is None or last is None or not last.options:
+        raise ProtocolError("Er staat geen vraag over een concept open.")
+    known = next((h for h in state.intent_hypotheses if h.concept == question.concept), None)
+    return Hypothesis(
+        concept=question.concept,
+        label=last.options[0].label,
+        confidence=known.confidence if known else 0.5,
+    )
+
+
 def _answer_question(
     state: SessionState, yes: bool, vocabulary: VocabularyIndex, turn: _Turn
 ) -> Presentation:
-    intent = state.current_intent
-    if intent is None:
-        raise ProtocolError("Er staat geen vraag over een concept open.")
+    asked = _asked(state)
     state.answers.append(
         Answer(
             turn=state.turn,
             answer="yes" if yes else "no",
-            concepts=[intent.concept],
+            concepts=[asked.concept],
             option_ref=_first_option_ref(state),
         )
     )
     if not yes:
-        state.rejected_concepts.append(intent.concept)
+        state.rejected_concepts.append(asked.concept)
         return _ask_next(state, vocabulary, turn)
-    return _propose(state, intent, vocabulary, turn)
+    if turn.llm is None:
+        # De regels kunnen niet verfijnen: een JA is meteen het voorstel.
+        return _propose(state, asked, vocabulary, turn)
+    # Met een taalmodel weegt de Intent Agent het JA mee (§36): is er nog iets open, dan volgt een
+    # vraag die het preciezer maakt; anders het voorstel.
+    result = _update_hypotheses(state, vocabulary, turn)
+    if result.status != "success" or result.value is None:
+        return _propose(state, asked, vocabulary, turn)
+    if result.value.needs_clarification and _next_target(state) is not None:
+        return _ask_next(state, vocabulary, turn, refresh=False)
+    return _propose(state, state.current_intent or asked, vocabulary, turn)
 
 
 def _first_option_ref(state: SessionState) -> str | None:
@@ -308,4 +368,6 @@ def _stop(state: SessionState) -> Presentation:
 def _restart(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) -> Presentation:
     """NEE op "Wil je stoppen?": opnieuw beginnen bij de startconcepten."""
     state.rejected_concepts = []
+    # Opnieuw beginnen: ook de gestelde vragen tellen niet meer mee (de provenance bewaart ze).
+    state.questions_asked = []
     return _ask_next(state, vocabulary, turn)

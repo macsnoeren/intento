@@ -65,6 +65,13 @@ en het woord bij een symbool blijft een woord van dat item (I1). Terugval: de st
 volgorde. De sleutels in de invoer heten bewust hetzelfde als in het antwoordschema: anders neemt een
 model de invoersleutels over. Contactnamen gaan nooit mee.
 
+**Hypotheses door het gesprek heen** (§36, §37): de hypotheses, aannames en onzekerheden staan in de
+Session State en gaan elke beurt als inference `intent_hypotheses` mee. De vraag gaat steeds over de
+eerste hypothese die nog niet gevraagd is. Met een taalmodel is een JA nog geen voorstel: de Intent
+Agent weegt het mee, en zolang hij iets open ziet (`needs_clarification`) volgt een preciezere vraag.
+Is er niets meer te vragen maar wel een JA, dan volgt het voorstel; zonder JA "Wil je stoppen?". Zonder
+taalmodel (of als het faalt) is een JA meteen het voorstel.
+
 Prompts staan als **versiebestanden** in `agent_service/prompts/` (`<naam>-v<n>.md`); `load_prompt`
 pakt de hoogste versie, en die versie komt mee in de `AgentDecision`. Een prompt wijzigen is een nieuw
 bestand met een hoger nummer.

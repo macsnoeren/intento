@@ -49,6 +49,9 @@ class IntentOutput(BaseModel):
     assumptions: Annotated[
         list[Annotated[str, Field(min_length=1, max_length=200)]], Field(max_length=5)
     ] = []
+    uncertainties: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=200)]], Field(max_length=5)
+    ] = []
     needs_clarification: bool
     message: Annotated[str, Field(min_length=3, max_length=120)] | None = None
 
@@ -57,6 +60,7 @@ class IntentOutput(BaseModel):
 class IntentResult:
     hypotheses: list[Hypothesis]
     assumptions: list[str] = field(default_factory=list)
+    uncertainties: list[str] = field(default_factory=list)
     needs_clarification: bool = True
     message: str | None = None
 
@@ -172,6 +176,7 @@ def llm_intent(
     return IntentResult(
         hypotheses=hypotheses,
         assumptions=[a.strip() for a in output.assumptions if a.strip()],
+        uncertainties=[u.strip() for u in output.uncertainties if u.strip()],
         needs_clarification=output.needs_clarification,
         message=output.message,
     )
