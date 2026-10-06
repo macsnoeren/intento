@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.7 — Validation Agent: regels
+
+- `agent_service/agents/validation.py`: V1 t/m V7 als losse, benoemde controles met een `Finding`
+  (regel, reden zonder inhoud, actie `reject` of — bij tegenstrijdige antwoorden — `clarify`), plus
+  `validate_question` voor V1 t/m V6. Standaard voorsteldrempel 0,85. Een unittest per regel, geldig
+  en ongeldig. Het inzetten in de vraagstroom volgt in N6.8.
+
 ### N6.6 — Icon Agent: het dichtstbijzijnde pictogram
 
 - Zonder exacte treffer: verwante woorden van het model → tekstzoekopdracht (≤ 10 kandidaten) → het

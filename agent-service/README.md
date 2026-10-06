@@ -93,6 +93,12 @@ taalmodel of uitval: het pictogram "geen afbeelding" (`no_image`), ook met een g
 toont hetzelfde pictogram als de vraag over dat concept. De Intent Agent (prompt `intent-v3`) mag een
 eigen concept noemen als niets in de Vocabulary past (bv. `dizziness`/"duizelig").
 
+**Validation Agent, regels** (`agents/validation.py`, §9): V1 (symbool in de Vocabulary), V2
+(vraagtekst: 3 tot 80 tekens, vraagteken, geen URL, geen namen), V3 (pictogram past bij het concept, of
+stand-in met gap), V4 (niet eerder gesteld), V5 (tegenstrijdige antwoorden → `clarify`), V6 (aantal
+symbolen per vorm) en V7 (voorstel: lengte, drempel, minstens één antwoord) als losse, benoemde
+functies die een `Finding` met regel, reden en actie geven. De reden bevat geen gespreksinhoud.
+
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).
 

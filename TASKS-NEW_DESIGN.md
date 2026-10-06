@@ -403,7 +403,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests: "duizelig" → pictogram "ziek" als `stand_in` + gap; een verzonnen id van de
   LLM wordt geweigerd.
 
-- [ ] **N6.7 Validation Agent: regels**
+- [x] **N6.7 Validation Agent: regels**
   *ONTWERP: §9 (V1–V7).* De zeven regels als losse, benoemde controles.
   *Acceptatie:* één unittest per regel (geldig en ongeldig).
 
