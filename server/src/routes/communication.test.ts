@@ -820,6 +820,17 @@ describe('bevestigde boodschap (I2)', () => {
     expect(decision.reason).toContain('I2');
   });
 
+  it('twee keer JA tegelijk geeft één boodschap en één 409', async () => {
+    const user = await seedUser('Sanne');
+    const { sessionId, answer } = await toProposal(user.id);
+    const results = await Promise.all([
+      answer({ turn: 1, answer: 'yes' }),
+      answer({ turn: 1, answer: 'yes' }),
+    ]);
+    expect(results.map((res) => res.statusCode).sort()).toEqual([200, 409]);
+    expect(await prisma.communicationIntent.count({ where: { sessionId } })).toBe(1);
+  });
+
   it('telt een herhaalde JA na een agentfout niet dubbel', async () => {
     const user = await seedUser('Sanne');
     const { sessionId, answer } = await toProposal(user.id);

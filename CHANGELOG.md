@@ -69,6 +69,9 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
   agent die zelf "bevestigd" meldt wordt genegeerd; "Klaar" zonder of met een andere bevestigde
   boodschap wordt verworpen (I2 in `invariants.ts`: `proposalText`, `checkCompletion`).
 - Een gesprek loopt zolang `endedAt` leeg is; een bevestigd gesprek dat eindigt blijft `confirmed`.
+- Nagekomen (na de securityronde van N4): twee gelijktijdige JA's op hetzelfde voorstel gaven bij de
+  tweede een 500 (unieke sleutel); nu geldt de eerste en krijgt de tweede dezelfde boodschap terug
+  (`intents.test.ts` reproduceert de race).
 
 ### N4.9 — tablet: start- en binary scherm
 

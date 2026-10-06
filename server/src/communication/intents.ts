@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import { Prisma, type PrismaClient } from '../generated/prisma/client.js';
 import type { CommunicationSessionModel } from '../generated/prisma/models.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { HttpError } from '../errors.js';
@@ -54,17 +54,28 @@ export async function confirmIntent(
     if (existing.turn === screen.turn) return existing;
     throw new HttpError(409, 'ALREADY_CONFIRMED', 'Deze boodschap is al bevestigd.');
   }
-  const row = await prisma.communicationIntent.create({
-    data: {
-      sessionId: session.id,
-      userId: session.userId,
-      organizationId: session.organizationId,
-      turn: screen.turn,
-      messageEncrypted: encryptor.encrypt(message),
-      concepts,
-      confidence: proposal?.confidence ?? null,
-    },
-  });
+  let row;
+  try {
+    row = await prisma.communicationIntent.create({
+      data: {
+        sessionId: session.id,
+        userId: session.userId,
+        organizationId: session.organizationId,
+        turn: screen.turn,
+        messageEncrypted: encryptor.encrypt(message),
+        concepts,
+        confidence: proposal?.confidence ?? null,
+      },
+    });
+  } catch (error) {
+    // Twee keer JA tegelijk (dubbele tik): de eerste legde hem al vast. Dat is dezelfde boodschap.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const winner = await findIntent(prisma, encryptor, session.id);
+      if (winner?.turn === screen.turn) return winner;
+      throw new HttpError(409, 'ALREADY_CONFIRMED', 'Deze boodschap is al bevestigd.');
+    }
+    throw error;
+  }
   await confirmSession(prisma, session.id);
   return {
     turn: row.turn,
