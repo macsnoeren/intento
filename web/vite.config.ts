@@ -26,5 +26,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Rol-queries van Testing Library zijn traag in jsdom; op een drukke machine haalde een menutest de
+    // standaard 5 s niet. Ruimer, zodat een trage machine geen rode test oplevert.
+    testTimeout: 20_000,
   },
 });
