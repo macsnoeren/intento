@@ -129,7 +129,8 @@ pictogram van de Icon Agent (dubbele tegels vallen weg), met een onderwerpvraag 
 (prompt `question_multi-v1`, terugval "Wat bedoel je?"). Een gekozen tegel telt als JA op dat concept
 (verder als bij binary: verfijnen of voorstellen); "Geen van deze" wijst alle getoonde concepten af.
 Bevestigingen ("Bedoel je …?", "Wil je stoppen?") blijven binary. Minder dan twee tegels mogelijk: het
-gekozen concept voorstellen, anders "Wil je stoppen?".
+gekozen concept voorstellen, anders "Wil je stoppen?". De Intent Agent krijgt het aantal tegels mee (`tegels`, prompt
+`intent-v5`) en mag tot 8 hypotheses geven, zodat een scherm met 8 tegels ook vol komt.
 
 **Safety Agent, regels** (`agents/safety.py`, §10): S1 maximum aantal vragen (instelling
 `max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, of de bovenste

@@ -1461,3 +1461,75 @@ body {
   font-size: 1.35rem;
   padding: 1rem 2rem;
 }
+
+/* Multi-icon (§13): de vraag, een raster met 2 tot 8 tegels en "Geen van deze". */
+.multi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  margin: auto 0;
+}
+
+.tiles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+/* Vanaf vijf tegels vier per rij, zodat alles op één scherm past. */
+.tiles[data-count='5'],
+.tiles[data-count='6'],
+.tiles[data-count='7'],
+.tiles[data-count='8'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tile {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  border: 2px solid var(--intento-border);
+  border-radius: var(--intento-radius-lg);
+  background: var(--intento-surface);
+  box-shadow: var(--intento-shadow);
+  cursor: pointer;
+}
+
+.tile:hover:not(:disabled) {
+  border-color: var(--intento-accent);
+}
+
+.tile:focus-visible {
+  outline: none;
+  box-shadow: var(--intento-ring);
+}
+
+.tile:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.tile .pictogram__image {
+  width: clamp(5.5rem, 14vw, 9rem);
+  height: clamp(5.5rem, 14vw, 9rem);
+  box-shadow: none;
+}
+
+.tiles[data-count='5'] .pictogram__image,
+.tiles[data-count='6'] .pictogram__image,
+.tiles[data-count='7'] .pictogram__image,
+.tiles[data-count='8'] .pictogram__image {
+  width: clamp(4.5rem, 10vw, 7rem);
+  height: clamp(4.5rem, 10vw, 7rem);
+}
+
+.none-button {
+  font-size: 1.35rem;
+  padding: 0.9rem 2rem;
+}

@@ -236,12 +236,34 @@ export function TabletConversation({
   }
 
   if (presentation.mode === 'multi' && CHOICE_KINDS.has(presentation.kind)) {
-    // Multi-icon volgt in fase N7; tot dan kan de gebruiker hier alleen stoppen.
+    // Multi-icon (§13): de vraag, 2 tot 8 tegels en "Geen van deze" — het is daar NEE.
     return (
       <>
-        <section className="tablet__waiting">
+        <section className="multi">
           <h1 className="tablet__prompt">{presentation.text}</h1>
-          <p className="muted">Deze vorm komt binnenkort.</p>
+          <ul className="tiles" data-count={presentation.options.length}>
+            {presentation.options.map((option) => (
+              <li key={option.ref}>
+                <button
+                  className="tile"
+                  type="button"
+                  disabled={busy}
+                  aria-label={option.label}
+                  onClick={() => void answer(turn, { optionRef: option.ref })}
+                >
+                  <Pictogram option={option} showText={showText} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="button none-button"
+            type="button"
+            disabled={busy}
+            onClick={() => void answer(turn, { noneOfThese: true })}
+          >
+            Geen van deze
+          </button>
         </section>
         {alert}
         {controls}

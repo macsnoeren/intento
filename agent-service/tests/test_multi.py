@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 from typing import Any
 
@@ -104,6 +105,18 @@ class MultiRulesTest(unittest.TestCase):
 
 
 class MultiLlmTest(unittest.TestCase):
+    def test_de_intent_agent_weet_hoeveel_tegels(self) -> None:
+        llm = FakeProvider()
+        step(
+            request(
+                START, vocab=scenario_vocabulary(), interaction_mode="multi", options_per_screen=8
+            ),
+            llm=llm,
+        )
+        step(request(START, vocab=scenario_vocabulary()), llm=llm)
+        tiles = [json.loads(c.user)["tegels"] for c in llm.calls if "Intent Agent" in c.system]
+        self.assertEqual(tiles, [8, 1])
+
     def test_scenario_dorst_naar_water(self) -> None:
         llm = FakeProvider(
             routes={

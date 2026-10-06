@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N7.2 — tablet: multi-icon scherm
+
+- Multi-icon op de tablet: de vraag, een raster met 2 tot 8 tegels (pictogram met het woord, als knop
+  met het woord als naam), "Geen van deze", ↩ Terug en ⏹ Stoppen; geen JA/NEE. Een tegel stuurt
+  `optionRef`, "Geen van deze" `noneOfThese`, met beurt en reactietijd.
+- Ontdekt bij de rooktest: met 8 tegels per scherm verschenen er maar 5, omdat de Intent Agent hooguit 5
+  hypotheses gaf. Nu tot 8, en de agent krijgt het aantal tegels mee (prompt `intent-v5`).
+- Gerookt in de browser met het echte model: 4 en 8 tegels, "Geen van deze", Stoppen, en
+  "drinken" → "Bedoel je: Drinken?" → Klaar.
+
 ### N7.1 — Multi-icon in de agentdienst
 
 - Een gesprek begint in de ingestelde vorm (`multi` bij Multi-icon). In multi-icon: een onderwerpvraag

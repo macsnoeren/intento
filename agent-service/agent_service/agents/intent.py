@@ -30,7 +30,7 @@ from .rules import rule_hypotheses
 INTENT_TIMEOUT_SECONDS = 10.0
 #: Hoeveel woorden hooguit in de prompt gaan: de hele startset (±3.400) past niet.
 MAX_PROMPT_WORDS = 150
-MAX_HYPOTHESES = 5
+MAX_HYPOTHESES = 8
 #: Een eigen concept: kleine letters, cijfers en underscores.
 _CONCEPT_CHARS = re.compile(r"[^a-z0-9]+")
 
@@ -118,7 +118,7 @@ def no_streak(state: SessionState) -> int:
     return streak
 
 
-def prompt_input(state: SessionState, vocabulary: VocabularyIndex) -> str:
+def prompt_input(state: SessionState, vocabulary: VocabularyIndex, tiles: int = 1) -> str:
     """De gebruikersprompt: alleen concepten en woorden, nooit namen of contactgegevens (V6).
 
     De sleutels heten hetzelfde als in het antwoordschema (`concept`, `label`, `confidence`): een model
@@ -147,6 +147,7 @@ def prompt_input(state: SessionState, vocabulary: VocabularyIndex) -> str:
         ],
         "afgewezen": state.rejected_concepts,
         "nee_op_rij": no_streak(state),
+        "tegels": tiles,
         "vocabulary": prompt_words(state, vocabulary),
     }
     return json.dumps(payload, ensure_ascii=False)
@@ -158,10 +159,14 @@ def llm_intent(
     state: SessionState,
     vocabulary: VocabularyIndex,
     timeout: float = INTENT_TIMEOUT_SECONDS,
+    tiles: int = 1,
 ) -> IntentResult:
     """Vraagt het model om hypotheses en kijkt ze na. Gooit bij elk probleem (de terugval volgt)."""
     raw = provider.complete_json(
-        prompt.text, prompt_input(state, vocabulary), IntentOutput.model_json_schema(), timeout
+        prompt.text,
+        prompt_input(state, vocabulary, tiles),
+        IntentOutput.model_json_schema(),
+        timeout,
     )
     output = IntentOutput.model_validate(raw)
     rejected = {normalize(concept) for concept in state.rejected_concepts}

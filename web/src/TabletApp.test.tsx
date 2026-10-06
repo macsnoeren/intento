@@ -518,3 +518,72 @@ describe('"Het lukt nu even niet" (N4.13)', () => {
     expect(fake.log.at(-1)).toEqual(['stop', 's-1']);
   });
 });
+
+describe('multi-icon op de tablet (N7.2)', () => {
+  const words = ['pijn', 'eten', 'drinken', 'toilet', 'moe', 'blij', 'verdrietig', 'hulp'];
+
+  function multi(count: number): CommunicationTurn {
+    return {
+      sessionId: 's-1',
+      turn: 2,
+      canGoBack: true,
+      presentation: {
+        kind: 'question',
+        mode: 'multi',
+        text: 'Wat heb je nodig?',
+        message: null,
+        options: words.slice(0, count).map((word, position) => ({
+          ref: `v-${word}`,
+          kind: 'symbol' as const,
+          label: word,
+          imageUrl: `/assets/v-${word}?exp=1&sig=x`,
+          representation: 'exact' as const,
+          position,
+        })),
+      },
+    };
+  }
+
+  async function shown(count: number) {
+    const fake = fakeDeviceApi({ linked: true, resume: multi(count) });
+    render(<TabletApp api={fake.api} />);
+    await screen.findByRole('heading', { name: 'Wat heb je nodig?' });
+    return fake;
+  }
+
+  for (const count of [2, 4, 8]) {
+    it(`toont ${count} tegels met Geen van deze, Terug en Stoppen, zonder JA/NEE`, async () => {
+      await shown(count);
+      const tiles = document.querySelectorAll('.tiles .tile');
+      expect(tiles).toHaveLength(count);
+      expect(screen.getByRole('button', { name: words[count - 1] })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Geen van deze' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '↩ Terug' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '⏹ Stoppen' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'JA' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'NEE' })).toBeNull();
+    });
+  }
+
+  it('een tegel kiezen stuurt de ref met beurt en reactietijd', async () => {
+    const fake = await shown(4);
+    fireEvent.click(screen.getByRole('button', { name: 'drinken' }));
+    await waitFor(() => expect(fake.log.filter((call) => call[0] === 'answer')).toHaveLength(1));
+    expect(fake.log.at(-1)).toEqual([
+      'answer',
+      's-1',
+      expect.objectContaining({ turn: 2, optionRef: 'v-drinken' }),
+    ]);
+  });
+
+  it('Geen van deze stuurt noneOfThese', async () => {
+    const fake = await shown(4);
+    fireEvent.click(screen.getByRole('button', { name: 'Geen van deze' }));
+    await waitFor(() => expect(fake.log.filter((call) => call[0] === 'answer')).toHaveLength(1));
+    expect(fake.log.at(-1)).toEqual([
+      'answer',
+      's-1',
+      expect.objectContaining({ turn: 2, noneOfThese: true }),
+    ]);
+  });
+});

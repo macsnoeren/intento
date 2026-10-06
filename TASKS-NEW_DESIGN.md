@@ -472,7 +472,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   binary.
   *Acceptatie:* unittests; scenario "dorst → water" in multi-icon.
 
-- [ ] **N7.2 Tablet: multi-icon scherm**
+- [x] **N7.2 Tablet: multi-icon scherm**
   *ONTWERP: §13, §48.* Raster met 2–8 tegels + "Geen van deze" + ↩ Terug + ⏹ Stoppen.
   *Acceptatie:* componenttests (2, 4 en 8 tegels; Geen van deze); rooktest.
 

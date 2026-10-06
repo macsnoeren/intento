@@ -244,7 +244,14 @@ def _update_hypotheses(
     if turn.llm is not None and timeout is not None:
         provider, prompt = turn.llm, intent_prompt()
         attempt = LlmAttempt(
-            run=lambda: llm_intent(provider, prompt, state, vocabulary, timeout),
+            run=lambda: llm_intent(
+                provider,
+                prompt,
+                state,
+                vocabulary,
+                timeout,
+                tiles=turn.settings.options_per_screen if state.interaction_mode == "multi" else 1,
+            ),
             model=provider.model,
             prompt_version=prompt.id,
         )
