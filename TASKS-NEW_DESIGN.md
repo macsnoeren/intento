@@ -478,7 +478,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N8 — Vocabulary aanvullen
 
-- [ ] **N8.1 Eigen afbeelding + woord: backend**
+- [x] **N8.1 Eigen afbeelding + woord: backend**
   *ONTWERP: §15, §53.* `POST /vocabulary/upload` (multipart via `@fastify/multipart`): alleen PNG, JPEG of
   WebP, max. `UPLOAD_MAX_BYTES` (1 MB), controle op de werkelijke inhoud (magic bytes), sha256; label +
   concepten; verplicht vinkje "wij mogen deze afbeelding gebruiken" → licentie `own` met uploader en

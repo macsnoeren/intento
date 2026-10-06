@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.1 — eigen afbeelding + woord: backend
+
+- `POST /vocabulary/upload` (multipart, alleen de beheerder): PNG, JPEG of WebP herkend aan de inhoud
+  (SVG geweigerd), hooguit `UPLOAD_MAX_BYTES`, sha256, opgeslagen onder `own/<organisatie>/<sha256>`;
+  woord, synoniemen, concepten en contexten (`vocabularyUploadFieldsSchema` in shared); verplicht vinkje
+  → licentie `own` met uploader en datum. Audit `vocabulary.upload`.
+- Tests: verkeerd type (415), valse extensie, te groot (413), ontbrekend vinkje of ongeldige velden
+  (400), begeleider (403), isolatie tussen organisaties. Gerookt met curl.
+
 ### N7.2 — tablet: multi-icon scherm
 
 - Multi-icon op de tablet: de vraag, een raster met 2 tot 8 tegels (pictogram met het woord, als knop

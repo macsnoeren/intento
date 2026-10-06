@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   attributionListResponseSchema,
@@ -6,6 +7,7 @@ import {
   vocabularyListQuerySchema,
   vocabularyListResponseSchema,
   vocabularyUpdateRequestSchema,
+  vocabularyUploadFieldsSchema,
   type VocabularyItemPublic,
   type VocabularyListResponse,
 } from '@intento/shared';
@@ -19,6 +21,8 @@ import { recordAudit } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
 import { availableTo, buildSearchText, parseVocabularyItem } from '../vocabulary/repository.js';
 import { vocabularyItemToPublic } from '../vocabulary/serialize.js';
+import { checkImage } from '../vocabulary/image-check.js';
+import { writeStoredFile } from '../storage/files.js';
 
 const idParamsSchema = z.object({ id: z.string().min(1).max(200) });
 
@@ -77,6 +81,8 @@ export interface VocabularyRoutesDeps {
  * `GET /vocabulary/attributions` — de bronvermelding: per bron (naam, licentie, maker) de symbolen die
  * deze organisatie gebruikt. Voor iedereen binnen de organisatie, ook de tablet.
  *
+ * `POST /vocabulary/upload` — eigen afbeelding + woord (multipart; alleen PNG/JPEG/WebP op inhoud,
+ *   groottelimiet, verplicht vinkje voor de rechten, licentie `own`). Alleen de beheerder. Geaudit.
  * `POST /vocabulary/:id/retire` en `…/restore` — intrekken en terugzetten, met dezelfde rechten. Een
  * item wordt nooit verwijderd: de provenance kan ernaar verwijzen. Ingetrokken gaat het niet meer naar
  * de agentdienst (`listAvailableVocabulary` neemt alleen `approved`). Geaudit.
@@ -180,6 +186,88 @@ export function registerVocabularyRoutes(
       },
     );
   }
+
+  // Eigen afbeelding + woord (N8.1, §15, §53). Alleen de beheerder, alleen voor de eigen organisatie.
+  app.post(
+    '/vocabulary/upload',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request, reply) => {
+      const account = requireAccount(request);
+      const fields: Record<string, string> = {};
+      let bytes: Buffer | null = null;
+      let truncated = false;
+      for await (const part of request.parts()) {
+        if (part.type === 'file') {
+          if (part.fieldname !== 'file' || bytes) {
+            await part.toBuffer().catch(() => undefined);
+            throw new HttpError(
+              400,
+              'INVALID_UPLOAD',
+              'Stuur precies één bestand in het veld "file".',
+            );
+          }
+          bytes = await part.toBuffer();
+          truncated = part.file.truncated;
+        } else if (typeof part.value === 'string') {
+          fields[part.fieldname] = part.value;
+        }
+      }
+      const meta = vocabularyUploadFieldsSchema.parse(fields);
+      if (!bytes) throw new HttpError(400, 'INVALID_UPLOAD', 'Er is geen afbeelding meegestuurd.');
+      if (truncated || bytes.byteLength > env.UPLOAD_MAX_BYTES) {
+        throw new HttpError(
+          413,
+          'IMAGE_TOO_LARGE',
+          `De afbeelding is groter dan ${Math.round(env.UPLOAD_MAX_BYTES / 1024)} kB.`,
+        );
+      }
+      // De inhoud telt, niet de bestandsnaam of het opgegeven type (§53). Eigen uploads: geen SVG.
+      const checked = checkImage(bytes, { maxBytes: env.UPLOAD_MAX_BYTES, allowSvg: false });
+      if (!checked.ok) {
+        throw new HttpError(415, 'UNSUPPORTED_IMAGE', 'Alleen PNG, JPEG of WebP.');
+      }
+
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      const assetPath = `own/${account.organizationId}/${sha256}.${checked.extension}`;
+      await writeStoredFile(env.STORAGE_DIR, assetPath, bytes);
+
+      const labels = [meta.label, ...(meta.synonyms ?? [])];
+      const unique = labels.filter(
+        (label, index) =>
+          labels.findIndex((l) => l.toLowerCase() === label.toLowerCase()) === index,
+      );
+      const now = new Date();
+      const created = await prisma.vocabularyItem.create({
+        data: {
+          organizationId: account.organizationId,
+          labels: unique,
+          concepts: meta.concepts,
+          contexts: meta.contexts?.length ? meta.contexts : ['other'],
+          searchText: buildSearchText(unique, meta.concepts),
+          status: 'approved',
+          labelStatus: 'reviewed',
+          source: 'own',
+          // Licentie `own`: de beheerder bevestigde dat de organisatie de afbeelding mag gebruiken.
+          licenseKey: 'own',
+          author: account.name,
+          importedAt: now,
+          assetPath,
+          mimeType: checked.mimeType,
+          sha256,
+          bytes: bytes.byteLength,
+          createdById: account.id,
+        },
+      });
+
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.VOCABULARY_UPLOAD,
+        targetType: 'vocabularyItem',
+        targetId: created.id,
+        metadata: { mimeType: checked.mimeType, bytes: bytes.byteLength, sha256 },
+      });
+      return reply.status(201).send(vocabularyItemToPublic(parseVocabularyItem(created), env, now));
+    },
+  );
 
   app.get('/vocabulary/attributions', async (request): Promise<AttributionListResponse> => {
     const organizationId = await resolveCallerOrganization(prisma, request);

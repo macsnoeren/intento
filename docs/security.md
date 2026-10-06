@@ -329,6 +329,17 @@
 - **Rate limiting.** Beide endpoints zijn begrensd per IP, zodat de spraakdienst geen gratis
   audio-machine wordt.
 
+### Eigen afbeeldingen (N8.1, INTENTO-NEW-DESIGN §53)
+
+- **Alleen de beheerder**, alleen voor de eigen organisatie; een begeleider krijgt 403.
+- **Alleen PNG, JPEG of WebP**, herkend aan de inhoud (magic bytes) — een SVG of iets anders met een
+  `.png`-naam wordt geweigerd. Groottelimiet `UPLOAD_MAX_BYTES` (de multipart-plugin kapt af; de route
+  weigert dan met 413).
+- Het bestand komt buiten de webroot (`STORAGE_DIR`) onder een naam uit de sha256, nooit onder de
+  opgegeven bestandsnaam, en is alleen via een ondertekende, vervallende URL bereikbaar.
+- **Rechten**: het vinkje "wij mogen deze afbeelding gebruiken" is verplicht; de licentie wordt `own` met
+  de uploader en de datum. Elke upload staat in het audit-log.
+
 ### Agentdienst (ADR-0017)
 
 - **Alleen de backend.** De tablet en de beheeromgeving praten nooit met de agentdienst. In compose

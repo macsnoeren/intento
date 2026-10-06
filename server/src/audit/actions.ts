@@ -31,6 +31,7 @@ export const AUDIT_ACTIONS = {
   PROFILE_IMPORT: 'profile.import',
   // Vocabulary (INTENTO-NEW-DESIGN §15, §53)
   VOCABULARY_UPDATE: 'vocabulary.update',
+  VOCABULARY_UPLOAD: 'vocabulary.upload',
   VOCABULARY_RETIRE: 'vocabulary.retire',
   VOCABULARY_RESTORE: 'vocabulary.restore',
   // Organisatie-instellingen (bewaartermijn, §53)

@@ -1009,6 +1009,50 @@ export const vocabularyUpdateRequestSchema = z
   });
 export type VocabularyUpdateRequest = z.infer<typeof vocabularyUpdateRequestSchema>;
 
+/** Een kommalijst uit een formulierveld: "a, b , c" → ["a", "b", "c"], lege stukken weg. */
+const commaList = z
+  .string()
+  .max(1000)
+  .transform((value) =>
+    value
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part.length > 0),
+  );
+
+/**
+ * De tekstvelden bij een eigen afbeelding (`POST /vocabulary/upload`, multipart, §15): het woord,
+ * synoniemen, concepten en contexten als kommalijst, en het verplichte vinkje "wij mogen deze afbeelding
+ * gebruiken". Formuliervelden komen als tekst binnen; dit schema zet ze om en controleert ze.
+ */
+export const vocabularyUploadFieldsSchema = z.strictObject({
+  label: vocabularyLabelSchema,
+  synonyms: commaList.pipe(z.array(vocabularyLabelSchema).max(19)).optional(),
+  concepts: commaList.pipe(
+    z
+      .array(conceptKeySchema)
+      .min(1, 'Geef minstens één concept.')
+      .max(10)
+      .refine((list) => new Set(list).size === list.length, {
+        message: 'Elk concept mag maar één keer voorkomen.',
+      }),
+  ),
+  contexts: commaList
+    .pipe(
+      z
+        .array(vocabularyContextSchema)
+        .max(VOCABULARY_CONTEXTS.length)
+        .refine((list) => new Set(list).size === list.length, {
+          message: 'Elke context mag maar één keer voorkomen.',
+        }),
+    )
+    .optional(),
+  rightsConfirmed: z.literal('true', {
+    message: 'Bevestig dat jullie deze afbeelding mogen gebruiken.',
+  }),
+});
+export type VocabularyUploadFields = z.infer<typeof vocabularyUploadFieldsSchema>;
+
 /** Eén bron in de bronvermelding (`GET /vocabulary/attributions`, §15): wie, welke licentie, welke symbolen. */
 export const attributionSourceSchema = z.object({
   sourceName: z.string(),
