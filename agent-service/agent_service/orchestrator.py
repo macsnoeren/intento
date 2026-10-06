@@ -17,6 +17,7 @@ import re
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import Any
 
 from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
@@ -869,20 +870,20 @@ def _validated_multi_question(
         attempt: LlmAttempt[str] | None = None
         timeout = turn.budget(QUESTION_TIMEOUT_SECONDS)
         if turn.llm is not None and timeout is not None:
-            provider, prompt = turn.llm, multi_question_prompt()
-            reasons = list(rejected_because)
+            prompt = multi_question_prompt()
             attempt = LlmAttempt(
-                run=lambda: llm_multi_question(
-                    provider,
+                run=partial(
+                    llm_multi_question,
+                    turn.llm,
                     prompt,
                     targets,
                     state,
                     vocabulary,
                     strategy=instruction_for(turn.settings.question_strategy),
-                    rejected_because=reasons or None,
+                    rejected_because=list(rejected_because) or None,
                     timeout=timeout,
                 ),
-                model=provider.model,
+                model=turn.llm.model,
                 prompt_version=prompt.id,
             )
         result = run_agent(
