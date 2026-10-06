@@ -18,7 +18,8 @@ from typing import Any
 
 from .agents.envelope import AgentResult, LlmAttempt, run_agent
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
-from .agents.rules import capitalize, rule_icon, rule_question
+from .agents.question import llm_question, question_prompt
+from .agents.rules import Question, capitalize, rule_icon, rule_question
 from .contracts import (
     CONTRACT_VERSION,
     AgentDecision,
@@ -214,9 +215,18 @@ def _ask_next(
     if target is None:
         confirmed = _confirmed(state)
         return _propose(state, confirmed, vocabulary, turn) if confirmed else _ask_stop()
+    question_attempt: LlmAttempt[Question] | None = None
+    if turn.llm is not None:
+        provider, prompt = turn.llm, question_prompt()
+        question_attempt = LlmAttempt(
+            run=lambda: llm_question(provider, prompt, target, state, vocabulary),
+            model=provider.model,
+            prompt_version=prompt.id,
+        )
     question_result = run_agent(
         "question-agent",
         rules=lambda: rule_question(target),
+        llm=question_attempt,
         rules_reason="één concept per vraag",
         clock=turn.clock,
     )

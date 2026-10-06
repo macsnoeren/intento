@@ -381,7 +381,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Scenario: JA pijn, NEE hoofd, NEE buik → pijn blijft, de plek is nog open.
   *Acceptatie:* unittest + scenario.
 
-- [ ] **N6.3 Question Agent v1**
+- [x] **N6.3 Question Agent v1**
   *ONTWERP: §7, §34.* LLM-agent voor Binary Mode: één concept per vraag; output volgens §34 (concept,
   tekst, `required_symbols`, confidence). Prompt `question-v1`. Terugval "{label}?".
   *Acceptatie:* unittests met FakeProvider, inclusief terugval.

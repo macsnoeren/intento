@@ -8,7 +8,7 @@ een prompt staan (V6).
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 from .provider import JsonObject, LlmError
@@ -29,10 +29,23 @@ FakeResponse = JsonObject | LlmError | Callable[[FakeCall], JsonObject]
 
 
 class FakeProvider:
-    """Geeft de opgegeven antwoorden in volgorde terug en onthoudt elke aanroep."""
+    """Geeft de opgegeven antwoorden in volgorde terug en onthoudt elke aanroep.
 
-    def __init__(self, responses: Iterable[FakeResponse] = (), model: str = "fake-model") -> None:
+    Met `routes` heeft elke agent een eigen rij: de sleutel is een stukje tekst uit zijn systeemprompt
+    (bv. `"Intent Agent"`). Een aanroep waarvan de systeemprompt een sleutel bevat, krijgt het
+    volgende antwoord uit die rij; de rest komt uit `responses`.
+    """
+
+    def __init__(
+        self,
+        responses: Iterable[FakeResponse] = (),
+        model: str = "fake-model",
+        routes: Mapping[str, Iterable[FakeResponse]] | None = None,
+    ) -> None:
         self._responses: list[FakeResponse] = list(responses)
+        self._routes: dict[str, list[FakeResponse]] = {
+            key: list(queue) for key, queue in (routes or {}).items()
+        }
         self._model = model
         self.calls: list[FakeCall] = []
 
@@ -54,9 +67,12 @@ class FakeProvider:
     ) -> JsonObject:
         call = FakeCall(system=system, user=user, schema=copy.deepcopy(schema), timeout=timeout)
         self.calls.append(call)
-        if not self._responses:
+        queue = next(
+            (queue for key, queue in self._routes.items() if key in system), self._responses
+        )
+        if not queue:
             raise LlmError("no_response", "de FakeProvider heeft geen antwoord meer")
-        response = self._responses.pop(0)
+        response = queue.pop(0)
         if isinstance(response, LlmError):
             raise response
         if callable(response):

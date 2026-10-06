@@ -46,7 +46,8 @@ class EvalTest(unittest.TestCase):
         self.assertEqual(report.success_rate, 1.0)
         agents = report.agents()
         self.assertEqual(set(agents), {"icon-agent", "intent-agent", "question-agent"})
-        self.assertEqual(dict(agents["question-agent"].statuses), {"success": 8})
+        # Zonder antwoorden van de FakeProvider vallen de LLM-agents terug op hun regels.
+        self.assertEqual(dict(agents["question-agent"].statuses), {"fallback": 8})
         text = report.render()
         self.assertIn("Geslaagd: 100% van 4", text)
         self.assertIn("question-agent", text)

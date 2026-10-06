@@ -22,17 +22,21 @@ def intent(*concepts: tuple[str, str, float], open_: list[str] | None = None) ->
 class HypothesesTest(unittest.TestCase):
     def test_ja_pijn_nee_hoofd_nee_buik(self) -> None:
         llm = FakeProvider(
-            [
-                intent(("pain", "pijn", 0.4), ("eat", "eten", 0.3), open_=["wat"]),
-                intent(
-                    ("pain", "pijn", 0.8),
-                    ("head", "hoofd", 0.4),
-                    ("belly", "buik", 0.3),
-                    open_=["waar de pijn zit"],
-                ),
-                intent(("pain", "pijn", 0.8), ("belly", "buik", 0.4), open_=["waar de pijn zit"]),
-                intent(("pain", "pijn", 0.8), open_=["waar de pijn zit"]),
-            ]
+            routes={
+                "Intent Agent": [
+                    intent(("pain", "pijn", 0.4), ("eat", "eten", 0.3), open_=["wat"]),
+                    intent(
+                        ("pain", "pijn", 0.8),
+                        ("head", "hoofd", 0.4),
+                        ("belly", "buik", 0.3),
+                        open_=["waar de pijn zit"],
+                    ),
+                    intent(
+                        ("pain", "pijn", 0.8), ("belly", "buik", 0.4), open_=["waar de pijn zit"]
+                    ),
+                    intent(("pain", "pijn", 0.8), open_=["waar de pijn zit"]),
+                ]
+            }
         )
         first = step(request(START), llm=llm)
         self.assertEqual(first.presentation.text, "Pijn?")
@@ -60,14 +64,21 @@ class HypothesesTest(unittest.TestCase):
 
     def test_ja_zonder_twijfel_is_meteen_het_voorstel(self) -> None:
         llm = FakeProvider(
-            [intent(("drink", "drinken", 0.5), open_=["wat"]), intent(("drink", "drinken", 0.9))]
+            routes={
+                "Intent Agent": [
+                    intent(("drink", "drinken", 0.5), open_=["wat"]),
+                    intent(("drink", "drinken", 0.9)),
+                ]
+            }
         )
         first = step(request(START), llm=llm)
         proposal = step(answer(first, YES), llm=llm)
         self.assertEqual(proposal.presentation.text, "Bedoel je: Drinken?")
 
     def test_valt_het_model_uit_na_een_ja_dan_het_voorstel(self) -> None:
-        llm = FakeProvider([intent(("pain", "pijn", 0.5), open_=["wat"])])  # daarna geen antwoord
+        llm = FakeProvider(
+            routes={"Intent Agent": [intent(("pain", "pijn", 0.5), open_=["wat"])]}
+        )  # daarna geen antwoord
         first = step(request(START), llm=llm)
         proposal = step(answer(first, YES), llm=llm)
         self.assertEqual(proposal.presentation.text, "Bedoel je: Pijn?")
@@ -86,11 +97,13 @@ class HypothesesTest(unittest.TestCase):
 
     def test_scenario_pijn_met_verfijning(self) -> None:
         llm = FakeProvider(
-            [
-                intent(("pain", "pijn", 0.4), open_=["wat"]),
-                intent(("pain", "pijn", 0.8), ("head", "hoofd", 0.4), open_=["waar"]),
-                intent(("pain", "pijn", 0.8), open_=["waar"]),
-            ]
+            routes={
+                "Intent Agent": [
+                    intent(("pain", "pijn", 0.4), open_=["wat"]),
+                    intent(("pain", "pijn", 0.8), ("head", "hoofd", 0.4), open_=["waar"]),
+                    intent(("pain", "pijn", 0.8), open_=["waar"]),
+                ]
+            }
         )
         result = play(
             Scenario(name="pijn, niet aan het hoofd", goal=frozenset({"pain"})),

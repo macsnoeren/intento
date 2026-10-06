@@ -72,6 +72,14 @@ Agent weegt het mee, en zolang hij iets open ziet (`needs_clarification`) volgt 
 Is er niets meer te vragen maar wel een JA, dan volgt het voorstel; zonder JA "Wil je stoppen?". Zonder
 taalmodel (of als het faalt) is een JA meteen het voorstel.
 
+**Question Agent v1** (`agents/question.py`, §7, §34): de orchestrator kiest het concept, de agent
+formuleert de binary vraag erover (`concept`, `text`, `required_symbols`, `confidence`). Het concept
+moet precies het gevraagde zijn, de tekst een vraag van 3 tot 80 tekens zonder URL die nog niet
+gesteld is; anders de terugval "{Label}?". Het pictogram en het woord eronder blijven die van het item.
+
+`FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
+antwoorden (de sleutel is een stukje van zijn systeemprompt).
+
 Prompts staan als **versiebestanden** in `agent_service/prompts/` (`<naam>-v<n>.md`); `load_prompt`
 pakt de hoogste versie, en die versie komt mee in de `AgentDecision`. Een prompt wijzigen is een nieuw
 bestand met een hoger nummer.

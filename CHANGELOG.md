@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.3 — Question Agent v1
+
+- `agent_service/agents/question.py` met prompt `question-v1` (bijgewerkt vóór het eerste gebruik): de
+  vraag over het gekozen concept, volgens §34 (concept, tekst, `required_symbols`, confidence).
+  Nagekeken: zelfde concept, vraag van 3 tot 80 tekens met vraagteken, geen URL, niet eerder gesteld;
+  anders de terugval "{Label}?".
+- `FakeProvider` kan per agent een eigen rij antwoorden geven (`routes`).
+- Gemeten met `gpt-oss:120b-cloud`: 2/2 geslaagd, "Heb je pijn?" in plaats van "Pijn?", ±1,3 s per
+  vraag; samen met de Intent Agent ±3 s per beurt en 6–7 vragen per gesprek (zie N6.2).
+
 ### N6.2 — hypotheses in de Session State
 
 - De orchestrator houdt hypotheses, aannames en onzekerheden bij in de state en geeft ze elke beurt als
