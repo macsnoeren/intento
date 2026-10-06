@@ -409,10 +409,72 @@ export type SpeechPreviewRequest = z.infer<typeof speechPreviewRequestSchema>;
 export const SPEECH_PREVIEW_SENTENCE = 'Ik wil graag water drinken.';
 
 /**
+ * De ingebouwde **vraagstrategieën** (INTENTO-NEW-DESIGN §7.1): een instructie die de Question Agent
+ * meekrijgt. De sleutels zijn stabiel en gelijk aan die in de agentdienst (contracttest, N6.4). Een
+ * strategie verandert de manier van vragen, nooit de garanties (§52).
+ */
+export const QUESTION_STRATEGY_KEYS = [
+  'general_to_specific',
+  'concrete_first',
+  'short_and_calm',
+] as const;
+export const questionStrategySchema = z.enum(QUESTION_STRATEGY_KEYS);
+export type QuestionStrategy = z.infer<typeof questionStrategySchema>;
+
+/** De keuzelijst zoals de begeleider of beheerder hem ziet: naam en uitleg in begrijpelijke taal. */
+export const QUESTION_STRATEGY_CATALOG: readonly {
+  key: QuestionStrategy;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'general_to_specific',
+    label: 'Van algemeen naar specifiek',
+    description:
+      'Eerst het onderwerp ("Heb je pijn?"), daarna de details ("Aan je hoofd?"). Geschikt voor wie ' +
+      'het prettig vindt om stap voor stap te kiezen. De standaard.',
+  },
+  {
+    key: 'concrete_first',
+    label: 'Concreet eerst',
+    description:
+      'Meteen naar concrete dingen ("Wil je water?") en abstracte tussenstappen overslaan. Geschikt voor ' +
+      'wie voorwerpen goed herkent maar moeite heeft met categorieën.',
+  },
+  {
+    key: 'short_and_calm',
+    label: 'Kort en rustig',
+    description:
+      'Korte, eenvoudige vragen, één ding tegelijk; liever een vraag meer dan een moeilijke vraag. ' +
+      'Geschikt voor wie snel overprikkeld raakt of veel tijd nodig heeft.',
+  },
+];
+
+/** De vorm van een gesprek (§11, §50): binary, multi-icon, of laat de AI kiezen. */
+export const INTERACTION_MODES = ['binary', 'multi', 'ai'] as const;
+export const interactionModeSettingKeySchema = z.enum(INTERACTION_MODES);
+export type InteractionModeSetting = z.infer<typeof interactionModeSettingKeySchema>;
+
+/** De grenzen uit §50. */
+export const OPTIONS_PER_SCREEN_MIN = 2;
+export const OPTIONS_PER_SCREEN_MAX = 8;
+export const MAX_QUESTIONS_MIN = 5;
+export const MAX_QUESTIONS_MAX = 30;
+
+/**
  * Communicatie-instellingen van een gebruiker (`UserCommunicationProfile`, INTENTO-NEW-DESIGN §50).
- * De nieuwe communicatie-instellingen (vorm, opties per scherm, vraagstrategie, …) volgen in N3.1.
  */
 export const communicationProfileSchema = z.object({
+  /** Vorm van het gesprek: `binary` (standaard), `multi` (multi-icon) of `ai` (AI kiest). */
+  interactionMode: interactionModeSettingKeySchema,
+  /** Opties per scherm in multi-icon, 2–8 (standaard 4). */
+  optionsPerScreen: z.number().int().min(OPTIONS_PER_SCREEN_MIN).max(OPTIONS_PER_SCREEN_MAX),
+  /** Hoe de AI vraagt (§7.1); standaard `general_to_specific`. */
+  questionStrategy: questionStrategySchema,
+  /** Leert Intento van deze gebruiker (§22)? Standaard aan; uit = niets opbouwen en niets gebruiken. */
+  experienceEnabled: z.boolean(),
+  /** Maximum aantal vragen per gesprek (§10, S1), 5–30 (standaard 15). */
+  maxQuestions: z.number().int().min(MAX_QUESTIONS_MIN).max(MAX_QUESTIONS_MAX),
   /** Tekst onder de pictogrammen tonen. */
   showText: z.boolean(),
   /**
@@ -444,6 +506,11 @@ export type UserPublic = z.infer<typeof userPublicSchema>;
 export const createUserRequestSchema = z.object({
   name: z.string().trim().min(1).max(200),
   active: z.boolean().optional(),
+  /**
+   * Experience (§22, V2): standaard aan. Bij het aanmaken staat de keuze zichtbaar in beeld, zodat de
+   * beheerder bewust kiest.
+   */
+  experienceEnabled: z.boolean().optional(),
 });
 export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
 
@@ -485,6 +552,16 @@ export const profileExportSchema = z.object({
    * het inlezen genegeerd.
    */
   communicationProfile: communicationProfileSchema.extend({
+    interactionMode: interactionModeSettingKeySchema.default('binary'),
+    optionsPerScreen: z
+      .number()
+      .int()
+      .min(OPTIONS_PER_SCREEN_MIN)
+      .max(OPTIONS_PER_SCREEN_MAX)
+      .default(4),
+    questionStrategy: questionStrategySchema.default('general_to_specific'),
+    experienceEnabled: z.boolean().default(true),
+    maxQuestions: z.number().int().min(MAX_QUESTIONS_MIN).max(MAX_QUESTIONS_MAX).default(15),
     speechEnabled: z.boolean().default(false),
     speechVoice: speechVoiceSchema.default(DEFAULT_SPEECH_VOICE),
   }),

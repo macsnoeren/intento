@@ -231,7 +231,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N3 — Instellingen
 
-- [ ] **N3.1 Nieuwe communicatie-instellingen**
+- [x] **N3.1 Nieuwe communicatie-instellingen**
   *ONTWERP: §50.* Migratie: `interactionMode` (binary/multi/ai, standaard binary), `optionsPerScreen`
   (2–8, standaard 4), `questionStrategy` (standaard `general_to_specific`), `experienceEnabled`
   (standaard aan; bij het aanmaken van een gebruiker zichtbaar met uitleg), `maxQuestions` (5–30,

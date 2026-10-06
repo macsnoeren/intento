@@ -12,6 +12,11 @@ import { ApiRequestError, type DeviceApi } from './api.ts';
 
 function profile(overrides: Partial<CommunicationProfile> = {}): CommunicationProfile {
   return {
+    interactionMode: 'binary',
+    optionsPerScreen: 4,
+    questionStrategy: 'general_to_specific',
+    experienceEnabled: true,
+    maxQuestions: 15,
     showText: true,
     speechEnabled: false,
     speechVoice: 'nl_NL-pim-medium',

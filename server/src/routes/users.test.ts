@@ -55,6 +55,11 @@ describe('gebruikersbeheer — /users', () => {
     // Standaardwaarden (INTENTO-NEW-DESIGN §50): 4 opties, tekst aan, leren aan, ondersteuning uit,
     // contextindicator aan.
     expect(user.communicationProfile).toEqual({
+      interactionMode: 'binary',
+      optionsPerScreen: 4,
+      questionStrategy: 'general_to_specific',
+      experienceEnabled: true,
+      maxQuestions: 15,
       showText: true,
       speechEnabled: false,
       speechVoice: 'nl_NL-pim-medium',
@@ -115,6 +120,11 @@ describe('gebruikersbeheer — /users', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
+        interactionMode: 'binary',
+        optionsPerScreen: 4,
+        questionStrategy: 'general_to_specific',
+        experienceEnabled: true,
+        maxQuestions: 15,
         showText: false,
         speechEnabled: false,
         speechVoice: 'nl_NL-pim-medium',
@@ -122,6 +132,11 @@ describe('gebruikersbeheer — /users', () => {
     });
     expect(ok.statusCode).toBe(200);
     expect(userPublicSchema.parse(ok.json()).communicationProfile).toEqual({
+      interactionMode: 'binary',
+      optionsPerScreen: 4,
+      questionStrategy: 'general_to_specific',
+      experienceEnabled: true,
+      maxQuestions: 15,
       showText: false,
       speechEnabled: false,
       speechVoice: 'nl_NL-pim-medium',
@@ -133,6 +148,11 @@ describe('gebruikersbeheer — /users', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
+        interactionMode: 'binary',
+        optionsPerScreen: 4,
+        questionStrategy: 'general_to_specific',
+        experienceEnabled: true,
+        maxQuestions: 15,
         showText: true,
         speechEnabled: false,
         speechVoice: 'onbekende-stem',
@@ -140,6 +160,71 @@ describe('gebruikersbeheer — /users', () => {
     });
     expect(bad.statusCode).toBe(400);
     expect(bad.json()).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+  });
+
+  it('bewaakt de grenzen van de communicatie-instellingen (N3.1, §50)', async () => {
+    const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    const user = await seedUser('Sanne', admin.organizationId);
+    const valid = {
+      interactionMode: 'multi',
+      optionsPerScreen: 8,
+      questionStrategy: 'concrete_first',
+      experienceEnabled: false,
+      maxQuestions: 30,
+      showText: true,
+      speechEnabled: false,
+      speechVoice: 'nl_NL-pim-medium',
+    };
+    const put = (payload: object) =>
+      app.inject({
+        method: 'PUT',
+        url: `/users/${user.id}/settings`,
+        headers: { cookie },
+        payload,
+      });
+
+    const ok = await put(valid);
+    expect(ok.statusCode).toBe(200);
+    expect(userPublicSchema.parse(ok.json()).communicationProfile).toEqual(valid);
+    expect(
+      (await put({ ...valid, optionsPerScreen: 2, maxQuestions: 5, interactionMode: 'ai' }))
+        .statusCode,
+    ).toBe(200);
+
+    for (const bad of [
+      { optionsPerScreen: 1 },
+      { optionsPerScreen: 9 },
+      { maxQuestions: 4 },
+      { maxQuestions: 31 },
+      { questionStrategy: 'guess' },
+      { interactionMode: 'voice' },
+      { optionsPerScreen: 4.5 },
+    ]) {
+      const res = await put({ ...valid, ...bad });
+      expect(res.statusCode, JSON.stringify(bad)).toBe(400);
+    }
+    // Ontbreekt een veld, dan ook: PUT vervangt het hele profiel.
+    const incomplete: Partial<typeof valid> = { ...valid };
+    delete incomplete.maxQuestions;
+    expect((await put(incomplete)).statusCode).toBe(400);
+  });
+
+  it('maakt een gebruiker aan met Experience aan, tenzij de beheerder hem bewust uitzet (V2)', async () => {
+    const admin = await seedAccount('admin@intento.local', 'pw', 'ADMIN');
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    const create = async (payload: object) =>
+      userPublicSchema.parse(
+        (await app.inject({ method: 'POST', url: '/users', headers: { cookie }, payload })).json(),
+      ).communicationProfile;
+    expect(await create({ name: 'Sanne' })).toMatchObject({
+      experienceEnabled: true,
+      interactionMode: 'binary',
+      optionsPerScreen: 4,
+      questionStrategy: 'general_to_specific',
+      maxQuestions: 15,
+    });
+    expect((await create({ name: 'Tom', experienceEnabled: false })).experienceEnabled).toBe(false);
   });
 
   it('laat een CAREGIVER instellingen aanpassen maar niet verwijderen (403)', async () => {
@@ -158,6 +243,11 @@ describe('gebruikersbeheer — /users', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
+        interactionMode: 'binary',
+        optionsPerScreen: 4,
+        questionStrategy: 'general_to_specific',
+        experienceEnabled: true,
+        maxQuestions: 15,
         showText: true,
         speechEnabled: false,
         speechVoice: 'nl_NL-pim-medium',

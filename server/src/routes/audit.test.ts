@@ -77,6 +77,11 @@ describe('audit-logging — gevoelige acties', () => {
       url: `/users/${user.id}/settings`,
       headers: { cookie },
       payload: {
+        interactionMode: 'binary',
+        optionsPerScreen: 4,
+        questionStrategy: 'general_to_specific',
+        experienceEnabled: true,
+        maxQuestions: 15,
         showText: true,
         speechEnabled: false,
         speechVoice: 'nl_NL-pim-medium',

@@ -41,14 +41,16 @@ export function registerUserRoutes(app: FastifyInstance, { prisma }: UserRoutesD
     { preHandler: [authorize(prisma, { roles: ['ADMIN'] }), requireVerifiedEmail()] },
     async (request, reply): Promise<UserPublic> => {
       const account = requireAccount(request);
-      const { name, active } = createUserRequestSchema.parse(request.body);
+      const { name, active, experienceEnabled } = createUserRequestSchema.parse(request.body);
 
       const user = await prisma.user.create({
         data: {
           name,
           active: active ?? true,
           organizationId: account.organizationId,
-          communicationProfile: { create: {} },
+          communicationProfile: {
+            create: experienceEnabled === undefined ? {} : { experienceEnabled },
+          },
         },
         include: { communicationProfile: true },
       });

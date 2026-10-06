@@ -46,6 +46,11 @@ function makeUser(id: string, name: string): UserPublic {
     active: true,
     createdAt: '2026-07-08T10:00:00.000Z',
     communicationProfile: {
+      interactionMode: 'binary',
+      optionsPerScreen: 4,
+      questionStrategy: 'general_to_specific',
+      experienceEnabled: true,
+      maxQuestions: 15,
       showText: true,
       speechEnabled: false,
       speechVoice: 'nl_NL-pim-medium',

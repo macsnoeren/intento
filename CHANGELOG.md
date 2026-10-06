@@ -28,6 +28,18 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N3.1 — nieuwe communicatie-instellingen
+
+- Migratie `communication_settings`: `interactionMode` (`binary`/`multi`/`ai`, standaard `binary`),
+  `optionsPerScreen` (2–8, standaard 4), `questionStrategy` (standaard `general_to_specific`),
+  `experienceEnabled` (standaard aan) en `maxQuestions` (5–30, standaard 15). `showText`, `speechEnabled`
+  en `speechVoice` blijven.
+- API + zod: de strategiesleutels en hun uitleg (`QUESTION_STRATEGY_CATALOG`) staan in `shared/`; bij het
+  aanmaken van een gebruiker kan `experienceEnabled` meegegeven worden. Een ongeldige opgeslagen waarde
+  valt bij het lezen terug op de standaard; ongeldige invoer wordt geweigerd.
+- Tests: grenzen, onbekende strategie → 400, begeleider alleen voor gekoppelde gebruikers, sleutels gelijk
+  aan het agentcontract.
+
 ### N2.14 — bronvermelding
 
 - `GET /vocabulary/attributions` voor iedereen binnen de organisatie (account óf tablet): per bron de

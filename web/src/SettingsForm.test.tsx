@@ -23,6 +23,11 @@ function user(overrides: Partial<CommunicationProfile> = {}): UserPublic {
     active: true,
     createdAt: '2026-07-12T10:00:00.000Z',
     communicationProfile: {
+      interactionMode: 'binary',
+      optionsPerScreen: 4,
+      questionStrategy: 'general_to_specific',
+      experienceEnabled: true,
+      maxQuestions: 15,
       showText: true,
       speechEnabled: false,
       speechVoice: DEFAULT_SPEECH_VOICE,

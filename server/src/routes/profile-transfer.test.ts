@@ -26,6 +26,11 @@ describe('profielexport/-import', () => {
 
   /** Een bewust niet-standaard profiel, zodat de roundtrip elk veld aantoonbaar meeneemt. */
   const CUSTOM_SETTINGS: UpdateSettingsRequest = {
+    interactionMode: 'multi',
+    optionsPerScreen: 6,
+    questionStrategy: 'short_and_calm',
+    experienceEnabled: false,
+    maxQuestions: 20,
     showText: false,
     speechEnabled: false,
     speechVoice: 'nl_NL-pim-medium',

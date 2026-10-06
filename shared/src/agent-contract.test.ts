@@ -92,3 +92,13 @@ describe('agentcontract v1: dezelfde velden als pydantic', () => {
     },
   );
 });
+
+describe('agentcontract v1: dezelfde sleutels als de instellingen', () => {
+  it('kent precies de vraagstrategieën en vormen uit de communicatie-instellingen', async () => {
+    const { QUESTION_STRATEGY_KEYS, INTERACTION_MODES } = await import('./index.js');
+    const { questionStrategyKeySchema, interactionModeSettingSchema } =
+      await import('./agent-contract.js');
+    expect(questionStrategyKeySchema.options).toEqual([...QUESTION_STRATEGY_KEYS]);
+    expect(interactionModeSettingSchema.options).toEqual([...INTERACTION_MODES]);
+  });
+});

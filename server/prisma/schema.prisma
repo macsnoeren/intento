@@ -78,17 +78,27 @@ model User {
 }
 
 /// Communicatie-instellingen per gebruiker (INTENTO-NEW-DESIGN §50). 1-op-1 aan `User`
-/// (`userId` is de primaire sleutel). De oude AI-instellingen zijn weg (N0.5); de nieuwe
-/// communicatie-instellingen volgen in N3.1.
+/// (`userId` is de primaire sleutel). Waarden als `String`/`Int`; de toegestane waarden bewaakt zod
+/// op de API-grens (geen native enums i.v.m. SQLite/PostgreSQL-portabiliteit).
+/// - `interactionMode`: `binary` (standaard), `multi` of `ai` (§11).
+/// - `optionsPerScreen`: 2–8 opties in multi-icon (standaard 4).
+/// - `questionStrategy`: vraagstrategie (§7.1), standaard `general_to_specific`.
+/// - `experienceEnabled`: leren van deze gebruiker (§22), standaard aan.
+/// - `maxQuestions`: maximum aantal vragen per gesprek (S1), 5–30, standaard 15.
 /// - `showText`: tekst onder pictogrammen tonen (standaard aan).
 /// - `speechEnabled`: spreekt de tablet uit wat er op het scherm staat? Standaard **uit**.
 /// - `speechVoice`: met welke stem. Een sleutel uit de gedeelde stemcatalogus, op de API-grens met
 ///   zod gevalideerd; `device` betekent "de tablet spreekt zelf".
 model UserCommunicationProfile {
-  userId        String  @id
-  showText      Boolean @default(true)
-  speechEnabled Boolean @default(false)
-  speechVoice   String  @default("nl_NL-pim-medium")
+  userId            String  @id
+  interactionMode   String  @default("binary")
+  optionsPerScreen  Int     @default(4)
+  questionStrategy  String  @default("general_to_specific")
+  experienceEnabled Boolean @default(true)
+  maxQuestions      Int     @default(15)
+  showText          Boolean @default(true)
+  speechEnabled     Boolean @default(false)
+  speechVoice       String  @default("nl_NL-pim-medium")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

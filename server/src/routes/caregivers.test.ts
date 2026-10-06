@@ -247,6 +247,11 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
         url: `/users/${user.id}/settings`,
         headers: { cookie },
         payload: {
+          interactionMode: 'binary',
+          optionsPerScreen: 4,
+          questionStrategy: 'general_to_specific',
+          experienceEnabled: true,
+          maxQuestions: 15,
           showText: true,
           speechEnabled: false,
           speechVoice: 'nl_NL-pim-medium',
@@ -275,6 +280,11 @@ describe('begeleiders koppelen — /admin/users/:id/caregivers', () => {
         url: `/users/${user.id}/settings`,
         headers: { cookie },
         payload: {
+          interactionMode: 'binary',
+          optionsPerScreen: 4,
+          questionStrategy: 'general_to_specific',
+          experienceEnabled: true,
+          maxQuestions: 15,
           showText: false,
           speechEnabled: false,
           speechVoice: 'nl_NL-pim-medium',

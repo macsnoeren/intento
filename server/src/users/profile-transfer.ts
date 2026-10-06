@@ -1,14 +1,9 @@
-import {
-  PROFILE_EXPORT_VERSION,
-  profileExportSchema,
-  toSpeechVoice,
-  type ProfileExport,
-} from '@intento/shared';
+import { PROFILE_EXPORT_VERSION, profileExportSchema, type ProfileExport } from '@intento/shared';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { AccountModel } from '../generated/prisma/models.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { HttpError } from '../errors.js';
-import { DEFAULT_PROFILE, type UserWithProfile } from './serialize.js';
+import { DEFAULT_PROFILE, profileFromModel, type UserWithProfile } from './serialize.js';
 
 /**
  * Profielexport en -import (INTENTO-NEW-DESIGN §1 eigenaarschap, §53).
@@ -43,14 +38,8 @@ export async function buildProfileExport(
     version: PROFILE_EXPORT_VERSION,
     exportedAt: new Date().toISOString(),
     user: { name: user.name },
-    communicationProfile: profile
-      ? {
-          showText: profile.showText,
-          // De stem verhuist mee: hoe iemand klinkt hoort bij zijn profiel, niet bij deze omgeving.
-          speechEnabled: profile.speechEnabled,
-          speechVoice: toSpeechVoice(profile.speechVoice),
-        }
-      : DEFAULT_PROFILE,
+    // Het hele profiel verhuist mee, ook de stem: hoe iemand klinkt hoort bij zijn profiel.
+    communicationProfile: profile ? profileFromModel(profile) : DEFAULT_PROFILE,
   });
 }
 
