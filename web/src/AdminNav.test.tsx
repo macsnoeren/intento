@@ -16,6 +16,7 @@ describe('hoofdmenu', () => {
       'Gebruikers',
       'Vocabulary',
       'Bronnen',
+      'Organisatie',
       'Audit-log',
       'Mijn account',
     ]) {

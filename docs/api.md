@@ -172,6 +172,13 @@ dezelfde lijst gebruiken. Een stem-id is de naam van een Piper-model (`nl_NL-pim
 | POST | `/vocabulary/{id}/retire` · `/vocabulary/{id}/restore` | ADMIN | Intrekken (`status: retired`) of terugzetten (`approved`). Een item wordt nooit verwijderd; ingetrokken gaat het niet meer naar de agentdienst en levert `/assets` hem niet meer. Zelfde rechten als `PATCH`; geaudit als `vocabulary.retire`/`vocabulary.restore`. Idempotent. `200` + het item. |
 | PATCH | `/vocabulary/{id}` | ADMIN | Bewerkt `labels` (eerste = hoofdlabel, rest synoniemen), `concepts` (conceptsleutels), `contexts` (vaste lijst), `isStart`, `sortOrder` (`vocabularyUpdateRequestSchema`, strict, minstens één veld). Een gewijzigd label wordt `labelStatus: reviewed`. Alleen items van de eigen organisatie; een platformitem alleen door een beheerder van de platformorganisatie (anders `403 PLATFORM_ITEM`); een item van een andere organisatie of een onbekend id → `403 FORBIDDEN`. Geaudit als `vocabulary.update` (met de veldnamen, niet de waarden). `200` + het bijgewerkte item. |
 
+### Organisatie (N3.3, INTENTO-NEW-DESIGN §50, §53)
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| GET | `/organization/settings` | ADMIN | De bewaartermijn van de eigen organisatie (`organizationSettingsSchema`: `{ retentionDays, retentionDaysDefault, usesDefault }`). |
+| PUT | `/organization/settings` | ADMIN | `{ retentionDays: 7–365 \| null }` (`null` = de standaard `RETENTION_DEFAULT_DAYS` volgen). Altijd de eigen organisatie; geaudit als `organization.settings.update`. `200` + de nieuwe instellingen; buiten de grenzen `400`. |
+
 ### Afbeeldingen (N2.2, INTENTO-NEW-DESIGN §51, §53)
 
 | Methode | Pad | Rol | Beschrijving |

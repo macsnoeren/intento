@@ -242,6 +242,12 @@ function fakeApi(
         caregivers: { total: 0 },
       });
     },
+    getOrganizationSettings() {
+      return Promise.resolve({ retentionDays: 90, retentionDaysDefault: 90, usesDefault: true });
+    },
+    updateOrganizationSettings() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     listAttributions() {
       return Promise.resolve({ sources: [] });
     },

@@ -45,6 +45,10 @@ model Organization {
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
+  /// Bewaartermijn in dagen (INTENTO-NEW-DESIGN §53), 7–365. `null` = de standaard uit
+  /// `RETENTION_DEFAULT_DAYS` (90). Het opruimen zelf gebeurt in N14.2.
+  retentionDays Int?
+
   accounts        Account[]
   users           User[]
   vocabularyItems VocabularyItem[]

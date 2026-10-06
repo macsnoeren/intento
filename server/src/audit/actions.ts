@@ -33,6 +33,8 @@ export const AUDIT_ACTIONS = {
   VOCABULARY_UPDATE: 'vocabulary.update',
   VOCABULARY_RETIRE: 'vocabulary.retire',
   VOCABULARY_RESTORE: 'vocabulary.restore',
+  // Organisatie-instellingen (bewaartermijn, §53)
+  ORGANIZATION_SETTINGS_UPDATE: 'organization.settings.update',
   // Platform-operatorconsole — cross-tenant beheer, altijd met de operator als actor
   OPERATOR_ORGANIZATION_CREATE: 'operator.organization.create',
   OPERATOR_ORGANIZATION_DEACTIVATE: 'operator.organization.deactivate',

@@ -244,7 +244,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   scherm" alleen zichtbaar bij multi-icon.
   *Acceptatie:* componenttest; rooktest.
 
-- [ ] **N3.3 Bewaartermijn per organisatie**
+- [x] **N3.3 Bewaartermijn per organisatie**
   *ONTWERP: §50, §53.* Migratie `Organization.retentionDays` (7–365, standaard uit
   `RETENTION_DEFAULT_DAYS` = 90); `GET/PUT /organization/settings` (beheerder); veld in de beheeromgeving.
   Het opruimen zelf komt in N14.2. Audit-log.

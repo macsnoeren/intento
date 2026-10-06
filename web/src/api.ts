@@ -21,6 +21,9 @@ import {
   type AccountListResponse,
   type AuditLogListResponse,
   type AttributionListResponse,
+  type OrganizationSettings,
+  type UpdateOrganizationSettings,
+  organizationSettingsSchema,
   attributionListResponseSchema,
   type VocabularyItemPublic,
   type VocabularyListQuery,
@@ -116,6 +119,9 @@ export interface Api {
   updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
   /** De bronvermelding van de Vocabulary. */
   listAttributions(): Promise<AttributionListResponse>;
+  /** Bewaartermijn van de eigen organisatie (alleen beheerder). */
+  getOrganizationSettings(): Promise<OrganizationSettings>;
+  updateOrganizationSettings(body: UpdateOrganizationSettings): Promise<OrganizationSettings>;
   /** Een item intrekken (`retire`) of terugzetten (`restore`). */
   setVocabularyItemStatus(id: string, action: 'retire' | 'restore'): Promise<VocabularyItemPublic>;
   /**
@@ -333,6 +339,14 @@ export const httpApi: Api & DeviceApi = {
     const qs = params.toString();
     const suffix = qs ? `?${qs}` : '';
     return vocabularyListResponseSchema.parse(await request(`/vocabulary${suffix}`));
+  },
+  async getOrganizationSettings() {
+    return organizationSettingsSchema.parse(await request('/organization/settings'));
+  },
+  async updateOrganizationSettings(body) {
+    return organizationSettingsSchema.parse(
+      await request('/organization/settings', { method: 'PUT', body: JSON.stringify(body) }),
+    );
   },
   async listAttributions() {
     return attributionListResponseSchema.parse(await request('/vocabulary/attributions'));

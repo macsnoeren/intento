@@ -217,6 +217,9 @@ const envSchema = z
     // aftasten van adressen. Streng, want opnieuw versturen hoort zelden nodig te zijn.
     RESEND_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(3),
     RESEND_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().max(60).default(15),
+    // Standaard bewaartermijn in dagen (INTENTO-NEW-DESIGN §53) voor organisaties die zelf geen termijn
+    // kozen. Binnen dezelfde grenzen als de instelling per organisatie (7–365).
+    RETENTION_DEFAULT_DAYS: z.coerce.number().int().min(7).max(365).default(90),
     // --- Agentdienst (INTENTO-NEW-DESIGN §3.1, ADR-0017) ---
     // De backend roept de Python-agentdienst rechtstreeks aan; de tablet nooit. Leeg = niet
     // geconfigureerd: een gesprek starten geeft dan 503 AGENT_UNAVAILABLE in plaats van te falen.

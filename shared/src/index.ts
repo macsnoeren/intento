@@ -1026,3 +1026,24 @@ export const attributionListResponseSchema = z.object({
   sources: z.array(attributionSourceSchema),
 });
 export type AttributionListResponse = z.infer<typeof attributionListResponseSchema>;
+
+// --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---
+
+export const RETENTION_DAYS_MIN = 7;
+export const RETENTION_DAYS_MAX = 365;
+
+/** `GET /organization/settings`: de geldende bewaartermijn, en of die de standaard is. */
+export const organizationSettingsSchema = z.object({
+  retentionDays: z.number().int().min(RETENTION_DAYS_MIN).max(RETENTION_DAYS_MAX),
+  /** De standaard van deze installatie (`RETENTION_DEFAULT_DAYS`). */
+  retentionDaysDefault: z.number().int().min(RETENTION_DAYS_MIN).max(RETENTION_DAYS_MAX),
+  /** `true` als de organisatie zelf geen termijn koos en de standaard geldt. */
+  usesDefault: z.boolean(),
+});
+export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
+
+/** `PUT /organization/settings`: een eigen termijn, of `null` om de standaard te volgen. */
+export const updateOrganizationSettingsSchema = z.strictObject({
+  retentionDays: z.number().int().min(RETENTION_DAYS_MIN).max(RETENTION_DAYS_MAX).nullable(),
+});
+export type UpdateOrganizationSettings = z.infer<typeof updateOrganizationSettingsSchema>;

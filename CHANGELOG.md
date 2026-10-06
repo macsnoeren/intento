@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N3.3 — bewaartermijn per organisatie
+
+- Migratie `organization_retention`: `Organization.retentionDays` (7–365; leeg = de standaard uit de nieuwe
+  env-variabele `RETENTION_DEFAULT_DAYS`, 90). `GET/PUT /organization/settings` (alleen de beheerder,
+  altijd de eigen organisatie, geaudit).
+- Pagina "Organisatie" in de beheeromgeving met de bewaartermijn ("Standaard gebruiken" of een eigen
+  aantal dagen). Het opruimen zelf volgt in N14.2.
+- Tests: grenzen, rol, isolatie; component- en browserrooktest.
+
 ### N3.2 — beheer: instellingenformulier
 
 - Het instellingenformulier toont de nieuwe velden, elk met uitleg in gewone taal: vorm (ja/nee,

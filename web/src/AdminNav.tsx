@@ -13,7 +13,8 @@ import { NavIcon, type NavIconName } from './NavIcon.tsx';
  * De groepen zijn `role="group"` met een label in plaats van koppen: het menu hoort de koppenstructuur
  * van de pagina zelf niet te verstoren.
  */
-export type AdminView = 'dashboard' | 'users' | 'vocabulary' | 'sources' | 'audit-logs' | 'account';
+export type AdminView =
+  'dashboard' | 'users' | 'vocabulary' | 'sources' | 'organization' | 'audit-logs' | 'account';
 
 /** Rollen die een menu krijgen. Een begeleider ziet alleen wat hij mag (zie `VIEWS_BY_ROLE`). */
 export type NavRole = 'ADMIN' | 'CAREGIVER';
@@ -41,6 +42,7 @@ const GROUPS: NavGroup[] = [
       { view: 'users', label: 'Gebruikers', icon: 'users' },
       { view: 'vocabulary', label: 'Vocabulary', icon: 'library' },
       { view: 'sources', label: 'Bronnen', icon: 'audit' },
+      { view: 'organization', label: 'Organisatie', icon: 'key' },
     ],
   },
   {
