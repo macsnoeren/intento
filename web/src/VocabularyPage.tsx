@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type { AccountPublic, VocabularyItemPublic, VocabularyListResponse } from '@intento/shared';
+import type {
+  AccountPublic,
+  VocabularyItemPublic,
+  VocabularyListResponse,
+  VocabularyStatus,
+} from '@intento/shared';
 import { ApiRequestError, apiUrl, type Api } from './api.ts';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
@@ -67,6 +72,7 @@ export function VocabularyPage({
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<VocabularyStatus>('approved');
   const [data, setData] = useState<VocabularyListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,13 +82,15 @@ export function VocabularyPage({
     setLoading(true);
     setError(null);
     try {
-      setData(await api.listVocabulary({ q: query || undefined, page, pageSize: PAGE_SIZE }));
+      setData(
+        await api.listVocabulary({ q: query || undefined, status, page, pageSize: PAGE_SIZE }),
+      );
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Laden mislukt.');
     } finally {
       setLoading(false);
     }
-  }, [api, query, page]);
+  }, [api, query, page, status]);
 
   useEffect(() => {
     void load();
@@ -106,9 +114,17 @@ export function VocabularyPage({
         onBack={() => setSelected(null)}
         onSaved={(updated) => {
           setSelected(updated);
+          // Een item dat van status wisselt, hoort niet meer in deze lijst (in gebruik / ingetrokken).
           setData((current) =>
             current
-              ? { ...current, items: current.items.map((i) => (i.id === updated.id ? updated : i)) }
+              ? {
+                  ...current,
+                  items:
+                    updated.status === status
+                      ? current.items.map((i) => (i.id === updated.id ? updated : i))
+                      : current.items.filter((i) => i.id !== updated.id),
+                  total: updated.status === status ? current.total : Math.max(0, current.total - 1),
+                }
               : current,
           );
         }}
@@ -144,6 +160,20 @@ export function VocabularyPage({
             Zoeken
           </button>
         </form>
+        <label className="field">
+          <span className="field__label">Toon</span>
+          <select
+            className="field__input"
+            value={status}
+            onChange={(e) => {
+              setPage(1);
+              setStatus(e.target.value === 'retired' ? 'retired' : 'approved');
+            }}
+          >
+            <option value="approved">In gebruik</option>
+            <option value="retired">Ingetrokken</option>
+          </select>
+        </label>
       </div>
 
       {error ? (
@@ -156,7 +186,11 @@ export function VocabularyPage({
         <p className="muted">Laden…</p>
       ) : data && data.items.length === 0 ? (
         <p className="muted">
-          {query ? `Geen symbolen gevonden voor "${query}".` : 'De Vocabulary is nog leeg.'}
+          {query
+            ? `Geen symbolen gevonden voor "${query}".`
+            : status === 'retired'
+              ? 'Er zijn geen ingetrokken symbolen.'
+              : 'De Vocabulary is nog leeg.'}
         </p>
       ) : data ? (
         <section className="panel" aria-label="Symbolen">

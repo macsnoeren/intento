@@ -61,6 +61,10 @@ export interface VocabularyRoutesDeps {
  * `PATCH /vocabulary/:id` — labels, concepten, contexten, startconcept en volgorde bewerken. Alleen de
  * beheerder, alleen items van de eigen organisatie; platformitems alleen de platformbeheerder. Een
  * gewijzigd label is daarmee nagekeken (`labelStatus: reviewed`). Geaudit.
+ *
+ * `POST /vocabulary/:id/retire` en `…/restore` — intrekken en terugzetten, met dezelfde rechten. Een
+ * item wordt nooit verwijderd: de provenance kan ernaar verwijzen. Ingetrokken gaat het niet meer naar
+ * de agentdienst (`listAvailableVocabulary` neemt alleen `approved`). Geaudit.
  */
 export function registerVocabularyRoutes(
   app: FastifyInstance,
@@ -132,4 +136,33 @@ export function registerVocabularyRoutes(
       return vocabularyItemToPublic(parseVocabularyItem(updated), env);
     },
   );
+
+  for (const [action, status] of [
+    ['retire', 'retired'],
+    ['restore', 'approved'],
+  ] as const) {
+    app.post(
+      `/vocabulary/:id/${action}`,
+      { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+      async (request): Promise<VocabularyItemPublic> => {
+        const account = requireAccount(request);
+        const { id } = idParamsSchema.parse(request.params);
+        const current = await loadManageableItem(prisma, account, id);
+        const updated =
+          current.status === status
+            ? current
+            : await prisma.vocabularyItem.update({ where: { id }, data: { status } });
+        await recordAudit(prisma, request, {
+          action:
+            action === 'retire'
+              ? AUDIT_ACTIONS.VOCABULARY_RETIRE
+              : AUDIT_ACTIONS.VOCABULARY_RESTORE,
+          targetType: 'vocabularyItem',
+          targetId: id,
+          metadata: { scope: current.organizationId ? 'organization' : 'platform' },
+        });
+        return vocabularyItemToPublic(parseVocabularyItem(updated), env);
+      },
+    );
+  }
 }

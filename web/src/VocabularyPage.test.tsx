@@ -140,3 +140,14 @@ describe('Vocabulary-overzicht', () => {
     expect(licenseLabel('own')).toBe('Eigen afbeelding');
   });
 });
+
+describe('Vocabulary-overzicht: ingetrokken items', () => {
+  it('vraagt ingetrokken items op met de keuze "Ingetrokken"', async () => {
+    const { api, queries } = fakeApi([]);
+    renderPage(api);
+    await screen.findByText('De Vocabulary is nog leeg.');
+    fireEvent.change(screen.getByLabelText('Toon'), { target: { value: 'retired' } });
+    expect(await screen.findByText('Er zijn geen ingetrokken symbolen.')).toBeTruthy();
+    expect(queries.at(-1)).toMatchObject({ status: 'retired', page: 1 });
+  });
+});

@@ -146,3 +146,45 @@ describe('Vocabulary-item: detail', () => {
     expect(onBack).toHaveBeenCalled();
   });
 });
+
+describe('Vocabulary-item: intrekken', () => {
+  it('trekt pas in na bevestiging, en meldt het nieuwe item terug', async () => {
+    const setStatus = vi.fn(() =>
+      Promise.resolve({ ...item, status: 'retired' as const, imageUrl: null }),
+    );
+    const base = apiWith(vi.fn());
+    const api = { ...base, setVocabularyItemStatus: setStatus } as Api;
+    const { onSaved } = renderDetail(api);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Intrekken…' }));
+    expect(setStatus).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Ja, intrekken' }));
+    await waitFor(() =>
+      expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ status: 'retired' })),
+    );
+    expect(setStatus).toHaveBeenCalledWith('v-1', 'retire');
+  });
+
+  it('zet een ingetrokken item terug', async () => {
+    const setStatus = vi.fn(() => Promise.resolve({ ...item, status: 'approved' as const }));
+    const api = { ...apiWith(vi.fn()), setVocabularyItemStatus: setStatus } as Api;
+    render(
+      <VocabularyItemDetail
+        api={api}
+        account={admin}
+        item={{ ...item, status: 'retired', imageUrl: null }}
+        onBack={() => {}}
+        onSaved={() => {}}
+        onLogout={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Weer gebruiken' }));
+    await waitFor(() => expect(setStatus).toHaveBeenCalledWith('v-1', 'restore'));
+  });
+
+  it('toont geen intrekknop aan een begeleider', () => {
+    renderDetail(apiWith(vi.fn()), { ...admin, role: 'CAREGIVER' });
+    expect(screen.queryByRole('button', { name: 'Intrekken…' })).toBeNull();
+  });
+});

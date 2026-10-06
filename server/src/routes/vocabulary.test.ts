@@ -13,6 +13,7 @@ import {
   testEnv,
 } from '../test/auth-helpers.js';
 import { createVocabularyItem } from '../test/vocabulary-helpers.js';
+import { listAvailableVocabulary } from '../vocabulary/repository.js';
 
 /** `GET /vocabulary` (N2.9, INTENTO-NEW-DESIGN §15, §49). */
 describe('GET /vocabulary', () => {
@@ -280,5 +281,101 @@ describe('PATCH /vocabulary/:id', () => {
     const { email, password } = await seedPlatformAccount('p@intento.local', 'pw');
     const ok = await patch(await loginCookie(app, email, password), platformItem, { sortOrder: 1 });
     expect(ok.statusCode).toBe(200);
+  });
+});
+
+/** Intrekken en terugzetten (N2.13, INTENTO-NEW-DESIGN §15). */
+describe('POST /vocabulary/:id/retire en /restore', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await prisma.vocabularyItem.deleteMany();
+    await resetAuthData();
+    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '1000' }) });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('trekt een item in: het valt uit de beschikbare Vocabulary maar blijft bestaan; terugzetten kan', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const id = await createVocabularyItem(prisma, {
+      label: 'kat',
+      concept: 'cat',
+      organizationId: admin.organizationId,
+    });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    const retired = await app.inject({
+      method: 'POST',
+      url: `/vocabulary/${id}/retire`,
+      headers: { cookie },
+    });
+    expect(retired.statusCode).toBe(200);
+    expect(retired.json()).toMatchObject({ status: 'retired', imageUrl: null });
+    expect(await listAvailableVocabulary(prisma, admin.organizationId)).toEqual([]);
+    expect(await prisma.vocabularyItem.count({ where: { id } })).toBe(1);
+
+    const restored = await app.inject({
+      method: 'POST',
+      url: `/vocabulary/${id}/restore`,
+      headers: { cookie },
+    });
+    expect(restored.json()).toMatchObject({ status: 'approved' });
+    expect((await listAvailableVocabulary(prisma, admin.organizationId)).map((i) => i.id)).toEqual([
+      id,
+    ]);
+
+    const actions = (
+      await prisma.auditLog.findMany({ where: { targetId: id }, orderBy: { createdAt: 'asc' } })
+    ).map((a) => a.action);
+    expect(actions).toEqual(['vocabulary.retire', 'vocabulary.restore']);
+  });
+
+  it('is alleen voor de beheerder, en alleen voor items die hij mag beheren', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const caregiver = await seedAccount('c@intento.local', 'pw', 'CAREGIVER', admin.organizationId);
+    const other = await seedAccount('b@intento.local', 'pw', 'ADMIN');
+    const own = await createVocabularyItem(prisma, {
+      label: 'kat',
+      concept: 'cat',
+      organizationId: admin.organizationId,
+    });
+    const theirs = await createVocabularyItem(prisma, {
+      label: 'hond',
+      concept: 'dog',
+      organizationId: other.organizationId,
+    });
+    const platform = await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain' });
+
+    const cg = await loginCookie(app, caregiver.email, caregiver.password);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/vocabulary/${own}/retire`,
+          headers: { cookie: cg },
+        })
+      ).statusCode,
+    ).toBe(403);
+
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/vocabulary/${theirs}/retire`,
+          headers: { cookie },
+        })
+      ).statusCode,
+    ).toBe(403);
+    const res = await app.inject({
+      method: 'POST',
+      url: `/vocabulary/${platform}/retire`,
+      headers: { cookie },
+    });
+    expect(res.json()).toMatchObject({ error: { code: 'PLATFORM_ITEM' } });
+    expect(await prisma.vocabularyItem.count({ where: { status: 'retired' } })).toBe(0);
   });
 });

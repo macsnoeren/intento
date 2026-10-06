@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.13 — een item intrekken
+
+- `POST /vocabulary/:id/retire` en `/restore`: status `retired`/`approved`; nooit verwijderen. Een
+  ingetrokken item valt uit `listAvailableVocabulary` (dus niet meer naar de agentdienst) en wordt niet
+  meer geserveerd. Zelfde rechten als bewerken; audit-log.
+- In het detailscherm: "Intrekken…" met bevestiging, en "Weer gebruiken"; het overzicht kan
+  ingetrokken items tonen (keuze "Toon").
+- Tests: ingetrokken item valt uit de beschikbare Vocabulary, rol, isolatie, platformitem; component-
+  en browserrooktest (intrekken, terugvinden, terugzetten).
+
 ### N2.12 — beheer: item-detailscherm
 
 - Een tegel opent het detailscherm (overzicht → detail): pictogram, licentie, maker en bron met links,

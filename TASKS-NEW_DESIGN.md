@@ -218,7 +218,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   van N2.11.
   *Acceptatie:* componenttest; rooktest.
 
-- [ ] **N2.13 Een item intrekken**
+- [x] **N2.13 Een item intrekken**
   *ONTWERP: §15.* `POST /vocabulary/:id/retire` (en terugzetten): status `retired`; het item wordt nooit
   verwijderd zolang de provenance ernaar verwijst, en gaat niet meer naar de agentdienst. Knop in het
   detailscherm. Audit-log.

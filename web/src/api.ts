@@ -112,6 +112,8 @@ export interface Api {
   listVocabulary(query?: Partial<VocabularyListQuery>): Promise<VocabularyListResponse>;
   /** Een item bewerken (alleen beheerder; platformitems alleen de platformbeheerder). */
   updateVocabularyItem(id: string, body: VocabularyUpdateRequest): Promise<VocabularyItemPublic>;
+  /** Een item intrekken (`retire`) of terugzetten (`restore`). */
+  setVocabularyItemStatus(id: string, action: 'retire' | 'restore'): Promise<VocabularyItemPublic>;
   /**
    * Platform-operatorconsole (INTENTO-NEW-DESIGN §53). Deze vijf calls gaan naar de aparte
    * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
@@ -325,6 +327,14 @@ export const httpApi: Api & DeviceApi = {
     const qs = params.toString();
     const suffix = qs ? `?${qs}` : '';
     return vocabularyListResponseSchema.parse(await request(`/vocabulary${suffix}`));
+  },
+  async setVocabularyItemStatus(id, action) {
+    return vocabularyItemPublicSchema.parse(
+      await request(`/vocabulary/${encodeURIComponent(id)}/${action}`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    );
   },
   async updateVocabularyItem(id, body) {
     return vocabularyItemPublicSchema.parse(

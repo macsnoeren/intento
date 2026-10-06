@@ -87,6 +87,20 @@ export function VocabularyItemDetail({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [confirmRetire, setConfirmRetire] = useState(false);
+
+  async function changeStatus(action: 'retire' | 'restore'): Promise<void> {
+    setError(null);
+    setBusy(true);
+    try {
+      onSaved(await api.setVocabularyItemStatus(item.id, action));
+      setConfirmRetire(false);
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Dat lukte niet.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault();
@@ -262,6 +276,56 @@ export function VocabularyItemDetail({
           </dl>
         )}
       </section>
+      {canEdit ? (
+        <section className="panel panel--danger" aria-label="Intrekken">
+          <h2 className="panel__subtitle">
+            {item.status === 'retired' ? 'Ingetrokken' : 'Intrekken'}
+          </h2>
+          {item.status === 'retired' ? (
+            <>
+              <p className="muted">
+                Dit symbool wordt niet meer aangeboden in gesprekken. Het blijft bewaard, omdat
+                eerdere gesprekken ernaar kunnen verwijzen.
+              </p>
+              <button
+                className="button"
+                type="button"
+                disabled={busy}
+                onClick={() => void changeStatus('restore')}
+              >
+                Weer gebruiken
+              </button>
+            </>
+          ) : confirmRetire ? (
+            <>
+              <p>Weet je het zeker? Het symbool verschijnt dan niet meer in gesprekken.</p>
+              <div className="form__actions">
+                <button
+                  className="button button--danger"
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void changeStatus('retire')}
+                >
+                  Ja, intrekken
+                </button>
+                <button className="button" type="button" onClick={() => setConfirmRetire(false)}>
+                  Annuleren
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted">
+                Een ingetrokken symbool wordt niet meer aangeboden, maar wordt nooit verwijderd. Je
+                kunt het later weer gebruiken.
+              </p>
+              <button className="button" type="button" onClick={() => setConfirmRetire(true)}>
+                Intrekken…
+              </button>
+            </>
+          )}
+        </section>
+      ) : null}
     </AppShell>
   );
 }
