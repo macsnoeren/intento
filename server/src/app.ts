@@ -22,6 +22,8 @@ import { registerSpeechRoutes } from './routes/speech.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerVocabularyRoutes } from './routes/vocabulary.js';
 import { registerOrganizationRoutes } from './routes/organization.js';
+import { registerCommunicationRoutes } from './routes/communication.js';
+import { createAgentClient, type AgentClient } from './agents/client.js';
 import { createMailTransport, type MailTransport } from './mail/transport.js';
 import { createSpeechService, type SpeechService } from './speech/index.js';
 import { createEncryptor } from './crypto/encryption.js';
@@ -40,6 +42,8 @@ export interface BuildAppOptions {
   mail?: MailTransport;
   /** Spraakdienst; standaard uit de env, injecteerbaar zodat tests zonder Piper draaien. */
   speech?: SpeechService;
+  /** Client naar de agentdienst; standaard uit de env, in tests een `FakeAgentClient`. */
+  agents?: AgentClient;
 }
 
 /**
@@ -53,6 +57,7 @@ export async function buildApp({
   logger = false,
   mail = createMailTransport(env),
   speech = createSpeechService(env),
+  agents = createAgentClient(env),
 }: BuildAppOptions): Promise<FastifyInstance> {
   // Veldversleuteling at-rest: één instantie per app; de sleutel wordt uit `ENCRYPTION_KEY` afgeleid.
   const encryptor = createEncryptor(env);
@@ -119,6 +124,8 @@ export async function buildApp({
   registerVocabularyRoutes(app, { env, prisma });
   // Organisatie-instellingen: bewaartermijn (N3.3).
   registerOrganizationRoutes(app, { env, prisma });
+  // Gesprekken op de tablet: de backend praat namens de tablet met de agentdienst (N4.5 e.v.).
+  registerCommunicationRoutes(app, { env, prisma, encryptor, agents });
 
   return app;
 }

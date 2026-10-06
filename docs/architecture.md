@@ -68,8 +68,11 @@ server niet uit elkaar lopen.
   zelf verstuurde (Vocabulary, contacten, instellingen, vorige toestand) en naar het antwoord; wat de
   agent in zijn eigen state zet, telt niet als bewijs. Een schending noemt ids en aantallen, nooit
   woorden van het scherm.
-- `server/src/communication/` — gesprekken (`sessions.ts`: versleutelde momentopname per beurt) en
-  provenance (`provenance.ts`: Presented, Observed, Inferred en agentbeslissingen in eigen tabellen).
+- `server/src/communication/` — gesprekken (`sessions.ts`: versleutelde momentopname per beurt),
+  provenance (`provenance.ts`: Presented, Observed, Inferred en agentbeslissingen in eigen tabellen)
+  en `conversation.ts`: één beurt van begin tot eind (Observed vastleggen → `TurnRequest` bouwen →
+  agentdienst → invarianten → opslaan → presentatie voor de tablet met ondertekende afbeeldings-URL's).
+  De routes staan in `routes/communication.ts`.
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client

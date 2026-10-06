@@ -27,7 +27,8 @@ export type AgentFailureReason =
   | 'rejected'
   | 'server_error'
   | 'too_large'
-  | 'invalid_response';
+  | 'invalid_response'
+  | 'invariant_violation';
 
 export class AgentUnavailableError extends HttpError {
   constructor(
@@ -142,7 +143,12 @@ export class HttpAgentClient implements AgentClient {
         .join(', ');
       throw new AgentUnavailableError('invalid_response', `Contract geschonden bij: ${paths}`);
     }
-    if (parsed.data.session_id !== request.session_id || parsed.data.turn !== request.turn) {
+    if (
+      parsed.data.session_id !== request.session_id ||
+      parsed.data.turn !== request.turn ||
+      parsed.data.state.session_id !== request.session_id ||
+      parsed.data.state.turn !== request.turn
+    ) {
       throw new AgentUnavailableError(
         'invalid_response',
         'Antwoord hoort bij een ander gesprek of een andere beurt.',

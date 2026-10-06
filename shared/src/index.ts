@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export * from './agent-contract.js';
+export * from './communication.js';
 
 /**
  * Gedeelde zod-schema's en types tussen server en web.

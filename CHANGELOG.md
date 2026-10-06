@@ -28,6 +28,18 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.5 — gesprek starten
+
+- `POST /communication/sessions` (apparaatsessie): stopt een lopend gesprek, start een nieuw, legt
+  Observed `start` vast, roept de agentdienst aan met instellingen en de beschikbare Vocabulary, toetst
+  de invarianten en slaat momentopname, Presented, Inferred en beslissingen op. De tablet krijgt
+  `{ sessionId, turn, presentation }` zonder concepten of ids, met ondertekende afbeeldings-URL's.
+- Faalt de agent of schendt hij een invariant: `AgentDecision` `failed`/`invalid`, 503
+  `AGENT_UNAVAILABLE`. Geen symbolen: 503 `VOCABULARY_EMPTY`.
+- `buildApp({ agents })` om een `FakeAgentClient` in te zetten; `test/agent-helpers.ts` voert een
+  eenvoudig nepgesprek. De client controleert nu ook dat de state bij hetzelfde gesprek en dezelfde
+  beurt hoort.
+
 ### N4.4 — harde invarianten
 
 - `server/src/agents/invariants.ts`: zuivere functie `checkTurnResponse(request, response)` (en

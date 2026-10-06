@@ -283,7 +283,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (I2 en I3 komen in N4.10 en N11.3). Schending → verwerpen + `AgentDecision` status `invalid`.
   *Acceptatie:* één test per invariant, met een geldig en een ongeldig voorbeeld.
 
-- [ ] **N4.5 Gesprek starten**
+- [x] **N4.5 Gesprek starten**
   *ONTWERP: §51.* `POST /communication/sessions` (apparaatsessie): een lopend gesprek wordt `stopped`;
   nieuwe sessie; `TurnRequest` met event `start`, instellingen en de beschikbare Vocabulary; agent
   aanroepen; invarianten; beurt + Presented + inferences + beslissingen opslaan; presentatie met

@@ -180,6 +180,18 @@ dezelfde lijst gebruiken. Een stem-id is de naam van een Piper-model (`nl_NL-pim
 | GET | `/organization/settings` | ADMIN | De bewaartermijn van de eigen organisatie (`organizationSettingsSchema`: `{ retentionDays, retentionDaysDefault, usesDefault }`). |
 | PUT | `/organization/settings` | ADMIN | `{ retentionDays: 7–365 \| null }` (`null` = de standaard `RETENTION_DEFAULT_DAYS` volgen). Altijd de eigen organisatie; geaudit als `organization.settings.update`. `200` + de nieuwe instellingen; buiten de grenzen `400`. |
 
+### Gesprekken op de tablet (N4.5, INTENTO-NEW-DESIGN §48, §51, §52)
+
+Alleen met een **apparaatsessie** (device-cookie); de tablet praat nooit met de agentdienst. Een beurt
+geeft altijd `communicationTurnSchema`: `{ sessionId, turn, presentation }`, waarbij de presentatie
+alleen bevat wat de tablet toont (`kind`, `mode`, `text`, `message`, en per optie `ref`, `kind`,
+`label`, ondertekende `imageUrl`, `representation`, `position`) — geen concepten, Vocabulary-ids of
+contact-ids. Rate limit 60 per minuut.
+
+| Methode | Pad | Rol | Beschrijving |
+|---|---|---|---|
+| POST | `/communication/sessions` | apparaat | Start een gesprek. Een lopend gesprek van deze gebruiker wordt `stopped`. De backend legt Observed `start` vast, stuurt de agentdienst event `start` met de instellingen uit het profiel en de beschikbare Vocabulary (platform + eigen organisatie, `approved`), toetst het antwoord aan de harde invarianten en slaat momentopname, Presented, Inferred en beslissingen op. `201` + de beurt. Agentdienst onbereikbaar, time-out, ongeldig of invariant geschonden → `503 AGENT_UNAVAILABLE` (vastgelegd als `AgentDecision` `failed`/`invalid`; het nieuwe gesprek wordt gestopt). Geen symbolen → `503 VOCABULARY_EMPTY`. Zonder gekoppeld apparaat `401`. |
+
 ### Afbeeldingen (N2.2, INTENTO-NEW-DESIGN §51, §53)
 
 | Methode | Pad | Rol | Beschrijving |
