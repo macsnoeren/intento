@@ -489,7 +489,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *ONTWERP: §49.* Dialoog met voorbeeldweergave, woord, concepten en het vinkje.
   *Acceptatie:* componenttest; rooktest (het nieuwe woord verschijnt in een gesprek).
 
-- [ ] **N8.3 Toegestane licenties**
+- [x] **N8.3 Toegestane licenties**
   *ONTWERP: §15.* `VOCABULARY_ALLOWED_LICENSES` (env, standaard: CC0, CC BY, CC BY-SA); een functie die
   de licentieteksten van OpenSymbols naar vaste sleutels omzet.
   *Acceptatie:* unittests voor de omzetting, inclusief onbekend → niet toegestaan.

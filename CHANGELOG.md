@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.3 — toegestane licenties
+
+- `server/src/vocabulary/licenses.ts`: licentieteksten en -URL's van externe bronnen ("CC BY-SA",
+  "Creative Commons Attribution-ShareAlike 3.0", "public domain", creativecommons.org-URL's) worden een
+  vaste sleutel (`CC0`, `CC-BY-SA-3.0`, …); onherkenbaar wordt `UNKNOWN` en is nooit toegestaan.
+- `VOCABULARY_ALLOWED_LICENSES` (nieuw, standaard `CC0,CC-BY,CC-BY-SA`; in `.env.example` en
+  `.env.docker.example`), met zod op de families gecontroleerd.
+
 ### N8.2 — eigen afbeelding + woord: beheer-UI
 
 - "+ Eigen afbeelding toevoegen" op de Vocabulary-pagina (alleen de beheerder): dialoog met voorbeeld,

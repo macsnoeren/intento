@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_ALLOWED_LICENSES, LICENSE_FAMILIES } from './vocabulary/licenses.js';
 
 /**
  * Zod-gevalideerde omgevingsconfiguratie (CLAUDE.md §7: valideer op elke grens).
@@ -157,6 +158,18 @@ const envSchema = z
       .positive()
       .max(10 * 1024 * 1024)
       .default(1024 * 1024),
+    // Welke licentiefamilies een geïmporteerd symbool mag hebben (INTENTO-NEW-DESIGN §15), met komma's.
+    // Standaard CC0, CC BY en CC BY-SA. Onbekende licenties zijn nooit toegestaan.
+    VOCABULARY_ALLOWED_LICENSES: z
+      .string()
+      .default(DEFAULT_ALLOWED_LICENSES.join(','))
+      .transform((value) =>
+        value
+          .split(',')
+          .map((part) => part.trim().toUpperCase())
+          .filter((part) => part.length > 0),
+      )
+      .pipe(z.array(z.enum(LICENSE_FAMILIES)).min(1)),
     // OpenSymbols-integratie: zoeken in en importeren uit een externe bron (INTENTO-NEW-DESIGN §15).
     // De client praat nooit rechtstreeks met externe diensten; de backend doet het namens hem.
     // Basis-URL van de API (moet https zijn buiten test — SSRF/vertrouwelijkheid).
