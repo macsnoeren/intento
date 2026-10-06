@@ -12,6 +12,7 @@ JSON-object, of een `LlmError`".
 from __future__ import annotations
 
 from .fake import FakeCall, FakeProvider
+from .ollama import OllamaProvider, extract_json_object
 from .provider import JsonObject, LlmError, LlmErrorReason, LlmProvider
 
 __all__ = [
@@ -21,4 +22,6 @@ __all__ = [
     "LlmError",
     "LlmErrorReason",
     "LlmProvider",
+    "OllamaProvider",
+    "extract_json_object",
 ]

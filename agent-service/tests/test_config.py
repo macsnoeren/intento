@@ -46,5 +46,43 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(config.port, 6002)
 
 
+class OllamaConfigTest(unittest.TestCase):
+    def config(self, **env: str) -> ServiceConfig:
+        return ServiceConfig.from_env({"SERVICE_TOKEN": TOKEN, **env}, env_file=None)
+
+    def test_zonder_ollama_url_geen_llm(self) -> None:
+        self.assertIsNone(self.config().ollama)
+
+    def test_lokaal(self) -> None:
+        ollama = self.config(OLLAMA_URL="http://127.0.0.1:11434/", OLLAMA_MODEL="gemma3:4b").ollama
+        assert ollama is not None
+        self.assertEqual(
+            (ollama.url, ollama.model, ollama.api_key),
+            ("http://127.0.0.1:11434", "gemma3:4b", None),
+        )
+
+    def test_cloud_met_sleutel_over_https(self) -> None:
+        ollama = self.config(
+            OLLAMA_URL="https://ollama.com",
+            OLLAMA_MODEL="gpt-oss:120b",
+            OLLAMA_API_KEY="geheim-123",
+        ).ollama
+        assert ollama is not None
+        self.assertEqual(ollama.api_key, "geheim-123")
+        self.assertNotIn("geheim-123", repr(ollama))
+        self.assertNotIn(TOKEN, repr(self.config()))
+
+    def test_sleutel_niet_over_http(self) -> None:
+        with self.assertRaises(ConfigError) as ctx:
+            self.config(OLLAMA_URL="http://ollama.example", OLLAMA_MODEL="m", OLLAMA_API_KEY="k")
+        self.assertIn("https", str(ctx.exception))
+
+    def test_model_verplicht_en_url_geldig(self) -> None:
+        with self.assertRaises(ConfigError):
+            self.config(OLLAMA_URL="http://127.0.0.1:11434")
+        with self.assertRaises(ConfigError):
+            self.config(OLLAMA_URL="ftp://x", OLLAMA_MODEL="m")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,12 @@ komt is een JSON-object, of een `LlmError` met een reden (`timeout`, `unavailabl
 `http_error`, `invalid_json`, `no_response`); de agent valideert het zelf en valt bij elke fout terug
 op zijn regels. De foutmelding bevat nooit de prompt of het antwoord.
 
+`OllamaProvider` praat met `POST {OLLAMA_URL}/api/chat` (`format` = het JSON-schema, `stream: false`),
+lokaal zonder sleutel of in de cloud met `OLLAMA_API_KEY` als Bearer (alleen over https). Hij haalt
+code-fences en tekst rond de JSON weg en doet bij ongeldige JSON hooguit één nieuwe poging, binnen
+dezelfde time-out; een time-out of 401 wordt niet herhaald. Zonder `OLLAMA_URL` is er geen LLM en
+draaien alle agents op hun regels.
+
 `FakeProvider` geeft vaste antwoorden in volgorde (een object, een `LlmError` om te gooien, of een
 functie van de aanroep) en **bewaart elke prompt**, zodat tests ook kunnen controleren wat er níet naar
 een model gaat (namen en e-mailadressen van contacten, V6).

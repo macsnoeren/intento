@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N5.2 — OllamaProvider (lokaal en cloud)
+
+- `agent_service/llm/ollama.py`: `POST /api/chat` met `format` = JSON-schema en `stream: false`;
+  `OLLAMA_URL`, `OLLAMA_MODEL`, optioneel `OLLAMA_API_KEY` (Bearer, alleen over https). Time-out over
+  de hele aanroep; code-fences en tekst rond de JSON worden weggehaald; hooguit één nieuwe poging bij
+  ongeldige JSON, geen bij time-out of 401.
+- Config: `OllamaSettings` (sleutel nooit in `repr`); zonder `OLLAMA_URL` geen LLM. Doorgegeven in
+  compose en gedocumenteerd in de `.env`-voorbeelden.
+- Tests tegen een nep-HTTP-server: kaal, gefencet, met inleiding, Bearer, nieuwe poging, time-out, 401,
+  500, onbereikbaar.
+
 ### N5.1 — provider-interface en FakeProvider
 
 - `agent_service/llm/`: `LlmProvider` (één methode `complete_json(system, user, schema, timeout)`),

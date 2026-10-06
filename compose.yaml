@@ -125,6 +125,10 @@ services:
       PORT: '5003'
       # Verplicht: de dienst start niet zonder, en de backend stuurt dezelfde waarde mee.
       SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in .env.docker}'
+      # Het taalmodel (§35). Leeg = alleen de regelgebaseerde agents.
+      OLLAMA_URL: '${OLLAMA_URL:-}'
+      OLLAMA_MODEL: '${OLLAMA_MODEL:-}'
+      OLLAMA_API_KEY: '${OLLAMA_API_KEY:-}'
     # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen.
     restart: unless-stopped
 

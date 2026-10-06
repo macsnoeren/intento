@@ -349,6 +349,11 @@
   `CommunicationIntent`, op het moment dat hij een Observed JA vastlegt op een "Bedoel je: …?"-scherm
   dat hij zelf opsloeg, met precies die tekst. Wat de agent in zijn state "bevestigd" noemt, wordt
   genegeerd; een "Klaar" zonder bevestigde boodschap wordt verworpen. Het bericht staat versleuteld.
+- **Het taalmodel** (§35). Lokaal (`OLLAMA_URL` op de eigen machine of het eigen netwerk) blijft alles
+  binnen de eigen omgeving. Met **Ollama Cloud** verlaten concepten, vragen en antwoorden de omgeving
+  — nooit namen of e-mailadressen van contacten (V6). Dat is een keuze van de platformbeheerder bij de
+  installatie. De `OLLAMA_API_KEY` gaat alleen over https (de dienst start anders niet) en staat nooit
+  in een log of `repr`. Een fout van het model noemt alleen een reden, nooit de prompt of het antwoord.
 - **Geen inhoud in logs of foutmeldingen.** Het log bevat per beurt alleen gebeurtenis, fase, soort
   presentatie en duur; een validatiefout noemt veldnamen, nooit waarden.
 

@@ -9,8 +9,10 @@ aansturen.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 #: Minimale lengte van het gedeelde geheim; korter is te raden.
 MIN_TOKEN_LENGTH = 16
@@ -48,6 +50,20 @@ class ConfigError(ValueError):
 
 
 @dataclass(frozen=True)
+class OllamaSettings:
+    """Waar het taalmodel draait (§35). Lokaal zonder sleutel, in de cloud met `api_key`."""
+
+    url: str
+    model: str
+    api_key: str | None = None
+
+    def __repr__(self) -> str:
+        # De sleutel nooit in een log of traceback.
+        key = "***" if self.api_key else None
+        return f"OllamaSettings(url={self.url!r}, model={self.model!r}, api_key={key!r})"
+
+
+@dataclass(frozen=True)
 class ServiceConfig:
     """De gevalideerde runtime-configuratie van de agentdienst."""
 
@@ -58,6 +74,15 @@ class ServiceConfig:
     # Gedeeld geheim dat de backend als `Authorization: Bearer …` meestuurt (AGENT_SERVICE_TOKEN in de
     # backend). Verplicht.
     service_token: str
+
+    # Het taalmodel. `None` = geen LLM geconfigureerd: alle agents draaien op hun regels.
+    ollama: OllamaSettings | None = None
+
+    def __repr__(self) -> str:
+        return (
+            f"ServiceConfig(host={self.host!r}, port={self.port}, service_token='***', "
+            f"ollama={self.ollama!r})"
+        )
 
     @staticmethod
     def from_env(
@@ -100,4 +125,25 @@ class ServiceConfig:
             host=optional("HOST", "127.0.0.1"),
             port=port,
             service_token=token,
+            ollama=_ollama_settings(optional),
         )
+
+
+def _ollama_settings(optional: Callable[[str, str], str]) -> OllamaSettings | None:
+    """`OLLAMA_URL` leeg = geen LLM. Anders: http(s), een model, en een API-key alleen over https."""
+    url = optional("OLLAMA_URL", "")
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ConfigError(f"OLLAMA_URL moet een http(s)-URL zijn (kreeg {url!r}).")
+    model = optional("OLLAMA_MODEL", "")
+    if not model:
+        raise ConfigError("OLLAMA_MODEL ontbreekt: welk model moet de agentdienst gebruiken?")
+    api_key = optional("OLLAMA_API_KEY", "") or None
+    if api_key and parsed.scheme != "https":
+        raise ConfigError(
+            "OLLAMA_API_KEY gaat alleen over https: zet OLLAMA_URL op een https-adres "
+            "(bv. https://ollama.com) of laat de sleutel weg voor een lokale Ollama."
+        )
+    return OllamaSettings(url=url.rstrip("/"), model=model, api_key=api_key)

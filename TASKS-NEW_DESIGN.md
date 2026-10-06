@@ -349,7 +349,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   een prompt").
   *Acceptatie:* unittests.
 
-- [ ] **N5.2 OllamaProvider (lokaal en cloud)**
+- [x] **N5.2 OllamaProvider (lokaal en cloud)**
   *ONTWERP: §35.* `/api/chat` met `format` = JSON-schema en `stream: false`; `OLLAMA_URL`,
   `OLLAMA_MODEL`, optioneel `OLLAMA_API_KEY` (Bearer); time-out; code-fences en tekst rond de JSON
   weghalen (les uit de oude TO.2); hooguit één nieuwe poging bij ongeldige JSON.
