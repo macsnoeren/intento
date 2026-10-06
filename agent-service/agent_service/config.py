@@ -78,10 +78,13 @@ class ServiceConfig:
     # Het taalmodel. `None` = geen LLM geconfigureerd: alle agents draaien op hun regels.
     ollama: OllamaSettings | None = None
 
+    # Vanaf welke zekerheid de Intent Agent "Bedoel je …?" mag voorstellen (§6, V7).
+    propose_threshold: float = 0.85
+
     def __repr__(self) -> str:
         return (
             f"ServiceConfig(host={self.host!r}, port={self.port}, service_token='***', "
-            f"ollama={self.ollama!r})"
+            f"ollama={self.ollama!r}, propose_threshold={self.propose_threshold})"
         )
 
     @staticmethod
@@ -121,11 +124,24 @@ class ServiceConfig:
                 f"SERVICE_TOKEN is te kort (minstens {MIN_TOKEN_LENGTH} tekens, kreeg {len(token)})."
             )
 
+        threshold_raw = optional("AGENT_PROPOSE_THRESHOLD", "0.85")
+        try:
+            threshold = float(threshold_raw)
+        except ValueError as exc:
+            raise ConfigError(
+                f"AGENT_PROPOSE_THRESHOLD moet een getal zijn (kreeg {threshold_raw!r})."
+            ) from exc
+        if not 0.5 <= threshold <= 1.0:
+            raise ConfigError(
+                f"AGENT_PROPOSE_THRESHOLD moet tussen 0,5 en 1 liggen (kreeg {threshold})."
+            )
+
         return ServiceConfig(
             host=optional("HOST", "127.0.0.1"),
             port=port,
             service_token=token,
             ollama=_ollama_settings(optional),
+            propose_threshold=threshold,
         )
 
 

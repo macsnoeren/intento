@@ -12,6 +12,7 @@ Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `done`, en `st
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Callable
 from typing import Any
@@ -23,7 +24,7 @@ from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
 from .agents.safety import SafetyFinding, s1_question_limit, s2_proposal_needs_answer
 from .agents.strategies import instruction_for
-from .agents.validation import Finding, validate_question
+from .agents.validation import DEFAULT_PROPOSE_THRESHOLD, Finding, v7_proposal, validate_question
 from .contracts import (
     CONTRACT_VERSION,
     AgentDecision,
@@ -61,10 +62,14 @@ class _Turn:
         llm: LlmProvider | None,
         settings: Settings,
         names: list[str],
+        propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
     ) -> None:
         self.clock = clock
         self.llm = llm
         self.settings = settings
+        self.propose_threshold = propose_threshold
+        #: Het laatste geslaagde resultaat van de Intent Agent in deze beurt (met een taalmodel).
+        self.intent: IntentResult | None = None
         #: Namen van contacten: alleen om te controleren dat ze nooit in een vraag staan (V2).
         self.names = names
         self.inferences: list[Inference] = []
@@ -100,10 +105,13 @@ def step(
     request: TurnRequest,
     llm: LlmProvider | None = None,
     clock: Callable[[], float] = time.monotonic,
+    propose_threshold: float = DEFAULT_PROPOSE_THRESHOLD,
 ) -> TurnResponse:
     """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels."""
     vocabulary = VocabularyIndex(request.vocabulary)
-    turn = _Turn(clock, llm, request.settings, [c.name for c in request.contacts])
+    turn = _Turn(
+        clock, llm, request.settings, [c.name for c in request.contacts], propose_threshold
+    )
     event = request.event
 
     if event.type == "start":
@@ -169,6 +177,7 @@ def _update_hypotheses(
     )
     turn.record(result)
     intent = result.value or IntentResult(hypotheses=[])
+    turn.intent = intent if result.status == "success" and turn.llm is not None else None
     hypotheses = intent.hypotheses
     state.intent_hypotheses = hypotheses
     state.current_intent = hypotheses[0] if hypotheses else None
@@ -235,6 +244,12 @@ def _ask_next(
         _safety(turn, limit)
         best = _confirmed(state) or state.current_intent
         return _propose(state, best, vocabulary, turn) if best else _ask_stop()
+    ready = _ready_proposal(state, turn)
+    if ready is not None:
+        hypothesis, message = ready
+        return _propose(
+            state, hypothesis, vocabulary, turn, message=message, confidence=hypothesis.confidence
+        )
     target = _next_target(state)
     if target is None:
         confirmed = _confirmed(state)
@@ -445,9 +460,29 @@ def _answer_question(
     result = _update_hypotheses(state, vocabulary, turn)
     if result.status != "success" or result.value is None:
         return _propose(state, asked, vocabulary, turn)
-    if result.value.needs_clarification and _next_target(state) is not None:
-        return _ask_next(state, vocabulary, turn, refresh=False)
-    return _propose(state, state.current_intent or asked, vocabulary, turn)
+    # Voorstellen als de Intent Agent zeker genoeg is (`_ready_proposal`), anders verder vragen; is er
+    # niets meer te vragen, dan wat de gebruiker bevestigde.
+    return _ask_next(state, vocabulary, turn, refresh=False)
+
+
+def _ready_proposal(state: SessionState, turn: _Turn) -> tuple[Hypothesis, str] | None:
+    """Is de Intent Agent zeker genoeg voor "Bedoel je …?" (§6, §31)?
+
+    Ja als de bovenste hypothese een confidence ≥ de voorsteldrempel heeft, de gebruiker minstens één
+    keer antwoordde en de zin door V7 komt. De zin is die van de Intent Agent, of anders het woord.
+    """
+    intent = turn.intent
+    top = state.current_intent
+    if intent is None or top is None:
+        return None
+    for message in (intent.message, f"{capitalize(top.label)}."):
+        if (
+            message
+            and v7_proposal(message, top.confidence, state, turn.propose_threshold, turn.names)
+            is None
+        ):
+            return top, message.strip()
+    return None
 
 
 def _first_option_ref(state: SessionState) -> str | None:
@@ -459,7 +494,13 @@ def _first_option_ref(state: SessionState) -> str | None:
 
 
 def _propose(
-    state: SessionState, intent: Hypothesis, vocabulary: VocabularyIndex, turn: _Turn
+    state: SessionState,
+    intent: Hypothesis,
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+    *,
+    message: str | None = None,
+    confidence: float = 0.9,
 ) -> Presentation:
     """JA op een concept → "Bedoel je: {Label}?" (§31). De zin is nog een inference."""
     no_answer = s2_proposal_needs_answer(state)
@@ -467,9 +508,9 @@ def _propose(
         # S2: de AI neemt het gesprek niet over.
         _safety(turn, no_answer)
         return _ask_stop()
-    message = capitalize(intent.label)
+    message = message or capitalize(intent.label)
     state.phase = "confirm_message"
-    state.proposal = Proposal(message=message, concepts=[intent.concept], confidence=0.9)
+    state.proposal = Proposal(message=message, concepts=[intent.concept], confidence=confidence)
     turn.record(
         run_agent(
             "intent-agent", rules=lambda: message, rules_reason="voorstel na JA", clock=turn.clock
@@ -480,14 +521,14 @@ def _propose(
             agent="intent-agent",
             kind="proposal",
             payload={"message": message, "concepts": [intent.concept]},
-            confidence=0.9,
+            confidence=confidence,
         )
     )
     option = _proposal_pictogram(state, intent, vocabulary, turn)
     return Presentation(
         kind="confirm_message",
         mode="binary",
-        text=f"Bedoel je: {message}?",
+        text=proposal_text(message),
         options=[option],
         message=message,
     )
@@ -530,6 +571,12 @@ def _confirm(
     return _ask_next(state, vocabulary, turn)
 
 
+def proposal_text(message: str) -> str:
+    """ "Bedoel je: {boodschap}?" — een punt of uitroepteken aan het eind valt weg. Precies zoals de
+    backend het controleert (I2)."""
+    return f"Bedoel je: {re.sub(r'[.!?]+$', '', message.strip())}?"
+
+
 def _safety(turn: _Turn, finding: SafetyFinding) -> None:
     """Legt vast dat een veiligheidsregel ingreep."""
     turn.record(
@@ -552,10 +599,9 @@ def _proposal_pictogram(
     last = state.last_presentation
     shown = next((o for o in (last.options if last else []) if o.concept == intent.concept), None)
     if shown is None:
-        exact = exact_match(intent.concept, intent.label, vocabulary)
-        if exact is not None:
-            return exact.option()
-        shown = no_image(intent.concept, intent.label, vocabulary).option()
+        # Niet eerder getoond: de Icon Agent kiest (exact, dichtstbij of "geen afbeelding", met gap).
+        picked = _pictogram(intent.concept, intent.label, vocabulary, turn)
+        return picked or no_image(intent.concept, intent.label, vocabulary).option()
     option = shown.model_copy(update={"position": 0})
     if option.representation == "stand_in" and option.vocabulary_item_id and option.concept:
         entry = vocabulary.get(option.vocabulary_item_id)

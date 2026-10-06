@@ -84,5 +84,16 @@ class OllamaConfigTest(unittest.TestCase):
             self.config(OLLAMA_URL="ftp://x", OLLAMA_MODEL="m")
 
 
+class ThresholdConfigTest(unittest.TestCase):
+    def test_standaard_en_eigen_drempel(self) -> None:
+        base = {"SERVICE_TOKEN": TOKEN}
+        self.assertEqual(ServiceConfig.from_env(base, env_file=None).propose_threshold, 0.85)
+        own = ServiceConfig.from_env({**base, "AGENT_PROPOSE_THRESHOLD": "0.9"}, env_file=None)
+        self.assertEqual(own.propose_threshold, 0.9)
+        for bad in ("hoog", "0.2", "1.5"):
+            with self.subTest(bad=bad), self.assertRaises(ConfigError):
+                ServiceConfig.from_env({**base, "AGENT_PROPOSE_THRESHOLD": bad}, env_file=None)
+
+
 if __name__ == "__main__":
     unittest.main()

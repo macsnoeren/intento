@@ -417,7 +417,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   geen voorstel zonder antwoord, versturen vraagt een JA.
   *Acceptatie:* unittests per regel; scenario dat het maximum bereikt.
 
-- [ ] **N6.10 Het voorstel "Bedoel je …?"**
+- [x] **N6.10 Het voorstel "Bedoel je …?"**
   *ONTWERP: §6, §31.* De Intent Agent levert de zin zodra hij klaar is; de orchestrator stelt voor bij
   confidence ≥ `AGENT_PROPOSE_THRESHOLD` (0,85), geldige validatie en minstens één antwoord. NEE → die
   hypothese telt als afgewezen, terug naar `clarify`.

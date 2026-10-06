@@ -54,12 +54,19 @@ def v2_question_text(text: str, names: Sequence[str] = ()) -> Finding | None:
         return Finding("V2", "de vraag moet eindigen op een vraagteken")
     if _URL.search(stripped):
         return Finding("V2", "de vraag bevat een internetadres")
-    words = set(re.findall(r"\w+", normalize(stripped)))
+    if contains_name(stripped, names):
+        return Finding("V2", "de vraag bevat een naam")
+    return None
+
+
+def contains_name(text: str, names: Sequence[str]) -> bool:
+    """Staat een deel van een naam (van de gebruiker of een contact) als los woord in de tekst?"""
+    words = set(re.findall(r"\w+", normalize(text)))
     for name in names:
         parts = [p for p in re.findall(r"\w+", normalize(name)) if len(p) >= 2]
         if parts and any(part in words for part in parts):
-            return Finding("V2", "de vraag bevat een naam")
-    return None
+            return True
+    return False
 
 
 def v3_concept_matches(
@@ -129,10 +136,14 @@ def v7_proposal(
     confidence: float,
     state: SessionState,
     threshold: float = DEFAULT_PROPOSE_THRESHOLD,
+    names: Sequence[str] = (),
 ) -> Finding | None:
-    """V7: een voorstel is een zin van 3 tot 120 tekens, met confidence ≥ drempel, na minstens één antwoord."""
+    """V7: een voorstel is een zin van 3 tot 120 tekens (zonder namen), met confidence ≥ drempel, na
+    minstens één antwoord."""
     if not 3 <= len(message.strip()) <= 120:
         return Finding("V7", "het voorstel moet 3 tot 120 tekens zijn")
+    if contains_name(message, names) or _URL.search(message):
+        return Finding("V7", "het voorstel bevat een naam of internetadres")
     if confidence < threshold:
         return Finding("V7", f"te onzeker voor een voorstel ({confidence:.2f} < {threshold:.2f})")
     if not state.answers:

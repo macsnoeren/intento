@@ -103,6 +103,13 @@ Afgekeurd → de Question Agent nog eens, met de reden in `afgekeurd` (prompt `q
 ongeldige vragen volgt de regelgebaseerde vraag. Contactnamen gaan alleen mee om te controleren dat ze
 nooit in een vraag staan (V2); ze komen nooit in een prompt.
 
+**Het voorstel** (§6, §31): met een taalmodel stelt de orchestrator "Bedoel je: …?" voor zodra de
+bovenste hypothese een confidence ≥ `AGENT_PROPOSE_THRESHOLD` (standaard 0,85) heeft, de gebruiker
+minstens één keer antwoordde en de zin door V7 komt (3 tot 120 tekens, geen naam of URL). De zin is die
+van de Intent Agent ("Ik heb hoofdpijn."), anders het woord. De schermtekst is precies
+"Bedoel je: {zin zonder slotpunt}?", zoals de backend controleert (I2). NEE → die hypothese is
+afgewezen en het gesprek gaat terug naar `clarify`. Zonder taalmodel is een JA meteen het voorstel.
+
 **Safety Agent, regels** (`agents/safety.py`, §10): S1 maximum aantal vragen (instelling
 `max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, anders de
 bovenste), en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen

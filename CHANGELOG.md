@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.10 — het voorstel "Bedoel je …?"
+
+- Met een taalmodel stelt de orchestrator voor bij confidence ≥ `AGENT_PROPOSE_THRESHOLD` (nieuw, 0,5–1,
+  standaard 0,85; in `.env.example`, `.env.docker.example` en compose), een geldige V7 en minstens één
+  antwoord, met de zin van de Intent Agent of anders het woord. V7 weigert nu ook een zin met een naam
+  of URL. NEE → afgewezen, terug naar `clarify`. Het pictogram bij een nieuw concept komt van de Icon
+  Agent.
+- Scenario "hoofdpijn" van start tot `done` ("Ik heb hoofdpijn.", 2 vragen) en een NEE-scenario.
+- Gemeten met `gpt-oss:120b-cloud`: 2/2 geslaagd met 1 en 3 vragen (was 10–15), 4–12 s per gesprek.
+
 ### N6.9 — Safety Agent: regels
 
 - `agent_service/agents/safety.py`: S1 (maximum aantal vragen), S2 (geen voorstel zonder antwoord) en
