@@ -412,7 +412,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   de terugval.
   *Acceptatie:* unittests: na twee ongeldige vragen komt de terugval; de reden staat in de tweede prompt.
 
-- [ ] **N6.9 Safety Agent: regels**
+- [x] **N6.9 Safety Agent: regels**
   *ONTWERP: §10 (S1–S3).* Maximum aantal vragen (beste hypothese voorleggen, daarna "Wil je stoppen?"),
   geen voorstel zonder antwoord, versturen vraagt een JA.
   *Acceptatie:* unittests per regel; scenario dat het maximum bereikt.

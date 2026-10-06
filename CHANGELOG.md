@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.9 — Safety Agent: regels
+
+- `agent_service/agents/safety.py`: S1 (maximum aantal vragen), S2 (geen voorstel zonder antwoord) en
+  S3 (versturen alleen na een JA op dát contact, voor N11). De orchestrator legt bij S1 de beste
+  hypothese voor en gaat na een NEE daarop naar "Wil je stoppen?"; S2 blokkeert een voorstel zonder
+  antwoord. Ingrijpen staat als `safety-agent` in de beslissingen. Scenario met een model dat eindeloos
+  blijft verfijnen: na 5 vragen het voorstel.
+
 ### N6.8 — opnieuw proberen bij een ongeldige vraag
 
 - Elke vraag gaat met het pictogram erbij door V1 t/m V6; de keuring staat als `validation-agent` in de

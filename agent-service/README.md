@@ -103,6 +103,12 @@ Afgekeurd → de Question Agent nog eens, met de reden in `afgekeurd` (prompt `q
 ongeldige vragen volgt de regelgebaseerde vraag. Contactnamen gaan alleen mee om te controleren dat ze
 nooit in een vraag staan (V2); ze komen nooit in een prompt.
 
+**Safety Agent, regels** (`agents/safety.py`, §10): S1 maximum aantal vragen (instelling
+`max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, anders de
+bovenste), en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen
+na een JA op dát contact (voor de deelfase). Grijpt een regel in, dan staat dat als `safety-agent` met
+de regel in de beslissingen.
+
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).
 

@@ -21,6 +21,7 @@ from .agents.icon import IconMatch, closest_match, exact_match, icon_prompt, no_
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
 from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
+from .agents.safety import SafetyFinding, s1_question_limit, s2_proposal_needs_answer
 from .agents.strategies import instruction_for
 from .agents.validation import Finding, validate_question
 from .contracts import (
@@ -227,6 +228,13 @@ def _ask_next(
     state.phase = "clarify"
     if refresh:
         _update_hypotheses(state, vocabulary, turn)
+    limit = s1_question_limit(state, turn.settings)
+    if limit is not None:
+        # S1: genoeg gevraagd. De beste hypothese voorleggen — waar de gebruiker JA op zei, anders de
+        # bovenste; bij NEE daarop volgt "Wil je stoppen?" (zie `_confirm`).
+        _safety(turn, limit)
+        best = _confirmed(state) or state.current_intent
+        return _propose(state, best, vocabulary, turn) if best else _ask_stop()
     target = _next_target(state)
     if target is None:
         confirmed = _confirmed(state)
@@ -454,6 +462,11 @@ def _propose(
     state: SessionState, intent: Hypothesis, vocabulary: VocabularyIndex, turn: _Turn
 ) -> Presentation:
     """JA op een concept → "Bedoel je: {Label}?" (§31). De zin is nog een inference."""
+    no_answer = s2_proposal_needs_answer(state)
+    if no_answer is not None:
+        # S2: de AI neemt het gesprek niet over.
+        _safety(turn, no_answer)
+        return _ask_stop()
     message = capitalize(intent.label)
     state.phase = "confirm_message"
     state.proposal = Proposal(message=message, concepts=[intent.concept], confidence=0.9)
@@ -509,7 +522,26 @@ def _confirm(
     # NEE op het voorstel: die hypothese telt als afgewezen, terug naar clarify.
     state.rejected_concepts.extend(c for c in proposal.concepts if c not in state.rejected_concepts)
     state.proposal = None
+    limit = s1_question_limit(state, turn.settings)
+    if limit is not None:
+        # S1: na het maximum en een NEE op het voorstel niet verder vragen.
+        _safety(turn, limit)
+        return _ask_stop()
     return _ask_next(state, vocabulary, turn)
+
+
+def _safety(turn: _Turn, finding: SafetyFinding) -> None:
+    """Legt vast dat een veiligheidsregel ingreep."""
+    turn.record(
+        AgentResult(
+            agent="safety-agent",
+            status="success",
+            value=finding,
+            meta=AgentMeta(model=None, prompt_version=RULES_VERSION, latency_ms=0),
+            validation="valid",
+            reason=f"{finding.rule}: {finding.reason}",
+        )
+    )
 
 
 def _proposal_pictogram(
