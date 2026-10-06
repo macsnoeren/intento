@@ -10,5 +10,12 @@ set -eu
 echo "▸ Migraties uitvoeren (prisma migrate deploy)…"
 npx prisma migrate deploy
 
+# Met een commando (bv. de klus `vocabulary-import` in compose) draait dat commando na de migratie;
+# zonder commando de backend zelf.
+if [ "$#" -gt 0 ]; then
+  echo "▸ $*"
+  exec "$@"
+fi
+
 echo "▸ Backend starten…"
 exec node dist/server.js

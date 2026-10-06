@@ -36,6 +36,10 @@ services:
     volumes:
       - intento-db:/data
       - intento-storage:/storage
+    depends_on:
+      # De startset van de Vocabulary staat er pas als de importklus klaar is.
+      vocabulary-import:
+        condition: service_completed_successfully
     ports:
       # De API krijgt een eigen poort: de web-app kan hem niet delen (route `/operator` botst met de
       # API-tak `/operator/*`). Zie ADR-0016.
@@ -91,6 +95,25 @@ services:
         condition: service_completed_successfully
     # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen, niet de host of het netwerk.
     restart: unless-stopped
+
+  # --- Startset van de Vocabulary (N2.8) -----------------------------------------------------------
+  # Eenmalige klus, net als `speech-voices`: migreert, downloadt de afbeeldingen van Mulberry en de
+  # zorgsymbolen naar het opslagvolume en seedt de Vocabulary. Bij een volgende `up` ziet hij dat de
+  # afbeeldingen er al staan en maakt hij niets dubbel. Na een nieuwe vertaling: `npm run docker:up`
+  # opnieuw (of `docker compose --env-file .env.docker run --rm vocabulary-import`).
+  vocabulary-import:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    env_file: [.env.docker]
+    environment:
+      DATABASE_URL: file:/data/intento.db
+      STORAGE_DIR: /storage
+    command: ['node', 'dist/scripts/vocabulary-import.js']
+    volumes:
+      - intento-db:/data
+      - intento-storage:/storage
+    restart: 'no'
 
   # --- Agentdienst (N1.7) -------------------------------------------------------------------------
   agents:

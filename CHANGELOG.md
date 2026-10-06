@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.8 — de startset in Docker
+
+- Compose-klus `vocabulary-import` (zelfde image als de server): migreert, downloadt de afbeeldingen naar
+  het volume `intento-storage` en seedt de startset (`dist/scripts/vocabulary-import.js`). De server
+  start pas als de klus klaar is. Het server-image bevat daarvoor `vocabulary/`; het entrypoint voert een
+  meegegeven commando uit na de migratie.
+- Gecontroleerd: een verse `docker:up` levert 99 platformitems met afbeeldingen (een ondertekende
+  afbeeldings-URL geeft 200); een tweede `up` downloadt niets.
+
 ### N2.7 — seed van de startset
 
 - `server/src/vocabulary/seed.ts`: platformitems uit manifest + vertaling + afbeelding, alleen met een

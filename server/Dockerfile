@@ -67,6 +67,8 @@ COPY --from=builder /app/server/dist ./server/dist
 COPY --from=builder /app/server/package.json ./server/package.json
 COPY --from=builder /app/server/prisma.config.ts ./server/prisma.config.ts
 COPY --from=builder /app/server/prisma ./server/prisma
+# De bronbestanden van de startset (manifesten en vertalingen) voor de klus `vocabulary-import`.
+COPY vocabulary/ ./vocabulary/
 COPY docker/entrypoint-server.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

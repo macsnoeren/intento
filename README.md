@@ -114,6 +114,17 @@ als niet-root; `web` is een nginx met SPA-fallback, zodat een harde refresh op `
 eenmalige init-dienst vult. `agents` (de agentdienst) luistert eveneens alleen op het compose-netwerk
 en weigert alles zonder `AGENT_SERVICE_TOKEN`; zet dat geheim in `.env.docker`.
 
+**De Vocabulary in Docker.** Vóór de server start, draait de eenmalige klus `vocabulary-import`: hij
+migreert, downloadt de afbeeldingen van Mulberry en de zorgsymbolen naar het volume `intento-storage` en
+seedt de startset. De eerste keer duurt dat een minuut; bij elke volgende `up` ziet hij dat de
+afbeeldingen er al staan. **Na een nieuwe of verbeterde vertaling** (`vocabulary/translations/`) bouw je
+het server-image opnieuw en draai je de klus nog eens:
+
+```bash
+npm run docker:build
+docker compose --env-file .env.docker run --rm vocabulary-import
+```
+
 De web-app bakt de API-URL in bij de **build** (`VITE_API_URL`): wijs je hem naar een andere host, dan
 hoort daar `npm run docker:build` bij. Dat de API een eigen poort heeft is een bewuste keuze — de SPA
 heeft een route `/operator` en de API een routetak `/operator/*`, dus één origin delen zou botsen (zie

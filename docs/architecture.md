@@ -147,6 +147,7 @@ Vier images, één `compose.yaml` in de repo-root:
 | `server` | `server/Dockerfile`, Debian + Node 24 | migreert in het entrypoint (`prisma migrate deploy`), draait als niet-root, SQLite op een named volume |
 | `web` | `web/Dockerfile`, nginx-alpine | statische build; `VITE_API_URL` wordt **bij de build** ingebakken |
 | `speech` | `speech-service/Dockerfile`, Python + Piper | alleen op het interne netwerk; stemmen uit een volume dat een eenmalige init-dienst vult |
+| `vocabulary-import` | `server/Dockerfile` (zelfde image) | eenmalige klus: migreren, afbeeldingen van de startset naar het volume `intento-storage`, Vocabulary seeden; de server wacht tot hij klaar is |
 | `agents` | `agent-service/Dockerfile`, Python + pydantic | geen `ports:`, `SERVICE_TOKEN` verplicht, healthcheck op `/health`; de backend bereikt hem op `http://agents:5003` |
 
 Build-context van `server` en `web` is de **repo-root** (npm-workspaces, `shared/`). De database is

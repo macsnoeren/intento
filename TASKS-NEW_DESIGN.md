@@ -189,7 +189,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* de seed draait twee keer zonder dubbelingen; een symbool zonder vertaling komt er niet in
   (test); elk item heeft licentie en bron (test).
 
-- [ ] **N2.8 De startset in Docker**
+- [x] **N2.8 De startset in Docker**
   *ONTWERP: §15.1.* Een eenmalige compose-klus `vocabulary-import` (zoals `speech-voices`): downloadt de
   afbeeldingen in het opslagvolume en draait de seed; de server wacht tot hij klaar is. README:
   opnieuw importeren na een nieuwe vertaling.
