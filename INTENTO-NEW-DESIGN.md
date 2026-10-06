@@ -550,7 +550,7 @@ De Safety Agent kan een actie blokkeren of terugsturen naar de Orchestrator.
 
 | Regel | Controle |
 |---|---|
-| S1 | **Maximum aantal vragen** per sessie (instelling, standaard 15). Bereikt: de beste hypothese wordt voorgelegd ("Bedoel je …?"); bij NEE volgt "Wil je stoppen?". |
+| S1 | **Maximum aantal vragen** per sessie (instelling, standaard 15). Bereikt: de beste hypothese wordt voorgelegd ("Bedoel je …?") — maar alleen als de gebruiker er JA op zei of de zekerheid minstens 0,5 is; een gok wordt nooit voorgelegd. Anders, en bij NEE op het voorstel, volgt "Wil je stoppen?". |
 | S2 | Geen voorstel zonder minstens één antwoord van de gebruiker: de AI neemt het gesprek niet over. |
 | S3 | Versturen vraagt altijd een JA van de gebruiker op dát contact. |
 

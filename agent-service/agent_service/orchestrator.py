@@ -290,6 +290,16 @@ def _confirmed(state: SessionState) -> Hypothesis | None:
     )
 
 
+#: S1: zonder JA alleen een voorstel als de bovenste hypothese minstens zo zeker is (N6.16).
+S1_MIN_CONFIDENCE = 0.5
+
+
+def _likely(state: SessionState) -> Hypothesis | None:
+    """De bovenste hypothese, maar alleen als die geen gok is."""
+    top = state.current_intent
+    return top if top is not None and top.confidence >= S1_MIN_CONFIDENCE else None
+
+
 def _ask_next(
     state: SessionState, vocabulary: VocabularyIndex, turn: _Turn, *, refresh: bool = True
 ) -> Presentation:
@@ -303,10 +313,10 @@ def _ask_next(
         _update_hypotheses(state, vocabulary, turn)
     limit = s1_question_limit(state, turn.settings)
     if limit is not None:
-        # S1: genoeg gevraagd. De beste hypothese voorleggen — waar de gebruiker JA op zei, anders de
-        # bovenste; bij NEE daarop volgt "Wil je stoppen?" (zie `_confirm`).
+        # S1: genoeg gevraagd. Voorleggen wat de gebruiker bevestigde, of de bovenste hypothese als die
+        # zeker genoeg is — nooit een gok (N6.16). Anders, en na NEE daarop, "Wil je stoppen?".
         _safety(turn, limit)
-        best = _confirmed(state) or state.current_intent
+        best = _confirmed(state) or _likely(state)
         return _propose(state, best, vocabulary, turn) if best else _ask_stop()
     ready = _ready_proposal(state, turn)
     if ready is not None:

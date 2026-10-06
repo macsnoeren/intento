@@ -110,3 +110,40 @@ class SafetyFlowTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NoGuessTest(unittest.TestCase):
+    """N6.16: bij het maximum geen voorstel op een gok."""
+
+    def guessing(self, confidence: float) -> Any:
+        extra = itertools.count()
+
+        def respond(call: FakeCall) -> dict[str, Any]:
+            n = next(extra)
+            return {
+                "hypotheses": [
+                    {"concept": f"guess_{n}", "label": f"gok {n}", "confidence": confidence}
+                ],
+                "needs_clarification": True,
+            }
+
+        return respond
+
+    def play_to_limit(self, confidence: float) -> Any:
+        llm = FakeProvider(routes={"Intent Agent": [self.guessing(confidence)] * 50})
+        response = step(request(START, max_questions=5), llm=llm)
+        while response.presentation.kind == "question":
+            response = step(answer(response, NO, max_questions=5), llm=llm)
+        return response
+
+    def test_alleen_nee_en_lage_zekerheid_dan_wil_je_stoppen(self) -> None:
+        response = self.play_to_limit(0.25)
+        self.assertEqual(response.presentation.kind, "ask_stop")
+        self.assertIn(
+            "S1: maximum van 5 vragen bereikt",
+            [d.reason for d in response.decisions if d.agent == "safety-agent"],
+        )
+
+    def test_zeker_genoeg_dan_wel_het_voorstel(self) -> None:
+        response = self.play_to_limit(0.6)
+        self.assertEqual(response.presentation.kind, "confirm_message")

@@ -124,8 +124,8 @@ antwoordt de dienst altijd binnen de time-out van de backend (`AGENT_TIMEOUT_MS`
 per agent en per beurt: zie `docs/architecture.md`.
 
 **Safety Agent, regels** (`agents/safety.py`, §10): S1 maximum aantal vragen (instelling
-`max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, anders de
-bovenste), en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen
+`max_questions`) — bereikt: de beste hypothese voorleggen (waar de gebruiker JA op zei, of de bovenste
+als die minstens 0,5 zeker is; nooit een gok), anders en bij NEE daarop "Wil je stoppen?"; S2 geen voorstel zonder antwoord; S3 versturen alleen
 na een JA op dát contact (voor de deelfase). Grijpt een regel in, dan staat dat als `safety-agent` met
 de regel in de beslissingen. Met `AGENT_LLM_SAFETY=true` beoordeelt ook het model of een vraag passend
 en niet belastend is (prompt `safety-v1`); een afkeuring gaat als reden naar de nieuwe poging van de

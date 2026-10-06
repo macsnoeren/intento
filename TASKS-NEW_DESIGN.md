@@ -457,7 +457,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   een eigen afbeelding toevoegt (fase N8).
   *Acceptatie:* de import seedt de nieuwe items met licentie en bron; de Vocabulary-pagina toont ze.
 
-- [ ] **N6.16 S1: geen voorstel op een gok**
+- [x] **N6.16 S1: geen voorstel op een gok**
   *ONTWERP: §10 (S1).* Ontdekt bij N6.13: bij het maximum legt de orchestrator de beste hypothese voor,
   ook als die een zekerheid van 0,25 heeft en nergens een JA op kwam ("Bedoel je: Eenzaam?"). Besluiten
   (ontwerp bijwerken): alleen voorstellen als er een JA was of de zekerheid boven een ondergrens ligt,

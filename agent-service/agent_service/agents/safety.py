@@ -4,7 +4,8 @@ Bewust los van de Validation Agent: die keurt of een vraag goed gemaakt is, de S
 het gesprek zelf — dat het niet onnodig belastend wordt en dat de AI het niet overneemt.
 
 - **S1** maximum aantal vragen per gesprek (instelling, standaard 15). Bereikt: de beste hypothese
-  wordt voorgelegd; bij NEE volgt "Wil je stoppen?".
+  wordt voorgelegd — waar de gebruiker JA op zei, of die met een zekerheid van minstens 0,5; een gok
+  nooit (N6.16). Anders, en bij NEE op het voorstel, volgt "Wil je stoppen?".
 - **S2** geen voorstel zonder minstens één antwoord van de gebruiker.
 - **S3** versturen vraagt altijd een JA van de gebruiker op dát contact (gebruikt in de deelfase, N11;
   de backend dwingt hetzelfde af als I3).

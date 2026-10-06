@@ -28,6 +28,12 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.16 — S1: geen voorstel op een gok
+
+- Bij het maximum aantal vragen legt de orchestrator alleen voor wat de gebruiker bevestigde, of de
+  bovenste hypothese als die minstens 0,5 zeker is; anders meteen "Wil je stoppen?". Ontwerp §10 (S1)
+  bijgewerkt. Aanleiding: in N6.13 eindigde "duizelig" met "Bedoel je: Eenzaam?" op 0,25 zekerheid.
+
 ### N6.15 — startset: woorden voor ziek zijn
 
 - Vertaald en geseed: "niezen" (verkouden, Mulberry 5723) en "het warm hebben" (warm, zweten, Mulberry
