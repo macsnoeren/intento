@@ -18,7 +18,7 @@ import type { Env } from '../env.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import { HttpError } from '../errors.js';
 import { AgentUnavailableError, type AgentClient } from '../agents/client.js';
-import { checkTurnResponse } from '../agents/invariants.js';
+import { checkCompletion, checkTurnResponse } from '../agents/invariants.js';
 import { DEFAULT_PROFILE, profileFromModel } from '../users/serialize.js';
 import {
   availableTo,
@@ -28,9 +28,11 @@ import {
   type VocabularyItem,
 } from '../vocabulary/repository.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
+import { confirmIntent, findIntent } from './intents.js';
 import {
+  ONGOING,
+  closeSession,
   createSession,
-  endSession,
   findActiveSession,
   findSessionForUser,
   lastTurnNumber,
@@ -139,6 +141,8 @@ interface AgentTurnInput {
   previousTurn: number | null;
   event: AgentEvent;
   state: SessionState | null;
+  /** De boodschap die de backend als bevestigd heeft vastgelegd, of `null` (I2). */
+  confirmedMessage: string | null;
 }
 
 /**
@@ -185,7 +189,10 @@ export async function runAgentTurn(
     throw error;
   }
 
-  const violations = checkTurnResponse(request, response);
+  const violations = [
+    ...checkTurnResponse(request, response),
+    ...checkCompletion(response, input.confirmedMessage),
+  ];
   if (violations.length > 0) {
     const reason = violations
       .map((violation) => `${violation.invariant}: ${violation.message}`)
@@ -212,9 +219,10 @@ export async function runAgentTurn(
   await recordPresentation(prisma, encryptor, session.id, turn, response.presentation);
   await recordInferences(prisma, encryptor, session.id, turn, response.inferences);
   await recordDecisions(prisma, session.id, turn, response.decisions);
-  // JA op "Wil je stoppen?": de agent sloot het gesprek af, dus het gesprek is voorbij.
-  if (response.presentation.kind === 'stopped') {
-    await endSession(prisma, session.id, 'stopped', now());
+  // Klaar, of JA op "Wil je stoppen?": het gesprek is voorbij. Een bevestigd gesprek blijft
+  // `confirmed`, een onbevestigd wordt `stopped`.
+  if (response.presentation.kind === 'done' || response.presentation.kind === 'stopped') {
+    await closeSession(prisma, session.id, now());
   }
 
   return toTabletTurn(
@@ -255,10 +263,10 @@ export async function startConversation(
   const user = await loadConversationUser(prisma, device);
 
   const running = await prisma.communicationSession.findMany({
-    where: { userId: user.id, status: 'active' },
+    where: { userId: user.id, ...ONGOING },
     select: { id: true },
   });
-  for (const { id } of running) await endSession(prisma, id, 'stopped', now());
+  for (const { id } of running) await closeSession(prisma, id, now());
 
   const session = await createSession(prisma, {
     userId: user.id,
@@ -273,9 +281,10 @@ export async function startConversation(
       previousTurn: null,
       event: { type: 'start' },
       state: null,
+      confirmedMessage: null,
     });
   } catch (error) {
-    await endSession(prisma, session.id, 'stopped', now());
+    await closeSession(prisma, session.id, now());
     throw error;
   }
 }
@@ -342,7 +351,7 @@ export async function loadActiveSession(
 ): Promise<CommunicationSessionModel> {
   const session = await findSessionForUser(prisma, sessionId, device.userId);
   if (!session) throw new HttpError(404, 'SESSION_NOT_FOUND', 'Gesprek niet gevonden.');
-  if (session.status !== 'active') {
+  if (session.endedAt !== null || (session.status !== 'active' && session.status !== 'confirmed')) {
     throw new HttpError(409, 'SESSION_ENDED', 'Dit gesprek is al afgelopen.');
   }
   return session;
@@ -370,6 +379,13 @@ export async function answerConversation(
   const { event, observed } = toEvent(current.presentation, body);
   await recordObserved(prisma, session.id, current.turn, observed);
 
+  // I2: de boodschap wordt van de gebruiker op het moment dat de backend zijn JA op "Bedoel je …?"
+  // vastlegt — niet als de agent dat zegt.
+  const intent =
+    current.presentation.kind === 'confirm_message' && event.type === 'answer_yes'
+      ? await confirmIntent(prisma, encryptor, session, current)
+      : await findIntent(prisma, encryptor, session.id);
+
   const user = await loadConversationUser(prisma, device);
   return runAgentTurn(deps, {
     session,
@@ -378,6 +394,7 @@ export async function answerConversation(
     previousTurn: current.turn,
     event,
     state: current.state,
+    confirmedMessage: intent?.message ?? null,
   });
 }
 
@@ -457,7 +474,7 @@ export async function stopConversation(
   const now = deps.now ?? (() => new Date());
   const session = await loadActiveSession(prisma, device, sessionId);
   await recordObserved(prisma, session.id, session.currentTurn, { type: 'stop' });
-  await endSession(prisma, session.id, 'stopped', now());
+  await closeSession(prisma, session.id, now());
 }
 
 /**

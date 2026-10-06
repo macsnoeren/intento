@@ -345,6 +345,10 @@
   symbolen uit de meegestuurde Vocabulary en contacten van déze gebruiker (I1), het juiste aantal
   opties (I4), geen stand-in zonder gap (I5), geen "Bedoel je …?" zonder antwoord (I6) en geen
   ongeoorloofde vormwissel (I7). Een schending wordt verworpen, nooit getoond.
+- **De boodschap is van de gebruiker, niet van de AI** (I2). Alleen de backend maakt een
+  `CommunicationIntent`, op het moment dat hij een Observed JA vastlegt op een "Bedoel je: …?"-scherm
+  dat hij zelf opsloeg, met precies die tekst. Wat de agent in zijn state "bevestigd" noemt, wordt
+  genegeerd; een "Klaar" zonder bevestigde boodschap wordt verworpen. Het bericht staat versleuteld.
 - **Geen inhoud in logs of foutmeldingen.** Het log bevat per beurt alleen gebeurtenis, fase, soort
   presentatie en duur; een validatiefout noemt veldnamen, nooit waarden.
 

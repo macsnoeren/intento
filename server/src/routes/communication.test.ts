@@ -684,3 +684,156 @@ describe('GET /communication/sessions/current', () => {
     expect(anonymous.statusCode).toBe(401);
   });
 });
+
+describe('bevestigde boodschap (I2)', () => {
+  let app: FastifyInstance;
+  let agents: FakeAgentClient;
+  const env = testEnv();
+  const encryptor = createEncryptor(env);
+
+  beforeEach(async () => {
+    await resetAuthData();
+    await prisma.vocabularyItem.deleteMany();
+    agents = fakeAgents();
+    app = await buildApp({ env, agents });
+    await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain', sortOrder: 1 });
+    await createVocabularyItem(prisma, { label: 'eten', concept: 'eat', sortOrder: 2 });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    await resetAuthData();
+    await prisma.vocabularyItem.deleteMany();
+  });
+
+  async function toProposal(userId: string) {
+    const cookie = await deviceCookie(app, userId);
+    const first = communicationTurnSchema.parse(
+      (
+        await app.inject({ method: 'POST', url: '/communication/sessions', headers: { cookie } })
+      ).json(),
+    );
+    const answer = (payload: Record<string, unknown>) =>
+      app.inject({
+        method: 'POST',
+        url: `/communication/sessions/${first.sessionId}/answer`,
+        headers: { cookie },
+        payload,
+      });
+    const proposal = communicationTurnSchema.parse(
+      (await answer({ turn: 0, answer: 'yes' })).json(),
+    );
+    expect(proposal.presentation.text).toBe('Bedoel je: Pijn?');
+    return { sessionId: first.sessionId, answer };
+  }
+
+  it('legt de boodschap vast na JA op "Bedoel je …?", versleuteld, en sluit af met Klaar', async () => {
+    const user = await seedUser('Sanne');
+    const { sessionId, answer } = await toProposal(user.id);
+    expect(await prisma.communicationIntent.count()).toBe(0);
+
+    const res = await answer({ turn: 1, answer: 'yes' });
+    expect(res.statusCode).toBe(200);
+    expect(communicationTurnSchema.parse(res.json()).presentation).toMatchObject({
+      kind: 'done',
+      message: 'Pijn',
+    });
+
+    const intent = await prisma.communicationIntent.findUniqueOrThrow({ where: { sessionId } });
+    expect(intent).toMatchObject({ userId: user.id, turn: 1, concepts: ['pain'] });
+    expect(intent.messageEncrypted.startsWith('v1:')).toBe(true);
+    expect(intent.messageEncrypted).not.toContain('Pijn');
+    expect(encryptor.decrypt(intent.messageEncrypted)).toBe('Pijn');
+
+    const session = await prisma.communicationSession.findUniqueOrThrow({
+      where: { id: sessionId },
+    });
+    expect(session.status).toBe('confirmed');
+    expect(session.endedAt).not.toBeNull();
+  });
+
+  it('NEE op "Bedoel je …?" slaat niets op', async () => {
+    const user = await seedUser('Sanne');
+    const { sessionId, answer } = await toProposal(user.id);
+    const res = await answer({ turn: 1, answer: 'no' });
+    expect(res.statusCode).toBe(200);
+    expect(await prisma.communicationIntent.count()).toBe(0);
+    expect(
+      await prisma.communicationSession.findUniqueOrThrow({ where: { id: sessionId } }),
+    ).toMatchObject({ status: 'active', endedAt: null });
+  });
+
+  it('negeert een agent die zelf "bevestigd" meldt', async () => {
+    const user = await seedUser('Sanne');
+    // De agent zet bij elke beurt een communication_intent in zijn state.
+    agents.setResponder((request) => {
+      const response = simpleResponder(request);
+      response.state.communication_intent = {
+        message: 'Ik wil naar huis',
+        concepts: ['home'],
+        confidence: 1,
+      };
+      return response;
+    });
+    const { sessionId } = await toProposal(user.id);
+    expect(await prisma.communicationIntent.count()).toBe(0);
+    expect(
+      await prisma.communicationSession.findUniqueOrThrow({ where: { id: sessionId } }),
+    ).toMatchObject({ status: 'active' });
+  });
+
+  it('verwerpt "Klaar" zonder JA op een voorstel', async () => {
+    const user = await seedUser('Sanne');
+    const cookie = await deviceCookie(app, user.id);
+    const first = communicationTurnSchema.parse(
+      (
+        await app.inject({ method: 'POST', url: '/communication/sessions', headers: { cookie } })
+      ).json(),
+    );
+    // Na een JA op een gewone vraag springt deze agent meteen naar "Klaar".
+    agents.setResponder((request) => {
+      const response = simpleResponder(request);
+      response.presentation = {
+        kind: 'done',
+        mode: 'binary',
+        text: 'Pijn',
+        options: [],
+        message: 'Pijn',
+      };
+      response.state.last_presentation = response.presentation;
+      return response;
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/communication/sessions/${first.sessionId}/answer`,
+      headers: { cookie },
+      payload: { turn: 0, answer: 'yes' },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(await prisma.communicationIntent.count()).toBe(0);
+    const decision = await prisma.agentDecision.findFirstOrThrow({
+      where: { sessionId: first.sessionId, status: 'invalid' },
+    });
+    expect(decision.reason).toContain('I2');
+  });
+
+  it('telt een herhaalde JA na een agentfout niet dubbel', async () => {
+    const user = await seedUser('Sanne');
+    const { sessionId, answer } = await toProposal(user.id);
+    agents.setResponder(() => {
+      throw new AgentUnavailableError('timeout', 'traag');
+    });
+    expect((await answer({ turn: 1, answer: 'yes' })).statusCode).toBe(503);
+    // De JA is een feit: de boodschap staat vast, ook al kwam er geen volgend scherm.
+    expect(await prisma.communicationIntent.count({ where: { sessionId } })).toBe(1);
+
+    agents.setResponder(simpleResponder);
+    const retry = await answer({ turn: 1, answer: 'yes' });
+    expect(retry.statusCode).toBe(200);
+    expect(communicationTurnSchema.parse(retry.json()).presentation.kind).toBe('done');
+    expect(await prisma.communicationIntent.count({ where: { sessionId } })).toBe(1);
+  });
+});

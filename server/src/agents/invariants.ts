@@ -9,12 +9,14 @@ import type { PresentationOption, TurnRequest, TurnResponse } from '@intento/sha
  * instellingen en de vorige toestand) en naar het antwoord. Het antwoord heeft het zod-contract al
  * gepasseerd (`agents/client.ts`).
  *
- * Hier: I1, I4, I5, I6 en I7. I2 (Communication Intent alleen na een JA) en I3 (versturen alleen na een
- * JA op dát contact) controleert de backend op het moment dat hij zelf iets vastlegt (N4.10, N11.3);
- * I8 zit in het contract (geen velden om iets te wijzigen).
+ * Hier: I1, I4, I5, I6, I7 en het deel van I2 dat op het antwoord zelf te zien is: een "Bedoel je …?"
+ * vraagt precies de voorgestelde boodschap, en "Klaar" toont alleen een boodschap die de backend zelf
+ * als bevestigd heeft vastgelegd (`checkCompletion`). De Communication Intent zelf maakt de backend
+ * alleen na een Observed JA (`communication/intents.ts`). I3 (versturen alleen na een JA op dát
+ * contact) volgt in N11.3; I8 zit in het contract (geen velden om iets te wijzigen).
  */
 
-export type InvariantId = 'I1' | 'I4' | 'I5' | 'I6' | 'I7';
+export type InvariantId = 'I1' | 'I2' | 'I4' | 'I5' | 'I6' | 'I7';
 
 export interface InvariantViolation {
   invariant: InvariantId;
@@ -37,6 +39,14 @@ const CONTACT_KINDS = new Set(['share_contact', 'confirm_send']);
 
 /** Zo lang blijft de vorm bij "AI kiest" minstens staan (§14). */
 export const MIN_TURNS_BEFORE_MODE_SWITCH = 3;
+
+/**
+ * De schermtekst bij een voorgestelde boodschap: "Bedoel je: {boodschap}?". Een punt of uitroepteken aan
+ * het eind van de boodschap valt weg ("Ik heb pijn." → "Bedoel je: Ik heb pijn?").
+ */
+export function proposalText(message: string): string {
+  return `Bedoel je: ${message.trim().replace(/[.!?]+$/, '')}?`;
+}
 
 function normalize(text: string): string {
   return text.trim().toLocaleLowerCase('nl');
@@ -186,6 +196,35 @@ function checkStandIns(response: TurnResponse): InvariantViolation[] {
     }));
 }
 
+/** I2 (deel): een "Bedoel je …?" vraagt precies de boodschap die bevestigd zou worden. */
+function checkProposalText(response: TurnResponse): InvariantViolation[] {
+  const { presentation } = response;
+  if (presentation.kind !== 'confirm_message') return [];
+  if (!presentation.message) {
+    return [{ invariant: 'I2', message: '"Bedoel je …?" zonder boodschap' }];
+  }
+  return presentation.text === proposalText(presentation.message)
+    ? []
+    : [{ invariant: 'I2', message: 'schermtekst is niet "Bedoel je: {boodschap}?"' }];
+}
+
+/**
+ * I2 (deel): "Klaar" toont alleen de boodschap die de backend als bevestigd heeft vastgelegd. Een agent
+ * die zelf besluit dat het gesprek klaar is, of een andere boodschap toont, wordt verworpen.
+ */
+export function checkCompletion(
+  response: TurnResponse,
+  confirmedMessage: string | null,
+): InvariantViolation[] {
+  if (response.presentation.kind !== 'done') return [];
+  if (confirmedMessage === null) {
+    return [{ invariant: 'I2', message: '"Klaar" zonder bevestigde boodschap' }];
+  }
+  return response.presentation.message === confirmedMessage
+    ? []
+    : [{ invariant: 'I2', message: '"Klaar" met een andere boodschap dan bevestigd' }];
+}
+
 /** I6: geen "Bedoel je …?" zonder minstens één antwoord van de gebruiker. */
 function checkProposalAfterAnswer(
   request: TurnRequest,
@@ -258,6 +297,7 @@ export function checkTurnResponse(
     ...checkReferences(request, response),
     ...checkOptionCount(request, response),
     ...checkStandIns(response),
+    ...checkProposalText(response),
     ...checkProposalAfterAnswer(request, response),
     ...checkModeSwitch(request, response),
   ];

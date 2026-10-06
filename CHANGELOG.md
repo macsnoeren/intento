@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.10 — bevestigde boodschap
+
+- Migratie `communication_intent`: `CommunicationIntent` (bericht versleuteld, concepten, confidence,
+  beurt, `confirmedAt`; één per gesprek).
+- Alleen de backend maakt hem aan, alleen na een Observed JA op een `confirm_message`-scherm met
+  precies de tekst "Bedoel je: {boodschap}?"; het gesprek wordt `confirmed`. NEE slaat niets op; een
+  agent die zelf "bevestigd" meldt wordt genegeerd; "Klaar" zonder of met een andere bevestigde
+  boodschap wordt verworpen (I2 in `invariants.ts`: `proposalText`, `checkCompletion`).
+- Een gesprek loopt zolang `endedAt` leeg is; een bevestigd gesprek dat eindigt blijft `confirmed`.
+
 ### N4.9 — tablet: start- en binary scherm
 
 - `TabletConversation.tsx`: startscherm met één grote knop ("Ik wil iets zeggen"), binary scherm met

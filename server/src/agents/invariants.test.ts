@@ -12,7 +12,9 @@ import {
 import {
   InvariantViolationError,
   assertTurnResponse,
+  checkCompletion,
   checkTurnResponse,
+  proposalText,
   type InvariantId,
 } from './invariants.js';
 
@@ -144,6 +146,41 @@ describe('harde invarianten', () => {
         if (gap) gap.best_available_item_id = 'v-onbekend';
       });
       expect(invariants(startRequest(), res)).toContain('I1');
+    });
+  });
+
+  describe('I2 — de boodschap is pas van de gebruiker na zijn JA', () => {
+    const answered = (): TurnRequest =>
+      answerRequest((r) => {
+        r.turn = 1;
+      });
+
+    it('"Bedoel je …?" vraagt precies de voorgestelde boodschap', () => {
+      expect(proposalText('Ik heb pijn.')).toBe('Bedoel je: Ik heb pijn?');
+      const other = response('turn_response.confirm_message', (r) => {
+        r.presentation.text = 'Bedoel je: Ik heb honger?';
+      });
+      expect(invariants(answered(), other)).toEqual(['I2']);
+      const empty = response('turn_response.confirm_message', (r) => {
+        r.presentation.message = null;
+      });
+      expect(invariants(answered(), empty)).toEqual(['I2']);
+    });
+
+    it('"Klaar" alleen met de boodschap die de backend bevestigde', () => {
+      const done = response('turn_response.confirm_message', (r) => {
+        r.presentation = {
+          kind: 'done',
+          mode: 'binary',
+          text: 'Ik heb pijn.',
+          options: [],
+          message: 'Ik heb pijn.',
+        };
+      });
+      expect(checkCompletion(done, 'Ik heb pijn.')).toEqual([]);
+      expect(checkCompletion(done, null).map((v) => v.invariant)).toEqual(['I2']);
+      expect(checkCompletion(done, 'Ik heb honger.').map((v) => v.invariant)).toEqual(['I2']);
+      expect(checkCompletion(response('turn_response.question'), null)).toEqual([]);
     });
   });
 

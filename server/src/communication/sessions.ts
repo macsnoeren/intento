@@ -48,15 +48,47 @@ export function findSessionForUser(
   return prisma.communicationSession.findFirst({ where: { id: sessionId, userId } });
 }
 
+/** Een gesprek loopt zolang het niet geëindigd is: `active`, of `confirmed` en nog niet afgesloten. */
+export const ONGOING = { status: { in: ['active', 'confirmed'] }, endedAt: null };
+
 /** Het lopende gesprek van een gebruiker, of `null`. */
 export function findActiveSession(
   prisma: PrismaClient,
   userId: string,
 ): Promise<CommunicationSessionModel | null> {
   return prisma.communicationSession.findFirst({
-    where: { userId, status: 'active' },
+    where: { userId, ...ONGOING },
     orderBy: { startedAt: 'desc' },
   });
+}
+
+/** De gebruiker zei JA op "Bedoel je …?": het gesprek is bevestigd (en loopt nog). */
+export async function confirmSession(prisma: PrismaClient, sessionId: string): Promise<void> {
+  await prisma.communicationSession.updateMany({
+    where: { id: sessionId, status: 'active' },
+    data: { status: 'confirmed' },
+  });
+}
+
+/**
+ * Sluit een lopend gesprek af. Was het nog niet bevestigd, dan wordt het `stopped`; een bevestigd
+ * gesprek blijft `confirmed` (de boodschap blijft die van de gebruiker).
+ */
+export async function closeSession(
+  prisma: PrismaClient,
+  sessionId: string,
+  now: Date = new Date(),
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.communicationSession.updateMany({
+      where: { id: sessionId, status: 'active', endedAt: null },
+      data: { status: 'stopped', endedAt: now },
+    }),
+    prisma.communicationSession.updateMany({
+      where: { id: sessionId, status: 'confirmed', endedAt: null },
+      data: { endedAt: now },
+    }),
+  ]);
 }
 
 /**

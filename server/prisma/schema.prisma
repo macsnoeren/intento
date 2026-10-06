@@ -362,7 +362,9 @@ model VocabularyItem {
 
 /// Eén gesprek op de tablet (INTENTO-NEW-DESIGN §5, §39). Heet bewust niet `Session`: die naam is van
 /// de inlogsessies. `status`: `active`, `confirmed` (de gebruiker zei JA op "Bedoel je …?") of `stopped`.
-/// `currentTurn` wijst naar de beurt die nu op het scherm staat.
+/// Een gesprek loopt zolang `endedAt` leeg is — ook na de bevestiging (daarna kan nog gedeeld worden);
+/// een bevestigd gesprek dat eindigt blijft `confirmed`. `currentTurn` wijst naar de beurt die nu op het
+/// scherm staat.
 model CommunicationSession {
   id             String    @id @default(cuid())
   userId         String
@@ -379,6 +381,7 @@ model CommunicationSession {
   observedEvents     ObservedEvent[]
   inferences         Inference[]
   agentDecisions     AgentDecision[]
+  intent             CommunicationIntent?
 
   @@index([userId, status])
   @@index([organizationId, startedAt])
@@ -477,4 +480,26 @@ model AgentDecision {
   session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, turn])
+}
+
+/// De **bevestigde boodschap** (Communication Intent, §31): pas de boodschap van de gebruiker na zijn
+/// JA op "Bedoel je: …?". Alleen de backend maakt hem aan, alleen na een Observed JA op een
+/// `confirm_message`-presentatie met precies die tekst (I2); wat de agent zelf "bevestigd" noemt telt
+/// niet. Eén per gesprek. Het bericht staat versleuteld; de concepten (taalneutrale sleutels) niet.
+/// `turn` is de beurt van het "Bedoel je"-scherm waarop JA werd gezegd.
+model CommunicationIntent {
+  id               String   @id @default(cuid())
+  sessionId        String   @unique
+  userId           String
+  organizationId   String
+  turn             Int
+  messageEncrypted String
+  concepts         Json
+  confidence       Float?
+  confirmedAt      DateTime @default(now())
+
+  session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, confirmedAt])
+  @@index([userId, confirmedAt])
 }

@@ -312,7 +312,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* componenttests (JA, NEE, Terug, Stoppen roepen de juiste API aan); rooktest met de
   regelgebaseerde orchestrator.
 
-- [ ] **N4.10 Bevestigde boodschap**
+- [x] **N4.10 Bevestigde boodschap**
   *ONTWERP: §31, §52 (I2).* Migratie `CommunicationIntent` (sessionId, bericht versleuteld, concepten,
   confidence, confirmedAt). Alleen de backend maakt hem aan, alleen na een Observed JA op een
   `confirm_message`-presentatie met precies die tekst; sessie → `confirmed`.
