@@ -16,12 +16,13 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from .agents.envelope import AgentResult, LlmAttempt, run_agent
+from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
 from .agents.icon import IconMatch, closest_match, exact_match, icon_prompt, no_image
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
 from .agents.question import llm_question, question_prompt
 from .agents.rules import Question, capitalize, rule_question
 from .agents.strategies import instruction_for
+from .agents.validation import Finding, validate_question
 from .contracts import (
     CONTRACT_VERSION,
     AgentDecision,
@@ -54,11 +55,17 @@ class _Turn:
     """Verzamelt wat één beurt oplevert: inferences en agentbeslissingen."""
 
     def __init__(
-        self, clock: Callable[[], float], llm: LlmProvider | None, settings: Settings
+        self,
+        clock: Callable[[], float],
+        llm: LlmProvider | None,
+        settings: Settings,
+        names: list[str],
     ) -> None:
         self.clock = clock
         self.llm = llm
         self.settings = settings
+        #: Namen van contacten: alleen om te controleren dat ze nooit in een vraag staan (V2).
+        self.names = names
         self.inferences: list[Inference] = []
         self.decisions: list[AgentDecision] = []
         self.gaps: list[Gap] = []
@@ -95,7 +102,7 @@ def step(
 ) -> TurnResponse:
     """Verwerkt één beurt. Zonder `llm` draaien alle agents op hun regels."""
     vocabulary = VocabularyIndex(request.vocabulary)
-    turn = _Turn(clock, llm, request.settings)
+    turn = _Turn(clock, llm, request.settings, [c.name for c in request.contacts])
     event = request.event
 
     if event.type == "start":
@@ -224,10 +231,75 @@ def _ask_next(
     if target is None:
         confirmed = _confirmed(state)
         return _propose(state, confirmed, vocabulary, turn) if confirmed else _ask_stop()
-    question_attempt: LlmAttempt[Question] | None = None
+    option = _pictogram(target.concept, target.label, vocabulary, turn)
+    if option is None:
+        # Zonder pictogram geen binary vraag (I4): dan liever "Wil je stoppen?" dan een leeg scherm.
+        return _ask_stop()
+    question = _validated_question(state, target, option, vocabulary, turn)
+    if question is None:
+        return _ask_stop()
+    state.questions_asked.append(
+        AskedQuestion(turn=state.turn, concept=question.concept, text=question.text)
+    )
+    return Presentation(kind="question", mode="binary", text=question.text, options=[option])
+
+
+#: Hoe vaak de Question Agent een vraag mag maken voordat de terugval volgt (§4.2, stap 6).
+MAX_QUESTION_ATTEMPTS = 2
+
+
+def _validated_question(
+    state: SessionState,
+    target: Hypothesis,
+    option: Option,
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+) -> Question | None:
+    """De Question Agent maakt de vraag; de Validation Agent keurt hem (V1 t/m V6).
+
+    Afgekeurd → de Question Agent nog eens, met de reden erbij; na `MAX_QUESTION_ATTEMPTS` ongeldige
+    vragen de regelgebaseerde vraag. Elke keuring komt als `validation-agent` in de beslissingen.
+    """
+    rejected_because: list[str] = []
+    for _ in range(MAX_QUESTION_ATTEMPTS if turn.llm is not None else 1):
+        result = _question_agent(state, target, vocabulary, turn, rejected_because)
+        question = result.value
+        if question is None:
+            return None
+        findings = _validate(state, question, option, vocabulary, turn)
+        if not findings or result.status != "success":
+            # Geldig, of al de regelgebaseerde vraag (beter wordt het niet).
+            return question
+        rejected_because = [f.reason for f in findings]
+    ruled = run_agent(
+        "question-agent",
+        rules=lambda: rule_question(target),
+        rules_reason=f"na {MAX_QUESTION_ATTEMPTS} afgekeurde vragen: {'; '.join(rejected_because)}",
+        clock=turn.clock,
+    )
+    fallback = AgentResult(
+        agent=ruled.agent,
+        status="fallback",
+        value=ruled.value,
+        meta=ruled.meta,
+        validation="invalid",
+        reason=ruled.reason,
+    )
+    turn.record(fallback)
+    return fallback.value
+
+
+def _question_agent(
+    state: SessionState,
+    target: Hypothesis,
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+    rejected_because: list[str],
+) -> AgentResult[Question]:
+    attempt: LlmAttempt[Question] | None = None
     if turn.llm is not None:
         provider, prompt = turn.llm, question_prompt()
-        question_attempt = LlmAttempt(
+        attempt = LlmAttempt(
             run=lambda: llm_question(
                 provider,
                 prompt,
@@ -235,29 +307,59 @@ def _ask_next(
                 state,
                 vocabulary,
                 strategy=instruction_for(turn.settings.question_strategy),
+                rejected_because=rejected_because or None,
             ),
             model=provider.model,
             prompt_version=prompt.id,
         )
-    question_result = run_agent(
+    result = run_agent(
         "question-agent",
         rules=lambda: rule_question(target),
-        llm=question_attempt,
+        llm=attempt,
         rules_reason="één concept per vraag",
         clock=turn.clock,
     )
-    turn.record(question_result)
-    question = question_result.value
-    if question is None:
-        return _ask_stop()
-    option = _pictogram(question.concept, target.label, vocabulary, turn)
-    if option is None:
-        # Zonder pictogram geen binary vraag (I4): dan liever "Wil je stoppen?" dan een leeg scherm.
-        return _ask_stop()
-    state.questions_asked.append(
-        AskedQuestion(turn=state.turn, concept=question.concept, text=question.text)
+    turn.record(result)
+    return result
+
+
+def _validate(
+    state: SessionState,
+    question: Question,
+    option: Option,
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+) -> list[Finding]:
+    """Keurt de vraag met het pictogram erbij; `clarify` (V5) is hier geen afkeuring."""
+    presentation = Presentation(
+        kind="question", mode="binary", text=question.text, options=[option]
     )
-    return Presentation(kind="question", mode="binary", text=question.text, options=[option])
+    findings = [
+        f
+        for f in validate_question(
+            concept=question.concept,
+            text=question.text,
+            presentation=presentation,
+            gaps=turn.gaps,
+            state=state,
+            settings=turn.settings,
+            vocabulary=vocabulary,
+            names=turn.names,
+        )
+        if f.action == "reject"
+    ]
+    reason = "; ".join(f"{f.rule}: {f.reason}" for f in findings) or None
+    turn.record(
+        AgentResult(
+            agent="validation-agent",
+            status="success",
+            value=findings,
+            meta=AgentMeta(model=None, prompt_version=RULES_VERSION, latency_ms=0),
+            validation="invalid" if findings else "valid",
+            reason=reason,
+        )
+    )
+    return findings
 
 
 def _pictogram(concept: str, label: str, vocabulary: VocabularyIndex, turn: _Turn) -> Option | None:

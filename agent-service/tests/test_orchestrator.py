@@ -28,7 +28,8 @@ class OrchestratorTest(unittest.TestCase):
         )
         self.assertEqual(response.state.last_presentation, response.presentation)
         self.assertEqual(
-            [d.agent for d in response.decisions], ["intent-agent", "question-agent", "icon-agent"]
+            [d.agent for d in response.decisions],
+            ["intent-agent", "icon-agent", "question-agent", "validation-agent"],
         )
         self.assertEqual(response.inferences[0].kind, "intent_hypotheses")
 

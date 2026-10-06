@@ -407,7 +407,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *ONTWERP: §9 (V1–V7).* De zeven regels als losse, benoemde controles.
   *Acceptatie:* één unittest per regel (geldig en ongeldig).
 
-- [ ] **N6.8 Opnieuw proberen bij een ongeldige vraag**
+- [x] **N6.8 Opnieuw proberen bij een ongeldige vraag**
   *ONTWERP: §4.2 (stap 6).* Ongeldig → Question Agent nog eens, met de reden erbij (max. 2 keer), daarna
   de terugval.
   *Acceptatie:* unittests: na twee ongeldige vragen komt de terugval; de reden staat in de tweede prompt.

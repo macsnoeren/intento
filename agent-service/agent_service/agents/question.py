@@ -43,7 +43,11 @@ def _label(vocabulary: VocabularyIndex, concept: str) -> str:
 
 
 def prompt_input(
-    target: Hypothesis, state: SessionState, vocabulary: VocabularyIndex, strategy: str
+    target: Hypothesis,
+    state: SessionState,
+    vocabulary: VocabularyIndex,
+    strategy: str,
+    rejected_because: list[str] | None = None,
 ) -> str:
     """De gebruikersprompt: concepten, woorden en eerdere vragen; nooit namen (V6)."""
     payload = {
@@ -60,6 +64,8 @@ def prompt_input(
         "gesteld": [question.text for question in state.questions_asked],
         "strategie": strategy,
     }
+    if rejected_because:
+        payload["afgekeurd"] = rejected_because
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -70,12 +76,13 @@ def llm_question(
     state: SessionState,
     vocabulary: VocabularyIndex,
     strategy: str = "",
+    rejected_because: list[str] | None = None,
     timeout: float = QUESTION_TIMEOUT_SECONDS,
 ) -> Question:
     """Vraagt het model om de vraag en kijkt hem na. Gooit bij elk probleem (de terugval volgt)."""
     raw = provider.complete_json(
         prompt.text,
-        prompt_input(target, state, vocabulary, strategy),
+        prompt_input(target, state, vocabulary, strategy, rejected_because),
         QuestionOutput.model_json_schema(),
         timeout,
     )

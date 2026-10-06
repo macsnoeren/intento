@@ -38,7 +38,7 @@ class QuestionAgentTest(unittest.TestCase):
         self.assertEqual(response.state.questions_asked[-1].text, "Heb je pijn?")
         d = decision(response)
         self.assertEqual(
-            (d.status, d.prompt_version, d.validation), ("success", "question-v1", "valid")
+            (d.status, d.prompt_version, d.validation), ("success", "question-v2", "valid")
         )
         # Het pictogram en het woord eronder blijven die van het item.
         [option] = response.presentation.options

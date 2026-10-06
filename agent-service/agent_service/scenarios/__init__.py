@@ -46,7 +46,8 @@ def _entry(
 
 
 def scenario_vocabulary() -> list[VocabularyEntry]:
-    """Een kleine Vocabulary als uit de startset: vijf startconcepten en een paar gewone woorden."""
+    """Een kleine Vocabulary als uit de startset: vijf startconcepten, een paar gewone woorden en
+    "geen afbeelding"."""
     return [
         _entry("v-pain", "pijn", "pain", 1, start=True, contexts=["health"]),
         _entry("v-eat", "eten", "eat", 2, start=True, contexts=["food_drink"]),
@@ -57,6 +58,8 @@ def scenario_vocabulary() -> list[VocabularyEntry]:
         _entry("v-belly", "buik", "belly", 11, contexts=["body"]),
         _entry("v-water", "water", "water", 12, contexts=["food_drink"]),
         _entry("v-sick", "ziek", "sick", 13, contexts=["health"]),
+        # Zoals in de echte startset: het neutrale pictogram voor een woord zonder pictogram (§8).
+        _entry("v-noimage", "geen afbeelding", "no_image", 9999, contexts=["other"]),
     ]
 
 

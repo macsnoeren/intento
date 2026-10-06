@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.8 — opnieuw proberen bij een ongeldige vraag
+
+- Elke vraag gaat met het pictogram erbij door V1 t/m V6; de keuring staat als `validation-agent` in de
+  beslissingen. Afgekeurd → de Question Agent nog eens met de reden (`afgekeurd`, prompt
+  `question-v2`); na twee ongeldige vragen de regelgebaseerde vraag (`fallback`, validatie `invalid`).
+  Het pictogram wordt nu vóór de vraag gekozen (één keer per beurt).
+- De scenario-Vocabulary heeft nu ook "geen afbeelding", zoals de echte startset: zonder dat item faalde
+  de Icon Agent op een eigen concept van het model en eindigde "bedoelt dorst" in "Wil je stoppen?".
+- Gemeten met `gpt-oss:120b-cloud`: 2/2 geslaagd, maar 10–15 vragen per gesprek (45–75 s): het model
+  blijft verfijnen met eigen concepten. N6.9 (maximum) en N6.10 (drempel) moeten dat begrenzen.
+
 ### N6.7 — Validation Agent: regels
 
 - `agent_service/agents/validation.py`: V1 t/m V7 als losse, benoemde controles met een `Finding`

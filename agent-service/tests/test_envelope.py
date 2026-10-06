@@ -101,7 +101,7 @@ class RunAgentTest(unittest.TestCase):
 class PromptTest(unittest.TestCase):
     def test_laadt_de_hoogste_versie(self) -> None:
         prompt = load_prompt("question")
-        self.assertEqual(prompt.id, "question-v1")
+        self.assertEqual(prompt.id, "question-v2")
         self.assertIn("JA of\nNEE", prompt.text)
 
     def test_vaste_versie_en_onbekend(self) -> None:

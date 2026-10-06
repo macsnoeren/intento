@@ -98,6 +98,10 @@ eigen concept noemen als niets in de Vocabulary past (bv. `dizziness`/"duizelig"
 stand-in met gap), V4 (niet eerder gesteld), V5 (tegenstrijdige antwoorden → `clarify`), V6 (aantal
 symbolen per vorm) en V7 (voorstel: lengte, drempel, minstens één antwoord) als losse, benoemde
 functies die een `Finding` met regel, reden en actie geven. De reden bevat geen gespreksinhoud.
+Elke vraag gaat met het pictogram erbij door V1 t/m V6 (`validation-agent` in de beslissingen).
+Afgekeurd → de Question Agent nog eens, met de reden in `afgekeurd` (prompt `question-v2`); na twee
+ongeldige vragen volgt de regelgebaseerde vraag. Contactnamen gaan alleen mee om te controleren dat ze
+nooit in een vraag staan (V2); ze komen nooit in een prompt.
 
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).
