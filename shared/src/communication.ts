@@ -60,3 +60,9 @@ export type AnswerRequest = z.infer<typeof answerRequestSchema>;
 /** ↩ Terug vanaf het scherm van beurt `turn`; een verouderde beurt (dubbele tik) geeft 409. */
 export const backRequestSchema = z.strictObject({ turn: turnNumber });
 export type BackRequest = z.infer<typeof backRequestSchema>;
+
+/** `GET /communication/sessions/current`: het lopende gesprek om te hervatten, of `null`. */
+export const currentSessionResponseSchema = z.strictObject({
+  current: communicationTurnSchema.nullable(),
+});
+export type CurrentSessionResponse = z.infer<typeof currentSessionResponseSchema>;

@@ -28,6 +28,11 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.8 — hervatten
+
+- `GET /communication/sessions/current` (apparaatsessie): `{ current }` met het huidige scherm van het
+  lopende gesprek, of `{ current: null }`. Geen agentaanroep; gestopte gesprekken worden niet hervat.
+
 ### N4.7 — Terug en Stoppen
 
 - `POST /communication/sessions/:id/back` met `{ turn }`: zet de vorige momentopname exact terug als

@@ -31,6 +31,7 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
 import {
   createSession,
   endSession,
+  findActiveSession,
   findSessionForUser,
   lastTurnNumber,
   loadTurn,
@@ -442,4 +443,23 @@ export async function stopConversation(
   const session = await loadActiveSession(prisma, device, sessionId);
   await recordObserved(prisma, session.id, session.currentTurn, { type: 'stop' });
   await endSession(prisma, session.id, 'stopped', now());
+}
+
+/**
+ * Het lopende gesprek hervatten (na herladen of een herstart van de tablet): precies het scherm dat er
+ * stond, met verse afbeeldings-URL's. Geen lopend gesprek → `null`; een gestopt of afgerond gesprek
+ * wordt nooit hervat.
+ */
+export async function currentConversation(
+  deps: ConversationDeps,
+  device: DeviceModel,
+): Promise<CommunicationTurn | null> {
+  const { prisma, encryptor, env } = deps;
+  const now = deps.now ?? (() => new Date());
+  const session = await findActiveSession(prisma, device.userId);
+  if (!session) return null;
+  const current = await loadTurn(prisma, encryptor, session.id, session.currentTurn);
+  if (!current) return null;
+  const items = await itemsOnScreen(prisma, session.organizationId, current.presentation);
+  return toTabletTurn(env, session.id, current.turn, current.presentation, items, now());
 }

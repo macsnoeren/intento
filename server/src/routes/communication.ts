@@ -4,9 +4,14 @@ import type { PrismaClient } from '../generated/prisma/client.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import type { AgentClient } from '../agents/client.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
-import { answerRequestSchema, backRequestSchema } from '@intento/shared';
+import {
+  answerRequestSchema,
+  backRequestSchema,
+  type CurrentSessionResponse,
+} from '@intento/shared';
 import {
   answerConversation,
+  currentConversation,
   goBack,
   startConversation,
   stopConversation,
@@ -19,6 +24,8 @@ import {
  *
  * - `POST /communication/sessions` — start een gesprek (een lopend gesprek wordt gestopt). Antwoord:
  *   `{ sessionId, turn, presentation }`. Is de agentdienst er niet: 503 `AGENT_UNAVAILABLE`.
+ * - `GET /communication/sessions/current` — het lopende gesprek hervatten: `{ current }` of
+ *   `{ current: null }`.
  * - `POST /communication/sessions/:id/answer` — JA/NEE, een gekozen tegel of "Geen van deze" op het
  *   huidige scherm. Een verouderde `turn` geeft 409 `STALE_TURN`.
  * - `POST /communication/sessions/:id/back` — ↩ Terug: `{ turn }`; zet het vorige scherm exact terug,
@@ -40,6 +47,15 @@ export function registerCommunicationRoutes(
       const device = requireDevice(request);
       const turn = await startConversation(deps, device);
       return reply.status(201).send(turn);
+    },
+  );
+
+  app.get(
+    '/communication/sessions/current',
+    { preHandler: deviceAuthorize(prisma), config: { rateLimit } },
+    async (request): Promise<CurrentSessionResponse> => {
+      const device = requireDevice(request);
+      return { current: await currentConversation(deps, device) };
     },
   );
 

@@ -1,6 +1,11 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { communicationTurnSchema, type TurnRequest, type TurnResponse } from '@intento/shared';
+import {
+  communicationTurnSchema,
+  currentSessionResponseSchema,
+  type TurnRequest,
+  type TurnResponse,
+} from '@intento/shared';
 import { buildApp } from '../app.js';
 import { prisma } from '../db/prisma.js';
 import { AgentUnavailableError, type FakeAgentClient } from '../agents/client.js';
@@ -581,5 +586,98 @@ describe('↩ Terug en ⏹ Stoppen', () => {
     expect(
       await prisma.communicationSession.findUniqueOrThrow({ where: { id: first.sessionId } }),
     ).toMatchObject({ status: 'active', currentTurn: 1 });
+  });
+});
+
+describe('GET /communication/sessions/current', () => {
+  let app: FastifyInstance;
+  let agents: FakeAgentClient;
+
+  beforeEach(async () => {
+    await resetAuthData();
+    await prisma.vocabularyItem.deleteMany();
+    agents = fakeAgents();
+    app = await buildApp({ env: testEnv(), agents });
+    await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain', sortOrder: 1 });
+    await createVocabularyItem(prisma, { label: 'eten', concept: 'eat', sortOrder: 2 });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  afterAll(async () => {
+    await resetAuthData();
+    await prisma.vocabularyItem.deleteMany();
+  });
+
+  async function current(cookie: string) {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/communication/sessions/current',
+      headers: { cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    return currentSessionResponseSchema.parse(res.json()).current;
+  }
+
+  it('geeft na herladen exact hetzelfde scherm, zonder agentaanroep', async () => {
+    const user = await seedUser('Sanne');
+    const cookie = await deviceCookie(app, user.id);
+    expect(await current(cookie)).toBeNull();
+
+    const first = communicationTurnSchema.parse(
+      (
+        await app.inject({ method: 'POST', url: '/communication/sessions', headers: { cookie } })
+      ).json(),
+    );
+    const answered = communicationTurnSchema.parse(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/communication/sessions/${first.sessionId}/answer`,
+          headers: { cookie },
+          payload: { turn: 0, answer: 'no' },
+        })
+      ).json(),
+    );
+    const calls = agents.requests.length;
+
+    expect(await current(cookie)).toEqual(answered);
+    expect(agents.requests).toHaveLength(calls);
+  });
+
+  it('hervat geen gestopt gesprek', async () => {
+    const user = await seedUser('Sanne');
+    const cookie = await deviceCookie(app, user.id);
+    const first = communicationTurnSchema.parse(
+      (
+        await app.inject({ method: 'POST', url: '/communication/sessions', headers: { cookie } })
+      ).json(),
+    );
+    await app.inject({
+      method: 'POST',
+      url: `/communication/sessions/${first.sessionId}/stop`,
+      headers: { cookie },
+    });
+    expect(await current(cookie)).toBeNull();
+  });
+
+  it('toont alleen het eigen gesprek en vereist een apparaat', async () => {
+    const orgA = await seedOrganization('A');
+    const orgB = await seedOrganization('B');
+    const a = await seedUser('Sanne', orgA);
+    const b = await seedUser('Tom', orgB);
+    const cookieA = await deviceCookie(app, a.id);
+    await app.inject({
+      method: 'POST',
+      url: '/communication/sessions',
+      headers: { cookie: cookieA },
+    });
+
+    expect(await current(cookieA)).not.toBeNull();
+    expect(await current(await deviceCookie(app, b.id))).toBeNull();
+    const anonymous = await app.inject({ method: 'GET', url: '/communication/sessions/current' });
+    expect(anonymous.statusCode).toBe(401);
   });
 });

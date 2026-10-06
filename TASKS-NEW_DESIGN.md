@@ -301,7 +301,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   niet mogelijk op beurt 0. `stop` → status `stopped` (Observed `stop`).
   *Acceptatie:* tests: na Terug is de presentatie exact gelijk aan die van de vorige beurt.
 
-- [ ] **N4.8 Hervatten**
+- [x] **N4.8 Hervatten**
   *ONTWERP: §51.* `GET /communication/sessions/current`: de huidige presentatie van het lopende gesprek,
   of `null`.
   *Acceptatie:* tests: na herladen dezelfde presentatie; een gestopt gesprek wordt niet hervat.
