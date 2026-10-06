@@ -2043,3 +2043,31 @@ body {
 .tablet__error {
   text-align: center;
 }
+
+/* Eén of meer pictogrammen naast elkaar (bij "Bedoel je …?" alle pictogrammen van de boodschap). */
+.pictograms {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.proposal .pictogram__image {
+  width: clamp(7rem, 20vw, 11rem);
+  height: clamp(7rem, 20vw, 11rem);
+}
+
+/* Klaar: de bevestigde boodschap groot in beeld. */
+.tablet__done {
+  margin: auto 0;
+}
+
+.tablet__done .tablet__message {
+  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  font-weight: 800;
+}
+
+.tablet__new {
+  font-size: 1.35rem;
+  padding: 1rem 2rem;
+}

@@ -143,11 +143,17 @@ export function TabletConversation({
   );
 
   if (presentation.kind === 'done') {
+    // Klaar (§48): de bevestigde boodschap groot in beeld. Het gesprek is voorbij; geen Terug meer.
     return (
       <>
         <section className="tablet__done">
-          <p className="tablet__message">{presentation.message ?? presentation.text}</p>
-          <button className="button button--primary" type="button" onClick={() => setTurn(null)}>
+          <h1 className="tablet__message">{presentation.message ?? presentation.text}</h1>
+          <button
+            className="button button--primary tablet__new"
+            type="button"
+            disabled={busy}
+            onClick={() => void start()}
+          >
             Nieuw gesprek
           </button>
         </section>
@@ -170,11 +176,18 @@ export function TabletConversation({
     );
   }
 
-  const pictogram = presentation.options[0];
+  // Binary vraag, "Bedoel je …?" en alle andere JA/NEE-schermen: pictogram(men), tekst, JA links,
+  // NEE rechts. Bij een voorstel staan alle pictogrammen van de boodschap naast elkaar.
   return (
     <>
-      <section className="binary">
-        {pictogram ? <Pictogram option={pictogram} showText={showText} /> : null}
+      <section className={presentation.kind === 'confirm_message' ? 'binary proposal' : 'binary'}>
+        {presentation.options.length > 0 ? (
+          <div className="pictograms">
+            {presentation.options.map((option) => (
+              <Pictogram key={option.ref} option={option} showText={showText} />
+            ))}
+          </div>
+        ) : null}
         <h1 className="tablet__prompt">{presentation.text}</h1>
         <div className="binary__answers">
           <button

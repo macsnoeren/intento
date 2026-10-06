@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N4.11 — tablet: "Bedoel je …?" en Klaar
+
+- Het voorstelscherm toont alle pictogrammen van de boodschap naast elkaar, "Bedoel je: …?" en JA/NEE
+  op de vaste plekken, met ↩ Terug en ⏹ Stoppen.
+- Klaar: de bevestigde boodschap groot in beeld (als kop), zonder JA/NEE of Terug, met "Nieuw gesprek"
+  dat direct een nieuw gesprek start. Rooktest in de browser van start tot Klaar.
+
 ### N4.10 — bevestigde boodschap
 
 - Migratie `communication_intent`: `CommunicationIntent` (bericht versleuteld, concepten, confidence,

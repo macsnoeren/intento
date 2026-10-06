@@ -319,7 +319,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* tests: zonder JA geen intent; NEE slaat niets op; een agent die zelf "bevestigd" meldt,
   wordt genegeerd.
 
-- [ ] **N4.11 Tablet: "Bedoel je …?" en Klaar**
+- [x] **N4.11 Tablet: "Bedoel je …?" en Klaar**
   *ONTWERP: §48.* Het voorstelscherm (pictogram + "Bedoel je: …?" + JA/NEE) en het Klaar-scherm
   (boodschap groot, "Nieuw gesprek").
   *Acceptatie:* componenttests; rooktest van start tot Klaar.

@@ -117,6 +117,38 @@ function fakeDeviceApi(
         log.push(['answer', sessionId, answer]);
         if (options.failAnswer) return Promise.reject(options.failAnswer);
         const turn = (current?.turn ?? 0) + 1;
+        const yes = 'answer' in answer && answer.answer === 'yes';
+        const shown = current?.presentation;
+        // JA op een vraag → "Bedoel je: …?"; JA daarop → Klaar; NEE → het volgende woord.
+        if (yes && shown?.kind === 'confirm_message') {
+          const message = shown.message ?? '';
+          return Promise.resolve(
+            show({
+              sessionId,
+              turn,
+              canGoBack: false,
+              presentation: { kind: 'done', mode: 'binary', text: message, message, options: [] },
+            }),
+          );
+        }
+        if (yes && shown?.kind === 'question') {
+          const word = shown.options[0]?.label ?? 'pijn';
+          const message = `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+          return Promise.resolve(
+            show({
+              sessionId,
+              turn,
+              canGoBack: true,
+              presentation: {
+                kind: 'confirm_message',
+                mode: 'binary',
+                text: `Bedoel je: ${message}?`,
+                message,
+                options: shown.options,
+              },
+            }),
+          );
+        }
         const word = WORDS[turn % WORDS.length] ?? 'pijn';
         return Promise.resolve(show(screen0(turn, word, true)));
       },
@@ -261,7 +293,7 @@ describe('gesprek op de tablet: start en binary (N4.9)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'NEE' }));
     await screen.findByRole('heading', { name: 'Eten?' });
     fireEvent.click(screen.getByRole('button', { name: 'JA' }));
-    await screen.findByRole('heading', { name: 'Drinken?' });
+    await screen.findByRole('heading', { name: 'Bedoel je: Eten?' });
 
     const answers = fake.log.filter((call) => call[0] === 'answer');
     expect(answers.map((call) => [call[1], { ...call[2], responseTimeMs: 0 }])).toEqual([
@@ -319,5 +351,55 @@ describe('gesprek op de tablet: start en binary (N4.9)', () => {
     await started(fake);
     expect(screen.queryByText('pijn')).toBeNull();
     expect(screen.getByRole('img', { name: 'pijn' })).toBeTruthy();
+  });
+});
+
+describe('gesprek op de tablet: "Bedoel je …?" en Klaar (N4.11)', () => {
+  async function toProposal(fake = fakeDeviceApi({ linked: true })) {
+    render(<TabletApp api={fake.api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ik wil iets zeggen' }));
+    await screen.findByRole('heading', { name: 'Pijn?' });
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    await screen.findByRole('heading', { name: 'Bedoel je: Pijn?' });
+    return fake;
+  }
+
+  it('toont het voorstel met pictogram, de vraag en JA/NEE, Terug en Stoppen', async () => {
+    await toProposal();
+    expect(document.querySelectorAll('.proposal img.pictogram__image')).toHaveLength(1);
+    expect(screen.getByText('pijn')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'JA' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'NEE' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '↩ Terug' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '⏹ Stoppen' })).toBeTruthy();
+  });
+
+  it('JA toont Klaar met de boodschap groot; Nieuw gesprek begint opnieuw', async () => {
+    const fake = await toProposal();
+    fireEvent.click(screen.getByRole('button', { name: 'JA' }));
+    expect(await screen.findByRole('heading', { name: 'Pijn', level: 1 })).toBeTruthy();
+    expect(fake.log.at(-1)).toEqual([
+      'answer',
+      's-1',
+      expect.objectContaining({ turn: 1, answer: 'yes' }),
+    ]);
+    // Klaar is het einde: geen JA/NEE, geen Terug.
+    expect(screen.queryByRole('button', { name: 'JA' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '↩ Terug' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Nieuw gesprek' }));
+    expect(await screen.findByRole('heading', { name: 'Pijn?' })).toBeTruthy();
+    expect(fake.log.filter((call) => call[0] === 'start')).toHaveLength(2);
+  });
+
+  it('NEE op het voorstel gaat verder met vragen', async () => {
+    const fake = await toProposal();
+    fireEvent.click(screen.getByRole('button', { name: 'NEE' }));
+    expect(await screen.findByRole('heading', { name: 'Drinken?' })).toBeTruthy();
+    expect(fake.log.at(-1)).toEqual([
+      'answer',
+      's-1',
+      expect.objectContaining({ turn: 1, answer: 'no' }),
+    ]);
   });
 });
