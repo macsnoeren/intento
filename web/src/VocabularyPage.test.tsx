@@ -126,7 +126,7 @@ describe('Vocabulary-overzicht', () => {
     renderPage(api);
     await screen.findByLabelText('woord 1');
     expect(screen.getByText('Pagina 1 van 2')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Vorige' }).disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'Vorige' }).hasAttribute('disabled')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Volgende' }));
     expect(await screen.findByLabelText('woord 25')).toBeTruthy();
