@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.7 — seed van de startset
+
+- `server/src/vocabulary/seed.ts`: platformitems uit manifest + vertaling + afbeelding, alleen met een
+  Nederlandse vertaling én een geaccepteerde afbeelding; licentie (`CC-BY-SA-4.0`), uitgever en bron per
+  item; `labelStatus` uit de vertaling; startconcepten in vaste volgorde. Plus het eigen item "geen
+  afbeelding" (eenvoudige eigen SVG, licentie `own`).
+- Idempotent; bij herseeden blijven in de app nagekeken labels en de status staan. Opgenomen in
+  `npm run db:seed`: 99 platformitems (57 Mulberry, 41 zorgsymbolen, "geen afbeelding").
+
 ### N2.6 — afbeeldingen downloaden
 
 - `npm run vocabulary:images -- <slug>` downloadt de afbeeldingen uit het manifest naar `STORAGE_DIR`

@@ -181,7 +181,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests met een nep-server (andere host → geweigerd, te groot → geweigerd, tweede run
   downloadt niets); handmatige run voor beide sets.
 
-- [ ] **N2.7 Seed van de startset**
+- [x] **N2.7 Seed van de startset**
   *ONTWERP: §15, §15.1.* De seed maakt platformitems van manifest + vertaling + afbeelding: alleen
   symbolen met een Nederlandse vertaling en een geaccepteerde afbeelding; licentie, uitgever en bron per
   item; `labelStatus` uit de vertaling. Plus één eigen item "geen afbeelding" (eenvoudige eigen SVG,

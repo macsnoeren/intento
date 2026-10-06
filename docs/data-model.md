@@ -89,7 +89,11 @@ dezelfde code draaien. De geseede bootstrap-admin wordt meteen als **geverifieer
 is door de operator ingericht, niet via publieke zelfaanmelding. Bij **herseeden** wordt een bestaande
 bootstrap-admin die nog `emailVerifiedAt = null` heeft (bv. aangemaakt vóór de T1.4-migratie) alsnog
 geverifieerd (T1.5, gerichte `updateMany` op `emailVerifiedAt: null`); een al gezette verificatiedatum en
-het wachtwoord blijven ongemoeid. De Vocabulary-startset komt in N2.7 in de seed.
+het wachtwoord blijven ongemoeid. Daarna seedt het de **startset van de Vocabulary** (`server/src/vocabulary/seed.ts`): platformitems uit
+manifest + Nederlandse vertaling + gedownloade afbeelding (`vocabulary/`, `STORAGE_DIR`). Alleen symbolen
+met een vertaling én een geaccepteerde afbeelding komen erin; elk item krijgt licentie, uitgever en bron.
+Plus één eigen item "geen afbeelding" (licentie `own`). Idempotent via `(sourceName, sourceRef)`;
+labels van een in de app nagekeken item en de status (`retired`) worden bij herseeden niet overschreven.
 
 ## Migratiegeschiedenis (kort)
 

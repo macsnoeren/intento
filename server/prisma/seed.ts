@@ -1,5 +1,6 @@
 import { prisma } from '../src/db/prisma.js';
 import { seedBootstrapOrgAndAdmin } from '../src/db/bootstrap-seed.js';
+import { seedStartSet } from '../src/vocabulary/seed.js';
 
 /**
  * Seed-script (idempotent, `npm run db:seed`).
@@ -29,9 +30,20 @@ async function main(): Promise<void> {
     adminPassword,
   });
 
+  // Startset van de Vocabulary (N2.7): manifest + vertaling + gedownloade afbeelding. Zonder
+  // afbeeldingen (`npm run vocabulary:images -- <slug>`) komen er alleen geen symbolen bij.
+  const storageDir = process.env.STORAGE_DIR || './storage';
+  const reports = await seedStartSet(prisma, storageDir);
+  const vocabularyCount = await prisma.vocabularyItem.count({ where: { organizationId: null } });
+
   console.log(
-    `Seed klaar: organisatie "${organization.name}" (${organization.id}), admin "${admin.email}".`,
+    `Seed klaar: organisatie "${organization.name}" (${organization.id}), admin "${admin.email}", ${vocabularyCount} platformitems in de Vocabulary.`,
   );
+  for (const [slug, report] of Object.entries(reports)) {
+    console.log(
+      `  ${slug}: ${report.created} nieuw, ${report.updated} bijgewerkt, ${report.skippedNoImage.length} zonder afbeelding overgeslagen.`,
+    );
+  }
   if (verifiedExistingAdmin) {
     console.log(
       'ℹ️  Bestaande bootstrap-admin was nog niet geverifieerd — nu alsnog geverifieerd.',

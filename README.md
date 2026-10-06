@@ -189,7 +189,17 @@ STARTTLS-upgrade niet, dan faalt de verzending in plaats van in platte tekst doo
 Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account (meteen als
 geverifieerd aangemaakt; herseeden verifieert een nog ongeverifieerde bootstrap-admin alsnog en laat het
 wachtwoord ongemoeid). E-mail/wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`
-(default `admin@intento.local` / `change-me-admin` — buiten lokaal ontwikkelen overschrijven). Login zet een ondertekende httpOnly-sessie-cookie:
+(default `admin@intento.local` / `change-me-admin` — buiten lokaal ontwikkelen overschrijven). De seed
+zet ook de **startset van de Vocabulary** neer (Mulberry + zorgsymbolen, in het Nederlands); daarvoor moeten
+de afbeeldingen eerst in de opslag staan:
+
+```bash
+npm run vocabulary:images -- mulberry
+npm run vocabulary:images -- corona-symbols
+npm run db:seed --workspace=server
+```
+
+Zie [vocabulary/README.md](vocabulary/README.md). Login zet een ondertekende httpOnly-sessie-cookie:
 
 ```bash
 # Inloggen (cookie in cookies.txt bewaren) en het eigen account opvragen:
