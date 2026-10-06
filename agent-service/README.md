@@ -81,6 +81,11 @@ gesteld is; anders de terugval "{Label}?". Het pictogram en het woord eronder bl
 instructie. De instructie van de strategie uit de instellingen gaat als `strategie` mee naar de Question
 Agent (niet naar andere agents). De sleutels zijn getest tegen `contracts/question_strategies.json`.
 
+**Icon Agent, stap 1** (`agents/icon.py`, §8): exact op concept, label of synoniem van een item
+(hoofdletters, spaties en `_` maken niet uit) → `strong`/`exact`, zonder LLM. Het woord onder het
+pictogram is altijd een woord van dat item (I1). Er wordt nooit een pictogram verzonnen; zonder
+treffer volgt (vanaf N6.6) het dichtstbijzijnde pictogram met een gap.
+
 `FakeProvider(routes={"Intent Agent": [...], "Question Agent": [...]})` geeft elke agent een eigen rij
 antwoorden (de sleutel is een stukje van zijn systeemprompt).
 

@@ -17,9 +17,10 @@ from collections.abc import Callable
 from typing import Any
 
 from .agents.envelope import AgentResult, LlmAttempt, run_agent
+from .agents.icon import exact_option
 from .agents.intent import IntentResult, intent_prompt, llm_intent, rules_intent
 from .agents.question import llm_question, question_prompt
-from .agents.rules import Question, capitalize, rule_icon, rule_question
+from .agents.rules import Question, capitalize, rule_question
 from .agents.strategies import instruction_for
 from .contracts import (
     CONTRACT_VERSION,
@@ -248,7 +249,7 @@ def _ask_next(
         return _ask_stop()
     icon_result = run_agent(
         "icon-agent",
-        rules=lambda: rule_icon(question.concept, target.label, vocabulary),
+        rules=lambda: exact_option(question.concept, target.label, vocabulary),
         rules_reason="exact",
         clock=turn.clock,
     )
@@ -333,7 +334,7 @@ def _propose(
             confidence=0.9,
         )
     )
-    option = rule_icon(intent.concept, intent.label, vocabulary)
+    option = exact_option(intent.concept, intent.label, vocabulary)
     return Presentation(
         kind="confirm_message",
         mode="binary",

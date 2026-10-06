@@ -28,6 +28,13 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N6.5 — Icon Agent: exact
+
+- `agent_service/agents/icon.py`: exact op concept, label of synoniem (genormaliseerd voor
+  hoofdletters, spaties en `_`) → `semantic_match: strong`, `representation: exact`, zonder LLM; het
+  woord onder het pictogram blijft een woord van het item. Vervangt `rule_icon`.
+  `VocabularyIndex.for_label` zoekt op label of synoniem.
+
 ### N6.4 — vraagstrategieën
 
 - `agent_service/agents/strategies.py`: `general_to_specific`, `concrete_first` en `short_and_calm` met

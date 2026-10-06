@@ -392,7 +392,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Python gelijk zijn.
   *Acceptatie:* unittest: de instructie staat in de prompt (FakeProvider); contracttest groen.
 
-- [ ] **N6.5 Icon Agent: exact**
+- [x] **N6.5 Icon Agent: exact**
   *ONTWERP: §8 (stap 1).* Concept, label of synoniem van een item → `strong`/`exact`. Zonder LLM.
   *Acceptatie:* unittests (concept, label, synoniem, hoofdletters/spaties, geen treffer).
 

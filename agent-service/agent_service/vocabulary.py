@@ -22,15 +22,23 @@ class VocabularyIndex:
         self._by_id = {entry.id: entry for entry in self.entries}
         # Concept → eerste item (in vaste volgorde) dat dat concept draagt.
         self._by_concept: dict[str, VocabularyEntry] = {}
+        # Woord (label of synoniem) → eerste item met dat woord.
+        self._by_label: dict[str, VocabularyEntry] = {}
         for entry in self.entries:
             for concept in entry.concepts:
                 self._by_concept.setdefault(normalize(concept), entry)
+            for label in entry.labels:
+                self._by_label.setdefault(normalize(label), entry)
 
     def get(self, item_id: str) -> VocabularyEntry | None:
         return self._by_id.get(item_id)
 
     def for_concept(self, concept: str) -> VocabularyEntry | None:
         return self._by_concept.get(normalize(concept))
+
+    def for_label(self, label: str) -> VocabularyEntry | None:
+        """Het item met dit woord als label of synoniem."""
+        return self._by_label.get(normalize(label))
 
     def start_items(self) -> list[VocabularyEntry]:
         """De startconcepten in vaste volgorde (§6: start)."""
