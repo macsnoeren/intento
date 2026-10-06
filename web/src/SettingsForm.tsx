@@ -1,20 +1,63 @@
 import { useState, type FormEvent } from 'react';
 import {
+  MAX_QUESTIONS_MAX,
+  MAX_QUESTIONS_MIN,
+  OPTIONS_PER_SCREEN_MAX,
+  OPTIONS_PER_SCREEN_MIN,
+  QUESTION_STRATEGY_CATALOG,
   SPEECH_VOICE_CATALOG,
   speechVoiceSchema,
+  type InteractionModeSetting,
   type UpdateSettingsRequest,
   type UserPublic,
 } from '@intento/shared';
 import { ApiRequestError } from './api.ts';
 
+/** De vormen met uitleg in gewone taal (INTENTO-NEW-DESIGN §11–§14). */
+export const INTERACTION_MODE_OPTIONS: readonly {
+  key: InteractionModeSetting;
+  label: string;
+  description: string;
+}[] = [
+  {
+    key: 'binary',
+    label: 'Ja of nee',
+    description:
+      'Eén pictogram met een vraag en twee knoppen: JA en NEE. Voor wie goed ja en nee kan zeggen, maar moeite heeft met kiezen uit meer dingen tegelijk.',
+  },
+  {
+    key: 'multi',
+    label: 'Meerdere pictogrammen',
+    description:
+      'Een vraag met een paar pictogrammen om uit te kiezen, plus "Geen van deze". Voor wie makkelijk kiest uit een rijtje.',
+  },
+  {
+    key: 'ai',
+    label: 'Laat Intento kiezen',
+    description:
+      'Intento begint met wat bij deze persoon het best werkte en wisselt alleen met een goede reden, nooit binnen drie vragen. Elke wissel wordt vastgelegd.',
+  },
+];
+
 /**
- * Instellingenformulier voor het communicatieprofiel van één gebruiker (INTENTO-NEW-DESIGN §50).
- * Opslaan roept `PUT /users/{id}/settings` aan met het volledige profiel; velden die hier (nog) niet
- * staan, gaan ongewijzigd mee. De nieuwe communicatie-instellingen volgen in N3.2.
+ * Instellingenformulier voor het communicatieprofiel van één gebruiker (INTENTO-NEW-DESIGN §7.1, §50).
+ * Opslaan roept `PUT /users/{id}/settings` aan met het volledige profiel. Elke keuze heeft uitleg in
+ * gewone taal, want de begeleider kiest hier hoe deze persoon communiceert. "Opties per scherm" staat
+ * er alleen bij multi-icon: bij ja/nee is het altijd één pictogram.
  *
  * De **stem** heeft een luisterknop: een stem kies je op gehoor en niet op een naam. Beluisteren
  * verandert niets — de keuze wordt pas bij Opslaan bewaard.
  */
+/** Wat Experience betekent, in gewone taal (§22, V2). Ook gebruikt bij het aanmaken van een gebruiker. */
+export const EXPERIENCE_EXPLANATION =
+  'Intento onthoudt welke pictogrammen, contacten en vorm deze persoon vaak kiest en zet die eerder in beeld. Er verdwijnt nooit een keuze. Uitzetten kan altijd; dan wordt er niets meer onthouden.';
+
+/** Een getal binnen de grenzen; een leeg of ongeldig veld laat de vorige waarde staan. */
+function clamp(value: number, min: number, max: number, previous: number): number {
+  if (!Number.isFinite(value)) return previous;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
 export function SettingsForm({
   user,
   onSave,
@@ -73,6 +116,116 @@ export function SettingsForm({
       onSubmit={(e) => void handleSubmit(e)}
       aria-label={`Instellingen voor ${user.name}`}
     >
+      <fieldset className="field">
+        <legend className="field__label">Hoe wordt er gevraagd</legend>
+        <div className="choice-list">
+          {INTERACTION_MODE_OPTIONS.map((option) => (
+            <label key={option.key} className="choice-block">
+              <input
+                type="radio"
+                name="interactionMode"
+                value={option.key}
+                checked={settings.interactionMode === option.key}
+                onChange={() => setSettings((s) => ({ ...s, interactionMode: option.key }))}
+              />
+              <span>
+                <strong>{option.label}</strong>
+                <small className="choice-block__hint">{option.description}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      {settings.interactionMode === 'multi' ? (
+        <label className="field">
+          <span className="field__label">Pictogrammen per scherm</span>
+          <small className="choice-block__hint">
+            Minder is rustiger, meer is sneller. Tussen {OPTIONS_PER_SCREEN_MIN} en{' '}
+            {OPTIONS_PER_SCREEN_MAX}.
+          </small>
+          <input
+            className="field__input"
+            type="number"
+            name="optionsPerScreen"
+            min={OPTIONS_PER_SCREEN_MIN}
+            max={OPTIONS_PER_SCREEN_MAX}
+            value={settings.optionsPerScreen}
+            onChange={(e) =>
+              setSettings((s) => ({
+                ...s,
+                optionsPerScreen: clamp(
+                  e.target.valueAsNumber,
+                  OPTIONS_PER_SCREEN_MIN,
+                  OPTIONS_PER_SCREEN_MAX,
+                  s.optionsPerScreen,
+                ),
+              }))
+            }
+          />
+        </label>
+      ) : null}
+
+      <fieldset className="field">
+        <legend className="field__label">Manier van vragen</legend>
+        <div className="choice-list">
+          {QUESTION_STRATEGY_CATALOG.map((strategy) => (
+            <label key={strategy.key} className="choice-block">
+              <input
+                type="radio"
+                name="questionStrategy"
+                value={strategy.key}
+                checked={settings.questionStrategy === strategy.key}
+                onChange={() => setSettings((s) => ({ ...s, questionStrategy: strategy.key }))}
+              />
+              <span>
+                <strong>{strategy.label}</strong>
+                <small className="choice-block__hint">{strategy.description}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <label className="field">
+        <span className="field__label">Hoogstens zoveel vragen per gesprek</span>
+        <small className="choice-block__hint">
+          Daarna stelt Intento voor wat het het meest waarschijnlijk vindt, en vraagt anders of je
+          wilt stoppen. Tussen {MAX_QUESTIONS_MIN} en {MAX_QUESTIONS_MAX}.
+        </small>
+        <input
+          className="field__input"
+          type="number"
+          name="maxQuestions"
+          min={MAX_QUESTIONS_MIN}
+          max={MAX_QUESTIONS_MAX}
+          value={settings.maxQuestions}
+          onChange={(e) =>
+            setSettings((s) => ({
+              ...s,
+              maxQuestions: clamp(
+                e.target.valueAsNumber,
+                MAX_QUESTIONS_MIN,
+                MAX_QUESTIONS_MAX,
+                s.maxQuestions,
+              ),
+            }))
+          }
+        />
+      </label>
+
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={settings.experienceEnabled}
+          onChange={(e) => setSettings((s) => ({ ...s, experienceEnabled: e.target.checked }))}
+        />
+        <span>
+          Leren van eerdere gesprekken
+          <small className="choice-block__hint">{EXPERIENCE_EXPLANATION}</small>
+        </span>
+      </label>
+
       <label className="toggle">
         <input
           type="checkbox"

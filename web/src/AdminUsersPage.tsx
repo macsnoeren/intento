@@ -7,7 +7,7 @@ import {
   type UserPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { SettingsForm } from './SettingsForm.tsx';
+import { EXPERIENCE_EXPLANATION, SettingsForm } from './SettingsForm.tsx';
 import { playAudioBlob, speakWithDeviceVoice } from './speech.ts';
 import { AccountsPanel } from './AccountsPanel.tsx';
 import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
@@ -86,6 +86,8 @@ export function AdminUsersPage({
   const [tab, setTab] = useState<UsersTab>('users');
   const [dialog, setDialog] = useState<UsersDialog>(null);
   const [newName, setNewName] = useState('');
+  // Experience staat standaard aan, maar zichtbaar in de dialoog, zodat de beheerder bewust kiest (V2).
+  const [newExperience, setNewExperience] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // Telt op na elk nieuw begeleider-account; zit in de `key` van de koppelweergave zodat die
@@ -112,8 +114,12 @@ export function AdminUsersPage({
     event.preventDefault();
     setError(null);
     try {
-      const created = await api.createUser({ name: newName.trim() });
+      const created = await api.createUser({
+        name: newName.trim(),
+        experienceEnabled: newExperience,
+      });
       setNewName('');
+      setNewExperience(true);
       setDialog(null);
       await refresh();
       // Meteen door naar zijn scherm: een verse gebruiker heeft nog een profiel nodig.
@@ -281,6 +287,17 @@ export function AdminUsersPage({
                 autoFocus
               />
             </label>
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={newExperience}
+                onChange={(e) => setNewExperience(e.target.checked)}
+              />
+              <span>
+                Leren van eerdere gesprekken
+                <small className="choice-block__hint">{EXPERIENCE_EXPLANATION}</small>
+              </span>
+            </label>
             <div className="form__actions">
               <button className="button button--primary" type="submit" disabled={!newName.trim()}>
                 Toevoegen
@@ -360,7 +377,7 @@ function UserDetailPage({
     <AppShell
       account={account}
       title={user.name}
-      subtitle="Communicatieprofiel, begeleiders, context en apparaten."
+      subtitle="Communicatieprofiel, begeleiders, tablet en profiel."
       active="users"
       onNavigate={onNavigate}
       onLogout={onLogout}
@@ -390,8 +407,8 @@ function UserDetailPage({
           <section className="panel" aria-label="Instellingen">
             <h2 className="panel__subtitle">Communicatie-instellingen</h2>
             <p className="muted">
-              Hoe {user.name} communiceert: of er tekst bij de pictogrammen staat en of de tablet
-              voorleest.
+              Hoe {user.name} communiceert: hoe er gevraagd wordt, of Intento leert van eerdere
+              gesprekken, of er tekst bij de pictogrammen staat en of de tablet voorleest.
             </p>
             <SettingsForm
               key={user.id}

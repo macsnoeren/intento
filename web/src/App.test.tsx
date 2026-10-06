@@ -135,7 +135,14 @@ function fakeApi(
       return Promise.resolve({ users: [...users] });
     },
     createUser(body: CreateUserRequest): Promise<UserPublic> {
-      const user = makeUser(`u-${++counter}`, body.name);
+      const base = makeUser(`u-${++counter}`, body.name);
+      const user = {
+        ...base,
+        communicationProfile: {
+          ...base.communicationProfile,
+          experienceEnabled: body.experienceEnabled ?? true,
+        },
+      };
       users.push(user);
       return Promise.resolve(user);
     },
@@ -368,6 +375,30 @@ describe('beheeromgeving-app', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gebruiker Sanne verwijderen' }));
     await screen.findByRole('heading', { level: 1, name: 'Gebruikersbeheer' });
     await waitFor(() => expect(screen.queryByText('Sanne')).toBeNull());
+  });
+
+  it('laat Experience bij het aanmaken zichtbaar aan staan, met uitleg, en bewust uitzetten (N3.2, V2)', async () => {
+    render(<App api={fakeApi({ loggedIn: true })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+    fireEvent.click(screen.getByRole('button', { name: 'Gebruiker toevoegen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Gebruiker toevoegen' });
+    const experience = within(dialog).getByRole('checkbox', {
+      name: /Leren van eerdere gesprekken/,
+    });
+    expect(experience).toHaveProperty('checked', true);
+    expect(within(dialog).getByText(/Er verdwijnt nooit een keuze/)).toBeTruthy();
+
+    fireEvent.click(experience);
+    fireEvent.change(within(dialog).getByLabelText('Naam van de gebruiker'), {
+      target: { value: 'Tom' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Toevoegen' }));
+    await screen.findByRole('heading', { level: 1, name: 'Tom' });
+    const form = screen.getByRole('form', { name: 'Instellingen voor Tom' });
+    const learn = within(form).getByRole<HTMLInputElement>('checkbox', {
+      name: /Leren van eerdere gesprekken/,
+    });
+    expect(learn.checked).toBe(false);
   });
 
   it('opent vanuit het overzicht het scherm van één gebruiker en gaat terug', async () => {

@@ -239,7 +239,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   vraagstrategieën staan in `shared/`.
   *Acceptatie:* tests: grenzen, onbekende strategie → 400, begeleider alleen voor gekoppelde gebruikers.
 
-- [ ] **N3.2 Beheer: instellingenformulier**
+- [x] **N3.2 Beheer: instellingenformulier**
   *ONTWERP: §7.1, §50.* De nieuwe velden, met per keuze een uitleg in begrijpelijke taal; "opties per
   scherm" alleen zichtbaar bij multi-icon.
   *Acceptatie:* componenttest; rooktest.

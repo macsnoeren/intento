@@ -134,3 +134,45 @@ describe('instellingen — stemkeuze', () => {
     expect(screen.queryByRole('button', { name: 'Pim beluisteren' })).toBeNull();
   });
 });
+
+describe('instellingen — communicatie (N3.2, §7.1, §50)', () => {
+  it('toont vorm, strategie, maximum en Experience, elk met uitleg', () => {
+    render(<SettingsForm user={user()} onSave={vi.fn()} />);
+    expect(screen.getByRole('radio', { name: /Ja of nee/ })).toBeTruthy();
+    expect(screen.getByText(/twee knoppen: JA en NEE/)).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Van algemeen naar specifiek/ })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Kort en rustig/ })).toBeTruthy();
+    expect(screen.getByLabelText(/Hoogstens zoveel vragen/)).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: /Leren van eerdere gesprekken/ })).toBeTruthy();
+  });
+
+  it('toont "pictogrammen per scherm" alleen bij meerdere pictogrammen', () => {
+    render(<SettingsForm user={user()} onSave={vi.fn()} />);
+    expect(screen.queryByLabelText(/Pictogrammen per scherm/)).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: /Meerdere pictogrammen/ }));
+    expect(screen.getByLabelText(/Pictogrammen per scherm/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: /Laat Intento kiezen/ }));
+    expect(screen.queryByLabelText(/Pictogrammen per scherm/)).toBeNull();
+  });
+
+  it('slaat de nieuwe instellingen op, binnen de grenzen', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<SettingsForm user={user()} onSave={onSave} />);
+    fireEvent.click(screen.getByRole('radio', { name: /Meerdere pictogrammen/ }));
+    fireEvent.change(screen.getByLabelText(/Pictogrammen per scherm/), { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('radio', { name: /Concreet eerst/ }));
+    fireEvent.change(screen.getByLabelText(/Hoogstens zoveel vragen/), { target: { value: '20' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Leren van eerdere gesprekken/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Instellingen opslaan' }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const [, settings] = onSave.mock.calls[0] as [string, UpdateSettingsRequest];
+    expect(settings).toMatchObject({
+      interactionMode: 'multi',
+      optionsPerScreen: 8,
+      questionStrategy: 'concrete_first',
+      maxQuestions: 20,
+      experienceEnabled: false,
+    });
+  });
+});

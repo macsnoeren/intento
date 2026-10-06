@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N3.2 — beheer: instellingenformulier
+
+- Het instellingenformulier toont de nieuwe velden, elk met uitleg in gewone taal: vorm (ja/nee,
+  meerdere pictogrammen, laat Intento kiezen), pictogrammen per scherm (alleen bij meerdere
+  pictogrammen), manier van vragen (de drie strategieën), maximum aantal vragen en "Leren van eerdere
+  gesprekken". Getallen blijven binnen de grenzen.
+- De dialoog "Gebruiker toevoegen" toont Experience zichtbaar aan, met uitleg, zodat de beheerder
+  bewust kiest (V2).
+- Componenttests; rooktest in de browser (aanmaken, instellen, opslaan, herladen).
+
 ### N3.1 — nieuwe communicatie-instellingen
 
 - Migratie `communication_settings`: `interactionMode` (`binary`/`multi`/`ai`, standaard `binary`),
