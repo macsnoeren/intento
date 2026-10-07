@@ -53,6 +53,7 @@ model Organization {
   users                 User[]
   communicationSessions CommunicationSession[]
   vocabularyItems       VocabularyItem[]
+  vocabularyGaps        VocabularyGap[]
 }
 
 /// De communicerende persoon (DESIGN §2, §6.2). Staat bewust los van `Account`: een
@@ -352,12 +353,43 @@ model VocabularyItem {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    Account?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    Account?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  gaps         VocabularyGap[]
 
   @@unique([sourceName, sourceRef])
   @@index([organizationId, status])
   @@index([status, labelStatus])
+}
+
+/// Een ontbrekend woord (Vocabulary gap, INTENTO-NEW-DESIGN §17, §39): een betekenis waarvoor de eigen
+/// Vocabulary geen goed pictogram heeft. De backend voegt de gaps uit elke beurt samen **per concept per
+/// organisatie**; er staat bewust **geen** gebruiker of gesprek aan (geen persoonlijke inhoud).
+///
+/// - `conceptKey`: het taalneutrale concept (bv. `dizziness`); uniek per organisatie.
+/// - `label`, `context`, `bestAvailableItemId`, `lastConfidence`: van de laatste keer dat hij voorkwam.
+/// - `occurrences`: in hoeveel beurten hij voorkwam; `firstSeenAt`/`lastSeenAt`.
+/// - `status`: `open`, `resolved` (de beheerder heeft een woord toegevoegd) of `dismissed` (genegeerd).
+///   Komt een opgelost woord toch weer voor, dan gaat het terug naar `open`; een genegeerd woord blijft
+///   genegeerd (de teller loopt wel door).
+model VocabularyGap {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  conceptKey          String
+  label               String
+  context             String?
+  bestAvailableItemId String?
+  lastConfidence      Float
+  occurrences         Int      @default(1)
+  firstSeenAt         DateTime
+  lastSeenAt          DateTime
+  status              String   @default("open")
+
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bestAvailableItem VocabularyItem? @relation(fields: [bestAvailableItemId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, conceptKey])
+  @@index([organizationId, status, lastSeenAt])
 }
 
 /// Eén gesprek op de tablet (INTENTO-NEW-DESIGN §5, §39). Heet bewust niet `Session`: die naam is van
@@ -374,8 +406,8 @@ model CommunicationSession {
   endedAt        DateTime?
   currentTurn    Int       @default(0)
 
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   turns              SessionTurn[]
   presentationEvents PresentationEvent[]
   observedEvents     ObservedEvent[]

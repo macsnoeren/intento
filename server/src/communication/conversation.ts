@@ -28,6 +28,7 @@ import {
   type VocabularyItem,
 } from '../vocabulary/repository.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
+import { recordGaps } from '../vocabulary/gaps.js';
 import { confirmIntent, findIntent } from './intents.js';
 import {
   ONGOING,
@@ -219,6 +220,8 @@ export async function runAgentTurn(
   await recordPresentation(prisma, encryptor, session.id, turn, response.presentation);
   await recordInferences(prisma, encryptor, session.id, turn, response.inferences);
   await recordDecisions(prisma, session.id, turn, response.decisions);
+  // Ontbrekende woorden per organisatie, zonder gebruiker of gesprek (§17).
+  await recordGaps(prisma, user.organizationId, response.gaps, now());
   // Klaar, of JA op "Wil je stoppen?": het gesprek is voorbij. Een bevestigd gesprek blijft
   // `confirmed`, een onbevestigd wordt `stopped`.
   if (response.presentation.kind === 'done' || response.presentation.kind === 'stopped') {

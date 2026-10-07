@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N9.1 — gaps opslaan
+
+- Nieuwe tabel `VocabularyGap` (migratie `vocabulary_gap`): per organisatie en concept het woord, de
+  context, het beste pictogram, de laatste zekerheid, hoe vaak, eerst en laatst gezien, en een status
+  (`open`/`resolved`/`dismissed`). Geen gebruiker of gesprek.
+- De turn-engine legt de `gaps` uit elk (gevalideerd) agentantwoord vast (`recordGaps`): hetzelfde concept
+  telt per beurt één keer; een opgelost woord dat weer voorkomt gaat terug naar `open`.
+- Tests: samenvoegen (`occurrences` 2), geen verwijzing naar gebruiker of gesprek, isolatie tussen
+  organisaties, statusregels, en een heel gesprek met een stand-in. Met de cloud gerookt: "niet lekker"
+  (`unwell`) kwam als gap binnen.
+
 ### N8.8 — machinevertalingen nakijken
 
 - Vocabulary-overzicht: keuze "Vertaling" (Alle / Machinevertaling, nog niet nagekeken) en een teller

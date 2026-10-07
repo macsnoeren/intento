@@ -526,7 +526,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N9 — Ontbrekende woorden
 
-- [ ] **N9.1 Gaps opslaan**
+- [x] **N9.1 Gaps opslaan**
   *ONTWERP: §17, §39.* Migratie `VocabularyGap` (organizationId, conceptKey, label, context,
   bestAvailableItemId, lastConfidence, occurrences, firstSeenAt, lastSeenAt, status
   open/resolved/dismissed). De backend voegt gaps uit de `TurnResponse` samen per concept per organisatie,

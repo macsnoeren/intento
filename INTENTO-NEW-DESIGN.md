@@ -878,6 +878,7 @@ De gebruiker hoeft niet te wachten op menselijke tussenkomst.
 - Komt er geen enkel pictogram in de buurt, dan verschijnt het neutrale pictogram "geen afbeelding" met het woord.
 - Voor wie niet leest, toont het pictogram alleen de benadering. Daarom is elk ontbrekend woord meteen een **melding voor de beheerder**: in de beheeromgeving ("Ontbrekende woorden", met een teller) en, als de beheerder dat wil, per e-mail.
 - Een gap wordt per organisatie opgeslagen: concept, woord, context, beste beschikbare pictogram, hoe vaak en wanneer het laatst. **Zonder** gebruiker of gesprek eraan gekoppeld.
+- "Hoe vaak" telt de beurten waarin het woord getoond werd: zonder gesprek erbij kan de backend niet zien of het in hetzelfde gesprek al eerder voorkwam. Een opgelost woord dat toch weer voorkomt, staat weer open; een genegeerd woord blijft genegeerd (de teller loopt door).
 
 ---
 

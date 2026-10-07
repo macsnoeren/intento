@@ -75,13 +75,16 @@ server niet uit elkaar lopen.
 - `server/src/communication/` — gesprekken (`sessions.ts`: versleutelde momentopname per beurt),
   provenance (`provenance.ts`: Presented, Observed, Inferred en agentbeslissingen in eigen tabellen)
   en `conversation.ts`: één beurt van begin tot eind (Observed vastleggen → `TurnRequest` bouwen →
-  agentdienst → invarianten → opslaan → presentatie voor de tablet met ondertekende afbeeldings-URL's).
+  agentdienst → invarianten → opslaan, inclusief de ontbrekende woorden per organisatie → presentatie
+  voor de tablet met ondertekende afbeeldings-URL's).
   De routes staan in `routes/communication.ts`.
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
-- `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15). Nu alleen de OpenSymbols-client
-  (`opensymbols.ts`), die bij het importeren uit een externe bron wordt hergebruikt. Zie
-  [adr/0015](adr/0015-speech-synthesis-piper.md).
+- `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15–17): lezen en filteren per
+  organisatie (`repository.ts`), seed van de startset (`seed.ts`, `translation.ts`), afbeeldingen en
+  ondertekende URL's (`assets.ts`), licenties (`licenses.ts`), de OpenSymbols-client voor zoeken en
+  importeren (`opensymbols.ts`) en de ontbrekende woorden (`gaps.ts`: samenvoegen per concept per
+  organisatie, zonder gebruiker of gesprek).
 - `web/src/` — `main.tsx` (mount + interfacekeuze op de URL: `/tablet` → gebruikersapp,
   anders beheeromgeving), `App.tsx` (beheer: sessie-toestand + weergavekeuze),
   `TabletApp.tsx` (gebruikersapp op de tablet: koppelscherm, kopbalk, bronnen) met
