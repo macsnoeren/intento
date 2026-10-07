@@ -1,5 +1,5 @@
 import type { PrismaClient } from '../generated/prisma/client.js';
-import { buildSearchText } from '../vocabulary/repository.js';
+import { searchFields } from '../vocabulary/repository.js';
 
 /** Maakt een Vocabulary-item voor tests; standaard een platformitem met een SVG-afbeelding. */
 export async function createVocabularyItem(
@@ -28,7 +28,7 @@ export async function createVocabularyItem(
       labels,
       concepts: [data.concept],
       contexts: data.contexts ?? ['health'],
-      searchText: buildSearchText(labels, [data.concept]),
+      ...searchFields(labels, [data.concept]),
       status: data.status ?? 'approved',
       labelStatus: data.labelStatus ?? 'reviewed',
       sortOrder: data.sortOrder ?? 0,

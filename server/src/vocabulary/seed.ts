@@ -5,7 +5,7 @@ import { resolveStoragePath, writeStoredFile } from '../storage/files.js';
 import type { Manifest } from './global-symbols.js';
 import { checkImage } from './image-check.js';
 import { readImageIndex, type ImageIndex } from './images.js';
-import { buildSearchText } from './repository.js';
+import { searchFields } from './repository.js';
 import { loadManifest, loadTranslation, type TranslationFile } from './translation.js';
 
 /**
@@ -80,7 +80,7 @@ export async function seedSet(
       labels,
       concepts: [entry.concept],
       contexts: [entry.context],
-      searchText: buildSearchText(labels, [entry.concept]),
+      ...searchFields(labels, [entry.concept]),
       isStart: entry.is_start,
       sortOrder: entry.is_start && startIndex >= 0 ? startIndex + 1 : 100 + position,
       labelStatus: entry.status,
@@ -162,7 +162,7 @@ export async function seedNoImageItem(
       labels,
       concepts: ['no_image'],
       contexts: ['other'],
-      searchText: buildSearchText(labels, ['no_image']),
+      ...searchFields(labels, ['no_image']),
       isStart: false,
       sortOrder: 9999,
       source: 'seed',

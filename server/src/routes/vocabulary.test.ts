@@ -130,6 +130,35 @@ describe('GET /vocabulary', () => {
     expect(await labels('niets')).toEqual([]);
   });
 
+  it('zoekt in labels ook binnen een woord, in concepten alleen op het begin (N2.15)', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    await createVocabularyItem(prisma, { label: 'buik', concept: 'stomach', sortOrder: 1 });
+    await createVocabularyItem(prisma, { label: 'hoofdpijn', concept: 'headache', sortOrder: 2 });
+    await createVocabularyItem(prisma, { label: 'borstpijn', concept: 'chest_pain', sortOrder: 3 });
+    await createVocabularyItem(prisma, { label: 'aroma', concept: 'aroma', sortOrder: 4 });
+    await createVocabularyItem(prisma, { label: 'oma', concept: 'grandmother', sortOrder: 5 });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    const labels = async (q: string, extra = '') =>
+      vocabularyListResponseSchema
+        .parse((await list(cookie, `?q=${encodeURIComponent(q)}${extra}`)).body)
+        .items.map((i) => i.labels[0]);
+
+    // "oma" vindt geen stomach; het exacte label "oma" staat vóór "aroma".
+    expect(await labels('oma')).toEqual(['oma', 'aroma']);
+    expect(await labels('pijn')).toEqual(['hoofdpijn', 'borstpijn']);
+    expect(await labels('pain')).toEqual(['borstpijn']);
+    expect(await labels('chest_pain')).toEqual(['borstpijn']);
+    expect(await labels('  ')).toHaveLength(5);
+
+    // De pagina's lopen over exacte en overige treffers door.
+    expect(await labels('oma', '&pageSize=1&page=1')).toEqual(['oma']);
+    expect(await labels('oma', '&pageSize=1&page=2')).toEqual(['aroma']);
+    const body = vocabularyListResponseSchema.parse(
+      (await list(cookie, '?q=oma&pageSize=1&page=2')).body,
+    );
+    expect(body.total).toBe(2);
+  });
+
   it('toont ingetrokken items alleen met het filter retired, zonder afbeelding', async () => {
     const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
     await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain' });

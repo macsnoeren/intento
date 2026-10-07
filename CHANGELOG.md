@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N2.15 — zoeken in de Vocabulary op woorden
+
+- In labels en synoniemen zoekt `q` overal in het woord (Nederlandse samenstellingen: "pijn" →
+  hoofdpijn), in concepten alleen aan het begin van een woord: "oma" vindt niet meer *buik* via
+  `stomach`. Exacte labeltreffers staan vooraan; de pagina's lopen daarover door.
+- Migratie `vocabulary_concept_text`: nieuw veld `conceptText`, `searchText` bevat alleen nog de labels;
+  bestaande items worden in de migratie opnieuw opgebouwd.
+- Tests op de gevallen uit de taak plus paginering; op de echte startset gerookt ("oma" → oma eerst).
+
 ### N10.3 — contacten in de beheeromgeving
 
 - Onderdeel **Contacten** bij een gebruiker (beheerder: tabblad in het gebruikersscherm; begeleider:

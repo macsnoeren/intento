@@ -374,8 +374,11 @@ model Session {
 ///
 /// - `labels`, `concepts`, `contexts` zijn JSON-arrays van strings (op de grens met zod gevalideerd).
 ///   Het eerste label is het hoofdlabel; de rest zijn synoniemen.
-/// - `searchText`: vooraf in kleine letters samengevoegde labels + concepten, zodat zoeken op SQLite en
-///   PostgreSQL hetzelfde werkt zonder databasespecifieke opties.
+/// - `searchText`: de labels in kleine letters, elk op een eigen regel (`\npijn\nzeer\n`), en
+///   `conceptText`: de conceptwoorden, elk met een spatie ervoor (` chest pain`). Zo zoekt een gewone
+///   `contains` in labels ook binnen een samenstelling ("pijn" → hoofdpijn), in concepten alleen op het
+///   begin van een woord (" pain", niet "oma" in stomach), en vindt `\n{q}\n` een exact label (N2.15).
+///   Werkt op SQLite en PostgreSQL hetzelfde, zonder databasespecifieke opties.
 /// - `status`: `approved` (bruikbaar) of `retired` (ingetrokken: niet meer aangeboden, wel bewaard zolang
 ///   de provenance ernaar verwijst). Een item wordt nooit verwijderd.
 /// - `labelStatus`: `reviewed` (door een mens) of `machine` (machinevertaling, nog na te kijken).
@@ -390,6 +393,7 @@ model VocabularyItem {
   concepts       Json
   contexts       Json
   searchText     String
+  conceptText    String    @default("")
   partOfSpeech   String?
   isStart        Boolean   @default(false)
   sortOrder      Int       @default(0)

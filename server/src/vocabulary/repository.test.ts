@@ -3,7 +3,7 @@ import { vocabularyEntrySchema } from '@intento/shared';
 import { prisma } from '../db/prisma.js';
 import { resetAuthData, seedOrganization } from '../test/auth-helpers.js';
 import {
-  buildSearchText,
+  searchFields,
   listAvailableVocabulary,
   parseVocabularyItem,
   toVocabularyEntry,
@@ -28,7 +28,7 @@ async function createItem(data: {
       labels: [data.label],
       concepts: [data.concept],
       contexts: ['health'],
-      searchText: buildSearchText([data.label], [data.concept]),
+      ...searchFields([data.label], [data.concept]),
       status: data.status ?? 'approved',
       sortOrder: data.sortOrder ?? 0,
       source: data.organizationId ? 'own' : 'seed',
@@ -101,9 +101,10 @@ describe('Vocabulary-repository', () => {
     expect(entry).toMatchObject({ labels: ['pijn'], concepts: ['chest_pain'], is_start: false });
   });
 
-  it('bouwt een zoektekst in kleine letters, met concepten als losse woorden', () => {
-    expect(buildSearchText(['Borstpijn', 'pijn op de borst'], ['chest_pain'])).toBe(
-      'borstpijn | pijn op de borst | chest pain',
-    );
+  it('bouwt de zoekvelden: labels per regel, conceptwoorden met een spatie ervoor', () => {
+    expect(searchFields(['Borstpijn', ' pijn  op de borst '], ['chest_pain'])).toEqual({
+      searchText: '\nborstpijn\npijn op de borst\n',
+      conceptText: ' chest pain',
+    });
   });
 });

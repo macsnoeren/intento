@@ -8,7 +8,7 @@ import { prisma } from '../db/prisma.js';
 import { testEnv } from '../test/auth-helpers.js';
 import { resolveStoragePath, StoragePathError, writeStoredFile } from '../storage/files.js';
 import { signedAssetUrl, verifyAssetSignature } from '../vocabulary/assets.js';
-import { buildSearchText } from '../vocabulary/repository.js';
+import { searchFields } from '../vocabulary/repository.js';
 
 /**
  * Afbeeldingen via ondertekende, vervallende URL's (N2.2, INTENTO-NEW-DESIGN §20, §51, §53).
@@ -54,7 +54,7 @@ describe('GET /assets/:id', () => {
         labels: ['pijn'],
         concepts: ['pain'],
         contexts: [],
-        searchText: buildSearchText(['pijn'], ['pain']),
+        ...searchFields(['pijn'], ['pain']),
         source: 'seed',
         licenseKey: 'CC-BY-SA-4.0',
         status: opts.status ?? 'approved',

@@ -16,14 +16,20 @@ import {
   type VocabularyListResponse,
 } from '@intento/shared';
 import type { Env } from '../env.js';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { authorize, requireAccount } from '../auth/authorize.js';
 import { resolveCallerOrganization } from '../auth/account-or-device.js';
 import type { AccountModel, VocabularyItemModel } from '../generated/prisma/models.js';
 import { HttpError } from '../errors.js';
 import { recordAudit } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
-import { availableTo, buildSearchText, parseVocabularyItem } from '../vocabulary/repository.js';
+import {
+  availableTo,
+  exactLabelWhere,
+  parseVocabularyItem,
+  searchFields,
+  searchWhere,
+} from '../vocabulary/repository.js';
 import { vocabularyItemToPublic } from '../vocabulary/serialize.js';
 import { checkImage } from '../vocabulary/image-check.js';
 import { writeStoredFile } from '../storage/files.js';
@@ -105,6 +111,38 @@ export function registerVocabularyRoutes(
   app: FastifyInstance,
   { env, prisma, openSymbols }: VocabularyRoutesDeps,
 ): void {
+  const orderBy = [{ sortOrder: 'asc' as const }, { id: 'asc' as const }];
+
+  /**
+   * Eén pagina, met bij een zoekterm de exacte labeltreffers vooraan (N2.15): wie "oma" zoekt, wil het
+   * symbool "oma" zien vóór "aroma". De pagina's lopen over beide groepen heen door.
+   */
+  async function listPage(
+    where: Prisma.VocabularyItemWhereInput,
+    q: string | undefined,
+    page: number,
+    pageSize: number,
+  ) {
+    const skip = (page - 1) * pageSize;
+    if (!q) return prisma.vocabularyItem.findMany({ where, orderBy, skip, take: pageSize });
+    const exact = { AND: [where, exactLabelWhere(q)] };
+    const exactCount = await prisma.vocabularyItem.count({ where: exact });
+    const first =
+      skip < exactCount
+        ? await prisma.vocabularyItem.findMany({ where: exact, orderBy, skip, take: pageSize })
+        : [];
+    const rest =
+      first.length < pageSize
+        ? await prisma.vocabularyItem.findMany({
+            where: { AND: [where, { NOT: exactLabelWhere(q) }] },
+            orderBy,
+            skip: Math.max(0, skip - exactCount),
+            take: pageSize - first.length,
+          })
+        : [];
+    return [...first, ...rest];
+  }
+
   app.get(
     '/vocabulary',
     { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) },
@@ -123,16 +161,11 @@ export function registerVocabularyRoutes(
         ...(query.labelStatus === 'machine' ? reviewable : availableTo(organizationId)),
         status: query.status,
         ...(query.labelStatus ? { labelStatus: query.labelStatus } : {}),
-        ...(query.q ? { searchText: { contains: query.q.toLowerCase() } } : {}),
+        ...(query.q ? searchWhere(query.q) : {}),
       };
       const [total, rows, machineOpen] = await Promise.all([
         prisma.vocabularyItem.count({ where }),
-        prisma.vocabularyItem.findMany({
-          where,
-          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-          skip: (query.page - 1) * query.pageSize,
-          take: query.pageSize,
-        }),
+        listPage(where, query.q, query.page, query.pageSize),
         prisma.vocabularyItem.count({
           where: { ...reviewable, status: 'approved', labelStatus: 'machine' },
         }),
@@ -169,7 +202,7 @@ export function registerVocabularyRoutes(
           ...(body.contexts ? { contexts: body.contexts } : {}),
           ...(body.isStart !== undefined ? { isStart: body.isStart } : {}),
           ...(body.sortOrder !== undefined ? { sortOrder: body.sortOrder } : {}),
-          searchText: buildSearchText(labels, concepts),
+          ...searchFields(labels, concepts),
         },
       });
 
@@ -271,7 +304,7 @@ export function registerVocabularyRoutes(
           labels: unique,
           concepts: meta.concepts,
           contexts: meta.contexts?.length ? meta.contexts : ['other'],
-          searchText: buildSearchText(unique, meta.concepts),
+          ...searchFields(unique, meta.concepts),
           status: 'approved',
           labelStatus: 'reviewed',
           source: 'own',
@@ -427,7 +460,7 @@ export function registerVocabularyRoutes(
           labels,
           concepts: body.concepts,
           contexts: body.contexts?.length ? body.contexts : ['other'],
-          searchText: buildSearchText(labels, body.concepts),
+          ...searchFields(labels, body.concepts),
           status: 'approved',
           labelStatus: 'reviewed',
           source: 'external',

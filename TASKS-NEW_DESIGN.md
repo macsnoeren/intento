@@ -229,7 +229,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   pagina "Bronnen" in de beheeromgeving + link "Bronnen" op het startscherm van de tablet.
   *Acceptatie:* test: elk item met een CC BY-licentie staat in de lijst met auteur en bron.
 
-- [ ] **N2.15 Zoeken in de Vocabulary op woorden, niet op letters midden in een concept**
+- [x] **N2.15 Zoeken in de Vocabulary op woorden, niet op letters midden in een concept**
   *ONTWERP: §15, §49.* Gevonden bij N10.3: `searchText` wordt met `contains` doorzocht, dus "oma" vindt
   *buik* (concept `stomach`) en geen oma. In de Nederlandse labels mag een woord binnen een samenstelling
   blijven matchen ("pijn" → *hoofdpijn*); in concepten alleen op woordgrenzen (`chest_pain` → "pain",

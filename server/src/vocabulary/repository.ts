@@ -38,15 +38,47 @@ export function parseVocabularyItem(row: VocabularyItemModel): VocabularyItem {
 }
 
 /**
- * De zoektekst: labels en concepten in kleine letters, met spaties ertussen. Concepten zijn
- * taalneutrale sleutels (`chest_pain`); de underscore wordt een spatie zodat "borst" en "pain" allebei
- * vinden.
+ * De zoekvelden van een item (N2.15). `searchText`: de labels in kleine letters, elk op een eigen regel,
+ * met een regeleinde ervoor en erachter. `conceptText`: de woorden van de concepten (`chest_pain` →
+ * "chest pain"), elk met een spatie ervoor. Zie `searchWhere` voor hoe er gezocht wordt.
  */
-export function buildSearchText(labels: string[], concepts: string[]): string {
-  return [...labels, ...concepts.map((concept) => concept.replace(/_/g, ' '))]
-    .map((part) => part.trim().toLowerCase())
-    .filter((part) => part.length > 0)
-    .join(' | ');
+export function searchFields(
+  labels: string[],
+  concepts: string[],
+): { searchText: string; conceptText: string } {
+  const clean = (parts: string[]) =>
+    parts
+      .map((part) => part.trim().toLowerCase().replace(/\s+/g, ' '))
+      .filter((part) => part.length > 0);
+  const words = clean(concepts.map((concept) => concept.replace(/_/g, ' ')));
+  return {
+    searchText: `\n${clean(labels).join('\n')}\n`,
+    conceptText: words.map((word) => ` ${word}`).join(''),
+  };
+}
+
+/** Een zoekterm zoals hij in de zoekvelden staat: kleine letters, één spatie, geen underscores. */
+export function normalizeQuery(q: string): string {
+  return q
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, ' ');
+}
+
+/**
+ * Het zoekfilter: in de labels overal (een Nederlands woord zit vaak in een samenstelling: "pijn" →
+ * hoofdpijn), in de concepten alleen aan het begin van een woord ("pain" → chest_pain, maar "oma" niet
+ * → stomach). Leeg na normaliseren: geen filter.
+ */
+export function searchWhere(q: string) {
+  const term = normalizeQuery(q);
+  if (!term) return {};
+  return { OR: [{ searchText: { contains: term } }, { conceptText: { contains: ` ${term}` } }] };
+}
+
+/** Exacte treffer op een label, om die vooraan te zetten. */
+export function exactLabelWhere(q: string) {
+  return { searchText: { contains: `\n${normalizeQuery(q)}\n` } };
 }
 
 /** Het filter "beschikbaar voor deze organisatie": platform + eigen organisatie. */
