@@ -1620,18 +1620,18 @@ body {
   align-items: center;
 }
 
-/* Ontbrekende woorden (N9.2): per woord het pictogram dat de gebruiker zag, het woord met hoe vaak en
-   wanneer, en de acties. Op een smal scherm schuiven de acties onder het woord. */
-.gap-list {
+/* Lijst met regels die zelf geen klikvlak zijn maar knoppen hebben: pictogram, tekst en acties
+   (ontbrekende woorden N9.2, contacten N10.3). Op een smal scherm schuiven de acties onder de tekst. */
+.item-list {
   list-style: none;
-  margin: 0;
+  margin: 0 0 1rem;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-.gap {
+.item-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1642,7 +1642,7 @@ body {
   background: var(--intento-surface);
 }
 
-.gap__image {
+.item-row__image {
   flex: none;
   display: grid;
   place-items: center;
@@ -1652,13 +1652,13 @@ body {
   text-align: center;
 }
 
-.gap__image img {
+.item-row__image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-.gap__actions {
+.item-row__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -1676,4 +1676,21 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   text-align: center;
+}
+
+/* Het gekozen pictogram in een keuzelijst (contact, N10.3). */
+.symbol-card[aria-pressed='true'] {
+  border-color: var(--intento-accent);
+  background: var(--intento-accent-soft);
+}
+
+/* Zoekregel van de pictogramkeuze in een dialoog: invoer en knop naast elkaar. */
+.symbol-picker__search {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.symbol-picker__search .field__input {
+  flex: 1;
+  min-width: 0;
 }

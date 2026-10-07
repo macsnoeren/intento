@@ -10,6 +10,7 @@ import { ApiRequestError, type Api } from './api.ts';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 import { SettingsForm } from './SettingsForm.tsx';
+import { ContactsPanel } from './ContactsPanel.tsx';
 import { playAudioBlob, speakWithDeviceVoice } from './speech.ts';
 
 /**
@@ -56,7 +57,7 @@ export function CaregiverUsersPage({
       <AppShell
         account={account}
         title={selected.name}
-        subtitle="Hoe deze persoon communiceert."
+        subtitle="Hoe deze persoon communiceert, en naar wie hij berichten kan sturen."
         active="my-users"
         onNavigate={onNavigate}
         onLogout={onLogout}
@@ -83,6 +84,12 @@ export function CaregiverUsersPage({
             }}
           />
         </section>
+        <ContactsPanel
+          key={`contacts-${selected.id}`}
+          api={api}
+          userId={selected.id}
+          userName={selected.name}
+        />
       </AppShell>
     );
   }

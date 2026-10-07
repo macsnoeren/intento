@@ -45,6 +45,12 @@ import {
   vocabularyGapListResponseSchema,
   vocabularyGapPublicSchema,
   type ContactVerifyStatus,
+  type ContactCreateRequest,
+  type ContactUpdateRequest,
+  type ContactPublic,
+  type ContactListResponse,
+  contactListResponseSchema,
+  contactPublicSchema,
   contactVerifyStatusSchema,
   type VocabularyGapCount,
   vocabularyGapCountSchema,
@@ -157,6 +163,13 @@ export interface Api {
   setVocabularyItemStatus(id: string, action: 'retire' | 'restore'): Promise<VocabularyItemPublic>;
   /** Ontbrekende woorden van de eigen organisatie (standaard de open woorden). Alleen beheerder. */
   listVocabularyGaps(status?: VocabularyGapStatus): Promise<VocabularyGapListResponse>;
+  /** Contacten van een gebruiker (beheerder of gekoppelde begeleider). */
+  listContacts(userId: string): Promise<ContactListResponse>;
+  createContact(userId: string, body: ContactCreateRequest): Promise<ContactPublic>;
+  updateContact(userId: string, id: string, body: ContactUpdateRequest): Promise<ContactPublic>;
+  deleteContact(userId: string, id: string): Promise<void>;
+  /** De bevestigingsmail opnieuw versturen. */
+  resendContactVerification(userId: string, id: string): Promise<void>;
   /** Alleen het aantal open ontbrekende woorden, voor de teller in het menu. */
   getVocabularyGapCount(): Promise<VocabularyGapCount>;
   /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
@@ -436,6 +449,38 @@ export const httpApi: Api & DeviceApi = {
   async listVocabularyGaps(status) {
     const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
     return vocabularyGapListResponseSchema.parse(await request(`/vocabulary/gaps${suffix}`));
+  },
+  async listContacts(userId) {
+    return contactListResponseSchema.parse(
+      await request(`/users/${encodeURIComponent(userId)}/contacts`),
+    );
+  },
+  async createContact(userId, body) {
+    return contactPublicSchema.parse(
+      await request(`/users/${encodeURIComponent(userId)}/contacts`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    );
+  },
+  async updateContact(userId, id, body) {
+    return contactPublicSchema.parse(
+      await request(`/users/${encodeURIComponent(userId)}/contacts/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    );
+  },
+  async deleteContact(userId, id) {
+    await request(`/users/${encodeURIComponent(userId)}/contacts/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+  async resendContactVerification(userId, id) {
+    await request(
+      `/users/${encodeURIComponent(userId)}/contacts/${encodeURIComponent(id)}/verification`,
+      { method: 'POST', body: '{}' },
+    );
   },
   async getVocabularyGapCount() {
     return vocabularyGapCountSchema.parse(await request('/vocabulary/gaps/count'));

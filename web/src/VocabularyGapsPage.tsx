@@ -143,10 +143,10 @@ export function VocabularyGapsPage({
             {tab === 'open' ? 'Er ontbreken nu geen woorden.' : 'Hier staan geen woorden.'}
           </p>
         ) : (
-          <ul className="gap-list">
+          <ul className="item-list">
             {gaps.map((gap) => (
-              <li key={gap.id} className="gap" aria-label={gap.label}>
-                <div className="gap__image">
+              <li key={gap.id} className="item-row" aria-label={gap.label}>
+                <div className="item-row__image">
                   {gap.bestAvailable?.imageUrl ? (
                     <img
                       src={apiUrl(gap.bestAvailable.imageUrl)}
@@ -169,7 +169,7 @@ export function VocabularyGapsPage({
                       : ''}
                   </span>
                 </div>
-                <div className="gap__actions">
+                <div className="item-row__actions">
                   {tab === 'open' ? (
                     <>
                       <button

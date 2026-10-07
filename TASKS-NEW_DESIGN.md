@@ -229,6 +229,13 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   pagina "Bronnen" in de beheeromgeving + link "Bronnen" op het startscherm van de tablet.
   *Acceptatie:* test: elk item met een CC BY-licentie staat in de lijst met auteur en bron.
 
+- [ ] **N2.15 Zoeken in de Vocabulary op woorden, niet op letters midden in een concept**
+  *ONTWERP: §15, §49.* Gevonden bij N10.3: `searchText` wordt met `contains` doorzocht, dus "oma" vindt
+  *buik* (concept `stomach`) en geen oma. In de Nederlandse labels mag een woord binnen een samenstelling
+  blijven matchen ("pijn" → *hoofdpijn*); in concepten alleen op woordgrenzen (`chest_pain` → "pain",
+  niet "oma" in `stomach`). Exacte treffers eerst; op SQLite en PostgreSQL hetzelfde.
+  *Acceptatie:* tests: "oma" vindt geen `stomach`; "pijn" vindt *hoofdpijn*; "pain" vindt `chest_pain`.
+
 ## Fase N3 — Instellingen
 
 - [x] **N3.1 Nieuwe communicatie-instellingen**
@@ -557,7 +564,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   bevestigde contacten zijn bruikbaar.
   *Acceptatie:* tests: verlopen token, hergebruik, wijziging zet de bevestiging terug.
 
-- [ ] **N10.3 Beheer: contacten bij een gebruiker**
+- [x] **N10.3 Beheer: contacten bij een gebruiker**
   *ONTWERP: §49.* Onderdeel "Contacten" in het gebruikersscherm: lijst, dialoog (naam, relatie,
   pictogram uit de Vocabulary, e-mail), status, volgorde aanpassen, opnieuw versturen.
   *Acceptatie:* componenttest; rooktest.

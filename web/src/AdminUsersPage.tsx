@@ -12,6 +12,7 @@ import { playAudioBlob, speakWithDeviceVoice } from './speech.ts';
 import { AccountsPanel } from './AccountsPanel.tsx';
 import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
+import { ContactsPanel } from './ContactsPanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.tsx';
 import { Modal } from './Modal.tsx';
@@ -45,13 +46,14 @@ const OVERVIEW_TABS: readonly SegmentedTab<UsersTab>[] = [
 
 /**
  * De onderdelen van één gebruiker. Volgorde is de volgorde waarin je ze nodig hebt: eerst
- * instellen hoe hij communiceert, dan wie hem begeleidt, dan wat de AI over hem mag weten, en pas
+ * instellen hoe hij communiceert, dan naar wie hij berichten kan sturen, dan wie hem begeleidt, dan wat de AI over hem mag weten, en pas
  * daarna het apparaat en het beheer van zijn profiel.
  */
-type UserTab = 'settings' | 'caregivers' | 'device' | 'profile';
+type UserTab = 'settings' | 'contacts' | 'caregivers' | 'device' | 'profile';
 
 const USER_TABS: readonly SegmentedTab<UserTab>[] = [
   { id: 'settings', label: 'Instellingen' },
+  { id: 'contacts', label: 'Contacten' },
   { id: 'caregivers', label: 'Begeleiders' },
   { id: 'device', label: 'Tablet' },
   { id: 'profile', label: 'Profiel & verwijderen' },
@@ -377,7 +379,7 @@ function UserDetailPage({
     <AppShell
       account={account}
       title={user.name}
-      subtitle="Communicatieprofiel, begeleiders, tablet en profiel."
+      subtitle="Communicatieprofiel, contacten, begeleiders, tablet en profiel."
       active="users"
       onNavigate={onNavigate}
       onLogout={onLogout}
@@ -428,6 +430,15 @@ function UserDetailPage({
               }}
             />
           </section>
+        ) : null}
+
+        {tab === 'contacts' ? (
+          <ContactsPanel
+            key={`contacts-${user.id}`}
+            api={api}
+            userId={user.id}
+            userName={user.name}
+          />
         ) : null}
 
         {tab === 'caregivers' ? (

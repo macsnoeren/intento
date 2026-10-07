@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N10.3 — contacten in de beheeromgeving
+
+- Onderdeel **Contacten** bij een gebruiker (beheerder: tabblad in het gebruikersscherm; begeleider:
+  onder de instellingen van zijn gebruiker). Per contact pictogram, naam, relatie, e-mail en status
+  (bevestigd / wacht op bevestiging / uit); omhoog en omlaag voor de volgorde op de tablet; opnieuw
+  versturen zolang het contact niet bevestigde; wijzigen en verwijderen (met bevestiging).
+- Dialoog voor toevoegen en wijzigen: naam, relatie, e-mail, pictogram zoeken in de eigen Vocabulary,
+  en bij wijzigen "Aanbieden op de tablet". Een nieuw adres meldt dat er een bevestigingsmail volgt.
+- De lijstregels van "Ontbrekende woorden" en "Contacten" delen nu de klassen `item-list`/`item-row`.
+- Componenttests; in de browser gerookt op desktop en telefoonbreedte.
+- Ontdekt: zoeken in de Vocabulary matcht ook midden in concepten ("oma" vindt *buik* via `stomach`) →
+  N2.15.
+
 ### N10.2 — contacten: e-mail-opt-in
 
 - Bij aanmaken en bij een nieuw e-mailadres gaat er een bevestigingsmail naar het contact (token zoals

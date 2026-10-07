@@ -260,6 +260,21 @@ function fakeApi(
     listVocabularyGaps() {
       return Promise.resolve({ items: [], open: 0 });
     },
+    listContacts() {
+      return Promise.resolve({ contacts: [] });
+    },
+    createContact() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
+    updateContact() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
+    deleteContact() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
+    resendContactVerification() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     checkContactVerification() {
       return Promise.resolve({ valid: false });
     },
