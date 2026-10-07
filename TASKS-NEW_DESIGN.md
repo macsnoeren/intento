@@ -598,7 +598,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   "Naar {naam} sturen?".
   *Acceptatie:* unittests; componenttest.
 
-- [ ] **N11.6 Beheer: berichtenoverzicht**
+- [x] **N11.6 Beheer: berichtenoverzicht**
   *ONTWERP: §32, §49.* `GET /messages` (alleen de beheerder): wanneer, gebruiker, boodschap, verstuurd aan
   (of "niet verstuurd"), status. Pagina in de beheeromgeving.
   *Acceptatie:* tests: isolatie, begeleider → 403; componenttest.

@@ -245,6 +245,9 @@
       mail bij een dubbele tik). Het e-mailadres gaat alleen naar de mailserver; de log en de audit
       bevatten het adres en de boodschap niet. Getest, ook met een contact dat tussentijds van een
       andere gebruiker werd of zijn bevestiging verloor.
+      Het berichtenoverzicht (`GET /messages`, N11.6) is alleen voor de beheerder van die organisatie
+      (getest op isolatie en 403 voor een begeleider); elke opvraging staat in de audit-log, omdat hij
+      persoonlijke inhoud ontsleutelt.
 - [x] **Ontbrekende woorden zonder persoon (N9.1–N9.3, §17, §39)** — `VocabularyGap` heeft geen
       gebruiker of gesprek: per organisatie alleen concept, woord, context, beste pictogram en tellers.
       De lijst, de teller en de acties zijn alleen voor beheerders van die organisatie (een woord van een

@@ -45,6 +45,9 @@ import {
   vocabularyGapListResponseSchema,
   vocabularyGapPublicSchema,
   type ContactVerifyStatus,
+  type MessageListQuery,
+  type MessageListResponse,
+  messageListResponseSchema,
   type ContactCreateRequest,
   type ContactUpdateRequest,
   type ContactPublic,
@@ -170,6 +173,8 @@ export interface Api {
   deleteContact(userId: string, id: string): Promise<void>;
   /** De bevestigingsmail opnieuw versturen. */
   resendContactVerification(userId: string, id: string): Promise<void>;
+  /** Het berichtenoverzicht van de organisatie (alleen beheerder). */
+  listMessages(query?: MessageListQuery): Promise<MessageListResponse>;
   /** Alleen het aantal open ontbrekende woorden, voor de teller in het menu. */
   getVocabularyGapCount(): Promise<VocabularyGapCount>;
   /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
@@ -481,6 +486,14 @@ export const httpApi: Api & DeviceApi = {
       `/users/${encodeURIComponent(userId)}/contacts/${encodeURIComponent(id)}/verification`,
       { method: 'POST', body: '{}' },
     );
+  },
+  async listMessages(query = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return messageListResponseSchema.parse(await request(`/messages${qs ? `?${qs}` : ''}`));
   },
   async getVocabularyGapCount() {
     return vocabularyGapCountSchema.parse(await request('/vocabulary/gaps/count'));

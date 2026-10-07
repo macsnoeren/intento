@@ -260,6 +260,9 @@ function fakeApi(
     listVocabularyGaps() {
       return Promise.resolve({ items: [], open: 0 });
     },
+    listMessages() {
+      return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 25 });
+    },
     listContacts() {
       return Promise.resolve({ contacts: [] });
     },

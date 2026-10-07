@@ -1243,6 +1243,39 @@ export const contactVerifyStatusSchema = z.object({ valid: z.boolean() });
 export type ContactVerifyStatus = z.infer<typeof contactVerifyStatusSchema>;
 export type ContactListResponse = z.infer<typeof contactListResponseSchema>;
 
+// --- Berichtenoverzicht (INTENTO-NEW-DESIGN §32, §49) ---
+
+export const messageListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+export type MessageListQuery = Partial<z.infer<typeof messageListQuerySchema>>;
+
+/** Eén verzending van een bericht: naar wie (of `null` als het contact verwijderd is) en of het lukte. */
+export const messageDeliverySchema = z.object({
+  contactName: z.string().nullable(),
+  status: z.enum(['sending', 'sent', 'failed']),
+  at: z.iso.datetime(),
+});
+
+/** Een bevestigd bericht voor de beheerder: wanneer, van wie, wat, en aan wie verstuurd. */
+export const messagePublicSchema = z.object({
+  id: z.string(),
+  confirmedAt: z.iso.datetime(),
+  user: z.object({ id: z.string(), name: z.string() }),
+  message: z.string(),
+  deliveries: z.array(messageDeliverySchema),
+});
+export type MessagePublic = z.infer<typeof messagePublicSchema>;
+
+export const messageListResponseSchema = z.object({
+  items: z.array(messagePublicSchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+});
+export type MessageListResponse = z.infer<typeof messageListResponseSchema>;
+
 // --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---
 
 export const RETENTION_DAYS_MIN = 7;

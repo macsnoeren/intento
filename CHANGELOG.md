@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.6 — beheer: berichtenoverzicht
+
+- `GET /messages` (alleen de beheerder, eigen organisatie): de bevestigde berichten, nieuwste eerst, met
+  wanneer, van wie, de boodschap en aan wie verstuurd (met status), of niet verstuurd. Gepagineerd;
+  elke opvraging geaudit als `message.list`.
+- Pagina **Berichten** in het beheermenu: per bericht gebruiker en tijd, de boodschap, en "Verstuurd aan
+  Mama" / "Niet gelukt: Tim" / "Niet verstuurd"; bladeren per 25.
+- Tests: inhoud, verwijderd contact, bladeren, isolatie, begeleider 403; componenttests; in de browser
+  gerookt op desktop en telefoonbreedte.
+
 ### N11.5 — contacten in multi-icon
 
 - Orchestrator: na JA op "Wil je dit sturen?" in multi-icon "Met wie wil je dit delen?" met de volgende

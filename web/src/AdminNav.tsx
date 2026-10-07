@@ -20,6 +20,7 @@ export type AdminView =
   | 'users'
   | 'vocabulary'
   | 'gaps'
+  | 'messages'
   | 'sources'
   | 'organization'
   | 'audit-logs'
@@ -55,6 +56,7 @@ const GROUPS: NavGroup[] = [
       { view: 'users', label: 'Gebruikers', icon: 'users' },
       { view: 'vocabulary', label: 'Vocabulary', icon: 'library' },
       { view: 'gaps', label: 'Ontbrekende woorden', icon: 'question' },
+      { view: 'messages', label: 'Berichten', icon: 'conversations' },
       { view: 'sources', label: 'Bronnen', icon: 'audit' },
       { view: 'organization', label: 'Organisatie', icon: 'key' },
     ],
@@ -81,6 +83,7 @@ const VIEWS_BY_ROLE: Record<NavRole, AdminView[] | 'all'> = {
     'users',
     'vocabulary',
     'gaps',
+    'messages',
     'sources',
     'organization',
     'audit-logs',
