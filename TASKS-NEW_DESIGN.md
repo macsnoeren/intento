@@ -576,7 +576,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   e-mail). Na een bevestigde boodschap en met minstens één contact: fase `share_ask`; NEE → `done`.
   *Acceptatie:* unittests; een FakeProvider-test laat zien dat contactnamen in geen enkele prompt staan.
 
-- [ ] **N11.2 Contact Agent (binary)**
+- [x] **N11.2 Contact Agent (binary)**
   *ONTWERP: §28, §29.* Regels: volgorde = `sortOrder` (Experience komt in N12.2); "Wil je dit naar {naam}
   sturen?" één voor één; alle NEE → `done` "niet verstuurd".
   *Acceptatie:* unittests; scenario.

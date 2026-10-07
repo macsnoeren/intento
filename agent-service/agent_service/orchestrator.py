@@ -7,8 +7,8 @@ is. Elke agent draait via `run_agent` (§34): een falende agent levert een terug
 een exceptie.
 
 Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `share_ask` (alleen met een bevestigd
-contact) → `done`, en `stopped`. `share_contact` en `confirm_send` volgen in N11.2 en N11.5; tot dan
-eindigt ook JA op "Wil je dit sturen?" in `done`, zonder iets te versturen.
+contact) → `share_contact` (binary: één contact per vraag) → `done`, en `stopped`. In multi-icon volgen
+de contacttegels en `confirm_send` in N11.5; tot dan eindigt JA op "Wil je dit sturen?" daar in `done`.
 """
 
 from __future__ import annotations
@@ -16,11 +16,12 @@ from __future__ import annotations
 import dataclasses
 import re
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Any
 
+from .agents.contact import contact_option, contact_question, next_contact
 from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
 from .agents.icon import (
     ICON_TIMEOUT_SECONDS,
@@ -52,6 +53,7 @@ from .agents.safety import (
     llm_safety,
     s1_question_limit,
     s2_proposal_needs_answer,
+    s3_send_requires_yes,
     safety_prompt,
 )
 from .agents.strategies import instruction_for
@@ -69,6 +71,7 @@ from .contracts import (
     AgentDecision,
     Answer,
     AskedQuestion,
+    ContactEntry,
     Event,
     Gap,
     Hypothesis,
@@ -219,7 +222,9 @@ def step(
             elif state.phase == "confirm_message":
                 presentation = _confirm(state, yes, vocabulary, turn, bool(request.contacts))
             elif state.phase == "share_ask":
-                presentation = _answer_share_ask(state, yes)
+                presentation = _answer_share_ask(state, yes, request.contacts, turn)
+            elif state.phase == "share_contact":
+                presentation = _answer_contact(state, yes, event, request.contacts, turn)
             else:
                 presentation = _answer_question(state, yes, vocabulary, turn)
 
@@ -794,12 +799,69 @@ def _done(state: SessionState) -> Presentation:
 # --- delen (§31) ------------------------------------------------------------------------------------
 
 
-def _answer_share_ask(state: SessionState, yes: bool) -> Presentation:
-    """Antwoord op "Wil je dit sturen?". NEE → klaar, er wordt niets verstuurd. JA → de contactvraag
-    (N11.2); tot die er is ook klaar, zonder te versturen."""
+def _answer_share_ask(
+    state: SessionState, yes: bool, contacts: Sequence[ContactEntry], turn: _Turn
+) -> Presentation:
+    """Antwoord op "Wil je dit sturen?". NEE → klaar, er wordt niets verstuurd. JA → het eerste contact.
+    In multi-icon volgen de contacttegels in N11.5; tot dan is JA daar ook klaar, zonder te versturen."""
     state.answers.append(
         Answer(turn=state.turn, answer="yes" if yes else "no", concepts=[], option_ref=None)
     )
+    if not yes or state.interaction_mode == "multi":
+        return _done(state)
+    return _ask_contact(state, contacts, turn)
+
+
+def _ask_contact(
+    state: SessionState, contacts: Sequence[ContactEntry], turn: _Turn
+) -> Presentation:
+    """ "Wil je dit naar {naam} sturen?" voor het volgende contact; niemand meer → klaar (niet verstuurd)."""
+    result = run_agent(
+        "contact-agent",
+        rules=lambda: next_contact(state, contacts),
+        rules_reason="vaste volgorde",
+        clock=turn.clock,
+    )
+    turn.record(result)
+    contact = result.value
+    intent = state.communication_intent
+    if contact is None or intent is None:
+        return _done(state)
+    state.phase = "share_contact"
+    state.share.contacts_asked.append(contact.id)
+    return Presentation(
+        kind="share_contact",
+        mode="binary",
+        text=contact_question(contact.name),
+        options=[contact_option(contact)],
+        message=intent.message,
+    )
+
+
+def _answer_contact(
+    state: SessionState,
+    yes: bool,
+    event: Event,
+    contacts: Sequence[ContactEntry],
+    turn: _Turn,
+) -> Presentation:
+    """JA op "Wil je dit naar {naam} sturen?" kiest dát contact (de backend verstuurt, I3); NEE → het
+    volgende contact."""
+    last = state.last_presentation
+    option = next((o for o in (last.options if last else []) if o.kind == "contact"), None)
+    if option is None or option.contact_id is None:
+        raise ProtocolError("Er staat geen contactvraag open.")
+    state.answers.append(
+        Answer(turn=state.turn, answer="yes" if yes else "no", concepts=[], option_ref=option.ref)
+    )
+    if not yes:
+        return _ask_contact(state, contacts, turn)
+    finding = s3_send_requires_yes(option.contact_id, last, event)
+    if finding is not None:
+        # Kan niet bij een JA op dit scherm; als vangnet: niets kiezen.
+        _safety(turn, finding)
+        return _done(state)
+    state.share.selected_contact = option.contact_id
     return _done(state)
 
 

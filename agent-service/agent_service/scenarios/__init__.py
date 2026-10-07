@@ -19,6 +19,7 @@ from typing import Any
 from ..contracts import (
     CONTRACT_VERSION,
     AgentDecision,
+    ContactEntry,
     Presentation,
     SessionState,
     Settings,
@@ -74,12 +75,35 @@ class Scenario:
     #: Woorden die de gebruiker herkent als "dat bedoel ik". Een model noemt een eigen concept niet
     #: altijd hetzelfde (`dizzy`, `dizziness`), maar het woord eronder ("duizelig") wel.
     words: frozenset[str] = frozenset()
+    #: De contacten van de gebruiker (bevestigd en actief, zoals de backend ze meestuurt).
+    contacts: list[ContactEntry] = field(default_factory=list)
+    #: Naar wie de gebruiker de boodschap wil sturen (id), of `None`: niet versturen.
+    send_to: str | None = None
+
+
+def scenario_contacts() -> list[ContactEntry]:
+    """Twee bevestigde contacten; de broer staat eerst in de vaste volgorde."""
+    return [
+        ContactEntry(id="c-mama", name="Mama", vocabulary_item_id=None, sort_order=1),
+        ContactEntry(id="c-tim", name="Tim", vocabulary_item_id=None, sort_order=0),
+    ]
 
 
 #: De scenario's die met de regelgebaseerde agents al moeten slagen.
 SCENARIOS: list[Scenario] = [
     Scenario(name="bedoelt pijn", goal=frozenset({"pain"})),
     Scenario(name="bedoelt dorst", goal=frozenset({"drink"})),
+    Scenario(
+        name="dorst, naar mama sturen",
+        goal=frozenset({"drink"}),
+        contacts=scenario_contacts(),
+        send_to="c-mama",
+    ),
+    Scenario(
+        name="pijn, niet versturen",
+        goal=frozenset({"pain"}),
+        contacts=scenario_contacts(),
+    ),
 ]
 
 #: De meetscenario's met een taalmodel (§54, N6.13).
@@ -105,9 +129,15 @@ EVAL_SCENARIOS: list[Scenario] = [
 class SimulatedUser:
     """Antwoordt naar zijn doel: JA als het getoonde concept (of woord) erbij hoort."""
 
-    def __init__(self, goal: frozenset[str], words: frozenset[str] = frozenset()) -> None:
+    def __init__(
+        self,
+        goal: frozenset[str],
+        words: frozenset[str] = frozenset(),
+        send_to: str | None = None,
+    ) -> None:
         self.goal = goal
         self.words = frozenset(normalize(w) for w in words)
+        self.send_to = send_to
 
     def respond(self, presentation: Presentation, state: SessionState) -> dict[str, Any] | None:
         """De gebeurtenis bij dit scherm, of `None` als het gesprek voorbij is."""
@@ -115,6 +145,11 @@ class SimulatedUser:
             return None
         if presentation.kind == "ask_stop":
             return {"type": "answer_yes"}
+        if presentation.kind == "share_ask":
+            return {"type": "answer_yes" if self.send_to else "answer_no"}
+        if presentation.kind == "share_contact":
+            yes = any(o.contact_id == self.send_to for o in presentation.options)
+            return {"type": "answer_yes" if yes else "answer_no"}
         if presentation.kind == "question" and presentation.mode == "multi":
             # Multi-icon: de eerste tegel die bij het doel hoort, anders "Geen van deze".
             for option in presentation.options:
@@ -183,7 +218,7 @@ def play(
     clock: Callable[[], float] = time.monotonic,
 ) -> ScenarioResult:
     """Speelt één scenario van start tot het einde (of tot `max_turns`)."""
-    user = SimulatedUser(scenario.goal, scenario.words)
+    user = SimulatedUser(scenario.goal, scenario.words, scenario.send_to)
     turn_ms: list[int] = []
     settings = _settings(scenario.settings)
     started = clock()
@@ -222,7 +257,7 @@ def play(
                 "state": state,
                 "settings": settings,
                 "vocabulary": scenario.vocabulary,
-                "contacts": [],
+                "contacts": scenario.contacts,
                 "experience": None,
             }
         )
@@ -242,4 +277,8 @@ def play(
     confirmed = state.communication_intent
     if not user.means(list(confirmed.concepts), confirmed.message):
         return result(False, f"bevestigd: {sorted(confirmed.concepts)} ({confirmed.message!r})")
+    if state.share.selected_contact != scenario.send_to:
+        return result(
+            False, f"ontvanger {state.share.selected_contact!r}, bedoeld {scenario.send_to!r}"
+        )
     return result(True, None)

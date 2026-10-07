@@ -27,6 +27,17 @@ class ScenarioTest(unittest.TestCase):
         self.assertEqual(result.questions, 3)
         self.assertIn("question-agent", {d.agent for d in result.decisions})
 
+    def test_naar_mama_sturen(self) -> None:
+        # Tim staat eerst: NEE, dan Mama: JA. De agent kiest; versturen doet de backend.
+        result = play(SCENARIOS[2], step)
+        self.assertTrue(result.success, result.failure)
+        self.assertIn("contact-agent", {d.agent for d in result.decisions})
+
+    def test_niet_versturen(self) -> None:
+        result = play(SCENARIOS[3], step)
+        self.assertTrue(result.success, result.failure)
+        self.assertNotIn("contact-agent", {d.agent for d in result.decisions})
+
     def test_een_onbereikbaar_doel_mislukt_netjes(self) -> None:
         # "duizelig" staat niet bij de startconcepten: de regels komen er niet; de gebruiker stopt.
         result = play(Scenario(name="bedoelt duizelig", goal=frozenset({"dizzy"})), step)
@@ -42,16 +53,17 @@ class ScenarioTest(unittest.TestCase):
 class EvalTest(unittest.TestCase):
     def test_rapport_tegen_de_fake_provider(self) -> None:
         report = run(FakeProvider(), runs=2)
-        self.assertEqual(len(report.results), 4)
+        self.assertEqual(len(report.results), 2 * len(SCENARIOS))
         self.assertEqual(report.success_rate, 1.0)
         agents = report.agents()
         self.assertEqual(
-            set(agents), {"icon-agent", "intent-agent", "question-agent", "validation-agent"}
+            set(agents),
+            {"contact-agent", "icon-agent", "intent-agent", "question-agent", "validation-agent"},
         )
         # Zonder antwoorden van de FakeProvider vallen de LLM-agents terug op hun regels.
-        self.assertEqual(dict(agents["question-agent"].statuses), {"fallback": 8})
+        self.assertEqual(dict(agents["question-agent"].statuses), {"fallback": 16})
         text = report.render()
-        self.assertIn("Geslaagd: 100% van 4", text)
+        self.assertIn(f"Geslaagd: 100% van {2 * len(SCENARIOS)}", text)
         self.assertIn("question-agent", text)
 
     def test_cli_met_fake_provider(self) -> None:

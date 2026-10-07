@@ -122,8 +122,14 @@ afgewezen en het gesprek gaat terug naar `clarify`. Zonder taalmodel is een JA m
 dit sturen?" (binary, met de boodschap). Zonder contacten, en bij NEE daarop → `done`. De backend stuurt
 alleen bevestigde, actieve contacten mee (id, naam, pictogram, volgorde; nooit een e-mailadres). De naam
 is er voor de vaste zinnen en komt in geen enkele prompt (V6; `tests/test_share.py` controleert elke
-prompt met alle LLM-agents aan). JA op "Wil je dit sturen?" leidt tot N11.2 ook naar `done`, zonder iets te
-versturen.
+prompt met alle LLM-agents aan).
+
+**Contact Agent** (`agents/contact.py`, §28, §29): regels, geen LLM. Na JA op "Wil je dit sturen?" vraagt
+hij in binary de contacten één voor één in de vaste volgorde (`sort_order`): "Wil je dit naar {naam}
+sturen?" met het pictogram van het contact. JA kiest dát contact (`share.selected_contact`, na S3); NEE →
+het volgende; niemand meer → `done` zonder ontvanger. Versturen doet de backend, nooit de agentdienst
+(I3). In multi-icon is JA op "Wil je dit sturen?" tot N11.5 (contacttegels) meteen `done`. De
+scenario's "dorst, naar mama sturen" en "pijn, niet versturen" spelen het hele gesprek.
 
 **Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke modelaanroep krijgt
 hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de regels het over. Zo

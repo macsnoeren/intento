@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.2 — Contact Agent (binary)
+
+- `agents/contact.py`: volgorde op `sort_order` (stabiel), het volgende nog niet gevraagde contact, de
+  vaste zin "Wil je dit naar {naam} sturen?" en de contactoptie (naam en pictogram). Regels, geen LLM.
+- Orchestrator: JA op "Wil je dit sturen?" → `share_contact` (binary), één contact per vraag; NEE → het
+  volgende; niemand meer → `done` zonder ontvanger; JA → `share.selected_contact` (na S3) en `done`.
+  Versturen volgt in de backend (N11.3). In multi-icon is JA tot N11.5 nog `done`.
+- Scenario's "dorst, naar mama sturen" en "pijn, niet versturen"; de gesimuleerde gebruiker kent nu een
+  ontvanger. Met de cloud op de tablet gerookt tot "Wil je dit naar Tim sturen?".
+
 ### N11.1 — "Wil je dit sturen?"
 
 - De backend stuurt de bevestigde, actieve contacten van de gebruiker mee naar de agentdienst: id, naam,
