@@ -8,7 +8,7 @@ import {
   turnRequestSchema,
   turnResponseSchema,
 } from './agent-contract.js';
-import { QUESTION_STRATEGY_CATALOG, QUESTION_STRATEGY_KEYS } from './index.js';
+import { QUESTION_STRATEGY_CATALOG, QUESTION_STRATEGY_KEYS, VOCABULARY_CONTEXTS } from './index.js';
 
 /**
  * De zod-contracten tegen dezelfde voorbeeldbestanden als pydantic (N1.4, INTENTO-NEW-DESIGN §34).
@@ -117,5 +117,14 @@ describe('vraagstrategieën (N6.4, INTENTO-NEW-DESIGN §7.1)', () => {
     expect([...QUESTION_STRATEGY_KEYS]).toEqual(contract);
     expect(QUESTION_STRATEGY_CATALOG.map((strategy) => strategy.key)).toEqual(contract);
     expect(questionStrategyKeySchema.options).toEqual(contract);
+  });
+});
+
+describe('Vocabulary-contexten (N8.7)', () => {
+  it('zijn gelijk aan contracts/vocabulary_contexts.json (en dus aan de agentdienst)', () => {
+    const contract = JSON.parse(
+      readFileSync(join(FIXTURES, '..', 'vocabulary_contexts.json'), 'utf8'),
+    ) as unknown;
+    expect([...VOCABULARY_CONTEXTS]).toEqual(contract);
   });
 });

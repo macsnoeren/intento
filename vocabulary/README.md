@@ -30,17 +30,28 @@ de Vocabulary tot de bron ze weer vrijgeeft.
 - **concept**: taalneutrale sleutel, normaal afgeleid uit het Engelse label (*chest pain* → `chest_pain`).
   Uniek over alle vertaalbestanden heen (getest). Bewuste afwijkingen in de kernset: `tired` (Mulberry heeft
   geen "tired"; het geeuw-pictogram "yawn" staat voor *moe*), `mouth_care` en `back_ache` (zorgsymbolen
-  met een te specifiek Engels label), en `_2` voor de dubbele pictos van de Plus Collection.
+  met een te specifiek Engels label), en `_2` voor de dubbele pictos van de Plus Collection. Dezelfde
+  afspraak geldt voor de machinevertaling: heeft Mulberry meerdere pictos met hetzelfde Engelse label
+  (vier keer *drink*), dan krijgen de machineregels `drink_2`, `drink_3`, … (84 regels).
 - **context**: één van `health`, `food_drink`, `feelings`, `body`, `people`, `places`, `activities`,
   `things`, `time`, `other`.
 - **is_start**: de startconcepten (§6): pijn, eten, drinken, toilet, moe, blij, verdrietig, hulp.
 - **status**: `reviewed` (met de hand) of `machine` (machinevertaling, N8.7). Alleen symbolen met een
   Nederlandse vertaling komen in de Vocabulary.
 
-De kernset (N2.5) telt 57 Mulberry-woorden en alle 42 zorgsymbolen van de Plus Collection.
+De kernset (N2.5) telt 57 Mulberry-woorden en alle 42 zorgsymbolen van de Plus Collection. De rest
+van Mulberry (3.380 symbolen) is machinevertaald met `python -m agent_service.translate mulberry`
+(N8.7, `gpt-oss:120b-cloud`, 2026-10-07; zie `agent-service/README.md`).
+
+**Kwaliteit van de machinevertaling.** Een steekproef is goed bruikbaar, maar niet foutloos: soms blijft
+een Engels of Duits woord staan (*atom*, *sommersprossen*), staat een Engels woord tussen de synoniemen
+(16 regels) of neemt het label een volgnummer van de bron over (*spiegel 2*). Daarom heten deze regels
+`machine`: de beheerder kijkt ze na in het Vocabulary-overzicht (filter "Machinevertaling, nog niet
+nagekeken", N8.8).
 
 **Woorden die ontbreken.** Niet elk woord heeft een symbool in de bronnen: Mulberry en de Corona-set
 hebben bijvoorbeeld geen symbool voor "ziek", "misselijk" of "duizelig" (N6.15). Zo'n woord krijgt
 tijdens een gesprek het dichtstbijzijnde pictogram met een gap (INTENTO-NEW-DESIGN §8, §17), tot een
-beheerder een eigen afbeelding toevoegt. Let op: de import overschrijft de labels van een bestaand item
-niet; een vertaling achteraf aanpassen geldt dus alleen voor nieuwe installaties.
+beheerder een eigen afbeelding toevoegt. Let op: de import werkt labels, concepten en contexten van een
+bestaand item alleen bij zolang dat item nog `machine` is; wat een beheerder in de app heeft nagekeken,
+overschrijft de seed nooit.

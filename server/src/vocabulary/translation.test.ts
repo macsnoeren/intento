@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   conceptFromEnglish,
@@ -78,5 +81,25 @@ describe('vertaalbestanden van de startset', () => {
     expect(conceptFromEnglish('Undress , To')).toBe('undress');
     expect(conceptFromEnglish("can't smell")).toBe('cant_smell');
     expect(conceptFromEnglish('COVID-19')).toBe('covid_19');
+  });
+});
+
+describe('conceptFromEnglish tegen contracts/concept_from_english.json (N8.7)', () => {
+  // Dezelfde voorbeelden toetst de agentdienst (machinevertaling): beide kanten maken hetzelfde concept.
+  const pairs = JSON.parse(
+    readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        '..',
+        '..',
+        'contracts',
+        'concept_from_english.json',
+      ),
+      'utf8',
+    ),
+  ) as [string, string][];
+  it.each(pairs)('%s → %s', (label, concept) => {
+    expect(conceptFromEnglish(label)).toBe(concept);
   });
 });

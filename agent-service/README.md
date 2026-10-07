@@ -177,6 +177,33 @@ Of los: `.venv/bin/python -m unittest discover -s tests -t .` en `.venv/bin/mypy
 
 De tests starten een echte server op een vrije poort; er is geen netwerk of LLM nodig.
 
+### Machinevertaling van een symboolset
+
+`python -m agent_service.translate <slug>` vult `vocabulary/translations/<slug>.nl.json` aan voor elk
+symbool uit het manifest dat nog geen Nederlandse vertaling heeft (INTENTO-NEW-DESIGN §15.1, stap 3).
+Per batch gaan het Engelse, Duitse en Franse label plus de woordsoort naar de LLM (prompt
+`translate-v1`), zodat *"paint, to"* het werkwoord *schilderen* wordt en niet *verf*. Het antwoord
+(label, synoniemen, context uit de vaste lijst) wordt met pydantic gevalideerd; ids die niet gevraagd
+zijn of een context buiten de lijst vallen eruit. Elke regel krijgt `status: machine`.
+
+- **Nooit over een nagekeken regel heen**: alleen ids die nog ontbreken, worden gevraagd.
+- **Hervatten**: het bestand wordt na elke batch atomair weggeschreven; een mislukte batch wordt
+  overgeslagen en bij de volgende run opnieuw gevraagd. Exitcode 0 alleen als niets mislukte.
+- **Unieke concepten**: het concept komt uit het Engelse label (dezelfde regel als de backend, getest
+  tegen `contracts/concept_from_english.json`). Heeft de bron meerdere pictos met hetzelfde label (vier
+  keer *drink*), dan krijgt een machineregel met een bezet concept `_2`, `_3`, … — nagekeken regels en
+  de andere vertaalbestanden houden hun concept.
+
+```bash
+OLLAMA_URL=http://127.0.0.1:11434 OLLAMA_MODEL=gpt-oss:120b-cloud \
+  .venv/bin/python -m agent_service.translate mulberry --batch 25
+```
+
+`--limit N` vraagt hooguit N symbolen (om te proberen). De hele Mulberry-set (3.340 symbolen) kostte
+met `gpt-oss:120b-cloud` ruim een uur. Daarna de seed (N2.7) opnieuw: lokaal
+`npx tsx --env-file=.env src/scripts/vocabulary-import.ts` in `server/`, in Docker de klus
+`vocabulary-import` (zie de hoofd-README).
+
 ### Scenario's en evaluatie
 
 `agent_service/scenarios/` laat een **gesimuleerde gebruiker** een heel gesprek spelen via `step()`

@@ -28,6 +28,20 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.7 — machinevertaling van de rest van Mulberry
+
+- `python -m agent_service.translate <slug>` (agentdienst): per batch Engels, Duits, Frans en woordsoort
+  naar de LLM (prompt `translate-v1`, pydantic-schema); terug label, synoniemen en context. Schrijft
+  `status: machine`, raakt nooit een `reviewed` regel, schrijft na elke batch atomair en hervat waar hij
+  gebleven was. Dubbele concepten (vier keer *drink* in Mulberry) krijgen `_2`, `_3`, ….
+- `contracts/vocabulary_contexts.json` en `contracts/concept_from_english.json`: de vaste contextlijst en
+  de regel Engels label → concept, getest in de agentdienst, `shared` en de server.
+- Hele Mulberry-set vertaald met `gpt-oss:120b-cloud` (3.380 regels, eerste run 31 mislukt, tweede run
+  0); het vertaalbestand valideert en de seed zet 3.480 platformitems in de Vocabulary. De kwaliteit is
+  bruikbaar, maar niet foutloos (zie `vocabulary/README.md`); nakijken is N8.8.
+- In de browser gerookt: binair gesprek met de cloud naar "Drinken." in vier stappen (17 s), multi-icon
+  in twee stappen.
+
 ### N8.6 — importeren: beheer-UI
 
 - "+ Uit externe bron" op de Vocabulary-pagina (alleen de beheerder): zoeken in OpenSymbols, per

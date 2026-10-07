@@ -510,7 +510,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   importeren met label.
   *Acceptatie:* componenttest; rooktest.
 
-- [ ] **N8.7 Machinevertaling van de rest van Mulberry**
+- [x] **N8.7 Machinevertaling van de rest van Mulberry**
   *ONTWERP: §15.1 (stap 3).* CLI `python -m agent_service.translate <slug>` met de OllamaProvider (N5.2):
   per symbool zonder Nederlandse vertaling het Engelse, Duitse en Franse label plus de woordsoort naar
   de LLM; terug een Nederlands label, synoniemen en een context uit de vaste lijst (pydantic-schema).

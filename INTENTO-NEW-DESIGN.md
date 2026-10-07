@@ -771,7 +771,7 @@ Het Mulberry-project zelf noemt CC BY-SA 2.0 UK. Intento legt de licentie vast z
    - De rest vertaalt een script met Ollama (status `machine`). Het krijgt de Engelse, Duitse en Franse labels plus de woordsoort mee, zodat bv. *"paint, to"* het werkwoord *schilderen* wordt en niet het zelfstandig naamwoord *verf*. De context kiest het uit een vaste lijst (gezondheid, eten en drinken, gevoelens, lichaam, mensen, plaatsen, activiteiten, dingen, tijd, overig).
    - In de beheeromgeving kan de beheerder machinevertalingen nakijken en verbeteren. Elke wijziging maakt het label `reviewed`.
 
-De **seed** maakt van manifest + vertaling platformitems. Alleen symbolen met een Nederlandse vertaling komen in de Vocabulary: een Engels label op de tablet zou de gebruiker meer in de war brengen dan een ontbrekend woord. Het concept is een taalneutrale sleutel, afgeleid van het Engelse label (*chest pain* → `chest_pain`).
+De **seed** maakt van manifest + vertaling platformitems. Alleen symbolen met een Nederlandse vertaling komen in de Vocabulary: een Engels label op de tablet zou de gebruiker meer in de war brengen dan een ontbrekend woord. Het concept is een taalneutrale sleutel, afgeleid van het Engelse label (*chest pain* → `chest_pain`). Het concept is uniek over de hele startset: heeft de bron meerdere pictos met hetzelfde Engelse label (Mulberry heeft vier keer *drink*), dan krijgen de latere `drink_2`, `drink_3`, …; de exacte match van de iconagent (§16) rekent op één item per concept.
 
 In Docker draait de import eenmalig als aparte klus die de afbeeldingen in een volume zet, net als het ophalen van de stemmen voor de spraakdienst.
 
