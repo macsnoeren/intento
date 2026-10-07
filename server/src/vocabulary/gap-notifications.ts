@@ -27,7 +27,7 @@ export function buildGapEmail(to: string, label: string, appUrl: string): MailMe
 export async function notifyNewGaps(
   prisma: PrismaClient,
   mail: MailTransport,
-  env: Pick<Env, 'CORS_ORIGIN'>,
+  env: Pick<Env, 'APP_BASE_URL'>,
   organizationId: string,
   concepts: readonly string[],
 ): Promise<number> {
@@ -50,7 +50,7 @@ export async function notifyNewGaps(
   let sent = 0;
   for (const admin of admins) {
     for (const gap of gaps) {
-      await mail.send(buildGapEmail(admin.email, gap.label, env.CORS_ORIGIN));
+      await mail.send(buildGapEmail(admin.email, gap.label, env.APP_BASE_URL));
       sent += 1;
     }
   }

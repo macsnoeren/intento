@@ -47,7 +47,7 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - Accountinstelling `notifyGapsByEmail` (migratie `notify_gaps_by_email`, standaard uit) onder "Mijn
   account" → "Meldingen": één e-mail per **nieuw** ontbrekend woord, niet per keer dat het voorkomt;
   alleen aan beheerders van die organisatie met een bevestigd e-mailadres. De mail noemt het woord en
-  de link naar de web-app (`CORS_ORIGIN`), nooit de gebruiker. Verstuurd los van de beurt: de tablet
+  de link naar de web-app (`APP_BASE_URL`), nooit de gebruiker. Verstuurd los van de beurt: de tablet
   wacht niet op de mailserver en een mislukte mail breekt het gesprek niet.
 - Tests: tweede keer hetzelfde woord → geen tweede e-mail; instelling uit → geen e-mail; niet aan een
   begeleider, een ander organisatie of een onbevestigd adres; een mislukte mail laat het gesprek door
