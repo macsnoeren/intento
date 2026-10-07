@@ -44,6 +44,10 @@ import {
   type VocabularyGapStatus,
   vocabularyGapListResponseSchema,
   vocabularyGapPublicSchema,
+  type VocabularyGapCount,
+  vocabularyGapCountSchema,
+  type AccountNotifications,
+  accountNotificationsSchema,
   type AuthResponse,
   type ChangePasswordRequest,
   type ChangePasswordResponse,
@@ -147,6 +151,11 @@ export interface Api {
   setVocabularyItemStatus(id: string, action: 'retire' | 'restore'): Promise<VocabularyItemPublic>;
   /** Ontbrekende woorden van de eigen organisatie (standaard de open woorden). Alleen beheerder. */
   listVocabularyGaps(status?: VocabularyGapStatus): Promise<VocabularyGapListResponse>;
+  /** Alleen het aantal open ontbrekende woorden, voor de teller in het menu. */
+  getVocabularyGapCount(): Promise<VocabularyGapCount>;
+  /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
+  getAccountNotifications(): Promise<AccountNotifications>;
+  updateAccountNotifications(body: AccountNotifications): Promise<AccountNotifications>;
   /** Een ontbrekend woord oplossen (na "Woord toevoegen"), negeren of weer openzetten. */
   setVocabularyGapStatus(
     id: string,
@@ -413,6 +422,17 @@ export const httpApi: Api & DeviceApi = {
   async listVocabularyGaps(status) {
     const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
     return vocabularyGapListResponseSchema.parse(await request(`/vocabulary/gaps${suffix}`));
+  },
+  async getVocabularyGapCount() {
+    return vocabularyGapCountSchema.parse(await request('/vocabulary/gaps/count'));
+  },
+  async getAccountNotifications() {
+    return accountNotificationsSchema.parse(await request('/account/notifications'));
+  },
+  async updateAccountNotifications(body) {
+    return accountNotificationsSchema.parse(
+      await request('/account/notifications', { method: 'PUT', body: JSON.stringify(body) }),
+    );
   },
   async setVocabularyGapStatus(id, action) {
     return vocabularyGapPublicSchema.parse(

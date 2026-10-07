@@ -155,6 +155,10 @@ model Account {
   /// staat — de allereerste zelfaanmelding op een lege database. Er is geen API waarmee een
   /// bestaand account de vlag uitdeelt of krijgt. Zie ADR-0011 en docs/security.md.
   isOperator          Boolean   @default(false)
+  /// Meldingen (N9.3, INTENTO-NEW-DESIGN §17): een beheerder die dit aanzet, krijgt één e-mail per
+  /// **nieuw** ontbrekend woord van zijn organisatie (niet per keer dat het voorkomt). Standaard uit:
+  /// de teller in het menu is de gewone melding; e-mail is "als de beheerder dat wil".
+  notifyGapsByEmail   Boolean   @default(false)
   createdAt           DateTime  @default(now())
 
   organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)

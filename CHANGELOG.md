@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N9.3 — melding aan de beheerder
+
+- Teller bij "Ontbrekende woorden" in het menu (`GET /vocabulary/gaps/count`), opnieuw geteld bij elke
+  paginawissel en na een actie op de pagina; schermlezers horen "Ontbrekende woorden, 3 open".
+- Accountinstelling `notifyGapsByEmail` (migratie `notify_gaps_by_email`, standaard uit) onder "Mijn
+  account" → "Meldingen": één e-mail per **nieuw** ontbrekend woord, niet per keer dat het voorkomt;
+  alleen aan beheerders van die organisatie met een bevestigd e-mailadres. De mail noemt het woord en
+  de link naar de web-app (`CORS_ORIGIN`), nooit de gebruiker. Verstuurd los van de beurt: de tablet
+  wacht niet op de mailserver en een mislukte mail breekt het gesprek niet.
+- Tests: tweede keer hetzelfde woord → geen tweede e-mail; instelling uit → geen e-mail; niet aan een
+  begeleider, een ander organisatie of een onbevestigd adres; een mislukte mail laat het gesprek door
+  gaan. Met de cloud gerookt: twee keer "niet lekker" in één gesprek gaf één e-mail.
+
 ### N9.2 — beheer: "Ontbrekende woorden"
 
 - Nieuwe pagina in het beheermenu (alleen de beheerder): per woord het pictogram dat de gebruiker zag,

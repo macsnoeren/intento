@@ -538,7 +538,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   of N8.6, vooraf ingevuld; daarna `resolved`) en "Negeren".
   *Acceptatie:* tests op de endpoints; componenttest.
 
-- [ ] **N9.3 Melding aan de beheerder**
+- [x] **N9.3 Melding aan de beheerder**
   *ONTWERP: §17.* Teller bij het menu-item; accountinstelling `notifyGapsByEmail`: één e-mail per nieuw
   ontbrekend woord (niet per keer dat het voorkomt).
   *Acceptatie:* tests: tweede keer hetzelfde woord → geen tweede e-mail; instelling uit → geen e-mail.

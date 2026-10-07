@@ -65,6 +65,8 @@ export interface ConversationDeps {
   encryptor: Encryptor;
   agents: AgentClient;
   now?: () => Date;
+  /** Na het opslaan: concepten die voor deze organisatie nieuw ontbreken (N9.3). Mag niet gooien. */
+  onNewGaps?: (organizationId: string, concepts: string[]) => void;
 }
 
 /** De gebruiker achter een apparaat, met zijn instellingen. */
@@ -221,7 +223,8 @@ export async function runAgentTurn(
   await recordInferences(prisma, encryptor, session.id, turn, response.inferences);
   await recordDecisions(prisma, session.id, turn, response.decisions);
   // Ontbrekende woorden per organisatie, zonder gebruiker of gesprek (§17).
-  await recordGaps(prisma, user.organizationId, response.gaps, now());
+  const newGaps = await recordGaps(prisma, user.organizationId, response.gaps, now());
+  if (newGaps.length > 0) deps.onNewGaps?.(user.organizationId, newGaps);
   // Klaar, of JA op "Wil je stoppen?": het gesprek is voorbij. Een bevestigd gesprek blijft
   // `confirmed`, een onbevestigd wordt `stopped`.
   if (response.presentation.kind === 'done' || response.presentation.kind === 'stopped') {

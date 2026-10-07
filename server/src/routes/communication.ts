@@ -3,6 +3,8 @@ import type { Env } from '../env.js';
 import type { PrismaClient } from '../generated/prisma/client.js';
 import type { Encryptor } from '../crypto/encryption.js';
 import type { AgentClient } from '../agents/client.js';
+import type { MailTransport } from '../mail/transport.js';
+import { notifyNewGaps } from '../vocabulary/gap-notifications.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import {
   answerRequestSchema,
@@ -15,6 +17,7 @@ import {
   goBack,
   startConversation,
   stopConversation,
+  type ConversationDeps,
 } from '../communication/conversation.js';
 
 /**
@@ -34,9 +37,28 @@ import {
  */
 export function registerCommunicationRoutes(
   app: FastifyInstance,
-  deps: { env: Env; prisma: PrismaClient; encryptor: Encryptor; agents: AgentClient },
+  {
+    mail,
+    ...base
+  }: {
+    env: Env;
+    prisma: PrismaClient;
+    encryptor: Encryptor;
+    agents: AgentClient;
+    mail: MailTransport;
+  },
 ): void {
-  const { prisma } = deps;
+  const { prisma, env } = base;
+  // Een nieuw ontbrekend woord → e-mail aan de beheerders die dat willen (N9.3). Los van de beurt:
+  // de tablet wacht niet op de mailserver, en een mislukte mail breekt het gesprek nooit.
+  const deps: ConversationDeps = {
+    ...base,
+    onNewGaps: (organizationId, concepts) => {
+      notifyNewGaps(prisma, mail, env, organizationId, concepts).catch((error: unknown) => {
+        app.log.error({ err: error }, 'e-mail over ontbrekende woorden mislukt');
+      });
+    },
+  };
   // Ruim genoeg voor een gesprek in vlot tempo, maar geen gratis toegang tot de agentdienst.
   const rateLimit = { max: 60, timeWindow: '1 minute' };
 

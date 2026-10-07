@@ -167,4 +167,61 @@ describe('/vocabulary/gaps', () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it('telt de open woorden voor het menu', async () => {
+    const a = await seedOrganization('A');
+    const b = await seedOrganization('B');
+    await recordGaps(
+      prisma,
+      a,
+      [gap('dizziness', 'duizelig'), gap('freckles', 'sproeten')],
+      new Date(),
+    );
+    await recordGaps(prisma, b, [gap('hiccups', 'hik')], new Date());
+    const cookie = await admin('a@intento.local', a);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/vocabulary/gaps/count',
+      headers: { cookie },
+    });
+    expect(res.json()).toEqual({ open: 2 });
+  });
+
+  it('meldingen per e-mail: standaard uit, aan te zetten door de beheerder zelf; geaudit', async () => {
+    const org = await seedOrganization();
+    const cookie = await admin('a@intento.local', org);
+    const get = () =>
+      app.inject({ method: 'GET', url: '/account/notifications', headers: { cookie } });
+    expect((await get()).json()).toEqual({ notifyGapsByEmail: false });
+
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/account/notifications',
+      headers: { cookie },
+      payload: { notifyGapsByEmail: true },
+    });
+    expect(put.statusCode).toBe(200);
+    expect((await get()).json()).toEqual({ notifyGapsByEmail: true });
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'account.notifications.update' },
+    });
+    expect(audit.targetType).toBe('account');
+
+    const bad = await app.inject({
+      method: 'PUT',
+      url: '/account/notifications',
+      headers: { cookie },
+      payload: { notifyGapsByEmail: 'ja', extra: 1 },
+    });
+    expect(bad.statusCode).toBe(400);
+  });
+
+  it('meldingen en teller: niet voor een begeleider', async () => {
+    const org = await seedOrganization();
+    await seedAccount('begeleider@intento.local', PASSWORD, 'CAREGIVER', org);
+    const cookie = await loginCookie(app, 'begeleider@intento.local', PASSWORD);
+    for (const url of ['/account/notifications', '/vocabulary/gaps/count']) {
+      expect((await app.inject({ method: 'GET', url, headers: { cookie } })).statusCode).toBe(403);
+    }
+  });
 });

@@ -39,6 +39,7 @@ export const AUDIT_ACTIONS = {
   VOCABULARY_GAP_RESOLVE: 'vocabulary.gap.resolve',
   VOCABULARY_GAP_DISMISS: 'vocabulary.gap.dismiss',
   VOCABULARY_GAP_REOPEN: 'vocabulary.gap.reopen',
+  ACCOUNT_NOTIFICATIONS_UPDATE: 'account.notifications.update',
   // Organisatie-instellingen (bewaartermijn, §53)
   ORGANIZATION_SETTINGS_UPDATE: 'organization.settings.update',
   // Platform-operatorconsole — cross-tenant beheer, altijd met de operator als actor

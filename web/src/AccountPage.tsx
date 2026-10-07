@@ -3,11 +3,12 @@ import type { Api } from './api.ts';
 import type { AdminView } from './AdminNav.tsx';
 import { AppShell } from './AppShell.tsx';
 import { ChangePasswordPanel } from './ChangePasswordPanel.tsx';
+import { NotificationsPanel } from './NotificationsPanel.tsx';
 
 /**
  * Beheeromgeving — **eigen account** (INTENTO-NEW-DESIGN §49, §53). De plek waar een ingelogd account
- * zijn eigen gegevens beheert; nu alleen het wachtwoord. Bewust een eigen tab en niet verstopt in
- * het gebruikersbeheer: dat gaat over *andere* mensen, dit over jezelf.
+ * zijn eigen gegevens beheert: het wachtwoord, en voor de beheerder de meldingen (N9.3). Bewust een
+ * eigen tab en niet verstopt in het gebruikersbeheer: dat gaat over *andere* mensen, dit over jezelf.
  */
 export function AccountPage({
   api,
@@ -24,7 +25,7 @@ export function AccountPage({
     <AppShell
       account={account}
       title="Mijn account"
-      subtitle="Je eigen gegevens en wachtwoord."
+      subtitle="Je eigen gegevens, meldingen en wachtwoord."
       active="account"
       onNavigate={onNavigate}
       onLogout={onLogout}
@@ -58,6 +59,8 @@ export function AccountPage({
           </a>
         </section>
       ) : null}
+
+      {account.role === 'ADMIN' ? <NotificationsPanel api={api} /> : null}
 
       <ChangePasswordPanel api={api} />
     </AppShell>

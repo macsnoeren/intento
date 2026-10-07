@@ -8,6 +8,7 @@ import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
 import { VocabularyPage } from './VocabularyPage.tsx';
 import { VocabularyGapsPage } from './VocabularyGapsPage.tsx';
+import { NavBadgesProvider } from './NavBadges.tsx';
 import { AttributionsPage } from './AttributionsPage.tsx';
 import { OrganizationPage } from './OrganizationPage.tsx';
 import { CaregiverUsersPage } from './CaregiverUsersPage.tsx';
@@ -210,112 +211,37 @@ export function App({
     );
   }
 
-  if (view === 'dashboard') {
-    return (
-      <>
-        {banner}
-        <DashboardPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-  if (view === 'account') {
-    return (
-      <>
-        {banner}
-        <AccountPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'vocabulary') {
-    return (
-      <>
-        {banner}
-        <VocabularyPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'gaps') {
-    return (
-      <>
-        {banner}
-        <VocabularyGapsPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'sources') {
-    return (
-      <>
-        {banner}
-        <AttributionsPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'organization') {
-    return (
-      <>
-        {banner}
-        <OrganizationPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
-  if (view === 'audit-logs') {
-    return (
-      <>
-        {banner}
-        <AuditLogPage
-          api={api}
-          account={account}
-          onLogout={() => void handleLogout()}
-          onNavigate={setView}
-        />
-      </>
-    );
-  }
-
+  // Beheerder: elke pagina krijgt dezelfde props; het menu toont de open ontbrekende woorden (N9.3).
+  const props = {
+    api,
+    account,
+    onLogout: () => void handleLogout(),
+    onNavigate: setView,
+  };
+  const page = ((): React.JSX.Element => {
+    switch (view) {
+      case 'dashboard':
+        return <DashboardPage {...props} />;
+      case 'account':
+        return <AccountPage {...props} />;
+      case 'vocabulary':
+        return <VocabularyPage {...props} />;
+      case 'gaps':
+        return <VocabularyGapsPage {...props} />;
+      case 'sources':
+        return <AttributionsPage {...props} />;
+      case 'organization':
+        return <OrganizationPage {...props} />;
+      case 'audit-logs':
+        return <AuditLogPage {...props} />;
+      default:
+        return <AdminUsersPage {...props} />;
+    }
+  })();
   return (
-    <>
+    <NavBadgesProvider api={api} view={view}>
       {banner}
-      <AdminUsersPage
-        api={api}
-        account={account}
-        onLogout={() => void handleLogout()}
-        onNavigate={setView}
-      />
-    </>
+      {page}
+    </NavBadgesProvider>
   );
 }

@@ -131,7 +131,7 @@ export async function buildApp({
   // Organisatie-instellingen: bewaartermijn (N3.3).
   registerOrganizationRoutes(app, { env, prisma });
   // Gesprekken op de tablet: de backend praat namens de tablet met de agentdienst (N4.5 e.v.).
-  registerCommunicationRoutes(app, { env, prisma, encryptor, agents });
+  registerCommunicationRoutes(app, { env, prisma, encryptor, agents, mail });
 
   return app;
 }

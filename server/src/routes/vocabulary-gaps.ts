@@ -1,6 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  accountNotificationsSchema,
+  type AccountNotifications,
+  vocabularyGapCountSchema,
+  type VocabularyGapCount,
   vocabularyGapListQuerySchema,
   vocabularyGapListResponseSchema,
   vocabularyGapPublicSchema,
@@ -24,6 +28,8 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
  * `POST /vocabulary/gaps/:id/resolve` — opgelost (na "Woord toevoegen").
  * `POST /vocabulary/gaps/:id/dismiss` — negeren.
  * `POST /vocabulary/gaps/:id/reopen` — een genegeerd of opgelost woord weer openzetten.
+ * `GET /vocabulary/gaps/count` — alleen het aantal open woorden, voor de teller in het menu (N9.3).
+ * `GET`/`PUT /account/notifications` — of deze beheerder een e-mail wil per nieuw ontbrekend woord.
  *
  * Alleen de beheerder, alleen de eigen organisatie: een woord van een andere organisatie of een onbekend
  * id geeft 403 zonder te verraden welke van de twee (IDOR-mitigatie, ADR-0005). Geaudit, zonder het
@@ -97,6 +103,46 @@ export function registerVocabularyGapRoutes(
         items: rows.map((row) => gapToPublic(row, env, now)),
         open,
       });
+    },
+  );
+
+  app.get(
+    '/vocabulary/gaps/count',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<VocabularyGapCount> => {
+      const { organizationId } = requireAccount(request);
+      const open = await prisma.vocabularyGap.count({ where: { organizationId, status: 'open' } });
+      return vocabularyGapCountSchema.parse({ open });
+    },
+  );
+
+  app.get(
+    '/account/notifications',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    (request): AccountNotifications => {
+      const { notifyGapsByEmail } = requireAccount(request);
+      return { notifyGapsByEmail };
+    },
+  );
+
+  app.put(
+    '/account/notifications',
+    { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
+    async (request): Promise<AccountNotifications> => {
+      const account = requireAccount(request);
+      const body = accountNotificationsSchema.parse(request.body);
+      const updated = await prisma.account.update({
+        where: { id: account.id },
+        data: { notifyGapsByEmail: body.notifyGapsByEmail },
+        select: { notifyGapsByEmail: true },
+      });
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.ACCOUNT_NOTIFICATIONS_UPDATE,
+        targetType: 'account',
+        targetId: account.id,
+        metadata: { notifyGapsByEmail: updated.notifyGapsByEmail },
+      });
+      return updated;
     },
   );
 

@@ -1137,6 +1137,17 @@ export const vocabularyGapListResponseSchema = z.object({
 });
 export type VocabularyGapListResponse = z.infer<typeof vocabularyGapListResponseSchema>;
 
+/** `GET /vocabulary/gaps/count`: alleen de teller, voor het menu. */
+export const vocabularyGapCountSchema = z.object({ open: z.number().int().nonnegative() });
+export type VocabularyGapCount = z.infer<typeof vocabularyGapCountSchema>;
+
+/** `GET`/`PUT /account/notifications`: meldingen voor de beheerder (N9.3). */
+export const accountNotificationsSchema = z.strictObject({
+  /** Eén e-mail per nieuw ontbrekend woord van de eigen organisatie. */
+  notifyGapsByEmail: z.boolean(),
+});
+export type AccountNotifications = z.infer<typeof accountNotificationsSchema>;
+
 /** Eén bron in de bronvermelding (`GET /vocabulary/attributions`, §15): wie, welke licentie, welke symbolen. */
 export const attributionSourceSchema = z.object({
   sourceName: z.string(),

@@ -226,6 +226,12 @@
       (`licenseUrl`/`authorUrl`/`sourceUrl`) mogen `http(s)` zijn maar nooit `javascript:`/`data:` (die
       vallen weg naar `null`). Getest in `vocabulary/opensymbols.test.ts`. De volledige importcontrole
       (bekende host, typecontrole, werkelijke grootte) volgt in N8.5.
+- [x] **Ontbrekende woorden zonder persoon (N9.1–N9.3, §17, §39)** — `VocabularyGap` heeft geen
+      gebruiker of gesprek: per organisatie alleen concept, woord, context, beste pictogram en tellers.
+      De lijst, de teller en de acties zijn alleen voor beheerders van die organisatie (een woord van een
+      ander of een onbekend id → 403, zonder te verraden welke); acties worden geaudit zonder het woord.
+      De e-mail over een nieuw woord gaat alleen naar beheerders van die organisatie die hem aanzetten
+      (opt-in) en hun adres bevestigden, noemt alleen het woord en blokkeert of breekt nooit een gesprek.
 - [x] **Profielexport/-import — versleuteld bestand + strikte toegang (T8.1)** — de export
       (`GET /users/{id}/export`) bundelt alléén het **profiel** (communicatie-instellingen en weergavenaam)
       en **nooit** account-/organisatiegegevens, id's of tokens. De volledige payload wordt met dezelfde AES-256-GCM-`Encryptor` (`ENCRYPTION_KEY`) versleuteld,

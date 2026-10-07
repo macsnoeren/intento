@@ -1,4 +1,5 @@
 import { NavIcon, type NavIconName } from './NavIcon.tsx';
+import { useNavBadges } from './NavBadges.tsx';
 
 /**
  * Het hoofdmenu van de web-applicatie.
@@ -117,6 +118,7 @@ export function AdminNav({
   role?: NavRole;
   onNavigate: (view: AdminView) => void;
 }): React.JSX.Element {
+  const { counts } = useNavBadges();
   return (
     <nav className="app-nav" aria-label="Beheer">
       {groupsForRole(role).map((group) => (
@@ -130,10 +132,16 @@ export function AdminNav({
               type="button"
               className={`app-nav__item${active === view ? ' app-nav__item--active' : ''}`}
               aria-current={active === view ? 'page' : undefined}
+              aria-label={counts[view] ? `${label}, ${counts[view]} open` : undefined}
               onClick={() => onNavigate(view)}
             >
               <NavIcon name={icon} />
               <span className="app-nav__label">{label}</span>
+              {counts[view] ? (
+                <span className="app-nav__badge" aria-hidden="true">
+                  {counts[view]}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>

@@ -1664,3 +1664,16 @@ body {
   gap: 0.5rem;
   margin-left: auto;
 }
+
+/* Teller in het menu (N9.3): hoeveel ontbrekende woorden er openstaan. */
+.app-nav__badge {
+  margin-left: auto;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--intento-accent);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}

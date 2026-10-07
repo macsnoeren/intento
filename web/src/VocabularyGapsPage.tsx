@@ -13,6 +13,7 @@ import { Modal } from './Modal.tsx';
 import { SegmentedTabs, tabPanelProps, type SegmentedTab } from './SegmentedTabs.tsx';
 import { CONTEXT_LABELS, type WordPrefill } from './VocabularyItemDetail.tsx';
 import { VocabularyUploadDialog } from './VocabularyUploadDialog.tsx';
+import { useNavBadges } from './NavBadges.tsx';
 
 /**
  * "Ontbrekende woorden" (N9.2, INTENTO-NEW-DESIGN §17, §49).
@@ -64,6 +65,7 @@ export function VocabularyGapsPage({
   const [busy, setBusy] = useState<string | null>(null);
   const [adding, setAdding] = useState<Adding | null>(null);
   const [added, setAdded] = useState<string | null>(null);
+  const { refresh } = useNavBadges();
 
   const load = useCallback(async () => {
     setError(null);
@@ -86,6 +88,7 @@ export function VocabularyGapsPage({
     try {
       await api.setVocabularyGapStatus(gap.id, action);
       await load();
+      refresh(); // de teller in het menu
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Dat lukte niet.');
     } finally {
