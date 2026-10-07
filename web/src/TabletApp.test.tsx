@@ -61,6 +61,7 @@ function screen0(turn: number, word: string, canGoBack: boolean): CommunicationT
     sessionId: 's-1',
     turn,
     canGoBack,
+    delivery: null,
     presentation: {
       kind: 'question',
       mode: 'binary',
@@ -143,6 +144,7 @@ function fakeDeviceApi(
               sessionId,
               turn,
               canGoBack: false,
+              delivery: null,
               presentation: { kind: 'done', mode: 'binary', text: message, message, options: [] },
             }),
           );
@@ -155,6 +157,7 @@ function fakeDeviceApi(
               sessionId,
               turn,
               canGoBack: true,
+              delivery: null,
               presentation: {
                 kind: 'confirm_message',
                 mode: 'binary',
@@ -527,6 +530,7 @@ describe('multi-icon op de tablet (N7.2)', () => {
       sessionId: 's-1',
       turn: 2,
       canGoBack: true,
+      delivery: null,
       presentation: {
         kind: 'question',
         mode: 'multi',

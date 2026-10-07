@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.4 — tablet: contactvraag en Verstuurd
+
+- "Wil je dit sturen?" toont eerst de bevestigde boodschap groot (zoals op Klaar), met "🔊 Nog eens", en
+  leest boodschap en vraag voor. De contactvraag is een gewoon JA/NEE-scherm met naam en pictogram.
+- Klaar na een verzending: "✔ Verstuurd naar Mama" of "Versturen is niet gelukt"; geen Terug meer.
+  Daarvoor geeft de backend `delivery` (naam en status) mee op het scherm direct na een verzending.
+- Componenttests (`TabletShare.test.tsx`); gerookt met een echte testmailbox (Mailpit): de mail kwam
+  aan bij het contact, en NEE op het contact verstuurde niets. README beschrijft hoe je dat lokaal doet.
+
 ### N11.3 — versturen per e-mail
 
 - Nieuwe tabel `Delivery` (migratie `delivery`): gesprek, boodschap, contact, kanaal, status en tijd.

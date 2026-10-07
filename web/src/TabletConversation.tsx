@@ -212,10 +212,22 @@ export function TabletConversation({
 
   if (presentation.kind === 'done') {
     // Klaar (§48): de bevestigde boodschap groot in beeld. Het gesprek is voorbij; geen Terug meer.
+    // Direct na een verzending: naar wie, of dat het niet lukte (de backend weet dat, N11.4).
+    const { delivery } = turn;
     return (
       <>
         <section className="tablet__done">
           <h1 className="tablet__message">{presentation.message ?? presentation.text}</h1>
+          {delivery?.status === 'sent' ? (
+            <p className="tablet__delivery" role="status">
+              <span aria-hidden="true">✔</span> Verstuurd naar {delivery.contactName}
+            </p>
+          ) : null}
+          {delivery?.status === 'failed' ? (
+            <p className="tablet__delivery tablet__delivery--failed" role="alert">
+              Versturen is niet gelukt
+            </p>
+          ) : null}
           {speaks && spoken ? (
             <button className="button" type="button" onClick={() => speech.speak(spoken)}>
               🔊 Nog eens
@@ -271,6 +283,51 @@ export function TabletConversation({
     );
   }
 
+  const answers = (
+    <div className="binary__answers">
+      <button
+        className="answer-button answer-button--yes"
+        type="button"
+        disabled={busy}
+        onClick={() => void answer(turn, { answer: 'yes' })}
+      >
+        <span aria-hidden="true">✔</span> JA
+      </button>
+      <button
+        className="answer-button answer-button--no"
+        type="button"
+        disabled={busy}
+        onClick={() => void answer(turn, { answer: 'no' })}
+      >
+        <span aria-hidden="true">✖</span> NEE
+      </button>
+    </div>
+  );
+
+  if (presentation.kind === 'share_ask') {
+    // "Wil je dit sturen?" (§48): eerst de bevestigde boodschap groot, dan de vraag.
+    return (
+      <>
+        <section className="binary share">
+          <p className="tablet__message">{presentation.message}</p>
+          {speaks && presentation.message ? (
+            <button
+              className="button"
+              type="button"
+              onClick={() => speech.speak(presentation.message ?? '')}
+            >
+              🔊 Nog eens
+            </button>
+          ) : null}
+          <h1 className="tablet__prompt">{presentation.text}</h1>
+          {answers}
+        </section>
+        {alert}
+        {controls}
+      </>
+    );
+  }
+
   // Binary vraag, "Bedoel je …?" en alle andere JA/NEE-schermen: pictogram(men), tekst, JA links,
   // NEE rechts. Bij een voorstel staan alle pictogrammen van de boodschap naast elkaar.
   return (
@@ -284,24 +341,7 @@ export function TabletConversation({
           </div>
         ) : null}
         <h1 className="tablet__prompt">{presentation.text}</h1>
-        <div className="binary__answers">
-          <button
-            className="answer-button answer-button--yes"
-            type="button"
-            disabled={busy}
-            onClick={() => void answer(turn, { answer: 'yes' })}
-          >
-            <span aria-hidden="true">✔</span> JA
-          </button>
-          <button
-            className="answer-button answer-button--no"
-            type="button"
-            disabled={busy}
-            onClick={() => void answer(turn, { answer: 'no' })}
-          >
-            <span aria-hidden="true">✖</span> NEE
-          </button>
-        </div>
+        {answers}
       </section>
       {alert}
       {controls}
@@ -309,11 +349,22 @@ export function TabletConversation({
   );
 }
 
-/** Wat er voorgelezen wordt: letterlijk de schermtekst, of op Klaar de boodschap. */
+/**
+ * Wat er voorgelezen wordt: letterlijk wat er op het scherm staat. Op Klaar de boodschap (en naar wie
+ * hij verstuurd is), op "Wil je dit sturen?" eerst de boodschap en dan de vraag.
+ */
 function spokenText(turn: CommunicationTurn): string | null {
-  const { presentation } = turn;
+  const { presentation, delivery } = turn;
   if (presentation.kind === 'stopped') return null;
-  if (presentation.kind === 'done') return presentation.message ?? presentation.text;
+  if (presentation.kind === 'done') {
+    const message = presentation.message ?? presentation.text;
+    if (delivery?.status === 'sent') return `${message} Verstuurd naar ${delivery.contactName}.`;
+    if (delivery?.status === 'failed') return `${message} Versturen is niet gelukt.`;
+    return message;
+  }
+  if (presentation.kind === 'share_ask' && presentation.message) {
+    return `${presentation.message} ${presentation.text}`;
+  }
   return presentation.text;
 }
 

@@ -31,7 +31,7 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
 import { recordGaps } from '../vocabulary/gaps.js';
 import { confirmIntent, findIntent, withdrawIntent } from './intents.js';
 import { listShareableContacts } from '../contacts/shareable.js';
-import { contactToSend, deliver } from './deliveries.js';
+import { contactToSend, deliver, type DeliveryOutcome } from './deliveries.js';
 import type { MailTransport } from '../mail/transport.js';
 import type { AuditEntry } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
@@ -122,10 +122,12 @@ export function toTabletTurn(
   presentation: Presentation,
   items: Map<string, VocabularyItem>,
   now: Date,
+  delivery: CommunicationTurn['delivery'] = null,
 ): CommunicationTurn {
   return communicationTurnSchema.parse({
     sessionId,
     turn: snapshot.turn,
+    delivery,
     canGoBack: snapshot.previousTurn !== null && snapshot.state.share.sent_to.length === 0,
     presentation: {
       kind: presentation.kind,
@@ -156,8 +158,8 @@ interface AgentTurnInput {
   state: SessionState | null;
   /** De boodschap die de backend als bevestigd heeft vastgelegd, of `null` (I2). */
   confirmedMessage: string | null;
-  /** Contacten waarnaar de backend in deze beurt verstuurde (N11.3); komt in de opgeslagen toestand. */
-  sentTo?: string[];
+  /** De verzending in deze beurt (N11.3): in de opgeslagen toestand en op het scherm voor de tablet. */
+  delivery?: DeliveryOutcome | null;
 }
 
 /**
@@ -228,9 +230,9 @@ export async function runAgentTurn(
   }
 
   // Wat er verstuurd is, weet alleen de backend: dat komt in de toestand (en daarmee verdwijnt ↩ Terug).
-  if (input.sentTo?.length) {
-    const sent = new Set([...response.state.share.sent_to, ...input.sentTo]);
-    response.state.share.sent_to = [...sent];
+  const delivery = input.delivery ?? null;
+  if (delivery?.status === 'sent' && !response.state.share.sent_to.includes(delivery.contactId)) {
+    response.state.share.sent_to = [...response.state.share.sent_to, delivery.contactId];
   }
   await saveTurn(prisma, encryptor, session.id, {
     turn,
@@ -257,6 +259,7 @@ export async function runAgentTurn(
     response.presentation,
     items,
     now(),
+    delivery ? { contactName: delivery.contactName, status: delivery.status } : null,
   );
 }
 
@@ -415,10 +418,11 @@ export async function answerConversation(
   const user = await loadConversationUser(prisma, device);
 
   // I3: versturen alleen na deze JA op een scherm over dát contact; de backend beslist, niet de agent.
-  const sentTo: string[] = [];
+  let delivery: DeliveryOutcome | null = null;
   const contactId = contactToSend(current.presentation, event);
   if (contactId) {
     const outcome = await deliver(deps, session, user.name, contactId, deps.now);
+    delivery = outcome;
     await audit({
       action: AUDIT_ACTIONS.MESSAGE_SEND,
       outcome: outcome.status === 'sent' ? 'success' : 'failure',
@@ -427,7 +431,6 @@ export async function answerConversation(
       targetId: contactId,
       metadata: { deliveryId: outcome.deliveryId, status: outcome.status },
     });
-    if (outcome.status === 'sent') sentTo.push(contactId);
   }
 
   return runAgentTurn(deps, {
@@ -438,7 +441,7 @@ export async function answerConversation(
     event,
     state: current.state,
     confirmedMessage: intent?.message ?? null,
-    sentTo,
+    delivery,
   });
 }
 

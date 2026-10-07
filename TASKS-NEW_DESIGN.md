@@ -588,7 +588,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* tests: zonder JA niets; contact van een andere gebruiker → geweigerd; onbevestigd →
   geweigerd; mailfout → `failed`.
 
-- [ ] **N11.4 Tablet: contactvraag en Verstuurd**
+- [x] **N11.4 Tablet: contactvraag en Verstuurd**
   *ONTWERP: §48.* Het contactscherm (binary) en "Verstuurd naar moeder" / "Versturen is niet gelukt". Na
   een verzending verdwijnt ↩ Terug.
   *Acceptatie:* componenttests; rooktest met een echte (test)mailbox.

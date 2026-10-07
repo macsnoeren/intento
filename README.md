@@ -197,6 +197,17 @@ percent-gecodeerd moet worden — heb je zo'n wachtwoord, neem dan de losse veld
 TLS is bij beide manieren verplicht zodra er wordt ingelogd (`requireTLS`): lukt de
 STARTTLS-upgrade niet, dan faalt de verzending in plaats van in platte tekst door te gaan.
 
+**Lokaal een echte mailbox om te testen** (bv. de berichten aan contacten, N11): een mailvanger als
+[Mailpit](https://mailpit.axllent.org) vangt alles op en toont het in de browser, zonder dat er iets naar
+buiten gaat.
+
+```bash
+docker run -d --rm --name intento-mailpit -p 127.0.0.1:1025:1025 -p 127.0.0.1:8025:8025 axllent/mailpit
+# in server/.env: SMTP_HOST=127.0.0.1  SMTP_PORT=1025  SMTP_SECURE=none  (zonder SMTP_USER)
+```
+
+De mails staan dan op http://127.0.0.1:8025.
+
 Alternatief voor lokaal testen: `npm run db:seed` maakt een eerste `ADMIN`-account (meteen als
 geverifieerd aangemaakt; herseeden verifieert een nog ongeverifieerde bootstrap-admin alsnog en laat het
 wachtwoord ongemoeid). E-mail/wachtwoord komen uit `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`

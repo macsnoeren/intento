@@ -40,6 +40,14 @@ export const communicationTurnSchema = z.strictObject({
   presentation: tabletPresentationSchema,
   /** Kan ↩ Terug hier? Niet op het eerste scherm en niet meer na een verzending (§48). */
   canGoBack: z.boolean(),
+  /**
+   * Alleen op het scherm direct na een verzending (N11.4): naar wie, en of het lukte. Zo kan de tablet
+   * "Verstuurd naar Mama" of "Versturen is niet gelukt" tonen; de backend weet dat, de agent niet.
+   */
+  delivery: z
+    .strictObject({ contactName: z.string(), status: z.enum(['sent', 'failed']) })
+    .nullable()
+    .default(null),
 });
 export type CommunicationTurn = z.infer<typeof communicationTurnSchema>;
 

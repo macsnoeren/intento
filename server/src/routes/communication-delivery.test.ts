@@ -102,6 +102,7 @@ describe('versturen na een JA op dát contact', () => {
     const done = communicationTurnSchema.parse((await answer(cookie, toMama, 'yes')).json());
     expect(done.presentation.kind).toBe('done');
     expect(done.canGoBack).toBe(false);
+    expect(done.delivery).toEqual({ contactName: 'Mama', status: 'sent' });
     expect(mail.sent).toHaveLength(1);
     expect(mail.last()).toMatchObject({ to: 'mama@example.org', subject: 'Bericht van Sanne' });
     expect(mail.last()?.text).toContain('"Pijn"');
@@ -131,6 +132,7 @@ describe('versturen na een JA op dát contact', () => {
     const toMama = communicationTurnSchema.parse((await answer(cookie, screen, 'no')).json());
     const done = communicationTurnSchema.parse((await answer(cookie, toMama, 'no')).json());
     expect(done.presentation.kind).toBe('done');
+    expect(done.delivery).toBeNull();
     expect(mail.sent).toHaveLength(0);
     expect(await prisma.delivery.count()).toBe(0);
   });
@@ -164,7 +166,9 @@ describe('versturen na een JA op dát contact', () => {
     const { cookie, screen } = await untilTim();
     const res = await answer(cookie, screen, 'yes');
     expect(res.statusCode).toBe(200);
-    expect(communicationTurnSchema.parse(res.json()).presentation.kind).toBe('done');
+    const failed = communicationTurnSchema.parse(res.json());
+    expect(failed.presentation.kind).toBe('done');
+    expect(failed.delivery).toEqual({ contactName: 'Tim', status: 'failed' });
     expect(await prisma.delivery.findFirstOrThrow()).toMatchObject({
       contactId: tim,
       status: 'failed',

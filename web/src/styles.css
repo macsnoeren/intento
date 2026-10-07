@@ -1694,3 +1694,21 @@ body {
   flex: 1;
   min-width: 0;
 }
+
+/* Na een verzending (N11.4): naar wie, of dat het niet lukte. Onder de boodschap, rustig. */
+.tablet__delivery {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--intento-success);
+}
+
+.tablet__delivery--failed {
+  color: var(--intento-danger);
+}
+
+/* "Wil je dit sturen?" (§48): de bevestigde boodschap groot en vet, zoals op Klaar, boven de vraag. */
+.share .tablet__message {
+  font-size: clamp(2.25rem, 6vw, 3.75rem);
+  font-weight: 800;
+}

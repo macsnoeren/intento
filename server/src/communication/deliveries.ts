@@ -22,6 +22,8 @@ export type DeliveryStatus = 'sent' | 'failed';
 export interface DeliveryOutcome {
   deliveryId: string;
   contactId: string;
+  /** Voor de tablet ("Verstuurd naar Mama"); nooit naar een LLM of in een log. */
+  contactName: string;
   status: DeliveryStatus;
 }
 
@@ -72,7 +74,7 @@ export async function deliver(
       active: true,
       emailVerifiedAt: { not: null },
     },
-    select: { id: true, emailEncrypted: true },
+    select: { id: true, emailEncrypted: true, nameEncrypted: true },
   });
   if (!contact) {
     throw new HttpError(409, 'CANNOT_SEND', 'Naar dit contact kan nu niets verstuurd worden.');
@@ -85,6 +87,7 @@ export async function deliver(
     throw new HttpError(409, 'NOT_CONFIRMED', 'Er is nog geen bevestigde boodschap.');
   }
 
+  const contactName = encryptor.decrypt(contact.nameEncrypted);
   let deliveryId: string;
   try {
     const row = await prisma.delivery.create({
@@ -110,6 +113,7 @@ export async function deliver(
       return {
         deliveryId: existing.id,
         contactId: contact.id,
+        contactName,
         status: existing.status === 'failed' ? 'failed' : 'sent',
       };
     }
@@ -129,11 +133,11 @@ export async function deliver(
       where: { id: deliveryId },
       data: { status: 'failed', error: 'mail_failed' },
     });
-    return { deliveryId, contactId: contact.id, status: 'failed' };
+    return { deliveryId, contactId: contact.id, contactName, status: 'failed' };
   }
   await prisma.delivery.update({
     where: { id: deliveryId },
     data: { status: 'sent', sentAt: now() },
   });
-  return { deliveryId, contactId: contact.id, status: 'sent' };
+  return { deliveryId, contactId: contact.id, contactName, status: 'sent' };
 }
