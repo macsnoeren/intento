@@ -226,6 +226,12 @@
       (`licenseUrl`/`authorUrl`/`sourceUrl`) mogen `http(s)` zijn maar nooit `javascript:`/`data:` (die
       vallen weg naar `null`). Getest in `vocabulary/opensymbols.test.ts`. De volledige importcontrole
       (bekende host, typecontrole, werkelijke grootte) volgt in N8.5.
+- [x] **Contacten (N10.1, §28, §39)** — naam en e-mailadres van een contact staan **versleuteld**
+      (AES-256-GCM, `ENCRYPTION_KEY`) en worden alleen voor de beheeromgeving ontsleuteld; ze gaan nooit
+      naar de agentdienst (V6). Beheer alleen door de beheerder of een **gekoppelde** begeleider binnen
+      de eigen organisatie (`assertSameTenant` + `assertCaregiverAccess`); een contact van een andere
+      gebruiker → 404. Naam en relatie zonder stuurtekens (ze komen in e-mails); het pictogram alleen uit
+      de eigen Vocabulary. Geaudit zonder naam of e-mail. Getest, ook dat de database ze niet leesbaar bevat.
 - [x] **Ontbrekende woorden zonder persoon (N9.1–N9.3, §17, §39)** — `VocabularyGap` heeft geen
       gebruiker of gesprek: per organisatie alleen concept, woord, context, beste pictogram en tellers.
       De lijst, de teller en de acties zijn alleen voor beheerders van die organisatie (een woord van een

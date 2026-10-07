@@ -545,7 +545,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N10 — Contacten
 
-- [ ] **N10.1 Model en API**
+- [x] **N10.1 Model en API**
   *ONTWERP: §28, §39.* Migratie `Contact` (userId, naam versleuteld, relatie, `vocabularyItemId`,
   e-mail versleuteld, `emailVerifiedAt`, `active`, `sortOrder`). CRUD voor de beheerder en een gekoppelde
   begeleider. Audit-log.
@@ -561,6 +561,13 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *ONTWERP: §49.* Onderdeel "Contacten" in het gebruikersscherm: lijst, dialoog (naam, relatie,
   pictogram uit de Vocabulary, e-mail), status, volgorde aanpassen, opnieuw versturen.
   *Acceptatie:* componenttest; rooktest.
+
+- [ ] **N10.4 Contacten in de profielexport en -import**
+  *ONTWERP: §53, §28.* De profielexport (T8.1) belooft "het volledige communicatieprofiel", maar neemt
+  de contacten (N10.1) niet mee. Exporteren met naam, relatie, e-mail en volgorde (het bestand is al
+  versleuteld); bij importeren in een andere omgeving is elk contact weer onbevestigd (opt-in geldt per
+  omgeving) en vervalt het pictogram als het daar niet in de Vocabulary staat.
+  *Acceptatie:* tests: export bevat de contacten, import maakt ze onbevestigd aan; isolatie.
 
 ## Fase N11 — Delen en versturen
 

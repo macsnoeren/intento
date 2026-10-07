@@ -54,6 +54,7 @@ model Organization {
   communicationSessions CommunicationSession[]
   vocabularyItems       VocabularyItem[]
   vocabularyGaps        VocabularyGap[]
+  contacts              Contact[]
 }
 
 /// De communicerende persoon (DESIGN §2, §6.2). Staat bewust los van `Account`: een
@@ -80,7 +81,43 @@ model User {
   devices               Device[]
   /// Openstaande/gebruikte koppelcodes waarmee een apparaat aan deze gebruiker koppelt.
   deviceLinkCodes       DeviceLinkCode[]
+  /// De mensen naar wie deze gebruiker een bevestigde boodschap kan sturen (N10.1).
+  contacts              Contact[]
 
+  @@index([organizationId])
+}
+
+/// Een contact van een gebruiker (INTENTO-NEW-DESIGN §28, §39): naar wie hij een bevestigde boodschap
+/// kan sturen ("Mama", "broer"). Beheerd door de beheerder of een gekoppelde begeleider.
+///
+/// - `nameEncrypted`, `emailEncrypted`: persoonsgegevens, versleuteld (AES-256-GCM). Ze gaan nooit naar
+///   een LLM; de agentdienst krijgt alleen een id en een pictogram (V6).
+/// - `relation`: de soort relatie (bv. "moeder"), geen naam; vrij te kiezen, kort.
+/// - `vocabularyItemId`: het pictogram uit de Vocabulary van de organisatie.
+/// - `emailVerifiedAt`: opt-in (V5, N10.2); `null` = nog niet bevestigd, dan wordt het contact niet
+///   aangeboden. Een gewijzigd e-mailadres zet de bevestiging terug.
+/// - `active`: uit = tijdelijk niet aanbieden, zonder te verwijderen. `sortOrder`: de vaste volgorde
+///   zonder Experience (§29).
+/// - `organizationId` staat er dubbel (ook via de gebruiker) zodat elke query direct op de tenant filtert.
+model Contact {
+  id               String    @id @default(cuid())
+  userId           String
+  organizationId   String
+  nameEncrypted    String
+  relation         String?
+  vocabularyItemId String?
+  emailEncrypted   String
+  emailVerifiedAt  DateTime?
+  active           Boolean   @default(true)
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vocabularyItem VocabularyItem? @relation(fields: [vocabularyItemId], references: [id], onDelete: SetNull)
+
+  @@index([userId, sortOrder])
   @@index([organizationId])
 }
 
@@ -360,6 +397,7 @@ model VocabularyItem {
   organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    Account?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
   gaps         VocabularyGap[]
+  contacts     Contact[]
 
   @@unique([sourceName, sourceRef])
   @@index([organizationId, status])

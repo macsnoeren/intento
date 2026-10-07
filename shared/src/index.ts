@@ -1167,6 +1167,72 @@ export const attributionListResponseSchema = z.object({
 });
 export type AttributionListResponse = z.infer<typeof attributionListResponseSchema>;
 
+// --- Contacten (INTENTO-NEW-DESIGN §28, §39) ---
+
+/** Geen stuurtekens in een naam of relatie: die komen in e-mails en op de tablet terecht. */
+const plainLine = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .max(max)
+    .refine((value) => !/\p{Cc}/u.test(value), { message: 'Gebruik geen speciale tekens.' });
+
+export const CONTACT_SORT_ORDER_MAX = 1000;
+
+const contactEmailSchema = z
+  .email()
+  .max(320)
+  .transform((value) => value.toLowerCase());
+
+/** `POST /users/{id}/contacts`. */
+export const contactCreateRequestSchema = z.strictObject({
+  name: plainLine(60),
+  relation: plainLine(40).nullable().optional(),
+  email: contactEmailSchema,
+  vocabularyItemId: z.string().min(1).max(200).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(CONTACT_SORT_ORDER_MAX).optional(),
+});
+export type ContactCreateRequest = z.input<typeof contactCreateRequestSchema>;
+
+/** `PATCH /users/{id}/contacts/{contactId}`: minstens één veld. */
+export const contactUpdateRequestSchema = z
+  .strictObject({
+    name: plainLine(60).optional(),
+    relation: plainLine(40).nullable().optional(),
+    email: contactEmailSchema.optional(),
+    vocabularyItemId: z.string().min(1).max(200).nullable().optional(),
+    active: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).max(CONTACT_SORT_ORDER_MAX).optional(),
+  })
+  .refine((body) => Object.values(body).some((value) => value !== undefined), {
+    message: 'Geef minstens één veld om te wijzigen.',
+  });
+export type ContactUpdateRequest = z.input<typeof contactUpdateRequestSchema>;
+
+/** Eén contact voor de beheeromgeving (ontsleuteld; nooit naar de agentdienst). */
+export const contactPublicSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  name: z.string(),
+  relation: z.string().nullable(),
+  email: z.email(),
+  /** Opt-in (V5): pas na de bevestigingslink wordt het contact aangeboden. */
+  emailVerified: z.boolean(),
+  active: z.boolean(),
+  sortOrder: z.number().int(),
+  /** Het pictogram uit de Vocabulary (of `null`). */
+  symbol: z
+    .object({ id: z.string(), label: z.string(), imageUrl: z.string().nullable() })
+    .nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+export type ContactPublic = z.infer<typeof contactPublicSchema>;
+
+export const contactListResponseSchema = z.object({ contacts: z.array(contactPublicSchema) });
+export type ContactListResponse = z.infer<typeof contactListResponseSchema>;
+
 // --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---
 
 export const RETENTION_DAYS_MIN = 7;

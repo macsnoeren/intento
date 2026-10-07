@@ -21,6 +21,10 @@ export const AUDIT_ACTIONS = {
   USER_CREATE: 'user.create',
   USER_DELETE: 'user.delete',
   USER_SETTINGS_UPDATE: 'user.settings.update',
+  // Contacten van een gebruiker (§28)
+  CONTACT_CREATE: 'contact.create',
+  CONTACT_UPDATE: 'contact.update',
+  CONTACT_DELETE: 'contact.delete',
   // Begeleider-koppelingen
   CAREGIVER_LINK: 'caregiver.link',
   CAREGIVER_UNLINK: 'caregiver.unlink',

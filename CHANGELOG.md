@@ -28,6 +28,18 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N10.1 — contacten: model en API
+
+- Nieuwe tabel `Contact` (migratie `contact`): per gebruiker naam en e-mailadres **versleuteld**,
+  relatie, pictogram uit de Vocabulary, bevestigd-op, actief en volgorde.
+- `GET`/`POST /users/{id}/contacts`, `PATCH`/`DELETE /users/{id}/contacts/{contactId}` voor de beheerder
+  en een gekoppelde begeleider; zod-validatie (geen stuurtekens, e-mail in kleine letters), pictogram
+  alleen uit de eigen Vocabulary, een nieuw e-mailadres is weer onbevestigd. Geaudit zonder naam of
+  e-mail.
+- Tests: validatie, rollen, isolatie (andere organisatie, andere gebruiker), versleuteling in de
+  database, audit.
+- Ontdekt: de profielexport (T8.1) neemt contacten nog niet mee → N10.4.
+
 ### N9.3 — melding aan de beheerder
 
 - Teller bij "Ontbrekende woorden" in het menu (`GET /vocabulary/gaps/count`), opnieuw geteld bij elke

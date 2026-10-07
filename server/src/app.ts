@@ -22,6 +22,7 @@ import { registerSpeechRoutes } from './routes/speech.js';
 import { registerAssetRoutes } from './routes/assets.js';
 import { registerVocabularyRoutes } from './routes/vocabulary.js';
 import { registerVocabularyGapRoutes } from './routes/vocabulary-gaps.js';
+import { registerContactRoutes } from './routes/contacts.js';
 import { registerOrganizationRoutes } from './routes/organization.js';
 import { registerCommunicationRoutes } from './routes/communication.js';
 import { createAgentClient, type AgentClient } from './agents/client.js';
@@ -128,6 +129,7 @@ export async function buildApp({
   // Vocabulary in de beheeromgeving (N2.9 e.v.).
   registerVocabularyRoutes(app, { env, prisma, openSymbols });
   registerVocabularyGapRoutes(app, { env, prisma });
+  registerContactRoutes(app, { env, prisma, encryptor });
   // Organisatie-instellingen: bewaartermijn (N3.3).
   registerOrganizationRoutes(app, { env, prisma });
   // Gesprekken op de tablet: de backend praat namens de tablet met de agentdienst (N4.5 e.v.).
