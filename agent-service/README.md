@@ -127,9 +127,12 @@ prompt met alle LLM-agents aan).
 **Contact Agent** (`agents/contact.py`, §28, §29): regels, geen LLM. Na JA op "Wil je dit sturen?" vraagt
 hij in binary de contacten één voor één in de vaste volgorde (`sort_order`): "Wil je dit naar {naam}
 sturen?" met het pictogram van het contact. JA kiest dát contact (`share.selected_contact`, na S3); NEE →
-het volgende; niemand meer → `done` zonder ontvanger. Versturen doet de backend, nooit de agentdienst
-(I3). In multi-icon is JA op "Wil je dit sturen?" tot N11.5 (contacttegels) meteen `done`. De
-scenario's "dorst, naar mama sturen" en "pijn, niet versturen" spelen het hele gesprek.
+het volgende; niemand meer → `done` zonder ontvanger. In multi-icon: "Met wie wil je dit delen?" met de
+volgende contacten als tegels (2 tot `options_per_screen`); een keuze → altijd nog "Naar {naam} sturen?"
+(`confirm_send`, JA/NEE); "Geen van deze" of NEE → de volgende contacten; is er nog maar één over, dan
+meteen "Naar {naam} sturen?" (een tegelscherm met één tegel kan niet, I4). Versturen doet de backend,
+nooit de agentdienst (I3). De scenario's "dorst, naar mama sturen", "pijn, niet versturen" en "dorst,
+naar mama (multi-icon)" spelen het hele gesprek.
 
 **Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke modelaanroep krijgt
 hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de regels het over. Zo

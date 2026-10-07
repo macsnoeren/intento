@@ -28,6 +28,15 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.5 — contacten in multi-icon
+
+- Orchestrator: na JA op "Wil je dit sturen?" in multi-icon "Met wie wil je dit delen?" met de volgende
+  contacten als tegels (hooguit `options_per_screen`); een tegel → `confirm_send` "Naar {naam} sturen?"
+  (JA verstuurt, via de backend); "Geen van deze" of NEE → de volgende contacten; nog één over → meteen
+  "Naar {naam} sturen?"; niemand meer → klaar zonder ontvanger.
+- Scenario "dorst, naar mama (multi-icon)"; unittests; componenttest van de contacttegels op de tablet.
+  Met de cloud op de tablet gerookt tot "✔ Verstuurd naar Mama".
+
 ### N11.4 — tablet: contactvraag en Verstuurd
 
 - "Wil je dit sturen?" toont eerst de bevestigde boodschap groot (zoals op Klaar), met "🔊 Nog eens", en

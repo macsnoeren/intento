@@ -104,6 +104,13 @@ SCENARIOS: list[Scenario] = [
         goal=frozenset({"pain"}),
         contacts=scenario_contacts(),
     ),
+    Scenario(
+        name="dorst, naar mama (multi-icon)",
+        goal=frozenset({"drink"}),
+        settings={"interaction_mode": "multi", "options_per_screen": 2},
+        contacts=scenario_contacts(),
+        send_to="c-mama",
+    ),
 ]
 
 #: De meetscenario's met een taalmodel (§54, N6.13).
@@ -147,7 +154,13 @@ class SimulatedUser:
             return {"type": "answer_yes"}
         if presentation.kind == "share_ask":
             return {"type": "answer_yes" if self.send_to else "answer_no"}
-        if presentation.kind == "share_contact":
+        if presentation.kind == "share_contact" and presentation.mode == "multi":
+            # Contacttegels: de tegel van wie hij bedoelt, anders "Geen van deze".
+            for option in presentation.options:
+                if option.contact_id == self.send_to:
+                    return {"type": "select_option", "option_ref": option.ref}
+            return {"type": "none_of_these"}
+        if presentation.kind in ("share_contact", "confirm_send"):
             yes = any(o.contact_id == self.send_to for o in presentation.options)
             return {"type": "answer_yes" if yes else "answer_no"}
         if presentation.kind == "question" and presentation.mode == "multi":

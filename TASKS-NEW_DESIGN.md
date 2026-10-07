@@ -593,7 +593,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   een verzending verdwijnt ↩ Terug.
   *Acceptatie:* componenttests; rooktest met een echte (test)mailbox.
 
-- [ ] **N11.5 Contacten in multi-icon**
+- [x] **N11.5 Contacten in multi-icon**
   *ONTWERP: §29.* Contacttegels (max. `optionsPerScreen`; "Geen van deze" → de volgende) + `confirm_send`
   "Naar {naam} sturen?".
   *Acceptatie:* unittests; componenttest.

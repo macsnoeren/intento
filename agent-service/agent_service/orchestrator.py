@@ -7,8 +7,8 @@ is. Elke agent draait via `run_agent` (§34): een falende agent levert een terug
 een exceptie.
 
 Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `share_ask` (alleen met een bevestigd
-contact) → `share_contact` (binary: één contact per vraag) → `done`, en `stopped`. In multi-icon volgen
-de contacttegels en `confirm_send` in N11.5; tot dan eindigt JA op "Wil je dit sturen?" daar in `done`.
+contact) → `share_contact` (binary: één contact per vraag; multi-icon: contacttegels) → in multi-icon
+`confirm_send` → `done`, en `stopped`.
 """
 
 from __future__ import annotations
@@ -21,7 +21,13 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import Any
 
-from .agents.contact import contact_option, contact_question, next_contact
+from .agents.contact import (
+    CONTACT_TILES_TEXT,
+    confirm_send_question,
+    contact_option,
+    contact_question,
+    next_contacts,
+)
 from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
 from .agents.icon import (
     ICON_TIMEOUT_SECONDS,
@@ -206,13 +212,16 @@ def step(
             raise ProtocolError("Er staat geen vraag open.")
         if state.phase in ("done", "stopped"):
             raise ProtocolError(f"Het gesprek is al afgelopen ({state.phase}).")
-        tiles = last.kind == "question" and last.mode == "multi"
+        tiles = last.kind in ("question", "share_contact") and last.mode == "multi"
         if event.type == "select_option" or event.type == "none_of_these":
             if not tiles:
                 raise ProtocolError(
                     f"Gebeurtenis {event.type} past alleen bij een multi-icon vraag."
                 )
-            presentation = _answer_multi(state, event, vocabulary, turn)
+            if last.kind == "share_contact":
+                presentation = _answer_contact_tiles(state, event, request.contacts, turn)
+            else:
+                presentation = _answer_multi(state, event, vocabulary, turn)
         else:
             if tiles:
                 raise ProtocolError("Een multi-icon vraag vraagt een keuze of 'Geen van deze'.")
@@ -223,7 +232,7 @@ def step(
                 presentation = _confirm(state, yes, vocabulary, turn, bool(request.contacts))
             elif state.phase == "share_ask":
                 presentation = _answer_share_ask(state, yes, request.contacts, turn)
-            elif state.phase == "share_contact":
+            elif state.phase in ("share_contact", "confirm_send"):
                 presentation = _answer_contact(state, yes, event, request.contacts, turn)
             else:
                 presentation = _answer_question(state, yes, vocabulary, turn)
@@ -802,12 +811,11 @@ def _done(state: SessionState) -> Presentation:
 def _answer_share_ask(
     state: SessionState, yes: bool, contacts: Sequence[ContactEntry], turn: _Turn
 ) -> Presentation:
-    """Antwoord op "Wil je dit sturen?". NEE → klaar, er wordt niets verstuurd. JA → het eerste contact.
-    In multi-icon volgen de contacttegels in N11.5; tot dan is JA daar ook klaar, zonder te versturen."""
+    """Antwoord op "Wil je dit sturen?". NEE → klaar, er wordt niets verstuurd. JA → de contactvraag."""
     state.answers.append(
         Answer(turn=state.turn, answer="yes" if yes else "no", concepts=[], option_ref=None)
     )
-    if not yes or state.interaction_mode == "multi":
+    if not yes:
         return _done(state)
     return _ask_contact(state, contacts, turn)
 
@@ -815,27 +823,77 @@ def _answer_share_ask(
 def _ask_contact(
     state: SessionState, contacts: Sequence[ContactEntry], turn: _Turn
 ) -> Presentation:
-    """ "Wil je dit naar {naam} sturen?" voor het volgende contact; niemand meer → klaar (niet verstuurd)."""
+    """De volgende contactvraag (§29). Binary: "Wil je dit naar {naam} sturen?" voor één contact.
+    Multi-icon: de volgende contacten als tegels (2 tot `options_per_screen`); is er nog maar één over,
+    dan meteen "Naar {naam} sturen?". Niemand meer → klaar, niet verstuurd."""
+    multi = state.interaction_mode == "multi"
+    limit = turn.settings.options_per_screen if multi else 1
     result = run_agent(
         "contact-agent",
-        rules=lambda: next_contact(state, contacts),
+        rules=lambda: next_contacts(state, contacts, limit),
         rules_reason="vaste volgorde",
         clock=turn.clock,
     )
     turn.record(result)
-    contact = result.value
+    page = result.value or []
     intent = state.communication_intent
-    if contact is None or intent is None:
+    if not page or intent is None:
         return _done(state)
+    state.share.contacts_asked.extend(c.id for c in page)
+    if multi and len(page) == 1:
+        return _confirm_send(state, page[0])
+    if multi:
+        state.phase = "share_contact"
+        return Presentation(
+            kind="share_contact",
+            mode="multi",
+            text=CONTACT_TILES_TEXT,
+            options=[contact_option(c, position) for position, c in enumerate(page)],
+            message=intent.message,
+        )
     state.phase = "share_contact"
-    state.share.contacts_asked.append(contact.id)
     return Presentation(
         kind="share_contact",
         mode="binary",
-        text=contact_question(contact.name),
+        text=contact_question(page[0].name),
+        options=[contact_option(page[0])],
+        message=intent.message,
+    )
+
+
+def _confirm_send(state: SessionState, contact: ContactEntry) -> Presentation:
+    """Multi-icon: na een keuze altijd nog "Naar {naam} sturen?" — JA/NEE (§29)."""
+    intent = state.communication_intent
+    if intent is None:
+        raise ProtocolError("Versturen zonder bevestigde boodschap.")
+    state.phase = "confirm_send"
+    return Presentation(
+        kind="confirm_send",
+        mode="binary",
+        text=confirm_send_question(contact.name),
         options=[contact_option(contact)],
         message=intent.message,
     )
+
+
+def _answer_contact_tiles(
+    state: SessionState, event: Event, contacts: Sequence[ContactEntry], turn: _Turn
+) -> Presentation:
+    """Een contacttegel → "Naar {naam} sturen?"; "Geen van deze" → de volgende contacten."""
+    last = state.last_presentation
+    if isinstance(event, SelectOptionEvent):
+        option = next(
+            (o for o in (last.options if last else []) if o.ref == event.option_ref), None
+        )
+        contact = next((c for c in contacts if option and c.id == option.contact_id), None)
+        if option is None or contact is None:
+            raise ProtocolError("Die keuze stond niet op het scherm.")
+        state.answers.append(
+            Answer(turn=state.turn, answer="selected", concepts=[], option_ref=option.ref)
+        )
+        return _confirm_send(state, contact)
+    state.answers.append(Answer(turn=state.turn, answer="no", concepts=[], option_ref=None))
+    return _ask_contact(state, contacts, turn)
 
 
 def _answer_contact(

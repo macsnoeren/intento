@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
+from typing import Any
 
 from agent_service.contracts import ContactEntry, TurnResponse
 from agent_service.llm import FakeProvider, LlmProvider
@@ -51,18 +52,6 @@ class ShareAskTest(unittest.TestCase):
         self.assertEqual(response.presentation.message, "Pijn")
         self.assertEqual(response.state.share.sent_to, [])
         self.assertEqual(response.state.answers[-1].answer, "no")
-
-    def test_ja_op_sturen_in_multi_is_voorlopig_klaar(self) -> None:
-        # De contacttegels komen in N11.5; tot dan is JA in multi-icon klaar, zonder iemand te kiezen.
-        first = step(request(START, contacts=[MAMA], interaction_mode="multi"))
-        tile = first.presentation.options[0].ref
-        pick = {"type": "select_option", "option_ref": tile}
-        proposal = step(answer(first, pick, contacts=[MAMA], interaction_mode="multi"))
-        ask = step(answer(proposal, YES, contacts=[MAMA], interaction_mode="multi"))
-        self.assertEqual(ask.presentation.kind, "share_ask")
-        done = step(answer(ask, YES, contacts=[MAMA], interaction_mode="multi"))
-        self.assertEqual(done.presentation.kind, "done")
-        self.assertIsNone(done.state.share.selected_contact)
 
     def test_na_klaar_geen_antwoord_meer(self) -> None:
         done = step(answer(confirmed([MAMA]), NO, contacts=[MAMA]))
@@ -130,6 +119,77 @@ class ContactQuestionTest(unittest.TestCase):
         # Versturen doet de backend (I3); de agent zet niets in `sent_to`.
         self.assertEqual(done.state.share.sent_to, [])
         self.assertEqual(done.state.answers[-1].option_ref, "contact-c-mama")
+
+
+OMA = ContactEntry(id="c-oma", name="Oma", vocabulary_item_id=None, sort_order=2)
+MULTI_CONTACTS = [MAMA_LATER, TIM, OMA]
+
+
+def multi(response: TurnResponse, event: dict[str, Any]) -> TurnResponse:
+    return step(
+        answer(
+            response, event, contacts=MULTI_CONTACTS, interaction_mode="multi", options_per_screen=2
+        )
+    )
+
+
+class ContactTilesTest(unittest.TestCase):
+    """Contacten in multi-icon (N11.5, §29): tegels, "Geen van deze", "Naar {naam} sturen?"."""
+
+    def ask(self) -> TurnResponse:
+        first = step(
+            request(START, contacts=MULTI_CONTACTS, interaction_mode="multi", options_per_screen=2)
+        )
+        pick = {"type": "select_option", "option_ref": first.presentation.options[0].ref}
+        proposal = multi(first, pick)
+        share = multi(proposal, YES)
+        self.assertEqual(share.presentation.kind, "share_ask")
+        return multi(share, YES)
+
+    def test_ja_op_sturen_toont_contacttegels(self) -> None:
+        tiles = self.ask()
+        self.assertEqual(tiles.state.phase, "share_contact")
+        self.assertEqual(tiles.presentation.kind, "share_contact")
+        self.assertEqual(tiles.presentation.mode, "multi")
+        self.assertEqual(tiles.presentation.text, "Met wie wil je dit delen?")
+        self.assertEqual([o.label for o in tiles.presentation.options], ["Tim", "Ankie Jansen"])
+        self.assertEqual([o.position for o in tiles.presentation.options], [0, 1])
+
+    def test_een_keuze_vraagt_altijd_nog_naar_naam_sturen(self) -> None:
+        tiles = self.ask()
+        mama = tiles.presentation.options[1].ref
+        confirm = multi(tiles, {"type": "select_option", "option_ref": mama})
+        self.assertEqual(confirm.state.phase, "confirm_send")
+        self.assertEqual(confirm.presentation.kind, "confirm_send")
+        self.assertEqual(confirm.presentation.mode, "binary")
+        self.assertEqual(confirm.presentation.text, "Naar Ankie Jansen sturen?")
+        self.assertIsNone(confirm.state.share.selected_contact)
+        done = multi(confirm, YES)
+        self.assertEqual(done.presentation.kind, "done")
+        self.assertEqual(done.state.share.selected_contact, "c-mama")
+
+    def test_geen_van_deze_toont_de_rest_en_een_laatste_meteen_als_vraag(self) -> None:
+        tiles = self.ask()
+        last = multi(tiles, {"type": "none_of_these"})
+        # Nog maar één contact over: geen tegelscherm met één tegel, meteen de bevestiging.
+        self.assertEqual(last.presentation.kind, "confirm_send")
+        self.assertEqual(last.presentation.text, "Naar Oma sturen?")
+        done = multi(last, NO)
+        self.assertEqual(done.presentation.kind, "done")
+        self.assertIsNone(done.state.share.selected_contact)
+
+    def test_nee_op_naar_naam_sturen_gaat_naar_de_volgende_contacten(self) -> None:
+        tiles = self.ask()
+        confirm = multi(
+            tiles, {"type": "select_option", "option_ref": tiles.presentation.options[0].ref}
+        )
+        after = multi(confirm, NO)
+        self.assertEqual(after.presentation.kind, "confirm_send")
+        self.assertEqual(after.presentation.text, "Naar Oma sturen?")
+
+    def test_tegels_verwachten_een_keuze(self) -> None:
+        with self.assertRaises(ProtocolError):
+            multi(self.ask(), YES)
 
 
 if __name__ == "__main__":

@@ -20,10 +20,27 @@ def contact_order(contacts: Sequence[ContactEntry]) -> list[ContactEntry]:
     ]
 
 
+def next_contacts(
+    state: SessionState, contacts: Sequence[ContactEntry], limit: int
+) -> list[ContactEntry]:
+    """De volgende `limit` contacten die in dit gesprek nog niet getoond zijn, in volgorde."""
+    asked = set(state.share.contacts_asked)
+    return [c for c in contact_order(contacts) if c.id not in asked][:limit]
+
+
 def next_contact(state: SessionState, contacts: Sequence[ContactEntry]) -> ContactEntry | None:
     """Het eerste contact dat in dit gesprek nog niet gevraagd is, of `None`."""
-    asked = set(state.share.contacts_asked)
-    return next((c for c in contact_order(contacts) if c.id not in asked), None)
+    page = next_contacts(state, contacts, 1)
+    return page[0] if page else None
+
+
+#: De vraag boven de contacttegels in multi-icon (§29).
+CONTACT_TILES_TEXT = "Met wie wil je dit delen?"
+
+
+def confirm_send_question(name: str) -> str:
+    """Na een keuze uit de tegels altijd nog: "Naar {naam} sturen?" (§29)."""
+    return f"Naar {name} sturen?"
 
 
 def contact_question(name: str) -> str:

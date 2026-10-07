@@ -133,4 +133,36 @@ describe('delen op de tablet', () => {
     expect(screen.queryByText(/Verstuurd/)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
   });
+
+  it('contacttegels in multi-icon: kiezen, en "Geen van deze"', async () => {
+    const tiles = turnOf(4, {
+      kind: 'share_contact',
+      mode: 'multi',
+      text: 'Met wie wil je dit delen?',
+      message: 'Ik heb hoofdpijn.',
+      options: ['Tim', 'Mama'].map((name, position) => ({
+        ref: `contact-${name}`,
+        kind: 'contact' as const,
+        label: name,
+        imageUrl: null,
+        representation: 'exact' as const,
+        position,
+      })),
+    });
+    const confirm = turnOf(5, {
+      kind: 'confirm_send',
+      mode: 'binary',
+      text: 'Naar Mama sturen?',
+      message: 'Ik heb hoofdpijn.',
+      options: [tiles.presentation.options[1]!],
+    });
+    const { api, answers } = scripted(tiles, [confirm]);
+    renderTablet(api);
+    expect(await screen.findByRole('heading', { name: 'Met wie wil je dit delen?' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Geen van deze' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Mama' }));
+    expect(await screen.findByRole('heading', { name: 'Naar Mama sturen?' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /JA/ })).toBeTruthy();
+    expect(answers).toEqual([expect.objectContaining({ turn: 4, optionRef: 'contact-Mama' })]);
+  });
 });

@@ -33,6 +33,10 @@ class ScenarioTest(unittest.TestCase):
         self.assertTrue(result.success, result.failure)
         self.assertIn("contact-agent", {d.agent for d in result.decisions})
 
+    def test_naar_mama_in_multi_icon(self) -> None:
+        result = play(SCENARIOS[4], step)
+        self.assertTrue(result.success, result.failure)
+
     def test_niet_versturen(self) -> None:
         result = play(SCENARIOS[3], step)
         self.assertTrue(result.success, result.failure)
@@ -61,7 +65,9 @@ class EvalTest(unittest.TestCase):
             {"contact-agent", "icon-agent", "intent-agent", "question-agent", "validation-agent"},
         )
         # Zonder antwoorden van de FakeProvider vallen de LLM-agents terug op hun regels.
-        self.assertEqual(dict(agents["question-agent"].statuses), {"fallback": 16})
+        self.assertEqual(
+            agents["question-agent"].statuses["fallback"], agents["question-agent"].runs
+        )
         text = report.render()
         self.assertIn(f"Geslaagd: 100% van {2 * len(SCENARIOS)}", text)
         self.assertIn("question-agent", text)
