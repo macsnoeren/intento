@@ -6,8 +6,9 @@ agent te meten (`latency_ms`). De orchestrator is zelf geen LLM; hij bepaalt wel
 is. Elke agent draait via `run_agent` (§34): een falende agent levert een terugval of `failed` op, nooit
 een exceptie.
 
-Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `done`, en `stopped`. De deelfasen
-(`share_ask`, `share_contact`, `confirm_send`) komen in fase N11.
+Fasen (§4.1) in deze versie: `clarify` → `confirm_message` → `share_ask` (alleen met een bevestigd
+contact) → `done`, en `stopped`. `share_contact` en `confirm_send` volgen in N11.2 en N11.5; tot dan
+eindigt ook JA op "Wil je dit sturen?" in `done`, zonder iets te versturen.
 """
 
 from __future__ import annotations
@@ -87,6 +88,7 @@ from .vocabulary import VocabularyIndex
 
 #: Tekst van de vraag die volgt als er niets meer te vragen valt.
 ASK_STOP_TEXT = "Wil je stoppen?"
+SHARE_ASK_TEXT = "Wil je dit sturen?"
 
 #: Hoe lang één beurt mag duren (s). Moet ruim onder `AGENT_TIMEOUT_MS` van de backend (30 s) blijven.
 DEFAULT_TURN_BUDGET_SECONDS = 25.0
@@ -215,7 +217,9 @@ def step(
             if last.kind == "ask_stop":
                 presentation = _stop(state) if yes else _restart(state, vocabulary, turn)
             elif state.phase == "confirm_message":
-                presentation = _confirm(state, yes, vocabulary, turn)
+                presentation = _confirm(state, yes, vocabulary, turn, bool(request.contacts))
+            elif state.phase == "share_ask":
+                presentation = _answer_share_ask(state, yes)
             else:
                 presentation = _answer_question(state, yes, vocabulary, turn)
 
@@ -733,7 +737,11 @@ def _propose(
 
 
 def _confirm(
-    state: SessionState, yes: bool, vocabulary: VocabularyIndex, turn: _Turn
+    state: SessionState,
+    yes: bool,
+    vocabulary: VocabularyIndex,
+    turn: _Turn,
+    has_contacts: bool = False,
 ) -> Presentation:
     proposal = state.proposal
     if proposal is None:
@@ -748,16 +756,19 @@ def _confirm(
     )
     if yes:
         # De backend legt de bevestigde boodschap vast (I2); dit is alleen de toestand van het gesprek.
-        state.phase = "done"
         state.communication_intent = proposal
         state.proposal = None
-        return Presentation(
-            kind="done",
-            mode="binary",
-            text=proposal.message,
-            options=[],
-            message=proposal.message,
-        )
+        if has_contacts:
+            # Met minstens één bevestigd contact: "Wil je dit sturen?" (§31). Zonder: klaar.
+            state.phase = "share_ask"
+            return Presentation(
+                kind="share_ask",
+                mode="binary",
+                text=SHARE_ASK_TEXT,
+                options=[],
+                message=proposal.message,
+            )
+        return _done(state)
     # NEE op het voorstel: die hypothese telt als afgewezen, terug naar clarify.
     state.rejected_concepts.extend(c for c in proposal.concepts if c not in state.rejected_concepts)
     state.proposal = None
@@ -767,6 +778,29 @@ def _confirm(
         _safety(turn, limit)
         return _ask_stop()
     return _ask_next(state, vocabulary, turn)
+
+
+def _done(state: SessionState) -> Presentation:
+    """Klaar: de bevestigde boodschap groot in beeld (§48)."""
+    intent = state.communication_intent
+    if intent is None:
+        raise ProtocolError("Klaar zonder bevestigde boodschap.")
+    state.phase = "done"
+    return Presentation(
+        kind="done", mode="binary", text=intent.message, options=[], message=intent.message
+    )
+
+
+# --- delen (§31) ------------------------------------------------------------------------------------
+
+
+def _answer_share_ask(state: SessionState, yes: bool) -> Presentation:
+    """Antwoord op "Wil je dit sturen?". NEE → klaar, er wordt niets verstuurd. JA → de contactvraag
+    (N11.2); tot die er is ook klaar, zonder te versturen."""
+    state.answers.append(
+        Answer(turn=state.turn, answer="yes" if yes else "no", concepts=[], option_ref=None)
+    )
+    return _done(state)
 
 
 def proposal_text(message: str) -> str:

@@ -10,8 +10,8 @@ import type { PresentationOption, TurnRequest, TurnResponse } from '@intento/sha
  * gepasseerd (`agents/client.ts`).
  *
  * Hier: I1, I4, I5, I6, I7 en het deel van I2 dat op het antwoord zelf te zien is: een "Bedoel je …?"
- * vraagt precies de voorgestelde boodschap, en "Klaar" toont alleen een boodschap die de backend zelf
- * als bevestigd heeft vastgelegd (`checkCompletion`). De Communication Intent zelf maakt de backend
+ * vraagt precies de voorgestelde boodschap, en "Klaar" en de deelschermen ("Wil je dit sturen?", N11)
+ * tonen alleen een boodschap die de backend zelf als bevestigd heeft vastgelegd (`checkCompletion`). De Communication Intent zelf maakt de backend
  * alleen na een Observed JA (`communication/intents.ts`). I3 (versturen alleen na een JA op dát
  * contact) volgt in N11.3; I8 zit in het contract (geen velden om iets te wijzigen).
  */
@@ -34,6 +34,8 @@ export class InvariantViolationError extends Error {
 
 /** Presentaties waarin de gebruiker uit opties kiest (en waarop I4 van toepassing is). */
 const CHOICE_KINDS = new Set(['question', 'share_contact']);
+/** De deelfasen van het delen: alleen na een bevestigde boodschap (I2). */
+const SHARE_KINDS = new Set(['share_ask', 'share_contact', 'confirm_send']);
 /** Alleen in deze deelfasen mag een contact als optie verschijnen. */
 const CONTACT_KINDS = new Set(['share_contact', 'confirm_send']);
 
@@ -216,6 +218,15 @@ export function checkCompletion(
   response: TurnResponse,
   confirmedMessage: string | null,
 ): InvariantViolation[] {
+  if (SHARE_KINDS.has(response.presentation.kind)) {
+    // Delen kan alleen een boodschap die de gebruiker zelf bevestigde (§31), en dan precies die.
+    if (confirmedMessage === null) {
+      return [{ invariant: 'I2', message: 'delen zonder bevestigde boodschap' }];
+    }
+    return response.presentation.message === confirmedMessage
+      ? []
+      : [{ invariant: 'I2', message: 'delen met een andere boodschap dan bevestigd' }];
+  }
   if (response.presentation.kind !== 'done') return [];
   if (confirmedMessage === null) {
     return [{ invariant: 'I2', message: '"Klaar" zonder bevestigde boodschap' }];

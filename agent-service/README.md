@@ -118,6 +118,13 @@ van de Intent Agent ("Ik heb hoofdpijn."), anders het woord. De schermtekst is p
 "Bedoel je: {zin zonder slotpunt}?", zoals de backend controleert (I2). NEE → die hypothese is
 afgewezen en het gesprek gaat terug naar `clarify`. Zonder taalmodel is een JA meteen het voorstel.
 
+**Delen** (§4.1, §31): JA op "Bedoel je …?" met minstens één contact in het verzoek → `share_ask`, "Wil je
+dit sturen?" (binary, met de boodschap). Zonder contacten, en bij NEE daarop → `done`. De backend stuurt
+alleen bevestigde, actieve contacten mee (id, naam, pictogram, volgorde; nooit een e-mailadres). De naam
+is er voor de vaste zinnen en komt in geen enkele prompt (V6; `tests/test_share.py` controleert elke
+prompt met alle LLM-agents aan). JA op "Wil je dit sturen?" leidt tot N11.2 ook naar `done`, zonder iets te
+versturen.
+
 **Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke modelaanroep krijgt
 hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de regels het over. Zo
 antwoordt de dienst altijd binnen de time-out van de backend (`AGENT_TIMEOUT_MS`, 30 s). Gemeten duur

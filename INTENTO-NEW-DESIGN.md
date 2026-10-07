@@ -2020,7 +2020,7 @@ Algemene regels: grote klikvlakken, één beslissing per scherm, rustig ontwerp,
 | Verstuurd | "Verstuurd naar moeder" (of "Versturen is niet gelukt"), knop "Nieuw gesprek". |
 | Even geen hulp | De agentdienst is niet bereikbaar: "Het lukt nu even niet", met Opnieuw proberen en Stoppen. |
 
-- **↩ Terug** maakt het laatste antwoord ongedaan en zet het vorige scherm exact terug. Na een verzending kan Terug niet meer: een verstuurd bericht is niet terug te halen.
+- **↩ Terug** maakt het laatste antwoord ongedaan en zet het vorige scherm exact terug. Na een verzending kan Terug niet meer: een verstuurd bericht is niet terug te halen. Terug vanaf "Wil je dit sturen?" maakt dus ook de JA op "Bedoel je …?" ongedaan: de boodschap is dan niet meer bevestigd (de provenance houdt de JA en de Terug vast), en een nieuwe JA bevestigt hem opnieuw.
 - **⏹ Stoppen** beëindigt het gesprek; er wordt niets vastgesteld of verstuurd. De tablet gaat terug naar Start.
 - **Voorlezen** (bestaande instelling): de tablet spreekt de vraag en de boodschap uit, letterlijk zoals ze op het scherm staan.
 - **Tekst tonen** (bestaande instelling): de labels onder de pictogrammen.

@@ -102,3 +102,23 @@ export async function findIntent(
     confirmedAt: row.confirmedAt,
   };
 }
+
+/**
+ * ↩ Terug direct na de JA op "Bedoel je …?" maakt die JA ongedaan (§48): de boodschap is dan niet meer
+ * bevestigd en het gesprek loopt weer als `active`. De provenance houdt de JA en de Terug gewoon vast
+ * (Observed); alleen de vastgestelde boodschap vervalt. Een nieuwe JA bevestigt opnieuw.
+ */
+export async function withdrawIntent(
+  prisma: PrismaClient,
+  sessionId: string,
+  confirmedOnTurn: number,
+): Promise<boolean> {
+  const [removed] = await prisma.$transaction([
+    prisma.communicationIntent.deleteMany({ where: { sessionId, turn: confirmedOnTurn } }),
+    prisma.communicationSession.updateMany({
+      where: { id: sessionId, status: 'confirmed', endedAt: null },
+      data: { status: 'active' },
+    }),
+  ]);
+  return removed.count > 0;
+}

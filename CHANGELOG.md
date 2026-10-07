@@ -28,6 +28,21 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.1 — "Wil je dit sturen?"
+
+- De backend stuurt de bevestigde, actieve contacten van de gebruiker mee naar de agentdienst: id, naam,
+  pictogram (alleen als het in de bruikbare Vocabulary staat) en volgorde, nooit het e-mailadres.
+- Orchestrator: JA op "Bedoel je …?" met minstens één contact → `share_ask` "Wil je dit sturen?" met de
+  boodschap; NEE → `done`. JA leidt tot N11.2 ook naar `done`, zonder iets te versturen.
+- Invariant I2 uitgebreid: de deelschermen verschijnen alleen na een bevestigde boodschap, en met precies
+  die boodschap.
+- ↩ Terug vanaf "Wil je dit sturen?" maakt de JA op "Bedoel je" ongedaan (§48): de bevestigde boodschap
+  vervalt en het gesprek is weer `active`; een nieuwe JA bevestigt opnieuw. Zonder dit liep het gesprek
+  na Terug vast (één bevestiging per gesprek). Vastgelegd in het ontwerp.
+- Tests: unittests (orchestrator), een FakeProvider-test met alle LLM-agents aan die laat zien dat
+  contactnamen in geen enkele prompt staan, invariant-test, routetests (welke contacten mee gaan, Terug,
+  NEE). Met de cloud gerookt op de tablet.
+
 ### N2.15 — zoeken in de Vocabulary op woorden
 
 - In labels en synoniemen zoekt `q` overal in het woord (Nederlandse samenstellingen: "pijn" →

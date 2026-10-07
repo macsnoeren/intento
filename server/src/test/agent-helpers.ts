@@ -10,7 +10,8 @@ import { FakeAgentClient } from '../agents/client.js';
 
 /**
  * Een eenvoudige nep-agentdienst voor backendtests: vraagt de Vocabulary-items één voor één af
- * ("{Label}?"), stelt na een JA "Bedoel je: {Label}?" voor en is na een tweede JA klaar. Genoeg om de
+ * ("{Label}?"), stelt na een JA "Bedoel je: {Label}?" voor en is na een tweede JA klaar — of vraagt,
+ * als de gebruiker een bevestigd contact heeft, eerst "Wil je dit sturen?". Genoeg om de
  * backend een heel gesprek te laten voeren zonder Python.
  */
 
@@ -81,14 +82,36 @@ export function simpleResponder(request: TurnRequest): TurnResponse {
 
   if (request.event.type === 'start') {
     presentation = ask(0);
+  } else if (state.phase === 'share_ask') {
+    // "Wil je dit sturen?": JA en NEE zijn (tot N11.2) allebei klaar, zonder te versturen.
+    const message = state.communication_intent?.message ?? '';
+    state.phase = 'done';
+    presentation = { kind: 'done', mode: 'binary', text: message, options: [], message };
   } else if (request.event.type === 'answer_no') {
     state.answers.push({ turn: request.turn, answer: 'no', concepts: [], option_ref: null });
     presentation = ask(asked);
   } else if (state.phase === 'confirm_message' && current) {
     state.answers.push({ turn: request.turn, answer: 'yes', concepts: [], option_ref: null });
-    state.phase = 'done';
     const message = capitalize(current.labels[0] ?? current.id);
-    presentation = { kind: 'done', mode: 'binary', text: message, options: [], message };
+    state.communication_intent = {
+      message,
+      concepts: current.concepts.slice(0, 1),
+      confidence: 0.9,
+    };
+    if (request.contacts.length > 0) {
+      // Zoals de orchestrator: met een bevestigd contact eerst "Wil je dit sturen?" (§31).
+      state.phase = 'share_ask';
+      presentation = {
+        kind: 'share_ask',
+        mode: 'binary',
+        text: 'Wil je dit sturen?',
+        options: [],
+        message,
+      };
+    } else {
+      state.phase = 'done';
+      presentation = { kind: 'done', mode: 'binary', text: message, options: [], message };
+    }
   } else if (current) {
     state.answers.push({ turn: request.turn, answer: 'yes', concepts: [], option_ref: null });
     state.phase = 'confirm_message';

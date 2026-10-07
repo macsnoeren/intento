@@ -182,6 +182,22 @@ describe('harde invarianten', () => {
       expect(checkCompletion(done, 'Ik heb honger.').map((v) => v.invariant)).toEqual(['I2']);
       expect(checkCompletion(response('turn_response.question'), null)).toEqual([]);
     });
+
+    it('"Wil je dit sturen?" alleen na een bevestigde boodschap, en precies die (N11.1)', () => {
+      const ask = response('turn_response.confirm_message', (r) => {
+        r.state.phase = 'share_ask';
+        r.presentation = {
+          kind: 'share_ask',
+          mode: 'binary',
+          text: 'Wil je dit sturen?',
+          options: [],
+          message: 'Ik heb pijn.',
+        };
+      });
+      expect(checkCompletion(ask, 'Ik heb pijn.')).toEqual([]);
+      expect(checkCompletion(ask, null).map((v) => v.invariant)).toEqual(['I2']);
+      expect(checkCompletion(ask, 'Ik heb honger.').map((v) => v.invariant)).toEqual(['I2']);
+    });
   });
 
   describe('I4 — aantal opties', () => {

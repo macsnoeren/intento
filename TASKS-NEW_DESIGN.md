@@ -571,7 +571,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N11 — Delen en versturen
 
-- [ ] **N11.1 "Wil je dit sturen?"**
+- [x] **N11.1 "Wil je dit sturen?"**
   *ONTWERP: §4.1, §31.* De backend stuurt de bevestigde, actieve contacten mee (id, naam, pictogram, nooit
   e-mail). Na een bevestigde boodschap en met minstens één contact: fase `share_ask`; NEE → `done`.
   *Acceptatie:* unittests; een FakeProvider-test laat zien dat contactnamen in geen enkele prompt staan.

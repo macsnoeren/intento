@@ -29,7 +29,8 @@ import {
 } from '../vocabulary/repository.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
 import { recordGaps } from '../vocabulary/gaps.js';
-import { confirmIntent, findIntent } from './intents.js';
+import { confirmIntent, findIntent, withdrawIntent } from './intents.js';
+import { listShareableContacts } from '../contacts/shareable.js';
 import {
   ONGOING,
   closeSession,
@@ -174,8 +175,10 @@ export async function runAgentTurn(
     state: input.state,
     settings: toAgentSettings(user.profile),
     vocabulary: vocabulary.map(toVocabularyEntry),
-    // Contacten (N10) en Experience (N8) komen later mee; namen en e-mail gaan nooit naar een LLM.
-    contacts: [],
+    // Alleen bevestigde, actieve contacten (§28): id, naam, pictogram en volgorde, nooit het e-mailadres.
+    // De naam is voor de vaste zinnen ("Wil je dit naar {naam} sturen?"); hij gaat nooit naar een LLM
+    // (V6, getest in de agentdienst). Experience komt in N12.
+    contacts: await listShareableContacts(prisma, encryptor, user, items),
     experience: null,
   };
 
@@ -450,6 +453,12 @@ export async function goBack(
   if (!previous) throw new HttpError(409, 'CANNOT_GO_BACK', 'Het vorige scherm bestaat niet meer.');
 
   await recordObserved(prisma, session.id, current.turn, { type: 'back' });
+  // Terug naar het "Bedoel je"-scherm waarop JA werd gezegd: die JA is ongedaan, dus de boodschap
+  // is niet langer bevestigd (§48). Alleen als de bevestiging precies op dat vorige scherm viel.
+  const intent = await findIntent(prisma, encryptor, session.id);
+  if (intent?.turn === current.previousTurn) {
+    await withdrawIntent(prisma, session.id, intent.turn);
+  }
   const next = (await lastTurnNumber(prisma, session.id)) + 1;
   await saveTurn(prisma, encryptor, session.id, {
     turn: next,
