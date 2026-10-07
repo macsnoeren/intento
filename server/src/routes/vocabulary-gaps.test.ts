@@ -192,7 +192,7 @@ describe('/vocabulary/gaps', () => {
     const cookie = await admin('a@intento.local', org);
     const get = () =>
       app.inject({ method: 'GET', url: '/account/notifications', headers: { cookie } });
-    expect((await get()).json()).toEqual({ notifyGapsByEmail: false });
+    expect((await get()).json()).toEqual({ notifyGapsByEmail: false, copySentMessages: false });
 
     const put = await app.inject({
       method: 'PUT',
@@ -201,7 +201,22 @@ describe('/vocabulary/gaps', () => {
       payload: { notifyGapsByEmail: true },
     });
     expect(put.statusCode).toBe(200);
-    expect((await get()).json()).toEqual({ notifyGapsByEmail: true });
+    expect((await get()).json()).toEqual({ notifyGapsByEmail: true, copySentMessages: false });
+    // Eén instelling tegelijk wijzigen laat de andere staan.
+    await app.inject({
+      method: 'PUT',
+      url: '/account/notifications',
+      headers: { cookie },
+      payload: { copySentMessages: true },
+    });
+    expect((await get()).json()).toEqual({ notifyGapsByEmail: true, copySentMessages: true });
+    const empty = await app.inject({
+      method: 'PUT',
+      url: '/account/notifications',
+      headers: { cookie },
+      payload: {},
+    });
+    expect(empty.statusCode).toBe(400);
     const audit = await prisma.auditLog.findFirstOrThrow({
       where: { action: 'account.notifications.update' },
     });

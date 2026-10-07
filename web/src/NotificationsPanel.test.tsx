@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { AccountNotifications } from '@intento/shared';
+import type { AccountNotifications, AccountNotificationsUpdate } from '@intento/shared';
 import { NotificationsPanel } from './NotificationsPanel.tsx';
 import { NavBadgesProvider } from './NavBadges.tsx';
 import { AdminNav } from './AdminNav.tsx';
@@ -8,10 +8,10 @@ import { ApiRequestError, type Api } from './api.ts';
 
 /** Meldingen en de teller in het menu (N9.3, INTENTO-NEW-DESIGN §17). */
 
-function fakeApi(open = 3): { api: Api; saved: AccountNotifications[]; counts: number[] } {
-  const saved: AccountNotifications[] = [];
+function fakeApi(open = 3): { api: Api; saved: AccountNotificationsUpdate[]; counts: number[] } {
+  const saved: AccountNotificationsUpdate[] = [];
   const counts: number[] = [];
-  let current = false;
+  let current: AccountNotifications = { notifyGapsByEmail: false, copySentMessages: false };
   const notImplemented = () =>
     Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
   const base = new Proxy({}, { get: () => notImplemented }) as Api;
@@ -20,11 +20,11 @@ function fakeApi(open = 3): { api: Api; saved: AccountNotifications[]; counts: n
     counts,
     api: {
       ...base,
-      getAccountNotifications: () => Promise.resolve({ notifyGapsByEmail: current }),
+      getAccountNotifications: () => Promise.resolve(current),
       updateAccountNotifications(body) {
         saved.push(body);
-        current = body.notifyGapsByEmail;
-        return Promise.resolve(body);
+        current = { ...current, ...body };
+        return Promise.resolve(current);
       },
       getVocabularyGapCount() {
         counts.push(open);
@@ -44,6 +44,19 @@ describe('meldingen', () => {
     fireEvent.click(box);
     await waitFor(() => expect(box.checked).toBe(true));
     expect(saved).toEqual([{ notifyGapsByEmail: true }]);
+  });
+
+  it('kopie van verstuurde berichten: los aan te zetten, de andere blijft staan', async () => {
+    const { api, saved } = fakeApi();
+    render(<NotificationsPanel api={api} />);
+    const copy = screen.getByLabelText<HTMLInputElement>('Kopie van verstuurde berichten');
+    await waitFor(() => expect(copy.disabled).toBe(false));
+    fireEvent.click(copy);
+    await waitFor(() => expect(copy.checked).toBe(true));
+    expect(saved).toEqual([{ copySentMessages: true }]);
+    expect(
+      screen.getByLabelText<HTMLInputElement>('E-mail bij een nieuw ontbrekend woord').checked,
+    ).toBe(false);
   });
 });
 

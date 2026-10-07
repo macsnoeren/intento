@@ -603,7 +603,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (of "niet verstuurd"), status. Pagina in de beheeromgeving.
   *Acceptatie:* tests: isolatie, begeleider → 403; componenttest.
 
-- [ ] **N11.7 Kopie aan de beheerder**
+- [x] **N11.7 Kopie aan de beheerder**
   *ONTWERP: §32.* Accountinstelling `copySentMessages`: elke verzending gaat ook als kopie (met ontvanger)
   naar de beheerders van die organisatie die het aan hebben staan.
   *Acceptatie:* tests: aan → kopie, uit → geen kopie, beheerder van een andere org → nooit.

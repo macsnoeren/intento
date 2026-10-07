@@ -1141,12 +1141,22 @@ export type VocabularyGapListResponse = z.infer<typeof vocabularyGapListResponse
 export const vocabularyGapCountSchema = z.object({ open: z.number().int().nonnegative() });
 export type VocabularyGapCount = z.infer<typeof vocabularyGapCountSchema>;
 
-/** `GET`/`PUT /account/notifications`: meldingen voor de beheerder (N9.3). */
+/** `GET /account/notifications`: meldingen voor de beheerder (N9.3, N11.7). */
 export const accountNotificationsSchema = z.strictObject({
   /** Eén e-mail per nieuw ontbrekend woord van de eigen organisatie. */
   notifyGapsByEmail: z.boolean(),
+  /** Een kopie van elk verstuurd bericht van de eigen organisatie, met de ontvanger erbij. */
+  copySentMessages: z.boolean(),
 });
 export type AccountNotifications = z.infer<typeof accountNotificationsSchema>;
+
+/** `PUT /account/notifications`: één of beide instellingen wijzigen. */
+export const accountNotificationsUpdateSchema = accountNotificationsSchema
+  .partial()
+  .refine((body) => Object.values(body).some((value) => value !== undefined), {
+    message: 'Geef minstens één instelling om te wijzigen.',
+  });
+export type AccountNotificationsUpdate = z.infer<typeof accountNotificationsUpdateSchema>;
 
 /** Eén bron in de bronvermelding (`GET /vocabulary/attributions`, §15): wie, welke licentie, welke symbolen. */
 export const attributionSourceSchema = z.object({

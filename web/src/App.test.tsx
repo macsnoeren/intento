@@ -288,10 +288,10 @@ function fakeApi(
       return Promise.resolve({ open: 0 });
     },
     getAccountNotifications() {
-      return Promise.resolve({ notifyGapsByEmail: false });
+      return Promise.resolve({ notifyGapsByEmail: false, copySentMessages: false });
     },
     updateAccountNotifications(body) {
-      return Promise.resolve(body);
+      return Promise.resolve({ notifyGapsByEmail: false, copySentMessages: false, ...body });
     },
     setVocabularyGapStatus() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));

@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.7 — kopie aan de beheerder
+
+- Accountinstelling `copySentMessages` (migratie `copy_sent_messages`, standaard uit), onder "Mijn
+  account" → "Meldingen": van elke geslaagde verzending in de organisatie krijgt de beheerder een kopie,
+  met de ontvanger erbij. Alleen beheerders van die organisatie met een bevestigd adres; een mislukte
+  kopie raakt de verzending niet (het aantal staat in de audit van `message.send`).
+- `PUT /account/notifications` wijzigt nu één of beide instellingen.
+- Tests: aan → kopie, uit → geen kopie, beheerder van een andere organisatie, begeleider of onbevestigd
+  adres → nooit; geen kopie bij een mislukte verzending. Gerookt met een echte verzending vanaf de tablet.
+
 ### N11.6 — beheer: berichtenoverzicht
 
 - `GET /messages` (alleen de beheerder, eigen organisatie): de bevestigde berichten, nieuwste eerst, met

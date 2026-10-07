@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   accountNotificationsSchema,
+  accountNotificationsUpdateSchema,
   type AccountNotifications,
   vocabularyGapCountSchema,
   type VocabularyGapCount,
@@ -29,7 +30,8 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
  * `POST /vocabulary/gaps/:id/dismiss` — negeren.
  * `POST /vocabulary/gaps/:id/reopen` — een genegeerd of opgelost woord weer openzetten.
  * `GET /vocabulary/gaps/count` — alleen het aantal open woorden, voor de teller in het menu (N9.3).
- * `GET`/`PUT /account/notifications` — of deze beheerder een e-mail wil per nieuw ontbrekend woord.
+ * `GET`/`PUT /account/notifications` — de meldingen van deze beheerder: een e-mail per nieuw ontbrekend
+ *   woord (N9.3) en een kopie van elk verstuurd bericht (N11.7). PUT wijzigt één of beide.
  *
  * Alleen de beheerder, alleen de eigen organisatie: een woord van een andere organisatie of een onbekend
  * id geeft 403 zonder te verraden welke van de twee (IDOR-mitigatie, ADR-0005). Geaudit, zonder het
@@ -120,8 +122,8 @@ export function registerVocabularyGapRoutes(
     '/account/notifications',
     { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
     (request): AccountNotifications => {
-      const { notifyGapsByEmail } = requireAccount(request);
-      return { notifyGapsByEmail };
+      const { notifyGapsByEmail, copySentMessages } = requireAccount(request);
+      return { notifyGapsByEmail, copySentMessages };
     },
   );
 
@@ -130,19 +132,26 @@ export function registerVocabularyGapRoutes(
     { preHandler: authorize(prisma, { roles: ['ADMIN'] }) },
     async (request): Promise<AccountNotifications> => {
       const account = requireAccount(request);
-      const body = accountNotificationsSchema.parse(request.body);
+      const body = accountNotificationsUpdateSchema.parse(request.body);
       const updated = await prisma.account.update({
         where: { id: account.id },
-        data: { notifyGapsByEmail: body.notifyGapsByEmail },
-        select: { notifyGapsByEmail: true },
+        data: {
+          ...(body.notifyGapsByEmail !== undefined
+            ? { notifyGapsByEmail: body.notifyGapsByEmail }
+            : {}),
+          ...(body.copySentMessages !== undefined
+            ? { copySentMessages: body.copySentMessages }
+            : {}),
+        },
+        select: { notifyGapsByEmail: true, copySentMessages: true },
       });
       await recordAudit(prisma, request, {
         action: AUDIT_ACTIONS.ACCOUNT_NOTIFICATIONS_UPDATE,
         targetType: 'account',
         targetId: account.id,
-        metadata: { notifyGapsByEmail: updated.notifyGapsByEmail },
+        metadata: { ...updated },
       });
-      return updated;
+      return accountNotificationsSchema.parse(updated);
     },
   );
 

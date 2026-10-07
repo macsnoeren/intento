@@ -429,7 +429,13 @@ export async function answerConversation(
       organizationId: session.organizationId,
       targetType: 'contact',
       targetId: contactId,
-      metadata: { deliveryId: outcome.deliveryId, status: outcome.status },
+      metadata: {
+        deliveryId: outcome.deliveryId,
+        status: outcome.status,
+        ...(outcome.copies
+          ? { copies: outcome.copies.sent, copiesFailed: outcome.copies.failed }
+          : {}),
+      },
     });
   }
 

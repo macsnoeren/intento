@@ -58,6 +58,7 @@ import {
   type VocabularyGapCount,
   vocabularyGapCountSchema,
   type AccountNotifications,
+  type AccountNotificationsUpdate,
   accountNotificationsSchema,
   type AuthResponse,
   type ChangePasswordRequest,
@@ -179,7 +180,7 @@ export interface Api {
   getVocabularyGapCount(): Promise<VocabularyGapCount>;
   /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
   getAccountNotifications(): Promise<AccountNotifications>;
-  updateAccountNotifications(body: AccountNotifications): Promise<AccountNotifications>;
+  updateAccountNotifications(body: AccountNotificationsUpdate): Promise<AccountNotifications>;
   /** Een ontbrekend woord oplossen (na "Woord toevoegen"), negeren of weer openzetten. */
   setVocabularyGapStatus(
     id: string,

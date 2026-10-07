@@ -15,6 +15,7 @@ import { HttpError } from '../errors.js';
  *
  * De verzending wordt vóór het versturen vastgelegd (`sending`), uniek per gesprek en contact: een
  * dubbele tik of een herhaalde JA na een storing verstuurt nooit twee keer. Daarna `sent` of `failed`.
+ * Na een geslaagde verzending krijgen beheerders die dat willen een kopie, met de ontvanger erbij (N11.7).
  */
 
 export type DeliveryStatus = 'sent' | 'failed';
@@ -25,6 +26,57 @@ export interface DeliveryOutcome {
   /** Voor de tablet ("Verstuurd naar Mama"); nooit naar een LLM of in een log. */
   contactName: string;
   status: DeliveryStatus;
+  /** Kopieën aan beheerders (N11.7): verstuurd en mislukt. Een mislukte kopie raakt de verzending niet. */
+  copies?: { sent: number; failed: number };
+}
+
+export function buildCopyEmail(
+  to: string,
+  userName: string,
+  contactName: string,
+  message: string,
+): MailMessage {
+  return {
+    to,
+    subject: `Kopie: bericht van ${userName} aan ${contactName}`,
+    text: [
+      `${userName} stuurde via Intento dit bericht aan ${contactName}:`,
+      '',
+      `"${message}"`,
+      '',
+      'Je krijgt deze kopie omdat je "Kopie van verstuurde berichten" aanzette onder "Mijn account".',
+    ].join('\n'),
+  };
+}
+
+/** Een kopie aan elke beheerder van de organisatie die dat wil (en een bevestigd adres heeft). */
+async function sendCopies(
+  prisma: PrismaClient,
+  mail: MailTransport,
+  organizationId: string,
+  userName: string,
+  contactName: string,
+  message: string,
+): Promise<{ sent: number; failed: number }> {
+  const admins = await prisma.account.findMany({
+    where: {
+      organizationId,
+      role: 'ADMIN',
+      copySentMessages: true,
+      emailVerifiedAt: { not: null },
+    },
+    select: { email: true },
+  });
+  const copies = { sent: 0, failed: 0 };
+  for (const admin of admins) {
+    try {
+      await mail.send(buildCopyEmail(admin.email, userName, contactName, message));
+      copies.sent += 1;
+    } catch {
+      copies.failed += 1;
+    }
+  }
+  return copies;
 }
 
 /**
@@ -120,13 +172,10 @@ export async function deliver(
     throw error;
   }
 
+  const message = encryptor.decrypt(intent.messageEncrypted);
   try {
     await mail.send(
-      buildMessageEmail(
-        encryptor.decrypt(contact.emailEncrypted),
-        userName,
-        encryptor.decrypt(intent.messageEncrypted),
-      ),
+      buildMessageEmail(encryptor.decrypt(contact.emailEncrypted), userName, message),
     );
   } catch {
     await prisma.delivery.update({
@@ -139,5 +188,13 @@ export async function deliver(
     where: { id: deliveryId },
     data: { status: 'sent', sentAt: now() },
   });
-  return { deliveryId, contactId: contact.id, contactName, status: 'sent' };
+  const copies = await sendCopies(
+    prisma,
+    mail,
+    session.organizationId,
+    userName,
+    contactName,
+    message,
+  );
+  return { deliveryId, contactId: contact.id, contactName, status: 'sent', copies };
 }

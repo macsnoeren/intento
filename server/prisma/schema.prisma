@@ -216,6 +216,10 @@ model Account {
   /// **nieuw** ontbrekend woord van zijn organisatie (niet per keer dat het voorkomt). Standaard uit:
   /// de teller in het menu is de gewone melding; e-mail is "als de beheerder dat wil".
   notifyGapsByEmail   Boolean   @default(false)
+  /// Kopie van verzonden berichten (N11.7, INTENTO-NEW-DESIGN §32): een beheerder die dit aanzet, krijgt
+  /// van elke geslaagde verzending in zijn organisatie een kopie per e-mail, met de ontvanger erbij.
+  /// Standaard uit.
+  copySentMessages    Boolean   @default(false)
   createdAt           DateTime  @default(now())
 
   organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)

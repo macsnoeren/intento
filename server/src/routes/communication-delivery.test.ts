@@ -8,6 +8,7 @@ import { MemoryMailTransport, type MailTransport } from '../mail/transport.js';
 import {
   deviceCookie,
   resetAuthData,
+  seedAccount,
   seedOrganization,
   seedUser,
   testEnv,
@@ -192,5 +193,57 @@ describe('versturen na een JA op dát contact', () => {
     expect(a.deliveryId).toBe(b.deliveryId);
     expect(mail.sent).toHaveLength(1);
     expect(await prisma.delivery.count()).toBe(1);
+  });
+
+  it('kopie aan de beheerders die dat willen, met de ontvanger; nooit aan een andere organisatie', async () => {
+    await seedAccount('wil@intento.local', 'pw', 'ADMIN', org);
+    await seedAccount('wilniet@intento.local', 'pw', 'ADMIN', org);
+    await seedAccount('onbevestigd@intento.local', 'pw', 'ADMIN', org, { emailVerified: false });
+    await seedAccount('begeleider@intento.local', 'pw', 'CAREGIVER', org);
+    await seedAccount('ander@intento.local', 'pw', 'ADMIN', await seedOrganization('Ander'));
+    await prisma.account.updateMany({
+      where: {
+        email: {
+          in: [
+            'wil@intento.local',
+            'onbevestigd@intento.local',
+            'begeleider@intento.local',
+            'ander@intento.local',
+          ],
+        },
+      },
+      data: { copySentMessages: true },
+    });
+    const { cookie, screen } = await untilTim();
+    expect((await answer(cookie, screen, 'yes')).statusCode).toBe(200);
+
+    expect(mail.sent.map((m) => m.to)).toEqual(['tim@example.org', 'wil@intento.local']);
+    const copy = mail.sent[1];
+    expect(copy?.subject).toBe('Kopie: bericht van Sanne aan Tim');
+    expect(copy?.text).toContain('"Pijn"');
+    expect(copy?.text).not.toContain('tim@example.org');
+    const audit = await prisma.auditLog.findFirstOrThrow({ where: { action: 'message.send' } });
+    expect(JSON.parse(audit.metadataJson ?? '{}')).toMatchObject({ copies: 1, copiesFailed: 0 });
+  });
+
+  it('geen kopie als niemand het aanzette, en niet bij een mislukte verzending', async () => {
+    await seedAccount('admin@intento.local', 'pw', 'ADMIN', org);
+    const { cookie, screen } = await untilTim();
+    await answer(cookie, screen, 'yes');
+    expect(mail.sent.map((m) => m.to)).toEqual(['tim@example.org']);
+
+    await app.close();
+    await prisma.account.updateMany({ data: { copySentMessages: true } });
+    const failing = new MemoryMailTransport();
+    let calls = 0;
+    await setup({
+      send: (message) => {
+        calls += 1;
+        return calls === 1 ? Promise.reject(new Error('weg')) : failing.send(message);
+      },
+    });
+    const second = await untilTim();
+    await answer(second.cookie, second.screen, 'yes');
+    expect(failing.sent).toHaveLength(0);
   });
 });
