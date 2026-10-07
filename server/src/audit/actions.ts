@@ -27,6 +27,8 @@ export const AUDIT_ACTIONS = {
   CONTACT_DELETE: 'contact.delete',
   CONTACT_VERIFICATION_SEND: 'contact.verification.send',
   CONTACT_VERIFY: 'contact.verify',
+  // Een bevestigde boodschap versturen naar een contact (N11.3, §32)
+  MESSAGE_SEND: 'message.send',
   // Begeleider-koppelingen
   CAREGIVER_LINK: 'caregiver.link',
   CAREGIVER_UNLINK: 'caregiver.unlink',

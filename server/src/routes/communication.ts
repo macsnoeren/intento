@@ -5,6 +5,7 @@ import type { Encryptor } from '../crypto/encryption.js';
 import type { AgentClient } from '../agents/client.js';
 import type { MailTransport } from '../mail/transport.js';
 import { notifyNewGaps } from '../vocabulary/gap-notifications.js';
+import { recordAudit } from '../audit/audit.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import {
   answerRequestSchema,
@@ -53,6 +54,7 @@ export function registerCommunicationRoutes(
   // de tablet wacht niet op de mailserver, en een mislukte mail breekt het gesprek nooit.
   const deps: ConversationDeps = {
     ...base,
+    mail,
     onNewGaps: (organizationId, concepts) => {
       notifyNewGaps(prisma, mail, env, organizationId, concepts).catch((error: unknown) => {
         app.log.error({ err: error }, 'e-mail over ontbrekende woorden mislukt');
@@ -87,7 +89,9 @@ export function registerCommunicationRoutes(
     async (request) => {
       const device = requireDevice(request);
       const body = answerRequestSchema.parse(request.body);
-      return answerConversation(deps, device, request.params.id, body);
+      return answerConversation(deps, device, request.params.id, body, (entry) =>
+        recordAudit(prisma, request, entry),
+      );
     },
   );
 

@@ -55,6 +55,7 @@ model Organization {
   vocabularyItems       VocabularyItem[]
   vocabularyGaps        VocabularyGap[]
   contacts              Contact[]
+  deliveries            Delivery[]
 }
 
 /// De communicerende persoon (DESIGN §2, §6.2). Staat bewust los van `Account`: een
@@ -117,6 +118,7 @@ model Contact {
   organization       Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vocabularyItem     VocabularyItem?            @relation(fields: [vocabularyItemId], references: [id], onDelete: SetNull)
   verificationTokens ContactVerificationToken[]
+  deliveries         Delivery[]
 
   @@index([userId, sortOrder])
   @@index([organizationId])
@@ -478,6 +480,7 @@ model CommunicationSession {
   inferences         Inference[]
   agentDecisions     AgentDecision[]
   intent             CommunicationIntent?
+  deliveries         Delivery[]
 
   @@index([userId, status])
   @@index([organizationId, startedAt])
@@ -596,6 +599,41 @@ model CommunicationIntent {
 
   session CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  deliveries Delivery[]
+
   @@index([organizationId, confirmedAt])
   @@index([userId, confirmedAt])
+}
+
+/// Een verzending van een bevestigde boodschap naar een contact (INTENTO-NEW-DESIGN §32, I3, N11.3).
+/// Alleen de **backend** maakt hem aan, en alleen na een Observed JA op een scherm over dát contact,
+/// van deze gebruiker, bevestigd en actief. Bevat verwijzingen en status, geen inhoud: de boodschap
+/// staat (versleuteld) in de `CommunicationIntent`.
+///
+/// - `status`: `sending` (vastgelegd, mail onderweg), `sent` of `failed`. De rij wordt vóór het versturen
+///   aangemaakt; `(sessionId, contactId)` is uniek, zodat een dubbele tik of een herhaalde JA nooit twee
+///   keer verstuurt.
+/// - `error`: alleen een korte code (bv. `mail_failed`), nooit een adres of mailserverbericht.
+/// - `contactId` wordt `null` als het contact later verwijderd wordt; de verzending blijft bestaan.
+model Delivery {
+  id             String    @id @default(cuid())
+  sessionId      String
+  intentId       String
+  contactId      String?
+  userId         String
+  organizationId String
+  channel        String    @default("email")
+  status         String    @default("sending")
+  error          String?
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  session      CommunicationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  intent       CommunicationIntent  @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  contact      Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, contactId])
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
 }

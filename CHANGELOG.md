@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N11.3 — versturen per e-mail
+
+- Nieuwe tabel `Delivery` (migratie `delivery`): gesprek, boodschap, contact, kanaal, status en tijd.
+- De backend verstuurt de bevestigde boodschap alleen na een Observed JA op een deelscherm met precies
+  dát contact, van deze gebruiker, actief en bevestigd (I3, `communication/deliveries.ts`); anders 409
+  en niets verstuurd. De mail bevat de boodschap en de naam van de gebruiker. Vastgelegd vóór het
+  versturen en uniek per gesprek en contact, zodat een dubbele tik niet twee keer verstuurt. Mailfout →
+  `failed`, het gesprek loopt door. Geaudit als `message.send` (zonder boodschap of adres).
+- Na een geslaagde verzending zet de backend het contact in `share.sent_to` van de opgeslagen toestand,
+  dus ↩ Terug is weg.
+- Tests: zonder JA niets, contact van een andere gebruiker en onbevestigd/uitgezet → geweigerd, mailfout
+  → `failed`, dubbele verzending → één mail. Met de cloud gerookt: JA op Tim gaf één e-mail.
+
 ### N11.2 — Contact Agent (binary)
 
 - `agents/contact.py`: volgorde op `sort_order` (stabiel), het volgende nog niet gevraagde contact, de

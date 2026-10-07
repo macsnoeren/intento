@@ -31,6 +31,10 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
 import { recordGaps } from '../vocabulary/gaps.js';
 import { confirmIntent, findIntent, withdrawIntent } from './intents.js';
 import { listShareableContacts } from '../contacts/shareable.js';
+import { contactToSend, deliver } from './deliveries.js';
+import type { MailTransport } from '../mail/transport.js';
+import type { AuditEntry } from '../audit/audit.js';
+import { AUDIT_ACTIONS } from '../audit/actions.js';
 import {
   ONGOING,
   closeSession,
@@ -65,6 +69,8 @@ export interface ConversationDeps {
   env: Env;
   encryptor: Encryptor;
   agents: AgentClient;
+  /** Voor de verzending per e-mail naar een contact (N11.3). */
+  mail: MailTransport;
   now?: () => Date;
   /** Na het opslaan: concepten die voor deze organisatie nieuw ontbreken (N9.3). Mag niet gooien. */
   onNewGaps?: (organizationId: string, concepts: string[]) => void;
@@ -73,6 +79,8 @@ export interface ConversationDeps {
 /** De gebruiker achter een apparaat, met zijn instellingen. */
 export interface ConversationUser {
   id: string;
+  /** Weergavenaam; alleen voor de e-mail aan een contact ("Bericht van Sanne"), nooit naar een LLM. */
+  name: string;
   organizationId: string;
   profile: CommunicationProfile;
 }
@@ -88,6 +96,7 @@ export async function loadConversationUser(
   if (!user) throw new HttpError(401, 'DEVICE_NOT_LINKED', 'Geen gekoppeld apparaat.');
   return {
     id: user.id,
+    name: user.name,
     organizationId: user.organizationId,
     profile: user.communicationProfile
       ? profileFromModel(user.communicationProfile)
@@ -147,6 +156,8 @@ interface AgentTurnInput {
   state: SessionState | null;
   /** De boodschap die de backend als bevestigd heeft vastgelegd, of `null` (I2). */
   confirmedMessage: string | null;
+  /** Contacten waarnaar de backend in deze beurt verstuurde (N11.3); komt in de opgeslagen toestand. */
+  sentTo?: string[];
 }
 
 /**
@@ -216,6 +227,11 @@ export async function runAgentTurn(
     throw new AgentUnavailableError('invariant_violation', reason);
   }
 
+  // Wat er verstuurd is, weet alleen de backend: dat komt in de toestand (en daarmee verdwijnt ↩ Terug).
+  if (input.sentTo?.length) {
+    const sent = new Set([...response.state.share.sent_to, ...input.sentTo]);
+    response.state.share.sent_to = [...sent];
+  }
   await saveTurn(prisma, encryptor, session.id, {
     turn,
     previousTurn: input.previousTurn,
@@ -376,6 +392,7 @@ export async function answerConversation(
   device: DeviceModel,
   sessionId: string,
   body: AnswerRequest,
+  audit: (entry: AuditEntry) => Promise<void> = () => Promise.resolve(),
 ): Promise<CommunicationTurn> {
   const { prisma, encryptor } = deps;
   const session = await loadActiveSession(prisma, device, sessionId);
@@ -396,6 +413,23 @@ export async function answerConversation(
       : await findIntent(prisma, encryptor, session.id);
 
   const user = await loadConversationUser(prisma, device);
+
+  // I3: versturen alleen na deze JA op een scherm over dát contact; de backend beslist, niet de agent.
+  const sentTo: string[] = [];
+  const contactId = contactToSend(current.presentation, event);
+  if (contactId) {
+    const outcome = await deliver(deps, session, user.name, contactId, deps.now);
+    await audit({
+      action: AUDIT_ACTIONS.MESSAGE_SEND,
+      outcome: outcome.status === 'sent' ? 'success' : 'failure',
+      organizationId: session.organizationId,
+      targetType: 'contact',
+      targetId: contactId,
+      metadata: { deliveryId: outcome.deliveryId, status: outcome.status },
+    });
+    if (outcome.status === 'sent') sentTo.push(contactId);
+  }
+
   return runAgentTurn(deps, {
     session,
     user,
@@ -404,6 +438,7 @@ export async function answerConversation(
     event,
     state: current.state,
     confirmedMessage: intent?.message ?? null,
+    sentTo,
   });
 }
 

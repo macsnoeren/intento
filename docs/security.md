@@ -237,6 +237,14 @@
       verandert niets, zodat een mailscanner geen toestemming geeft. Een nieuw adres maakt de oude
       link ongeldig en vraagt opnieuw toestemming. De mail noemt de gebruiker niet: bij een verkeerd
       adres leert een vreemde niets over de persoon. Opnieuw versturen is streng rate-limited.
+- [x] **Versturen alleen na een JA op dát contact (N11.3, I3, §32)** — de backend verstuurt, nooit de
+      agentdienst, en alleen als het beantwoorde scherm een deelscherm met precies één contact is en het
+      Observed antwoord JA is (`communication/deliveries.ts`); wat de agent in zijn toestand zet telt
+      niet. Het contact moet van deze gebruiker zijn, actief en bevestigd; anders 409 en niets verstuurd.
+      De verzending wordt vóór het versturen vastgelegd, uniek per gesprek en contact (geen dubbele
+      mail bij een dubbele tik). Het e-mailadres gaat alleen naar de mailserver; de log en de audit
+      bevatten het adres en de boodschap niet. Getest, ook met een contact dat tussentijds van een
+      andere gebruiker werd of zijn bevestiging verloor.
 - [x] **Ontbrekende woorden zonder persoon (N9.1–N9.3, §17, §39)** — `VocabularyGap` heeft geen
       gebruiker of gesprek: per organisatie alleen concept, woord, context, beste pictogram en tellers.
       De lijst, de teller en de acties zijn alleen voor beheerders van die organisatie (een woord van een

@@ -82,11 +82,44 @@ export function simpleResponder(request: TurnRequest): TurnResponse {
 
   if (request.event.type === 'start') {
     presentation = ask(0);
-  } else if (state.phase === 'share_ask') {
-    // "Wil je dit sturen?": JA en NEE zijn (tot N11.2) allebei klaar, zonder te versturen.
+  } else if (state.phase === 'share_ask' || state.phase === 'share_contact') {
+    // Zoals de Contact Agent (N11.2): na JA de contacten één voor één in de vaste volgorde; JA kiest,
+    // NEE → het volgende, niemand meer → klaar.
     const message = state.communication_intent?.message ?? '';
-    state.phase = 'done';
-    presentation = { kind: 'done', mode: 'binary', text: message, options: [], message };
+    const yes = request.event.type === 'answer_yes';
+    const asked = new Set(state.share.contacts_asked);
+    const next = [...request.contacts]
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .find((contact) => !asked.has(contact.id));
+    const choosing = state.phase === 'share_ask' ? yes : !yes;
+    if (state.phase === 'share_contact' && yes) {
+      state.share.selected_contact = state.share.contacts_asked.at(-1) ?? null;
+    }
+    if (choosing && next) {
+      state.phase = 'share_contact';
+      state.share.contacts_asked.push(next.id);
+      presentation = {
+        kind: 'share_contact',
+        mode: 'binary',
+        text: `Wil je dit naar ${next.name} sturen?`,
+        options: [
+          {
+            ref: `contact-${next.id}`,
+            kind: 'contact',
+            vocabulary_item_id: next.vocabulary_item_id ?? null,
+            contact_id: next.id,
+            label: next.name,
+            concept: null,
+            representation: 'exact',
+            position: 0,
+          },
+        ],
+        message,
+      };
+    } else {
+      state.phase = 'done';
+      presentation = { kind: 'done', mode: 'binary', text: message, options: [], message };
+    }
   } else if (request.event.type === 'answer_no') {
     state.answers.push({ turn: request.turn, answer: 'no', concepts: [], option_ref: null });
     presentation = ask(asked);

@@ -581,7 +581,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   sturen?" één voor één; alle NEE → `done` "niet verstuurd".
   *Acceptatie:* unittests; scenario.
 
-- [ ] **N11.3 Versturen per e-mail**
+- [x] **N11.3 Versturen per e-mail**
   *ONTWERP: §32, §52 (I3).* Migratie `Delivery` (sessionId, intentId, contactId, kanaal, status, tijd).
   De backend verstuurt alleen na een Observed JA op dát contact, van deze gebruiker en bevestigd; de mail
   bevat de boodschap en de naam van de gebruiker. Mislukt → status `failed`. Audit-log.

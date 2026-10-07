@@ -13,7 +13,8 @@ import type { PresentationOption, TurnRequest, TurnResponse } from '@intento/sha
  * vraagt precies de voorgestelde boodschap, en "Klaar" en de deelschermen ("Wil je dit sturen?", N11)
  * tonen alleen een boodschap die de backend zelf als bevestigd heeft vastgelegd (`checkCompletion`). De Communication Intent zelf maakt de backend
  * alleen na een Observed JA (`communication/intents.ts`). I3 (versturen alleen na een JA op dát
- * contact) volgt in N11.3; I8 zit in het contract (geen velden om iets te wijzigen).
+ * contact) dwingt de backend zelf af bij het versturen (`communication/deliveries.ts`); I8 zit in het
+ * contract (geen velden om iets te wijzigen).
  */
 
 export type InvariantId = 'I1' | 'I2' | 'I4' | 'I5' | 'I6' | 'I7';
