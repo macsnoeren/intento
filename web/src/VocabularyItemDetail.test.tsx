@@ -188,3 +188,25 @@ describe('Vocabulary-item: intrekken', () => {
     expect(screen.queryByRole('button', { name: 'Intrekken…' })).toBeNull();
   });
 });
+
+describe('"Klopt" bij een machinevertaling (N8.8)', () => {
+  it('maakt de vertaling nagekeken zonder iets anders te sturen', async () => {
+    const calls: [string, VocabularyUpdateRequest][] = [];
+    const api = apiWith((id, body) => {
+      calls.push([id, body]);
+      return Promise.resolve({ ...item, labelStatus: 'reviewed' });
+    });
+    const { onSaved } = renderDetail(api);
+    fireEvent.click(screen.getByRole('button', { name: 'Klopt' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(calls).toEqual([['v-1', { labelStatus: 'reviewed' }]]);
+  });
+
+  it('geen "Klopt" voor een begeleider', () => {
+    renderDetail(
+      apiWith(() => Promise.reject(new Error('nee'))),
+      { ...admin, role: 'CAREGIVER' },
+    );
+    expect(screen.queryByRole('button', { name: 'Klopt' })).toBeNull();
+  });
+});

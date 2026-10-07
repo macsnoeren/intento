@@ -519,7 +519,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* unittests met FakeProvider (werkwoord vs. zelfstandig naamwoord, `reviewed` blijft
   staan, hervatten); een handmatige run over de hele set; het vertaalbestand valideert (test uit N2.5).
 
-- [ ] **N8.8 Beheer: machinevertalingen nakijken**
+- [x] **N8.8 Beheer: machinevertalingen nakijken**
   *ONTWERP: §15.1, §49.* Filter "machinevertaling, nog niet nagekeken" in het Vocabulary-overzicht;
   per item "Klopt" (→ `reviewed`) of verbeteren (N2.11). Teller van wat nog open staat.
   *Acceptatie:* tests op het filter en de statuswijziging; componenttest.

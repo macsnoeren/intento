@@ -76,6 +76,7 @@ export function VocabularyPage({
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<VocabularyStatus>('approved');
+  const [onlyMachine, setOnlyMachine] = useState(false);
   const [data, setData] = useState<VocabularyListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,14 +89,20 @@ export function VocabularyPage({
     setError(null);
     try {
       setData(
-        await api.listVocabulary({ q: query || undefined, status, page, pageSize: PAGE_SIZE }),
+        await api.listVocabulary({
+          q: query || undefined,
+          status,
+          labelStatus: onlyMachine ? 'machine' : undefined,
+          page,
+          pageSize: PAGE_SIZE,
+        }),
       );
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.message : 'Laden mislukt.');
     } finally {
       setLoading(false);
     }
-  }, [api, query, page, status]);
+  }, [api, query, page, status, onlyMachine]);
 
   useEffect(() => {
     void load();
@@ -116,23 +123,12 @@ export function VocabularyPage({
         api={api}
         account={account}
         item={selected}
-        onBack={() => setSelected(null)}
-        onSaved={(updated) => {
-          setSelected(updated);
-          // Een item dat van status wisselt, hoort niet meer in deze lijst (in gebruik / ingetrokken).
-          setData((current) =>
-            current
-              ? {
-                  ...current,
-                  items:
-                    updated.status === status
-                      ? current.items.map((i) => (i.id === updated.id ? updated : i))
-                      : current.items.filter((i) => i.id !== updated.id),
-                  total: updated.status === status ? current.total : Math.max(0, current.total - 1),
-                }
-              : current,
-          );
+        onBack={() => {
+          // Opnieuw laden: een wijziging kan het item uit dit filter halen en de tellingen veranderen.
+          setSelected(null);
+          void load();
         }}
+        onSaved={setSelected}
         onLogout={onLogout}
         onNavigate={onNavigate}
       />
@@ -177,6 +173,20 @@ export function VocabularyPage({
           >
             <option value="approved">In gebruik</option>
             <option value="retired">Ingetrokken</option>
+          </select>
+        </label>
+        <label className="field">
+          <span className="field__label">Vertaling</span>
+          <select
+            className="field__input"
+            value={onlyMachine ? 'machine' : 'all'}
+            onChange={(e) => {
+              setPage(1);
+              setOnlyMachine(e.target.value === 'machine');
+            }}
+          >
+            <option value="all">Alle</option>
+            <option value="machine">Machinevertaling, nog niet nagekeken</option>
           </select>
         </label>
         {account.role === 'ADMIN' ? (
@@ -244,6 +254,11 @@ export function VocabularyPage({
           <p className="muted" role="status">
             {data.total} {data.total === 1 ? 'symbool' : 'symbolen'}
             {query ? ` voor "${query}"` : ''}
+            {data.machineOpen > 0
+              ? ` · ${data.machineOpen} ${
+                  data.machineOpen === 1 ? 'machinevertaling' : 'machinevertalingen'
+                } nog na te kijken`
+              : ''}
           </p>
           <ul className="symbol-grid">
             {data.items.map((item) => (

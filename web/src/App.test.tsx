@@ -270,7 +270,7 @@ function fakeApi(
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
     listVocabulary() {
-      return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 24 });
+      return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 24, machineOpen: 0 });
     },
     listAuditLogs() {
       return Promise.resolve({ entries: [] });

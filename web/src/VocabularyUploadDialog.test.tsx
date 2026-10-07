@@ -50,7 +50,8 @@ function fakeApi(result: Promise<VocabularyItemPublic> = Promise.resolve(created
         uploads.push(upload);
         return result;
       },
-      listVocabulary: () => Promise.resolve({ items: [], total: 0, page: 1, pageSize: 24 }),
+      listVocabulary: () =>
+        Promise.resolve({ items: [], total: 0, page: 1, pageSize: 24, machineOpen: 0 }),
     },
   };
 }

@@ -8,6 +8,7 @@ import {
   loginCookie,
   resetAuthData,
   seedAccount,
+  seedOrganization,
   seedPlatformAccount,
   seedUser,
   testEnv,
@@ -281,6 +282,141 @@ describe('PATCH /vocabulary/:id', () => {
     const { email, password } = await seedPlatformAccount('p@intento.local', 'pw');
     const ok = await patch(await loginCookie(app, email, password), platformItem, { sortOrder: 1 });
     expect(ok.statusCode).toBe(200);
+  });
+});
+
+/** Machinevertalingen nakijken (N8.8, INTENTO-NEW-DESIGN §15.1, §49). */
+describe('machinevertalingen nakijken', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    await prisma.vocabularyItem.deleteMany();
+    await resetAuthData();
+    app = await buildApp({ env: testEnv({ LOGIN_RATE_LIMIT_MAX: '1000' }) });
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('filtert op machinevertaling en telt wat nog openstaat', async () => {
+    const admin = await seedPlatformAccount('p@intento.local', 'pw');
+    await createVocabularyItem(prisma, {
+      label: 'appel',
+      concept: 'apple',
+      labelStatus: 'machine',
+    });
+    await createVocabularyItem(prisma, { label: 'peer', concept: 'pear', labelStatus: 'machine' });
+    await createVocabularyItem(prisma, { label: 'pijn', concept: 'pain', labelStatus: 'reviewed' });
+    await createVocabularyItem(prisma, {
+      label: 'oud',
+      concept: 'old',
+      labelStatus: 'machine',
+      status: 'retired',
+    });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+
+    const all = vocabularyListResponseSchema.parse(
+      (await app.inject({ method: 'GET', url: '/vocabulary', headers: { cookie } })).json(),
+    );
+    expect(all.total).toBe(3);
+    expect(all.machineOpen).toBe(2); // ingetrokken telt niet mee
+    const machine = vocabularyListResponseSchema.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/vocabulary?labelStatus=machine',
+          headers: { cookie },
+        })
+      ).json(),
+    );
+    expect(machine.items.map((i) => i.labels[0]).sort()).toEqual(['appel', 'peer']);
+  });
+
+  it('"Klopt" maakt een machinevertaling nagekeken zonder het woord te veranderen', async () => {
+    const { email, password } = await seedPlatformAccount('p@intento.local', 'pw');
+    const id = await createVocabularyItem(prisma, {
+      label: 'appel',
+      concept: 'apple',
+      labelStatus: 'machine',
+    });
+    const cookie = await loginCookie(app, email, password);
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/vocabulary/${id}`,
+      headers: { cookie },
+      payload: { labelStatus: 'reviewed' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ labels: ['appel'], labelStatus: 'reviewed' });
+    const list = vocabularyListResponseSchema.parse(
+      (await app.inject({ method: 'GET', url: '/vocabulary', headers: { cookie } })).json(),
+    );
+    expect(list.machineOpen).toBe(0);
+  });
+
+  it('alleen "reviewed" kan, en een organisatiebeheerder kan de startset niet nakijken', async () => {
+    const admin = await seedAccount('a@intento.local', 'pw', 'ADMIN');
+    const id = await createVocabularyItem(prisma, {
+      label: 'appel',
+      concept: 'apple',
+      labelStatus: 'machine',
+    });
+    const cookie = await loginCookie(app, admin.email, admin.password);
+    const back = await app.inject({
+      method: 'PATCH',
+      url: `/vocabulary/${id}`,
+      headers: { cookie },
+      payload: { labelStatus: 'machine' },
+    });
+    expect(back.statusCode).toBe(400);
+    const platform = await app.inject({
+      method: 'PATCH',
+      url: `/vocabulary/${id}`,
+      headers: { cookie },
+      payload: { labelStatus: 'reviewed' },
+    });
+    expect(platform.statusCode).toBe(403);
+  });
+
+  it('een gewone organisatie ziet alleen haar eigen machinevertalingen als open, nooit die van een ander', async () => {
+    const orgA = await seedOrganization('A');
+    const orgB = await seedOrganization('B');
+    await seedAccount('a@intento.local', 'pw', 'ADMIN', orgA);
+    await createVocabularyItem(prisma, {
+      label: 'appel',
+      concept: 'apple',
+      labelStatus: 'machine',
+    });
+    await createVocabularyItem(prisma, {
+      label: 'opa',
+      concept: 'grandfather',
+      labelStatus: 'machine',
+      organizationId: orgA,
+    });
+    await createVocabularyItem(prisma, {
+      label: 'oma',
+      concept: 'grandmother',
+      labelStatus: 'machine',
+      organizationId: orgB,
+    });
+    const cookie = await loginCookie(app, 'a@intento.local', 'pw');
+
+    const all = vocabularyListResponseSchema.parse(
+      (await app.inject({ method: 'GET', url: '/vocabulary', headers: { cookie } })).json(),
+    );
+    expect(all.items.map((i) => i.labels[0]).sort()).toEqual(['appel', 'opa']);
+    expect(all.machineOpen).toBe(1); // de startset kan deze beheerder niet wijzigen
+    const machine = vocabularyListResponseSchema.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/vocabulary?labelStatus=machine',
+          headers: { cookie },
+        })
+      ).json(),
+    );
+    expect(machine.items.map((i) => i.labels[0])).toEqual(['opa']);
   });
 });
 

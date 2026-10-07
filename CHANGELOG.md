@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N8.8 — machinevertalingen nakijken
+
+- Vocabulary-overzicht: keuze "Vertaling" (Alle / Machinevertaling, nog niet nagekeken) en een teller
+  "N machinevertalingen nog na te kijken". Detailscherm: knop **Klopt** (→ `reviewed`, het woord blijft);
+  verbeteren gaat via het bestaande formulier (N2.11), dat een gewijzigd label ook `reviewed` maakt.
+- `GET /vocabulary` geeft `machineOpen`; die telling en het filter gaan alleen over wat deze organisatie
+  mag wijzigen (eigen items; de startset alleen voor de platformorganisatie). `PATCH` accepteert
+  `labelStatus: 'reviewed'`.
+- Terug naar het overzicht laadt de lijst opnieuw, zodat een nagekeken item uit het filter valt en de
+  teller klopt.
+- Tests op filter, telling, isolatie en de statuswijziging (server) en componenttests (web); in de
+  browser gerookt (teller 3.377 → 3.376 na "Klopt").
+
 ### N8.7 — machinevertaling van de rest van Mulberry
 
 - `python -m agent_service.translate <slug>` (agentdienst): per batch Engels, Duits, Frans en woordsoort

@@ -961,6 +961,8 @@ export const vocabularyListResponseSchema = z.object({
   total: z.number().int().nonnegative(),
   page: z.number().int().min(1),
   pageSize: z.number().int().min(1),
+  /** Hoeveel machinevertalingen (in gebruik) er nog nagekeken moeten worden (N8.8). */
+  machineOpen: z.number().int().nonnegative(),
 });
 export type VocabularyListResponse = z.infer<typeof vocabularyListResponseSchema>;
 
@@ -1020,6 +1022,8 @@ export const vocabularyUpdateRequestSchema = z
       .optional(),
     isStart: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(100_000).optional(),
+    /** "Klopt": een machinevertaling is nagekeken zonder dat het woord verandert (N8.8). */
+    labelStatus: z.literal('reviewed').optional(),
   })
   .refine((body) => Object.values(body).some((value) => value !== undefined), {
     message: 'Geef minstens één veld om te wijzigen.',

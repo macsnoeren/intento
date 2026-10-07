@@ -111,19 +111,30 @@ export function registerVocabularyRoutes(
     async (request): Promise<VocabularyListResponse> => {
       const { organizationId } = requireAccount(request);
       const query = vocabularyListQuerySchema.parse(request.query);
+      // Nakijken (N8.8) gaat over wat deze organisatie mag wijzigen: de eigen items, en de startset
+      // alleen voor de platformorganisatie. Anders ziet elke organisatie duizenden open
+      // machinevertalingen waar ze niets mee kan.
+      const org = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { isPlatform: true },
+      });
+      const reviewable = org?.isPlatform ? availableTo(organizationId) : { organizationId };
       const where = {
-        ...availableTo(organizationId),
+        ...(query.labelStatus === 'machine' ? reviewable : availableTo(organizationId)),
         status: query.status,
         ...(query.labelStatus ? { labelStatus: query.labelStatus } : {}),
         ...(query.q ? { searchText: { contains: query.q.toLowerCase() } } : {}),
       };
-      const [total, rows] = await Promise.all([
+      const [total, rows, machineOpen] = await Promise.all([
         prisma.vocabularyItem.count({ where }),
         prisma.vocabularyItem.findMany({
           where,
           orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
           skip: (query.page - 1) * query.pageSize,
           take: query.pageSize,
+        }),
+        prisma.vocabularyItem.count({
+          where: { ...reviewable, status: 'approved', labelStatus: 'machine' },
         }),
       ]);
       const now = new Date();
@@ -132,6 +143,7 @@ export function registerVocabularyRoutes(
         total,
         page: query.page,
         pageSize: query.pageSize,
+        machineOpen,
       });
     },
   );
@@ -150,7 +162,9 @@ export function registerVocabularyRoutes(
       const updated = await prisma.vocabularyItem.update({
         where: { id },
         data: {
-          ...(body.labels ? { labels: body.labels, labelStatus: 'reviewed' } : {}),
+          // Een gewijzigd label, of "Klopt" (N8.8): dan is de vertaling door een mens nagekeken.
+          ...(body.labels || body.labelStatus ? { labelStatus: 'reviewed' } : {}),
+          ...(body.labels ? { labels: body.labels } : {}),
           ...(body.concepts ? { concepts: body.concepts } : {}),
           ...(body.contexts ? { contexts: body.contexts } : {}),
           ...(body.isStart !== undefined ? { isStart: body.isStart } : {}),

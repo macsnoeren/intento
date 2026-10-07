@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type {
   AccountPublic,
@@ -68,7 +68,10 @@ function fakeApi(all: VocabularyItemPublic[]): {
       listVocabulary(query = {}): Promise<VocabularyListResponse> {
         queries.push(query);
         const q = query.q?.toLowerCase();
-        const matches = q ? all.filter((i) => i.labels.some((l) => l.includes(q))) : all;
+        const byText = q ? all.filter((i) => i.labels.some((l) => l.includes(q))) : all;
+        const matches = query.labelStatus
+          ? byText.filter((i) => i.labelStatus === query.labelStatus)
+          : byText;
         const page = query.page ?? 1;
         const pageSize = query.pageSize ?? 24;
         return Promise.resolve({
@@ -76,6 +79,7 @@ function fakeApi(all: VocabularyItemPublic[]): {
           total: matches.length,
           page,
           pageSize,
+          machineOpen: all.filter((i) => i.labelStatus === 'machine').length,
         });
       },
     },
@@ -149,5 +153,44 @@ describe('Vocabulary-overzicht: ingetrokken items', () => {
     fireEvent.change(screen.getByLabelText('Toon'), { target: { value: 'retired' } });
     expect(await screen.findByText('Er zijn geen ingetrokken symbolen.')).toBeTruthy();
     expect(queries.at(-1)).toMatchObject({ status: 'retired', page: 1 });
+  });
+});
+
+describe('machinevertalingen nakijken (N8.8)', () => {
+  it('telt wat openstaat en filtert op machinevertaling', async () => {
+    const { api, queries } = fakeApi([
+      item(1, { labelStatus: 'machine', labels: ['appel'] }),
+      item(2, { labelStatus: 'machine', labels: ['peer'] }),
+      item(3, { labels: ['pijn'] }),
+    ]);
+    renderPage(api);
+    expect((await screen.findByRole('status')).textContent).toContain(
+      '2 machinevertalingen nog na te kijken',
+    );
+    fireEvent.change(screen.getByLabelText('Vertaling'), { target: { value: 'machine' } });
+    await waitFor(() => expect(queries.at(-1)).toMatchObject({ labelStatus: 'machine', page: 1 }));
+    expect(await screen.findByRole('button', { name: 'appel' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'pijn' })).toBeNull();
+  });
+
+  it('laadt na "Klopt" en terug de lijst opnieuw, met de nieuwe telling', async () => {
+    const all = [item(1, { labelStatus: 'machine', labels: ['appel'] }), item(2)];
+    const { api, queries } = fakeApi(all);
+    api.updateVocabularyItem = (id, body) => {
+      const index = all.findIndex((i) => i.id === id);
+      const updated = { ...all[index]!, labelStatus: body.labelStatus ?? 'reviewed' };
+      all[index] = updated;
+      return Promise.resolve(updated);
+    };
+    renderPage(api);
+    fireEvent.change(screen.getByLabelText('Vertaling'), { target: { value: 'machine' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'appel' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Klopt' }));
+    await screen.findByText('Nagekeken');
+    const before = queries.length;
+    fireEvent.click(screen.getByRole('button', { name: /Alle symbolen/ }));
+    await waitFor(() => expect(queries.length).toBeGreaterThan(before));
+    expect(queries.at(-1)).toMatchObject({ labelStatus: 'machine' });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'appel' })).toBeNull());
   });
 });

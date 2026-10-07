@@ -89,6 +89,19 @@ export function VocabularyItemDetail({
   const [saved, setSaved] = useState(false);
   const [confirmRetire, setConfirmRetire] = useState(false);
 
+  /** "Klopt" (N8.8): de machinevertaling is goed; het woord blijft hetzelfde. */
+  async function markReviewed(): Promise<void> {
+    setError(null);
+    setBusy(true);
+    try {
+      onSaved(await api.updateVocabularyItem(item.id, { labelStatus: 'reviewed' }));
+    } catch (err) {
+      setError(err instanceof ApiRequestError ? err.message : 'Dat lukte niet.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function changeStatus(action: 'retire' | 'restore'): Promise<void> {
     setError(null);
     setBusy(true);
@@ -178,6 +191,19 @@ export function VocabularyItemDetail({
               {item.labelStatus === 'reviewed'
                 ? 'Nagekeken'
                 : 'Machinevertaling, nog niet nagekeken'}
+              {item.labelStatus === 'machine' && canEdit ? (
+                <>
+                  {' '}
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void markReviewed()}
+                  >
+                    Klopt
+                  </button>
+                </>
+              ) : null}
             </dd>
           </dl>
         </div>
