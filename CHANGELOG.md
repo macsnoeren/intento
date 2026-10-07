@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N10.2 — contacten: e-mail-opt-in
+
+- Bij aanmaken en bij een nieuw e-mailadres gaat er een bevestigingsmail naar het contact (token zoals
+  bij de e-mailverificatie: alleen de hash, eenmalig, 7 dagen, `CONTACT_VERIFICATION_TTL_HOURS`). De mail
+  noemt het contact en de organisatie, niet de gebruiker.
+- Openbare pagina `/contact-bevestigen` in de web-app: `GET /contacts/verify?token=` kijkt alleen of de
+  link werkt, de toestemming is een klik op "Ja" (`POST /contacts/verify`). Zo geeft een mailscanner
+  geen toestemming. Afwijking van de taaktekst (die alleen een GET noemde), vastgelegd in het ontwerp.
+- `POST /users/{id}/contacts/{contactId}/verification`: opnieuw versturen (vorige link vervalt; al
+  bevestigd → 409). Een mislukte mail breekt het aanmaken niet.
+- Tests: verlopen token, hergebruik, misvormd token, wijziging zet de bevestiging terug en laat de oude
+  link vervallen, opnieuw versturen, isolatie; componenttest van de pagina; end-to-end gerookt.
+
 ### N10.1 — contacten: model en API
 
 - Nieuwe tabel `Contact` (migratie `contact`): per gebruiker naam en e-mailadres **versleuteld**,

@@ -3,6 +3,7 @@ import { routeFor } from './routes.tsx';
 import { App } from './App.tsx';
 import { TabletApp } from './TabletApp.tsx';
 import { OperatorConsole } from './OperatorConsole.tsx';
+import { ContactVerifyPage } from './ContactVerifyPage.tsx';
 
 /**
  * Route-dispatch van de bundel. Drie interfaces achter één build, gekozen op het pad.
@@ -18,6 +19,10 @@ describe('routeFor', () => {
   it('kiest de operatorconsole op /operator', () => {
     expect(routeFor('/operator').type).toBe(OperatorConsole);
     expect(routeFor('/operator/').type).toBe(OperatorConsole);
+  });
+
+  it('kiest de openbare bevestigingspagina voor een contact', () => {
+    expect(routeFor('/contact-bevestigen').type).toBe(ContactVerifyPage);
   });
 
   it('kiest de beheeromgeving op elk ander pad', () => {

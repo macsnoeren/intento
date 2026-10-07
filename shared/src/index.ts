@@ -1231,6 +1231,16 @@ export const contactPublicSchema = z.object({
 export type ContactPublic = z.infer<typeof contactPublicSchema>;
 
 export const contactListResponseSchema = z.object({ contacts: z.array(contactPublicSchema) });
+
+/** Openbare bevestigingspagina van een contact (N10.2): het token uit de link. */
+export const contactVerifyRequestSchema = z.strictObject({
+  token: z.string().min(16).max(200),
+});
+export type ContactVerifyRequest = z.infer<typeof contactVerifyRequestSchema>;
+
+/** `GET /contacts/verify?token=`: alleen of de link nog bruikbaar is; verandert niets. */
+export const contactVerifyStatusSchema = z.object({ valid: z.boolean() });
+export type ContactVerifyStatus = z.infer<typeof contactVerifyStatusSchema>;
 export type ContactListResponse = z.infer<typeof contactListResponseSchema>;
 
 // --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---

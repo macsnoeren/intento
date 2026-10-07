@@ -260,6 +260,12 @@ function fakeApi(
     listVocabularyGaps() {
       return Promise.resolve({ items: [], open: 0 });
     },
+    checkContactVerification() {
+      return Promise.resolve({ valid: false });
+    },
+    confirmContact() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     getVocabularyGapCount() {
       return Promise.resolve({ open: 0 });
     },

@@ -25,6 +25,8 @@ export const AUDIT_ACTIONS = {
   CONTACT_CREATE: 'contact.create',
   CONTACT_UPDATE: 'contact.update',
   CONTACT_DELETE: 'contact.delete',
+  CONTACT_VERIFICATION_SEND: 'contact.verification.send',
+  CONTACT_VERIFY: 'contact.verify',
   // Begeleider-koppelingen
   CAREGIVER_LINK: 'caregiver.link',
   CAREGIVER_UNLINK: 'caregiver.unlink',

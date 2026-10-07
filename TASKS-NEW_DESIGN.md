@@ -551,7 +551,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   begeleider. Audit-log.
   *Acceptatie:* tests: validatie, rollen, isolatie; in de db staan naam en e-mail niet leesbaar.
 
-- [ ] **N10.2 E-mail-opt-in**
+- [x] **N10.2 E-mail-opt-in**
   *ONTWERP: §28 (V5).* Bij aanmaken of wijzigen van het e-mailadres een bevestigingsmail (patroon van de
   bestaande e-mailverificatie); publiek `GET /contacts/verify?token=`; opnieuw versturen. Alleen
   bevestigde contacten zijn bruikbaar.

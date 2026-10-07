@@ -232,6 +232,11 @@
       de eigen organisatie (`assertSameTenant` + `assertCaregiverAccess`); een contact van een andere
       gebruiker → 404. Naam en relatie zonder stuurtekens (ze komen in e-mails); het pictogram alleen uit
       de eigen Vocabulary. Geaudit zonder naam of e-mail. Getest, ook dat de database ze niet leesbaar bevat.
+      **Opt-in (N10.2):** het contact bevestigt zelf via een link (token 256 bit, alleen de hash in de
+      db, eenmalig, 7 dagen). De link opent een pagina waar het contact op "Ja" klikt (POST); de GET
+      verandert niets, zodat een mailscanner geen toestemming geeft. Een nieuw adres maakt de oude
+      link ongeldig en vraagt opnieuw toestemming. De mail noemt de gebruiker niet: bij een verkeerd
+      adres leert een vreemde niets over de persoon. Opnieuw versturen is streng rate-limited.
 - [x] **Ontbrekende woorden zonder persoon (N9.1–N9.3, §17, §39)** — `VocabularyGap` heeft geen
       gebruiker of gesprek: per organisatie alleen concept, woord, context, beste pictogram en tellers.
       De lijst, de teller en de acties zijn alleen voor beheerders van die organisatie (een woord van een

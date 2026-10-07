@@ -129,7 +129,7 @@ export async function buildApp({
   // Vocabulary in de beheeromgeving (N2.9 e.v.).
   registerVocabularyRoutes(app, { env, prisma, openSymbols });
   registerVocabularyGapRoutes(app, { env, prisma });
-  registerContactRoutes(app, { env, prisma, encryptor });
+  registerContactRoutes(app, { env, prisma, encryptor, mail });
   // Organisatie-instellingen: bewaartermijn (N3.3).
   registerOrganizationRoutes(app, { env, prisma });
   // Gesprekken op de tablet: de backend praat namens de tablet met de agentdienst (N4.5 e.v.).

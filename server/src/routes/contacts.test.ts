@@ -125,7 +125,9 @@ describe('/users/:id/contacts', () => {
     });
     expect(audit.map((a) => a.action)).toEqual([
       'contact.create',
+      'contact.verification.send',
       'contact.create',
+      'contact.verification.send',
       'contact.update',
       'contact.update',
       'contact.delete',

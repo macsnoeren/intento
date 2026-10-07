@@ -1,6 +1,9 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import {
+  contactVerifyRequestSchema,
+  contactVerifyStatusSchema,
+  type ContactVerifyStatus,
   contactCreateRequestSchema,
   contactListResponseSchema,
   contactPublicSchema,
@@ -21,6 +24,12 @@ import { recordAudit } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
 import { availableTo } from '../vocabulary/repository.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
+import type { MailTransport } from '../mail/transport.js';
+import {
+  confirmContactToken,
+  findOpenContactToken,
+  sendContactVerification,
+} from '../contacts/verification.js';
 
 /**
  * Contacten van een gebruiker (N10.1, INTENTO-NEW-DESIGN §28, §39).
@@ -29,6 +38,9 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
  * `POST   /users/:id/contacts`              — toevoegen (naam, relatie, e-mail, pictogram, volgorde).
  * `PATCH  /users/:id/contacts/:contactId`   — wijzigen; een nieuw e-mailadres is weer onbevestigd.
  * `DELETE /users/:id/contacts/:contactId`   — verwijderen.
+ * `POST   /users/:id/contacts/:contactId/verification` — de bevestigingsmail opnieuw versturen.
+ * `GET    /contacts/verify?token=`          — openbaar: is de link nog bruikbaar (verandert niets).
+ * `POST   /contacts/verify`                 — openbaar: het contact bevestigt zelf (opt-in, N10.2).
  *
  * Voor de beheerder en een **gekoppelde** begeleider, alleen binnen de eigen organisatie. Naam en
  * e-mailadres staan versleuteld in de database en worden alleen hier, voor de beheeromgeving, ontsleuteld;
@@ -79,9 +91,43 @@ export function contactToPublic(
 
 export function registerContactRoutes(
   app: FastifyInstance,
-  { env, prisma, encryptor }: { env: Env; prisma: PrismaClient; encryptor: Encryptor },
+  {
+    env,
+    prisma,
+    encryptor,
+    mail,
+  }: { env: Env; prisma: PrismaClient; encryptor: Encryptor; mail: MailTransport },
 ): void {
   const guard = { preHandler: authorize(prisma, { roles: ['ADMIN', 'CAREGIVER'] }) };
+  // Opnieuw versturen: streng begrensd tegen mailbommen (zelfde grens als bij accounts).
+  const strict = {
+    rateLimit: {
+      max: env.RESEND_RATE_LIMIT_MAX,
+      timeWindow: env.RESEND_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+    },
+  };
+  // De openbare bevestigingspagina: ruim genoeg voor openen en klikken, te krap om tokens te raden
+  // (die zijn 256 bit, maar begrenzen kost niets).
+  const publicLimit = { rateLimit: { max: 30, timeWindow: 60 * 1000 } };
+
+  /**
+   * De bevestigingsmail versturen. Een mislukte mail breekt het opslaan niet af: het contact staat er,
+   * nog onbevestigd, en "opnieuw versturen" kan later. Wel gelogd (zonder adres).
+   */
+  async function sendVerification(request: FastifyRequest, contactId: string): Promise<boolean> {
+    try {
+      await sendContactVerification({ prisma, mail, encryptor, env }, contactId);
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONTACT_VERIFICATION_SEND,
+        targetType: 'contact',
+        targetId: contactId,
+      });
+      return true;
+    } catch (error) {
+      request.log.error({ err: error, contactId }, 'bevestigingsmail voor een contact mislukt');
+      return false;
+    }
+  }
 
   /** De gebruiker in de eigen organisatie, en voor een begeleider alleen als hij gekoppeld is. */
   async function loadUser(account: AccountModel, userId: string) {
@@ -157,6 +203,7 @@ export function registerContactRoutes(
       targetId: contact.id,
       metadata: { userId: user.id },
     });
+    await sendVerification(request, contact.id);
     reply.status(201);
     return contactToPublic(contact, encryptor, env);
   });
@@ -191,8 +238,63 @@ export function registerContactRoutes(
       targetId: current.id,
       metadata: { userId: user.id, fields: Object.keys(body), emailChanged },
     });
+    // Nieuw adres: de oude link vervalt (sendVerification maakt een nieuw token) en de nieuwe
+    // ontvanger moet zelf bevestigen.
+    if (emailChanged) await sendVerification(request, current.id);
     return contactToPublic(updated, encryptor, env);
   });
+
+  app.post(
+    '/users/:id/contacts/:contactId/verification',
+    { ...guard, config: strict },
+    async (request, reply): Promise<void> => {
+      const account = requireAccount(request);
+      const { id, contactId } = contactParamsSchema.parse(request.params);
+      const user = await loadUser(account, id);
+      const current = await loadContact(user.id, contactId);
+      if (current.emailVerifiedAt) {
+        throw new HttpError(409, 'ALREADY_VERIFIED', 'Dit contact heeft al bevestigd.');
+      }
+      if (!(await sendVerification(request, current.id))) {
+        throw new HttpError(502, 'MAIL_FAILED', 'De e-mail kon niet verstuurd worden.');
+      }
+      reply.status(204).send();
+    },
+  );
+
+  app.get(
+    '/contacts/verify',
+    { config: publicLimit },
+    async (request): Promise<ContactVerifyStatus> => {
+      const parsed = contactVerifyRequestSchema.safeParse(request.query);
+      const valid =
+        parsed.success && (await findOpenContactToken(prisma, parsed.data.token)) !== null;
+      return contactVerifyStatusSchema.parse({ valid });
+    },
+  );
+
+  app.post(
+    '/contacts/verify',
+    { config: publicLimit },
+    async (request): Promise<{ verified: true }> => {
+      const { token } = contactVerifyRequestSchema.parse(request.body);
+      const confirmed = await confirmContactToken(prisma, token);
+      if (!confirmed) {
+        throw new HttpError(
+          400,
+          'INVALID_OR_EXPIRED',
+          'Deze link werkt niet meer. Vraag om een nieuwe bevestigingsmail.',
+        );
+      }
+      await recordAudit(prisma, request, {
+        action: AUDIT_ACTIONS.CONTACT_VERIFY,
+        targetType: 'contact',
+        targetId: confirmed.contactId,
+        organizationId: confirmed.organizationId,
+      });
+      return { verified: true };
+    },
+  );
 
   app.delete('/users/:id/contacts/:contactId', guard, async (request, reply): Promise<void> => {
     const account = requireAccount(request);

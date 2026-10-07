@@ -1248,7 +1248,7 @@ Input:
 
 **Contacten (besluit 8)** zijn de contacten van de gebruiker: naam (bv. "Mama"), relatie, een pictogram uit de Vocabulary en een e-mailadres. Ze worden beheerd door de beheerder of een gekoppelde begeleider. Naam en e-mailadres zijn persoonsgegevens en staan **versleuteld** opgeslagen.
 
-**Opt-in (V5).** Een contact krijgt eerst een e-mail met een bevestigingslink. Alleen bevestigde contacten worden aangeboden.
+**Opt-in (V5).** Een contact krijgt eerst een e-mail met een bevestigingslink. Alleen bevestigde contacten worden aangeboden. De link opent een pagina waarop het contact zelf op "Ja, ik wil berichten ontvangen" klikt; het openen van de link alleen bevestigt niets (mailscanners openen links vooraf). De mail noemt het contact zoals de beheerder hem invoerde en de organisatie, maar **niet de gebruiker**: klopt het adres niet, dan leert een vreemde niets over de persoon. Een nieuw e-mailadres vraagt opnieuw toestemming.
 
 **Implementatie:** regels, geen LLM. De namen en e-mailadressen van contacten gaan **nooit** naar een LLM (V6); de vragen over contacten zijn vaste zinnen ("Wil je dit naar {naam} sturen?").
 

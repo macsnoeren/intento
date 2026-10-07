@@ -44,6 +44,8 @@ import {
   type VocabularyGapStatus,
   vocabularyGapListResponseSchema,
   vocabularyGapPublicSchema,
+  type ContactVerifyStatus,
+  contactVerifyStatusSchema,
   type VocabularyGapCount,
   vocabularyGapCountSchema,
   type AccountNotifications,
@@ -101,6 +103,10 @@ export interface Api {
   login(email: string, password: string): Promise<AuthResponse>;
   register(body: RegisterRequest): Promise<AuthResponse>;
   verifyEmail(token: string): Promise<VerifyEmailResponse>;
+  /** Openbare bevestigingspagina van een contact: werkt de link nog? Verandert niets. */
+  checkContactVerification(token: string): Promise<ContactVerifyStatus>;
+  /** Het contact zegt zelf "Ja" (opt-in). */
+  confirmContact(token: string): Promise<void>;
   resendVerification(email: string): Promise<ResendVerificationResponse>;
   /** Wisselt het **eigen** wachtwoord; de server pakt het account uit de sessie. */
   changePassword(body: ChangePasswordRequest): Promise<ChangePasswordResponse>;
@@ -315,6 +321,14 @@ export const httpApi: Api & DeviceApi = {
     return authResponseSchema.parse(
       await request('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
     );
+  },
+  async checkContactVerification(token) {
+    return contactVerifyStatusSchema.parse(
+      await request(`/contacts/verify?token=${encodeURIComponent(token)}`),
+    );
+  },
+  async confirmContact(token) {
+    await request('/contacts/verify', { method: 'POST', body: JSON.stringify({ token }) });
   },
   async verifyEmail(token) {
     return verifyEmailResponseSchema.parse(

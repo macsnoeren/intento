@@ -240,6 +240,14 @@ const envSchema = z
       .positive()
       .max(24 * 30)
       .default(24),
+    // Levensduur van de bevestigingslink voor een contact (opt-in, N10.2), in uren. Langer dan bij een
+    // account: de ontvanger kent Intento niet en reageert niet per se dezelfde dag. Standaard 7 dagen.
+    CONTACT_VERIFICATION_TTL_HOURS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .max(24 * 30)
+      .default(24 * 7),
     // Strenge rate limiting op /auth/verify-email/resend (publiek): tegen mailbommen en het
     // aftasten van adressen. Streng, want opnieuw versturen hoort zelden nodig te zijn.
     RESEND_RATE_LIMIT_MAX: z.coerce.number().int().positive().max(1000).default(3),

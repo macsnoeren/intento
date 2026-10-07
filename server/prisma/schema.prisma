@@ -113,12 +113,30 @@ model Contact {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  vocabularyItem VocabularyItem? @relation(fields: [vocabularyItemId], references: [id], onDelete: SetNull)
+  user               User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vocabularyItem     VocabularyItem?            @relation(fields: [vocabularyItemId], references: [id], onDelete: SetNull)
+  verificationTokens ContactVerificationToken[]
 
   @@index([userId, sortOrder])
   @@index([organizationId])
+}
+
+/// Bevestigingslink voor een contact (opt-in V5, N10.2): hetzelfde patroon als
+/// `EmailVerificationToken`. Alleen de SHA-256-hash staat in de db; eenmalig (`usedAt`) en verlopen
+/// (`expiresAt`). Per contact hooguit één openstaand token: een nieuw adres of "opnieuw versturen"
+/// verwijdert het vorige.
+model ContactVerificationToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  contactId String
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
 }
 
 /// Communicatie-instellingen per gebruiker (INTENTO-NEW-DESIGN §50). 1-op-1 aan `User`
