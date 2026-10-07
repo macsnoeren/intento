@@ -569,13 +569,6 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   pictogram uit de Vocabulary, e-mail), status, volgorde aanpassen, opnieuw versturen.
   *Acceptatie:* componenttest; rooktest.
 
-- [ ] **N10.4 Contacten in de profielexport en -import**
-  *ONTWERP: §53, §28.* De profielexport (T8.1) belooft "het volledige communicatieprofiel", maar neemt
-  de contacten (N10.1) niet mee. Exporteren met naam, relatie, e-mail en volgorde (het bestand is al
-  versleuteld); bij importeren in een andere omgeving is elk contact weer onbevestigd (opt-in geldt per
-  omgeving) en vervalt het pictogram als het daar niet in de Vocabulary staat.
-  *Acceptatie:* tests: export bevat de contacten, import maakt ze onbevestigd aan; isolatie.
-
 ## Fase N11 — Delen en versturen
 
 - [ ] **N11.1 "Wil je dit sturen?"**
@@ -669,9 +662,11 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 ## Fase N15 — Afronding van de MVP
 
 - [ ] **N15.1 Profielexport en -import**
-  *ONTWERP: §1 (eigenaarschap), §53.* Export/import van instellingen, contacten en Experience (versleuteld
-  zoals de bestaande export).
-  *Acceptatie:* tests: rondgang export → import levert hetzelfde op; isolatie.
+  *ONTWERP: §1 (eigenaarschap), §53, §28.* Export/import van instellingen, contacten en Experience
+  (versleuteld zoals de bestaande export). Contacten met naam, relatie, e-mail en volgorde; bij importeren
+  is elk contact weer onbevestigd (opt-in geldt per omgeving, N10.2) en vervalt het pictogram als het daar
+  niet in de Vocabulary staat.
+  *Acceptatie:* tests: rondgang export → import levert hetzelfde op (contacten onbevestigd); isolatie.
 
 - [ ] **N15.2 Security review**
   *ONTWERP: §53.* `/security-review` over de hele herbouw; bevindingen meteen fixen. `npm audit` en

@@ -73,7 +73,8 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
   e-mail.
 - Tests: validatie, rollen, isolatie (andere organisatie, andere gebruiker), versleuteling in de
   database, audit.
-- Ontdekt: de profielexport (T8.1) neemt contacten nog niet mee → N10.4.
+- De profielexport neemt contacten nog niet mee; dat is al gepland in N15.1 (aangevuld met: na import
+  onbevestigd, pictogram vervalt als het er niet is).
 
 ### N9.3 — melding aan de beheerder
 
