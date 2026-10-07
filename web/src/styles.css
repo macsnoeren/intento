@@ -1619,3 +1619,48 @@ body {
   gap: 1rem;
   align-items: center;
 }
+
+/* Ontbrekende woorden (N9.2): per woord het pictogram dat de gebruiker zag, het woord met hoe vaak en
+   wanneer, en de acties. Op een smal scherm schuiven de acties onder het woord. */
+.gap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.gap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  background: var(--intento-surface);
+}
+
+.gap__image {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.gap__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gap__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}

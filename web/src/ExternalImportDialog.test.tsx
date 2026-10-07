@@ -95,6 +95,35 @@ describe('importeren uit een externe bron', () => {
     ]);
   });
 
+  it('vooraf ingevuld (ontbrekend woord): zoekterm, en woord en concept blijven na de keuze', async () => {
+    const { api, imports } = fakeApi();
+    render(
+      <ExternalImportDialog
+        api={api}
+        initial={{
+          label: 'duizelig',
+          concepts: ['dizziness'],
+          contexts: ['health'],
+          query: 'dizziness',
+        }}
+        onCreated={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText<HTMLInputElement>('Zoeken in OpenSymbols').value).toBe(
+      'dizziness',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Zoeken' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Feel Dizzy (CC BY-SA 4.0)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Importeren' }));
+    await waitFor(() => expect(imports).toHaveLength(1));
+    expect(imports[0]).toMatchObject({
+      label: 'duizelig',
+      concepts: ['dizziness'],
+      contexts: ['health'],
+    });
+  });
+
   it('toont waarom zoeken niet lukt', async () => {
     const { api } = fakeApi(
       Promise.reject(

@@ -7,6 +7,7 @@ import { AdminUsersPage } from './AdminUsersPage.tsx';
 import { DashboardPage } from './DashboardPage.tsx';
 import { AuditLogPage } from './AuditLogPage.tsx';
 import { VocabularyPage } from './VocabularyPage.tsx';
+import { VocabularyGapsPage } from './VocabularyGapsPage.tsx';
 import { AttributionsPage } from './AttributionsPage.tsx';
 import { OrganizationPage } from './OrganizationPage.tsx';
 import { CaregiverUsersPage } from './CaregiverUsersPage.tsx';
@@ -241,6 +242,20 @@ export function App({
       <>
         {banner}
         <VocabularyPage
+          api={api}
+          account={account}
+          onLogout={() => void handleLogout()}
+          onNavigate={setView}
+        />
+      </>
+    );
+  }
+
+  if (view === 'gaps') {
+    return (
+      <>
+        {banner}
+        <VocabularyGapsPage
           api={api}
           account={account}
           onLogout={() => void handleLogout()}

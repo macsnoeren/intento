@@ -21,7 +21,7 @@ Zie [INTENTO-NEW-DESIGN.md](INTENTO-NEW-DESIGN.md) voor de ontwerpbron en
 |---|---|
 | [`shared/`](shared/) | Gedeelde zod-schema's en types (bron van waarheid voor API-payloads, client én server). |
 | [`server/`](server/) | Fastify 5-backend: `buildApp()`-factory, zod-gevalideerde env, health-endpoint, centrale foutafhandeling, security headers, Prisma-databaselaag. |
-| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, dashboard, gebruikersbeheer, begeleider-accounts en -koppeling, wachtwoordbeheer, tabletkoppeling, audit-log; **gebruikersapp op de tablet** op `/tablet` (gespreksflow in herbouw); **platform-operatorconsole** op `/operator`. Sinds T17.1 in één huisstijl, met een menu in de zijbalk in plaats van een rij tabs; de logobestanden staan in [`web/brand/`](web/brand/README.md). |
+| [`web/`](web/) | React + Vite tablet-first webapp (gebruikersapp, begeleider- en beheeromgeving). Nu: beheeromgeving met login, dashboard, gebruikersbeheer, begeleider-accounts en -koppeling, wachtwoordbeheer, tabletkoppeling, Vocabulary (overzicht, bewerken, eigen afbeelding, import, machinevertalingen nakijken), ontbrekende woorden, bronnen, audit-log; **gebruikersapp op de tablet** op `/tablet` (gesprek met JA/NEE of meerdere pictogrammen); **platform-operatorconsole** op `/operator`. Sinds T17.1 in één huisstijl, met een menu in de zijbalk in plaats van een rij tabs; de logobestanden staan in [`web/brand/`](web/brand/README.md). |
 
 Waarom een monorepo met deze indeling: zie [docs/adr/0002-monorepo-workspaces.md](docs/adr/0002-monorepo-workspaces.md).
 

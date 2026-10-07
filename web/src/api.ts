@@ -39,6 +39,11 @@ import {
   vocabularyItemPublicSchema,
   type VocabularyListResponse,
   vocabularyListResponseSchema,
+  type VocabularyGapListResponse,
+  type VocabularyGapPublic,
+  type VocabularyGapStatus,
+  vocabularyGapListResponseSchema,
+  vocabularyGapPublicSchema,
   type AuthResponse,
   type ChangePasswordRequest,
   type ChangePasswordResponse,
@@ -140,6 +145,13 @@ export interface Api {
   updateOrganizationSettings(body: UpdateOrganizationSettings): Promise<OrganizationSettings>;
   /** Een item intrekken (`retire`) of terugzetten (`restore`). */
   setVocabularyItemStatus(id: string, action: 'retire' | 'restore'): Promise<VocabularyItemPublic>;
+  /** Ontbrekende woorden van de eigen organisatie (standaard de open woorden). Alleen beheerder. */
+  listVocabularyGaps(status?: VocabularyGapStatus): Promise<VocabularyGapListResponse>;
+  /** Een ontbrekend woord oplossen (na "Woord toevoegen"), negeren of weer openzetten. */
+  setVocabularyGapStatus(
+    id: string,
+    action: 'resolve' | 'dismiss' | 'reopen',
+  ): Promise<VocabularyGapPublic>;
   /**
    * Platform-operatorconsole (INTENTO-NEW-DESIGN §53). Deze vijf calls gaan naar de aparte
    * `/operator`-routetak die bewust **over tenants heen** kijkt; alleen een operator-account komt
@@ -393,6 +405,18 @@ export const httpApi: Api & DeviceApi = {
   async setVocabularyItemStatus(id, action) {
     return vocabularyItemPublicSchema.parse(
       await request(`/vocabulary/${encodeURIComponent(id)}/${action}`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    );
+  },
+  async listVocabularyGaps(status) {
+    const suffix = status ? `?status=${encodeURIComponent(status)}` : '';
+    return vocabularyGapListResponseSchema.parse(await request(`/vocabulary/gaps${suffix}`));
+  },
+  async setVocabularyGapStatus(id, action) {
+    return vocabularyGapPublicSchema.parse(
+      await request(`/vocabulary/gaps/${encodeURIComponent(id)}/${action}`, {
         method: 'POST',
         body: '{}',
       }),

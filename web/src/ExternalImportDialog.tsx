@@ -6,7 +6,7 @@ import {
   type VocabularyItemPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { CONTEXT_LABELS, splitList } from './VocabularyItemDetail.tsx';
+import { CONTEXT_LABELS, splitList, type WordPrefill } from './VocabularyItemDetail.tsx';
 import { licenseLabel } from './VocabularyPage.tsx';
 
 /** Een conceptsleutel uit een (Engelse) naam: "Feel Dizzy" → "feel_dizzy". */
@@ -27,21 +27,24 @@ function conceptFrom(name: string): string {
  */
 export function ExternalImportDialog({
   api,
+  initial,
   onCreated,
   onCancel,
 }: {
   api: Api;
+  /** Vooraf ingevuld, bv. vanuit "Ontbrekende woorden" (N9.2): woord, concept en context van de gap. */
+  initial?: WordPrefill;
   onCreated: (item: VocabularyItemPublic) => void;
   onCancel: () => void;
 }): React.JSX.Element {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initial?.query ?? '');
   const [searched, setSearched] = useState('');
   const [results, setResults] = useState<ExternalSymbol[] | null>(null);
   const [chosen, setChosen] = useState<ExternalSymbol | null>(null);
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState(initial?.label ?? '');
   const [synonyms, setSynonyms] = useState('');
-  const [concepts, setConcepts] = useState('');
-  const [contexts, setContexts] = useState<VocabularyContext[]>([]);
+  const [concepts, setConcepts] = useState(initial?.concepts.join(', ') ?? '');
+  const [contexts, setContexts] = useState<VocabularyContext[]>(initial?.contexts ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,8 +69,9 @@ export function ExternalImportDialog({
   function choose(result: ExternalSymbol): void {
     if (!result.allowed) return;
     setChosen(result);
-    setLabel('');
-    setConcepts(conceptFrom(result.name));
+    // Vanuit een ontbrekend woord blijven woord en concept staan: dat concept zoekt de iconagent.
+    setLabel(initial?.label ?? '');
+    setConcepts(initial ? initial.concepts.join(', ') : conceptFrom(result.name));
     setError(null);
   }
 

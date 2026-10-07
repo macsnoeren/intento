@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N9.2 — beheer: "Ontbrekende woorden"
+
+- Nieuwe pagina in het beheermenu (alleen de beheerder): per woord het pictogram dat de gebruiker zag,
+  hoe vaak, wanneer het laatst en de context; tabbladen Open / Genegeerd / Opgelost en een teller.
+- **Eigen afbeelding** of **Uit externe bron** opent de bestaande dialoog (N8.2/N8.6) vooraf ingevuld
+  met woord, concept en context (de externe zoekterm is het concept, want die bron is Engelstalig); na
+  het toevoegen is het woord opgelost. Het concept blijft precies dat van de gap, zodat de iconagent het
+  nieuwe symbool de volgende keer exact vindt. **Negeren** en **Weer openzetten**.
+- `GET /vocabulary/gaps` en `POST /vocabulary/gaps/{id}/resolve|dismiss|reopen`: eigen organisatie,
+  IDOR → 403, geaudit zonder het woord.
+- Tests op de endpoints (lijst, statussen, audit, isolatie, rollen) en componenttests; in de browser
+  gerookt op desktop en telefoonbreedte.
+
 ### N9.1 — gaps opslaan
 
 - Nieuwe tabel `VocabularyGap` (migratie `vocabulary_gap`): per organisatie en concept het woord, de

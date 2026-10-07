@@ -5,7 +5,7 @@ import {
   type VocabularyItemPublic,
 } from '@intento/shared';
 import { ApiRequestError, type Api } from './api.ts';
-import { CONTEXT_LABELS, splitList } from './VocabularyItemDetail.tsx';
+import { CONTEXT_LABELS, splitList, type WordPrefill } from './VocabularyItemDetail.tsx';
 
 /** Wat de server accepteert; de controle op de werkelijke inhoud gebeurt daar (§53). */
 const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -19,19 +19,22 @@ const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
  */
 export function VocabularyUploadDialog({
   api,
+  initial,
   onCreated,
   onCancel,
 }: {
   api: Api;
+  /** Vooraf ingevuld, bv. vanuit "Ontbrekende woorden" (N9.2): woord, concept en context van de gap. */
+  initial?: WordPrefill;
   onCreated: (item: VocabularyItemPublic) => void;
   onCancel: () => void;
 }): React.JSX.Element {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState(initial?.label ?? '');
   const [synonyms, setSynonyms] = useState('');
-  const [concepts, setConcepts] = useState('');
-  const [contexts, setContexts] = useState<VocabularyContext[]>([]);
+  const [concepts, setConcepts] = useState(initial?.concepts.join(', ') ?? '');
+  const [contexts, setContexts] = useState<VocabularyContext[]>(initial?.contexts ?? []);
   const [rights, setRights] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

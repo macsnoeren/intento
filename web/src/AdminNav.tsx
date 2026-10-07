@@ -18,6 +18,7 @@ export type AdminView =
   | 'dashboard'
   | 'users'
   | 'vocabulary'
+  | 'gaps'
   | 'sources'
   | 'organization'
   | 'audit-logs'
@@ -52,6 +53,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { view: 'users', label: 'Gebruikers', icon: 'users' },
       { view: 'vocabulary', label: 'Vocabulary', icon: 'library' },
+      { view: 'gaps', label: 'Ontbrekende woorden', icon: 'question' },
       { view: 'sources', label: 'Bronnen', icon: 'audit' },
       { view: 'organization', label: 'Organisatie', icon: 'key' },
     ],
@@ -73,7 +75,16 @@ const GROUPS: NavGroup[] = [
  */
 const VIEWS_BY_ROLE: Record<NavRole, AdminView[] | 'all'> = {
   // De beheerder ziet "Mijn gebruikers" niet: hij beheert alle gebruikers onder Gebruikers.
-  ADMIN: ['dashboard', 'users', 'vocabulary', 'sources', 'organization', 'audit-logs', 'account'],
+  ADMIN: [
+    'dashboard',
+    'users',
+    'vocabulary',
+    'gaps',
+    'sources',
+    'organization',
+    'audit-logs',
+    'account',
+  ],
   CAREGIVER: ['my-users', 'vocabulary', 'sources', 'account'],
 };
 

@@ -35,6 +35,10 @@ export const AUDIT_ACTIONS = {
   VOCABULARY_IMPORT: 'vocabulary.import',
   VOCABULARY_RETIRE: 'vocabulary.retire',
   VOCABULARY_RESTORE: 'vocabulary.restore',
+  // Ontbrekende woorden (§17)
+  VOCABULARY_GAP_RESOLVE: 'vocabulary.gap.resolve',
+  VOCABULARY_GAP_DISMISS: 'vocabulary.gap.dismiss',
+  VOCABULARY_GAP_REOPEN: 'vocabulary.gap.reopen',
   // Organisatie-instellingen (bewaartermijn, §53)
   ORGANIZATION_SETTINGS_UPDATE: 'organization.settings.update',
   // Platform-operatorconsole — cross-tenant beheer, altijd met de operator als actor

@@ -1101,6 +1101,42 @@ export const externalImportRequestSchema = z.strictObject({
 });
 export type ExternalImportRequest = z.infer<typeof externalImportRequestSchema>;
 
+// --- Ontbrekende woorden (INTENTO-NEW-DESIGN §17, §49) ---
+
+export const VOCABULARY_GAP_STATUSES = ['open', 'resolved', 'dismissed'] as const;
+export const vocabularyGapStatusSchema = z.enum(VOCABULARY_GAP_STATUSES);
+export type VocabularyGapStatus = z.infer<typeof vocabularyGapStatusSchema>;
+
+/** Eén ontbrekend woord voor de beheerder; nooit een gebruiker of gesprek. */
+export const vocabularyGapPublicSchema = z.object({
+  id: z.string(),
+  concept: z.string(),
+  label: z.string(),
+  context: z.string().nullable(),
+  occurrences: z.number().int().min(1),
+  firstSeenAt: z.iso.datetime(),
+  lastSeenAt: z.iso.datetime(),
+  status: vocabularyGapStatusSchema,
+  /** Het pictogram dat de gebruiker de laatste keer in plaats ervan zag (of `null`: "geen afbeelding"). */
+  bestAvailable: z
+    .object({ id: z.string(), label: z.string(), imageUrl: z.string().nullable() })
+    .nullable(),
+});
+export type VocabularyGapPublic = z.infer<typeof vocabularyGapPublicSchema>;
+
+/** `GET /vocabulary/gaps?status=`: standaard de open woorden, vaakst en laatst eerst. */
+export const vocabularyGapListQuerySchema = z.object({
+  status: vocabularyGapStatusSchema.default('open'),
+});
+export type VocabularyGapListQuery = z.input<typeof vocabularyGapListQuerySchema>;
+
+export const vocabularyGapListResponseSchema = z.object({
+  items: z.array(vocabularyGapPublicSchema),
+  /** Hoeveel woorden er openstaan, los van het gekozen filter. */
+  open: z.number().int().nonnegative(),
+});
+export type VocabularyGapListResponse = z.infer<typeof vocabularyGapListResponseSchema>;
+
 /** Eén bron in de bronvermelding (`GET /vocabulary/attributions`, §15): wie, welke licentie, welke symbolen. */
 export const attributionSourceSchema = z.object({
   sourceName: z.string(),

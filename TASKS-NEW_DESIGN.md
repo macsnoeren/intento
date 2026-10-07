@@ -533,7 +533,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   zonder gebruiker of sessie.
   *Acceptatie:* tests: zelfde concept twee keer → `occurrences` 2; geen verwijzing naar gebruiker; isolatie.
 
-- [ ] **N9.2 Beheer: "Ontbrekende woorden"**
+- [x] **N9.2 Beheer: "Ontbrekende woorden"**
   *ONTWERP: §17, §49.* Lijst (woord, hoe vaak, laatst, beste pictogram) met "Woord toevoegen" (opent N8.2
   of N8.6, vooraf ingevuld; daarna `resolved`) en "Negeren".
   *Acceptatie:* tests op de endpoints; componenttest.

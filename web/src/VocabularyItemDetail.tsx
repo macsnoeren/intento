@@ -33,6 +33,15 @@ export const CONTEXT_LABELS: Record<VocabularyContext, string> = {
   other: 'Overig',
 };
 
+/** Vooraf ingevuld woord voor de dialogen "eigen afbeelding" en "uit externe bron". */
+export interface WordPrefill {
+  label: string;
+  concepts: string[];
+  contexts: VocabularyContext[];
+  /** Zoekterm voor de externe bron (die is meestal Engelstalig). */
+  query?: string;
+}
+
 /** Komma- of regelgescheiden tekst → lijst zonder lege of dubbele onderdelen. */
 export function splitList(value: string): string[] {
   const parts = value

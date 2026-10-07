@@ -257,6 +257,12 @@ function fakeApi(
     setVocabularyItemStatus() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
+    listVocabularyGaps() {
+      return Promise.resolve({ items: [], open: 0 });
+    },
+    setVocabularyGapStatus() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     updateVocabularyItem() {
       return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
     },
