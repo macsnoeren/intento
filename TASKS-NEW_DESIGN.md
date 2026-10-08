@@ -668,7 +668,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   niet in de Vocabulary staat.
   *Acceptatie:* tests: rondgang export → import levert hetzelfde op (contacten onbevestigd); isolatie.
 
-- [ ] **N15.2 Security review**
+- [x] **N15.2 Security review**
   *ONTWERP: §53.* `/security-review` over de hele herbouw; bevindingen meteen fixen. `npm audit` en
   `npm run audit:python` op 0.
   *Acceptatie:* rapport in `docs/security.md`; alle bevindingen opgelost of als taak vastgelegd.

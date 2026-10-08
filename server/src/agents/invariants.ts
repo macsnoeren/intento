@@ -110,6 +110,25 @@ function checkReferences(request: TurnRequest, response: TurnResponse): Invarian
       });
       return;
     }
+    // Wie op het scherm staat, is wie er een verzending krijgt: het woord bij de optie is de naam van dát
+    // contact, en een vraag over één contact noemt die naam ("Wil je dit naar Mama sturen?"). Anders kan
+    // een JA op "Mama" een bericht naar Tim sturen.
+    if (normalize(option.label) !== normalize(contact.name)) {
+      violations.push({
+        invariant: 'I1',
+        message: `${at}: het woord bij contact ${contact.id} is niet zijn naam`,
+      });
+    }
+    const contactOptions = presentation.options.filter((o) => o.kind === 'contact');
+    if (
+      contactOptions.length === 1 &&
+      !normalize(presentation.text).includes(normalize(contact.name))
+    ) {
+      violations.push({
+        invariant: 'I1',
+        message: `${at}: de vraag noemt contact ${contact.id} niet`,
+      });
+    }
     if (
       option.vocabulary_item_id &&
       option.vocabulary_item_id !== contact.vocabulary_item_id &&

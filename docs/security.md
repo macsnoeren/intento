@@ -433,3 +433,25 @@
   (`where organizationId`, ADMIN-only), geen PII/`ip` in de respons, een mislukte login logt geen
   e-mailadres (geen enumeratie), React-escaping in `AuditLogPage`, en `recordAudit` is best-effort zodat
   een audit-hapering de hoofdactie nooit breekt. Geen open bevindingen.
+- **N15.2 (2026-10-08)** — `/security-review` over de hele herbouw (`dev-new-agentic-design` t.o.v. `main`):
+  agentdienst, gesprekken en verzenden, contacten met opt-in, Vocabulary (uploads, externe import, SVG,
+  ondertekende URL's), Experience, terugzien, bias-rapport, bewaartermijn en profielexport.
+  **Geen HIGH/MEDIUM-bevindingen.** Gecontroleerd en akkoord: tenant-isolatie op elke nieuwe route
+  (`assertSameTenant` of `where organizationId`, 403 zonder te verraden of iets bestaat), begeleider alleen
+  voor gekoppelde gebruikers, tablets alleen voor hun eigen gebruiker en het huidige scherm; versturen alleen
+  na JA op een scherm uit de eigen momentopname, met een herhaalde controle van contact (eigen, actief,
+  bevestigd) en boodschap, en uniek per gesprek en contact; opt-in-tokens 256 bit, gehasht, eenmalig en
+  vervallend; de agentdienst achter een gedeeld geheim (constant-time vergeleken), elk antwoord door zod en de
+  invarianten; geen e-mailadres en in geen enkele prompt een contactnaam; ondertekende afbeeldings-URL's
+  (HMAC, constant-time, vervaldatum), opslagpaden zonder `..`/absolute paden, uploads op inhoud herkend en
+  zonder SVG, SVG alleen uit de seed en streng gecontroleerd met een CSP zonder scripts; externe downloads
+  alleen https, geen interne adressen, alleen bekende hosts, zonder redirects; geen `dangerouslySetInnerHTML`,
+  links alleen http(s); alle e-mails platte tekst; persoonsgegevens versleuteld, audit zonder inhoud.
+  Kleinere observaties: (1) de invarianten controleerden niet dat het woord en de vraag op een deelscherm
+  het contact noemen waarnaar een JA verstuurt — **opgelost**: I1 eist nu dat het label de naam van dát
+  contact is en dat een vraag over één contact die naam noemt (`invariants.ts`, getest);
+  (2) de alleen-lezen bronvermelding (`/vocabulary/attributions`) slaat de wachtwoord-wissel-poort over —
+  geaccepteerd, het is openbare licentie-informatie van de eigen organisatie; (3) de standaardlijst
+  `VOCABULARY_IMAGE_HOSTS` bevat het brede `s3.amazonaws.com` — geaccepteerd, er wordt alleen opgehaald wat
+  de OpenSymbols-API teruggeeft en de inhoud moet een PNG, JPEG of WebP zijn; beperk de lijst per
+  installatie als dat kan. `npm audit` en `npm run audit:python`: 0.

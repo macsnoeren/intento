@@ -129,12 +129,29 @@ describe('harde invarianten', () => {
 
       const shareOwn = response('turn_response.question', (r) => {
         r.presentation.kind = 'share_contact';
+        r.presentation.text = 'Wil je dit naar Mama sturen?';
         r.presentation.options = [contactOption];
       });
       expect(invariants(answerRequest(), shareOwn)).toEqual([]);
 
+      // Wie op het scherm staat, is wie het bericht krijgt: een andere naam bij dit contact, of een vraag
+      // over iemand anders, wordt verworpen.
+      const wrongLabel = response('turn_response.question', (r) => {
+        r.presentation.kind = 'share_contact';
+        r.presentation.text = 'Wil je dit naar Tim sturen?';
+        r.presentation.options = [{ ...contactOption, label: 'Tim' }];
+      });
+      expect(new Set(invariants(answerRequest(), wrongLabel))).toEqual(new Set(['I1']));
+      const wrongText = response('turn_response.question', (r) => {
+        r.presentation.kind = 'confirm_send';
+        r.presentation.text = 'Naar Tim sturen?';
+        r.presentation.options = [contactOption];
+      });
+      expect(invariants(answerRequest(), wrongText)).toEqual(['I1']);
+
       const shareOther = response('turn_response.question', (r) => {
         r.presentation.kind = 'share_contact';
+        r.presentation.text = 'Wil je dit naar Mama sturen?';
         r.presentation.options = [{ ...contactOption, ref: 'c-ander', contact_id: 'c-ander' }];
       });
       expect(invariants(answerRequest(), shareOther)).toEqual(['I1']);

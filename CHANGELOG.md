@@ -28,6 +28,14 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N15.2 — security review
+
+- `/security-review` over de hele herbouw: geen HIGH/MEDIUM-bevindingen; het rapport staat in
+  `docs/security.md` (Reviewgeschiedenis).
+- Opgelost uit de observaties: I1 eist nu dat een contact op het scherm met zijn eigen naam staat en dat een
+  vraag over één contact die naam noemt, zodat een JA op "Mama" nooit naar iemand anders kan gaan.
+- `npm audit` en `npm run audit:python`: 0.
+
 ### N15.1 — profielexport met contacten en Experience
 
 - Exportformaat versie 2: naast naam en instellingen ook de contacten (naam, relatie, e-mail, pictogram,
