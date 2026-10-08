@@ -246,6 +246,30 @@ class Gap(Contract):
     confidence: Confidence
 
 
+#: Hooguit zoveel recente handelingen in een `TurnRequest`; de wisselregels kijken er hooguit 4 terug.
+MAX_RECENT_EVENTS = 12
+
+
+class RecentEvent(Contract):
+    """Wat de gebruiker op een eerder scherm deed, zoals de backend het vastlegde (Observed, §26).
+
+    Ook ↩ Terug, dat de agentdienst zelf nooit ziet (de backend zet het vorige scherm terug). Nodig voor
+    de wisselregels van "AI kiest" (§14).
+    """
+
+    turn: NonNegative
+    screen: Literal[
+        "question",
+        "confirm_message",
+        "share_ask",
+        "share_contact",
+        "confirm_send",
+        "ask_stop",
+    ]
+    mode: InteractionMode
+    event: Literal["answer_yes", "answer_no", "select_option", "none_of_these", "back"]
+
+
 class TurnRequest(Contract):
     contract_version: Literal[1]
     session_id: Ref
@@ -256,6 +280,8 @@ class TurnRequest(Contract):
     vocabulary: Annotated[list[VocabularyEntry], Field(min_length=1)]
     contacts: list[ContactEntry]
     experience: ExperienceSummary | None = None
+    #: De laatste handelingen in dit gesprek, oudste eerst, inclusief die van deze beurt.
+    recent: Annotated[list[RecentEvent], Field(max_length=MAX_RECENT_EVENTS)]
 
 
 class TurnResponse(Contract):

@@ -201,6 +201,28 @@ export const vocabularyGapSchema = z.strictObject({
 });
 export type VocabularyGap = z.infer<typeof vocabularyGapSchema>;
 
+/** Hooguit zoveel recente handelingen in een `TurnRequest`; de wisselregels kijken er hooguit 4 terug. */
+export const MAX_RECENT_EVENTS = 12;
+
+/**
+ * Wat de gebruiker op een eerder scherm deed, zoals de backend het vastlegde (Observed, §26). Ook ↩ Terug,
+ * dat de agentdienst zelf nooit ziet. Nodig voor de wisselregels van "AI kiest" (§14).
+ */
+export const recentEventSchema = z.strictObject({
+  turn: nonNegative,
+  screen: z.enum([
+    'question',
+    'confirm_message',
+    'share_ask',
+    'share_contact',
+    'confirm_send',
+    'ask_stop',
+  ]),
+  mode: interactionModeSchema,
+  event: z.enum(['answer_yes', 'answer_no', 'select_option', 'none_of_these', 'back']),
+});
+export type RecentEvent = z.infer<typeof recentEventSchema>;
+
 export const turnRequestSchema = z.strictObject({
   contract_version: z.literal(AGENT_CONTRACT_VERSION),
   session_id: ref,
@@ -211,6 +233,8 @@ export const turnRequestSchema = z.strictObject({
   vocabulary: z.array(vocabularyEntrySchema).min(1),
   contacts: z.array(contactEntrySchema),
   experience: experienceSummarySchema.nullable().optional(),
+  /** De laatste handelingen in dit gesprek, oudste eerst, inclusief die van deze beurt. */
+  recent: z.array(recentEventSchema).max(MAX_RECENT_EVENTS),
 });
 export type TurnRequest = z.infer<typeof turnRequestSchema>;
 

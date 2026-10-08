@@ -45,6 +45,7 @@ from .agents.intent import (
     llm_intent,
     rules_intent,
 )
+from .agents.interaction import ModeChoice, next_mode, start_mode
 from .agents.question import (
     QUESTION_TIMEOUT_SECONDS,
     RULES_MULTI_TEXT,
@@ -83,9 +84,11 @@ from .contracts import (
     Gap,
     Hypothesis,
     Inference,
+    InteractionMode,
     Option,
     Presentation,
     Proposal,
+    RecentEvent,
     SelectOptionEvent,
     SessionState,
     Settings,
@@ -124,8 +127,11 @@ class _Turn:
         llm_safety: bool = False,
         turn_budget: float = DEFAULT_TURN_BUDGET_SECONDS,
         ranking: Ranking = NO_RANKING,
+        recent: Sequence[RecentEvent] = (),
     ) -> None:
         self.clock = clock
+        #: Wat de gebruiker de laatste beurten deed, volgens de backend (ook ↩ Terug), voor §14.
+        self.recent = list(recent)
         #: Wat het vaakst gekozen is, eerst (§29 besluit 7); zonder Experience de vaste volgorde.
         self.ranking = ranking
         #: Uiterlijk dan moet de beurt klaar zijn; daarna geen modelaanroepen meer (`budget`).
@@ -156,13 +162,13 @@ class _Turn:
         return min(timeout, remaining) if remaining >= MIN_LLM_SECONDS else None
 
 
-def new_state(request: TurnRequest) -> SessionState:
+def new_state(request: TurnRequest, mode: InteractionMode = "binary") -> SessionState:
     return SessionState(
         session_id=request.session_id,
         phase="clarify",
         turn=request.turn,
-        # De ingestelde vorm; "AI kiest" begint in Binary (§14).
-        interaction_mode="multi" if request.settings.interaction_mode == "multi" else "binary",
+        # De ingestelde vorm, of bij "AI kiest" de startvorm uit de Experience (§14).
+        interaction_mode=mode,
         mode_since_turn=request.turn,
         current_intent=None,
         intent_hypotheses=[],
@@ -202,11 +208,15 @@ def step(
         turn_budget,
         # Alleen als Experience aanstaat; de backend stuurt dan ook pas een samenvatting (§22).
         Ranking(request.experience if request.settings.experience_enabled else None),
+        request.recent,
     )
     event = request.event
 
     if event.type == "start":
-        state = new_state(request)
+        choice = start_mode(request.settings, request.experience)
+        state = new_state(request, choice.mode)
+        if request.settings.interaction_mode == "ai":
+            _mode_change(turn, None, choice)
         presentation = _ask_next(state, vocabulary, turn)
     else:
         if request.state is None:
@@ -318,6 +328,33 @@ def _update_hypotheses(
     return result
 
 
+def _mode_change(turn: _Turn, previous: InteractionMode | None, choice: ModeChoice) -> None:
+    """Elke keuze en wissel van vorm met de reden in de provenance (§14)."""
+    turn.inferences.append(
+        Inference(
+            agent="interaction-strategy",
+            kind="mode_change",
+            payload={"from": previous, "to": choice.mode, "reason": choice.reason},
+            confidence=None,
+        )
+    )
+
+
+def _maybe_switch_mode(state: SessionState, turn: _Turn) -> None:
+    """Bij "AI kiest": wisselen als de regels van §14 dat zeggen. Een ingestelde vorm wisselt nooit."""
+    choice = next_mode(
+        turn.settings,
+        state,
+        turn.recent,
+        tiles_available=len(_next_targets(state, turn.settings.options_per_screen)),
+    )
+    if choice is None or choice.mode == state.interaction_mode:
+        return
+    _mode_change(turn, state.interaction_mode, choice)
+    state.interaction_mode = choice.mode
+    state.mode_since_turn = state.turn
+
+
 def _item_id(vocabulary: VocabularyIndex, concept: str) -> str | None:
     entry = vocabulary.for_concept(concept)
     return entry.id if entry else None
@@ -368,6 +405,7 @@ def _ask_next(
     state.phase = "clarify"
     if refresh:
         _update_hypotheses(state, vocabulary, turn)
+    _maybe_switch_mode(state, turn)
     limit = s1_question_limit(state, turn.settings)
     if limit is not None:
         # S1: genoeg gevraagd. Voorleggen wat de gebruiker bevestigde, of de bovenste hypothese als die

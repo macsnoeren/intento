@@ -3,8 +3,7 @@
   "session_id": "s-1",
   "turn": 1,
   "event": {
-    "type": "select_option",
-    "option_ref": "v-head"
+    "type": "answer_yes"
   },
   "state": {
     "session_id": "s-1",
@@ -67,7 +66,7 @@
     }
   },
   "settings": {
-    "interaction_mode": "multi",
+    "interaction_mode": "binary",
     "options_per_screen": 4,
     "question_strategy": "general_to_specific",
     "max_questions": 15,
@@ -142,20 +141,8 @@
     {
       "turn": 0,
       "screen": "question",
-      "mode": "multi",
-      "event": "none_of_these"
-    },
-    {
-      "turn": 0,
-      "screen": "question",
-      "mode": "multi",
-      "event": "back"
-    },
-    {
-      "turn": 0,
-      "screen": "question",
-      "mode": "multi",
-      "event": "select_option"
+      "mode": "binary",
+      "event": "stop"
     }
   ]
 }

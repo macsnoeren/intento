@@ -635,7 +635,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N13 — AI kiest de vorm
 
-- [ ] **N13.1 Vorm kiezen en wisselen**
+- [x] **N13.1 Vorm kiezen en wisselen**
   *ONTWERP: §14.* Bij `interactionMode = ai`: startvorm uit de Experience (anders binary); de
   wisselregels uit §14; niet binnen 3 beurten; inference `mode_change` met reden. De backend bewaakt I7.
   *Acceptatie:* unittests per regel; scenario met een wissel; backendtest: een expliciete vorm wisselt

@@ -143,6 +143,14 @@ multi-icon-scherm en de contacten in volgorde van `chosen`; bij gelijke aantalle
 volgorde (of die van de Intent Agent). Ranking ordent alleen: dezelfde opties, nooit een minder. Staat
 `experience_enabled` uit, dan wordt een meegestuurde samenvatting genegeerd.
 
+**Interaction Strategy** (`agents/interaction.py`, §14, I7, N13.1): regels, geen LLM, alleen bij de
+instelling "AI kiest". Start: de vorm die volgens de Experience het vaakst tot een bevestigde boodschap
+leidde, anders ja/nee. Wisselen op basis van `TurnRequest.recent` (wat de backend vastlegde, ook ↩
+Terug): na 4 keer achter elkaar nee naar tegels (als er minstens 2 te tonen zijn); in tegels na 2 keer
+Terug of "Geen van deze" in de laatste 3 beurten naar ja/nee. Nooit binnen 3 beurten in de huidige vorm.
+Elke keuze en wissel wordt een inference `mode_change` met `from`, `to` en `reason`. Een ingestelde vorm
+wisselt nooit; de backend bewaakt dat opnieuw (I7). Het scenario "moe, AI kiest" speelt een wissel.
+
 **Experience Agent** (`agents/observer.py`, `prompts/experience-v1.md`, §21 laag 2, N12.4): kijkt na
 afloop terug op een gesprek. De backend stuurt de schermen met wat de gebruiker deed (vraag, getoonde
 pictogrammen met plek en dekking, het antwoord en de reactietijd), de uitkomst en of er verstuurd is —

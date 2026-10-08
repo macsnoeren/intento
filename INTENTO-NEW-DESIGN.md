@@ -703,6 +703,8 @@ Maar:
 | Multi-icon → Binary | In de laatste 3 beurten minstens 2 keer ↩ Terug of "Geen van deze". |
 | Binary → Multi-icon | 4 keer achter elkaar NEE. |
 
+**Uitwerking (N13.1).** Een "beurt" is hier een handeling die de backend vastlegde: een antwoord op een vraag, of ↩ Terug. Terug ziet de agentdienst zelf nooit (de backend zet het vorige scherm terug), dus de backend stuurt de laatste handelingen met het scherm erbij mee in elke beurt (`TurnRequest.recent`, Observed). De regels draaien in de agentdienst (Interaction Strategy, regels, geen LLM); naar Multi-icon alleen als er minstens twee opties als tegels te tonen zijn. Ook de startkeuze bij "AI kiest" komt als inference `mode_change` (met `from: null`) in de provenance.
+
 ---
 
 # 15. Vocabulary

@@ -3,8 +3,7 @@
   "session_id": "s-1",
   "turn": 1,
   "event": {
-    "type": "select_option",
-    "option_ref": "v-head"
+    "type": "answer_yes"
   },
   "state": {
     "session_id": "s-1",
@@ -67,7 +66,7 @@
     }
   },
   "settings": {
-    "interaction_mode": "multi",
+    "interaction_mode": "binary",
     "options_per_screen": 4,
     "question_strategy": "general_to_specific",
     "max_questions": 15,
@@ -142,20 +141,80 @@
     {
       "turn": 0,
       "screen": "question",
-      "mode": "multi",
-      "event": "none_of_these"
+      "mode": "binary",
+      "event": "answer_no"
     },
     {
-      "turn": 0,
+      "turn": 1,
       "screen": "question",
-      "mode": "multi",
-      "event": "back"
+      "mode": "binary",
+      "event": "answer_no"
     },
     {
-      "turn": 0,
+      "turn": 2,
       "screen": "question",
-      "mode": "multi",
-      "event": "select_option"
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 3,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 4,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 5,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 6,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 7,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 8,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 9,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 10,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 11,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
+    },
+    {
+      "turn": 12,
+      "screen": "question",
+      "mode": "binary",
+      "event": "answer_no"
     }
   ]
 }

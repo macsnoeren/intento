@@ -42,6 +42,13 @@ class ScenarioTest(unittest.TestCase):
         self.assertTrue(result.success, result.failure)
         self.assertNotIn("contact-agent", {d.agent for d in result.decisions})
 
+    def test_ai_kiest_wisselt_na_vier_keer_nee_naar_tegels(self) -> None:
+        # Pijn? Eten? Drinken? Toilet? — vier keer nee in ja/nee; dan tegels met moe en slapen.
+        result = play(SCENARIOS[5], step)
+        self.assertTrue(result.success, result.failure)
+        self.assertEqual(result.message, "Moe")
+        self.assertEqual(result.questions, 5)
+
     def test_een_onbereikbaar_doel_mislukt_netjes(self) -> None:
         # "duizelig" staat niet bij de startconcepten: de regels komen er niet; de gebruiker stopt.
         result = play(Scenario(name="bedoelt duizelig", goal=frozenset({"dizzy"})), step)

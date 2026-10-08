@@ -28,6 +28,21 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N13.1 — AI kiest de vorm
+
+- Bij de instelling "AI kiest" begint een gesprek in de vorm die volgens de Experience het vaakst tot een
+  bevestigd bericht leidde (anders ja/nee) en wisselt het volgens §14: na 4 keer achter elkaar nee naar
+  tegels, in tegels na 2 keer ↩ Terug of "Geen van deze" in de laatste 3 beurten naar ja/nee; nooit
+  binnen 3 beurten. Regels in de agentdienst (`agents/interaction.py`); elke keuze en wissel is een
+  inference `mode_change` met reden.
+- Contract: `TurnRequest.recent` — de laatste handelingen zoals de backend ze vastlegde, ook ↩ Terug (dat
+  ziet de agentdienst anders nooit). Beide kanten en de voorbeeldbestanden bijgewerkt.
+- De scenario-Vocabulary heeft een zesde startconcept ("slapen"); nieuw scenario "moe, AI kiest: na 4 keer
+  nee tegels".
+- Tests: unittests per regel (start, beide wissels, niet binnen 3 beurten, ingestelde vorm nooit, geen
+  tegels → geen wissel), het scenario met een wissel; backend: `recent` met Terug, een ingestelde vorm
+  wisselt nooit (I7, 503), bij "AI kiest" een wissel op beurt 2 verworpen en op beurt 3 geaccepteerd.
+
 ### N12.4 — Experience Agent: observaties
 
 - Agentdienst: `POST /v1/experience` met de **Experience Agent** (`agents/observer.py`, prompt

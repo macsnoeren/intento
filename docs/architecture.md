@@ -77,7 +77,9 @@ server niet uit elkaar lopen.
   en `conversation.ts`: één beurt van begin tot eind (Observed vastleggen → `TurnRequest` bouwen →
   agentdienst → invarianten → opslaan, inclusief de ontbrekende woorden per organisatie → presentatie
   voor de tablet met ondertekende afbeeldings-URL's).
-  De routes staan in `routes/communication.ts`.
+  De routes staan in `routes/communication.ts`. Elke `TurnRequest` krijgt ook de laatste handelingen
+  mee (`recent`: Observed met het scherm uit Presented, ook ↩ Terug) voor de wisselregels van "AI
+  kiest" (N13.1); de backend toetst elke wissel opnieuw aan I7.
 - `server/src/experience/` — Experience per gebruiker (INTENTO-NEW-DESIGN §21 laag 1, §22, N12.1):
   `tally.ts` telt één afgerond gesprek puur uit Presented en Observed (per symbool, contact en vorm:
   getoond, gekozen, gekozen op de eerste plek); `stats.ts` claimt het gesprek en telt het op bij

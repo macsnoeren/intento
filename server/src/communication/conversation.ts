@@ -1,6 +1,9 @@
 import {
   AGENT_CONTRACT_VERSION,
+  MAX_RECENT_EVENTS,
   communicationTurnSchema,
+  recentEventSchema,
+  type RecentEvent,
   type AgentDecision,
   type AgentEvent,
   type AgentSettings,
@@ -224,6 +227,7 @@ export async function runAgentTurn(
           contactIds: new Set(contacts.map((contact) => contact.id)),
         })
       : null,
+    recent: await recentEvents(prisma, session.id),
   };
 
   const started = Date.now();
@@ -292,6 +296,39 @@ export async function runAgentTurn(
     now(),
     delivery ? { contactName: delivery.contactName, status: delivery.status } : null,
   );
+}
+
+const RECENT_TYPES = ['answer_yes', 'answer_no', 'select_option', 'none_of_these', 'back'] as const;
+
+/**
+ * De laatste handelingen van de gebruiker in dit gesprek (Observed, met het scherm uit Presented), oudste
+ * eerst, inclusief die van deze beurt. Ook ↩ Terug: dat ziet de agentdienst anders nooit, en de
+ * wisselregels van "AI kiest" (§14) hebben het nodig.
+ */
+async function recentEvents(prisma: PrismaClient, sessionId: string): Promise<RecentEvent[]> {
+  const observed = await prisma.observedEvent.findMany({
+    where: { sessionId, type: { in: [...RECENT_TYPES] } },
+    orderBy: [{ createdAt: 'desc' }, { turn: 'desc' }],
+    take: MAX_RECENT_EVENTS,
+    select: { turn: true, type: true },
+  });
+  const screens = new Map(
+    (
+      await prisma.presentationEvent.findMany({
+        where: { sessionId, turn: { in: observed.map((event) => event.turn) } },
+        select: { turn: true, kind: true, mode: true },
+      })
+    ).map((screen) => [screen.turn, screen]),
+  );
+  return observed.reverse().flatMap((event) => {
+    const parsed = recentEventSchema.safeParse({
+      turn: event.turn,
+      screen: screens.get(event.turn)?.kind,
+      mode: screens.get(event.turn)?.mode,
+      event: event.type,
+    });
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 /** Een beslissing namens de backend als de agentdienst zelf niets bruikbaars teruggaf. */

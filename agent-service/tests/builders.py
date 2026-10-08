@@ -70,6 +70,7 @@ def request(
     vocab: list[VocabularyEntry] | None = None,
     contacts: list[ContactEntry] | None = None,
     experience: dict[str, Any] | None = None,
+    recent: list[dict[str, Any]] | None = None,
     **setting_overrides: Any,
 ) -> TurnRequest:
     return TurnRequest.model_validate(
@@ -83,6 +84,7 @@ def request(
             "vocabulary": vocab or vocabulary(),
             "contacts": contacts or [],
             "experience": experience,
+            "recent": recent or [],
         }
     )
 

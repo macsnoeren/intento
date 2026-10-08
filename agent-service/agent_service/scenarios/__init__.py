@@ -18,6 +18,7 @@ from typing import Any
 
 from ..contracts import (
     CONTRACT_VERSION,
+    MAX_RECENT_EVENTS,
     AgentDecision,
     ContactEntry,
     Presentation,
@@ -48,7 +49,7 @@ def _entry(
 
 
 def scenario_vocabulary() -> list[VocabularyEntry]:
-    """Een kleine Vocabulary als uit de startset: vijf startconcepten, een paar gewone woorden en
+    """Een kleine Vocabulary als uit de startset: zes startconcepten, een paar gewone woorden en
     "geen afbeelding"."""
     return [
         _entry("v-pain", "pijn", "pain", 1, start=True, contexts=["health"]),
@@ -56,6 +57,7 @@ def scenario_vocabulary() -> list[VocabularyEntry]:
         _entry("v-drink", "drinken", "drink", 3, start=True, contexts=["food_drink"]),
         _entry("v-toilet", "toilet", "toilet", 4, start=True, contexts=["care"]),
         _entry("v-tired", "moe", "tired", 5, start=True, contexts=["feeling"]),
+        _entry("v-sleep", "slapen", "sleep", 6, start=True, contexts=["feeling"]),
         _entry("v-head", "hoofd", "head", 10, contexts=["body"]),
         _entry("v-belly", "buik", "belly", 11, contexts=["body"]),
         _entry("v-water", "water", "water", 12, contexts=["food_drink"]),
@@ -110,6 +112,12 @@ SCENARIOS: list[Scenario] = [
         settings={"interaction_mode": "multi", "options_per_screen": 2},
         contacts=scenario_contacts(),
         send_to="c-mama",
+    ),
+    # "AI kiest" (§14): begint met ja/nee; na 4 keer nee wisselt het naar tegels, waar "moe" staat.
+    Scenario(
+        name="moe, AI kiest: na 4 keer nee tegels",
+        goal=frozenset({"tired"}),
+        settings={"interaction_mode": "ai"},
     ),
 ]
 
@@ -241,6 +249,8 @@ def play(
     questions = 0
     turn = 0
     response: TurnResponse | None = None
+    # Wat de backend als Observed meestuurt: de laatste handelingen (§14, `TurnRequest.recent`).
+    recent: list[dict[str, Any]] = []
 
     def result(success: bool, failure: str | None) -> ScenarioResult:
         message = (
@@ -272,6 +282,7 @@ def play(
                 "vocabulary": scenario.vocabulary,
                 "contacts": scenario.contacts,
                 "experience": None,
+                "recent": recent[-MAX_RECENT_EVENTS:],
             }
         )
         before = clock()
@@ -282,6 +293,15 @@ def play(
         if response.presentation.kind == "question":
             questions += 1
         event = user.respond(response.presentation, state)
+        if event is not None and response.presentation.kind not in ("done", "stopped"):
+            recent.append(
+                {
+                    "turn": turn,
+                    "screen": response.presentation.kind,
+                    "mode": response.presentation.mode,
+                    "event": event["type"],
+                }
+            )
         turn += 1
 
     assert response is not None

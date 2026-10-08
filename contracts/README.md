@@ -26,6 +26,9 @@ print(json.dumps({'turn_request': field_paths(TurnRequest.model_json_schema()), 
 > ../contracts/fields.json
 ```
 
+`TurnRequest.recent` (N13.1) bevat de laatste handelingen van de gebruiker zoals de backend ze vastlegde
+(beurt, soort scherm, vorm, handeling — ook ↩ Terug), oudste eerst, hooguit 12.
+
 `question_strategies.json` bevat de sleutels van de vraagstrategieën (INTENTO-NEW-DESIGN §7.1), in
 volgorde. `shared/` (`QUESTION_STRATEGY_KEYS`, de catalogus en het contractschema) en de agentdienst
 (`agents/strategies.py`) worden er allebei tegen getest; een strategie toevoegen of hernoemen gebeurt
