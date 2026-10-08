@@ -28,6 +28,16 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N14.2 — bewaartermijn uitvoeren
+
+- `purgeExpired(now)` (`server/src/retention/purge.ts`): per organisatie weg wat ouder is dan de
+  bewaartermijn — gesprekken met momentopnamen, provenance, bevestigde berichten en verzendingen
+  (cascade). Experience, ontbrekende woorden, contacten en het audit-log blijven.
+- De server draait het bij het starten en daarna dagelijks (`scheduleRetention`, alleen in `server.ts`,
+  niet in elke test-app); aantallen en fouten in de serverlog.
+- Tests met een vaste klok: net te oud → weg, net te jong → blijft, per organisatie de eigen termijn en
+  een andere organisatie ongemoeid; wat moet blijven, blijft; de taak draait bij het starten.
+
 ### N14.1 — beheer: een gesprek terugzien
 
 - `GET /users/{id}/sessions` (overzicht, nieuwste eerst, zonder inhoud) en

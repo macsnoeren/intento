@@ -47,7 +47,12 @@ volgt. `vitest.config.ts` wijst de test-`DATABASE_URL` naar dat bestand.
   `ENCRYPTION_KEY`); sessie- en apparaattokens gehasht.
 - **Provenance wordt wél bewaard** (Observed, Presented, Inferred en de AI-beslissingen), versleuteld en
   alleen binnen de bewaartermijn van de organisatie; zonder die gegevens is feedback-loop-bescherming
-  onmogelijk (INTENTO-NEW-DESIGN §25, §53). Die tabellen komen in fase N4.
+  onmogelijk (INTENTO-NEW-DESIGN §25, §53).
+- **Bewaartermijn uitvoeren** (N14.2, `server/src/retention/purge.ts`): bij het starten van de server en
+  daarna dagelijks verwijdert `purgeExpired` per organisatie elk gesprek dat vóór `nu − retentionDays`
+  begon (anders `RETENTION_DEFAULT_DAYS`). Momentopnamen, Presented, Observed, Inferred (ook
+  `experience_note`), agentbeslissingen, de bevestigde boodschap en de verzendingen gaan mee (cascade).
+  Blijven staan: `ExperienceStat` (tot "Ervaring wissen"), `VocabularyGap`, contacten en het audit-log.
 
 ## Entiteiten
 

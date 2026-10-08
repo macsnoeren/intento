@@ -648,7 +648,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   per beurt drie kolommen: Getoond / Gekozen / Gedacht, plus de agentbeslissingen (agent, status, duur).
   *Acceptatie:* tests: isolatie, begeleider → 403; componenttest.
 
-- [ ] **N14.2 Bewaartermijn uitvoeren**
+- [x] **N14.2 Bewaartermijn uitvoeren**
   *ONTWERP: §53.* `purgeExpired(now)` verwijdert per organisatie sessies, momentopnamen, provenance,
   bevestigde berichten en verzendingen die ouder zijn dan `retentionDays`; draait bij het starten en
   daarna dagelijks.

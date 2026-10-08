@@ -46,7 +46,7 @@ model Organization {
   createdAt  DateTime @default(now())
 
   /// Bewaartermijn in dagen (INTENTO-NEW-DESIGN §53), 7–365. `null` = de standaard uit
-  /// `RETENTION_DEFAULT_DAYS` (90). Het opruimen zelf gebeurt in N14.2.
+  /// `RETENTION_DEFAULT_DAYS` (90). Het opruimen doet `purgeExpired` (N14.2): bij het starten en dagelijks.
   retentionDays Int?
 
   accounts              Account[]

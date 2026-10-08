@@ -377,6 +377,16 @@
   `VOCABULARY_IMAGE_HOSTS`, geen redirects, time-out, groottelimiet, typecontrole op inhoud (geen SVG).
   De afbeelding wordt gekopieerd; er wordt nooit live naar de bron gelinkt.
 
+### Bewaartermijn (N14.2, INTENTO-NEW-DESIGN §53)
+
+- **Gespreksinhoud verdwijnt vanzelf.** De server ruimt bij het starten en daarna dagelijks per organisatie
+  alles van gesprekken op die ouder zijn dan de bewaartermijn (standaard 90 dagen, instelbaar 7–365):
+  momentopnamen, provenance, bevestigde berichten en verzendingen. De termijn van de ene organisatie raakt
+  nooit de gegevens van een andere.
+- **Wat blijft:** Experience (alleen ids en aantallen, tot de beheerder hem wist), ontbrekende woorden
+  (geen gebruikersgegevens) en het audit-log (beheeracties, zonder gespreksinhoud). Het resultaat van een
+  ronde (aantallen) staat in de serverlog; een mislukte ronde ook, en de volgende probeert het opnieuw.
+
 ### Agentdienst (ADR-0017)
 
 - **Alleen de backend.** De tablet en de beheeromgeving praten nooit met de agentdienst. In compose

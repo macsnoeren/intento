@@ -1,5 +1,7 @@
 import { buildApp } from './app.js';
 import { loadEnv } from './env.js';
+import { prisma } from './db/prisma.js';
+import { scheduleRetention } from './retention/purge.js';
 
 /**
  * Entrypoint: valideert de omgeving, bouwt de app en gaat luisteren.
@@ -8,6 +10,8 @@ import { loadEnv } from './env.js';
 async function main(): Promise<void> {
   const env = loadEnv();
   const app = await buildApp({ env, logger: true });
+  // De bewaartermijn (§53): bij het starten en daarna dagelijks.
+  scheduleRetention(app, prisma, env);
 
   try {
     // Dual-stack ('::'): luister op zowel IPv6 (o.a. ::1) als IPv4 (via IPv4-mapped, o.a.
