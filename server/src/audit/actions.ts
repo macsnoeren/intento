@@ -31,6 +31,9 @@ export const AUDIT_ACTIONS = {
   MESSAGE_SEND: 'message.send',
   // De beheerder bekijkt het berichtenoverzicht (persoonlijke inhoud, N11.6)
   MESSAGE_LIST: 'message.list',
+  // Experience van een gebruiker bekijken en wissen (N12.3, §22)
+  EXPERIENCE_VIEW: 'experience.view',
+  EXPERIENCE_CLEAR: 'experience.clear',
   // Begeleider-koppelingen
   CAREGIVER_LINK: 'caregiver.link',
   CAREGIVER_UNLINK: 'caregiver.unlink',

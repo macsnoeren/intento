@@ -68,6 +68,8 @@ function fakeApi(
     mustChangePassword?: boolean;
     /** De rol van het ingelogde account; standaard beheerder. */
     role?: AccountPublic['role'];
+    /** Wordt aangeroepen bij "Ervaring wissen" (N12.3). */
+    onClearExperience?: (userId: string) => void;
   } = {},
 ): Api {
   let session = options.loggedIn ?? false;
@@ -263,6 +265,19 @@ function fakeApi(
     listMessages() {
       return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 25 });
     },
+    getUserExperience() {
+      return Promise.resolve({
+        enabled: true,
+        symbols: [],
+        contacts: [],
+        modes: [],
+        symbolCount: 0,
+      });
+    },
+    clearUserExperience(userId) {
+      options.onClearExperience?.(userId);
+      return Promise.resolve({ deleted: 3 });
+    },
     listContacts() {
       return Promise.resolve({ contacts: [] });
     },
@@ -456,6 +471,43 @@ describe('beheeromgeving-app', () => {
       name: /Leren van eerdere gesprekken/,
     });
     expect(learn.checked).toBe(false);
+  });
+
+  it('vraagt bij het uitzetten van Experience of het geleerde ook weg moet (N12.3, §22)', async () => {
+    const cleared: string[] = [];
+    render(<App api={fakeApi({ loggedIn: true, onClearExperience: (id) => cleared.push(id) })} />);
+    await screen.findByRole('heading', { name: 'Gebruikersbeheer' });
+    await createUser('Sanne');
+    const form = await screen.findByRole('form', { name: 'Instellingen voor Sanne' });
+
+    // Iets anders opslaan vraagt niets.
+    fireEvent.click(within(form).getByRole('checkbox', { name: /Tekst tonen/ }));
+    fireEvent.click(within(form).getByRole('button', { name: 'Instellingen opslaan' }));
+    await within(form).findByRole('status');
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // "Nee, bewaren" wist niets.
+    fireEvent.click(within(form).getByRole('checkbox', { name: /Leren van eerdere gesprekken/ }));
+    fireEvent.click(within(form).getByRole('button', { name: 'Instellingen opslaan' }));
+    const ask = await screen.findByRole('dialog', {
+      name: 'Ook wissen wat Intento geleerd heeft?',
+    });
+    fireEvent.click(within(ask).getByRole('button', { name: 'Nee, bewaren' }));
+    expect(cleared).toEqual([]);
+
+    // Weer aan, weer uit, en nu wel wissen.
+    const again = screen.getByRole('form', { name: 'Instellingen voor Sanne' });
+    fireEvent.click(within(again).getByRole('checkbox', { name: /Leren van eerdere gesprekken/ }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Instellingen opslaan' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(within(again).getByRole('checkbox', { name: /Leren van eerdere gesprekken/ }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Instellingen opslaan' }));
+    const second = await screen.findByRole('dialog', {
+      name: 'Ook wissen wat Intento geleerd heeft?',
+    });
+    fireEvent.click(within(second).getByRole('button', { name: 'Ja, ook wissen' }));
+    await screen.findByText('Wat Intento van Sanne geleerd had, is gewist.');
+    expect(cleared).toHaveLength(1);
   });
 
   it('opent vanuit het overzicht het scherm van één gebruiker en gaat terug', async () => {

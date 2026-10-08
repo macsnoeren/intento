@@ -13,6 +13,7 @@ import { AccountsPanel } from './AccountsPanel.tsx';
 import { CaregiverAccountsPanel } from './CaregiverAccountsPanel.tsx';
 import { CaregiversPanel } from './CaregiversPanel.tsx';
 import { ContactsPanel } from './ContactsPanel.tsx';
+import { ExperiencePanel } from './ExperiencePanel.tsx';
 import { DevicePanel } from './DevicePanel.tsx';
 import { ProfileExportPanel, ProfileImportPanel } from './ProfileTransferPanel.tsx';
 import { Modal } from './Modal.tsx';
@@ -49,11 +50,12 @@ const OVERVIEW_TABS: readonly SegmentedTab<UsersTab>[] = [
  * instellen hoe hij communiceert, dan naar wie hij berichten kan sturen, dan wie hem begeleidt, dan wat de AI over hem mag weten, en pas
  * daarna het apparaat en het beheer van zijn profiel.
  */
-type UserTab = 'settings' | 'contacts' | 'caregivers' | 'device' | 'profile';
+type UserTab = 'settings' | 'contacts' | 'experience' | 'caregivers' | 'device' | 'profile';
 
 const USER_TABS: readonly SegmentedTab<UserTab>[] = [
   { id: 'settings', label: 'Instellingen' },
   { id: 'contacts', label: 'Contacten' },
+  { id: 'experience', label: 'Ervaring' },
   { id: 'caregivers', label: 'Begeleiders' },
   { id: 'device', label: 'Tablet' },
   { id: 'profile', label: 'Profiel & verwijderen' },
@@ -374,12 +376,34 @@ function UserDetailPage({
   onNavigate: (view: AdminView) => void;
 }): React.JSX.Element {
   const [tab, setTab] = useState<UserTab>('settings');
+  /** Experience is net uitgezet: vragen of wat er al geleerd is ook weg moet (§22). */
+  const [askClear, setAskClear] = useState(false);
+  const [clearNote, setClearNote] = useState<string | null>(null);
+
+  async function saveSettings(id: string, settings: UpdateSettingsRequest): Promise<void> {
+    const wasEnabled = user.communicationProfile.experienceEnabled;
+    await onSaveSettings(id, settings);
+    setClearNote(null);
+    if (wasEnabled && !settings.experienceEnabled) setAskClear(true);
+  }
+
+  async function clearExperience(): Promise<void> {
+    setAskClear(false);
+    try {
+      await api.clearUserExperience(user.id);
+      setClearNote(`Wat Intento van ${user.name} geleerd had, is gewist.`);
+    } catch (err) {
+      setClearNote(
+        err instanceof ApiRequestError ? `Wissen lukte niet: ${err.message}` : 'Wissen lukte niet.',
+      );
+    }
+  }
 
   return (
     <AppShell
       account={account}
       title={user.name}
-      subtitle="Communicatieprofiel, contacten, begeleiders, tablet en profiel."
+      subtitle="Communicatieprofiel, contacten, ervaring, begeleiders, tablet en profiel."
       active="users"
       onNavigate={onNavigate}
       onLogout={onLogout}
@@ -412,10 +436,15 @@ function UserDetailPage({
               Hoe {user.name} communiceert: hoe er gevraagd wordt, of Intento leert van eerdere
               gesprekken, of er tekst bij de pictogrammen staat en of de tablet voorleest.
             </p>
+            {clearNote ? (
+              <p className="muted" role="status">
+                {clearNote}
+              </p>
+            ) : null}
             <SettingsForm
               key={user.id}
               user={user}
-              onSave={onSaveSettings}
+              onSave={saveSettings}
               // Stem beluisteren vóór je hem kiest. De keuze "Stem van het apparaat" kan de
               // server niet synthetiseren; die laten we dít apparaat zeggen — een indicatie, want op
               // de tablet klinkt de stem van de tablet.
@@ -435,6 +464,15 @@ function UserDetailPage({
         {tab === 'contacts' ? (
           <ContactsPanel
             key={`contacts-${user.id}`}
+            api={api}
+            userId={user.id}
+            userName={user.name}
+          />
+        ) : null}
+
+        {tab === 'experience' ? (
+          <ExperiencePanel
+            key={`experience-${user.id}`}
             api={api}
             userId={user.id}
             userName={user.name}
@@ -485,6 +523,27 @@ function UserDetailPage({
           </div>
         ) : null}
       </div>
+      {askClear ? (
+        <Modal title="Ook wissen wat Intento geleerd heeft?" onClose={() => setAskClear(false)}>
+          <p>
+            Leren staat nu uit voor {user.name}: er komt niets meer bij en er wordt niets meer
+            gebruikt. Wat Intento al geleerd had, staat nog bewaard. Wil je dat ook wissen? Dat is
+            niet terug te draaien.
+          </p>
+          <div className="form__actions">
+            <button
+              className="button button--danger"
+              type="button"
+              onClick={() => void clearExperience()}
+            >
+              Ja, ook wissen
+            </button>
+            <button className="button" type="button" onClick={() => setAskClear(false)}>
+              Nee, bewaren
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </AppShell>
   );
 }

@@ -24,6 +24,7 @@ import { registerVocabularyRoutes } from './routes/vocabulary.js';
 import { registerVocabularyGapRoutes } from './routes/vocabulary-gaps.js';
 import { registerContactRoutes } from './routes/contacts.js';
 import { registerMessageRoutes } from './routes/messages.js';
+import { registerExperienceRoutes } from './routes/experience.js';
 import { registerOrganizationRoutes } from './routes/organization.js';
 import { registerCommunicationRoutes } from './routes/communication.js';
 import { createAgentClient, type AgentClient } from './agents/client.js';
@@ -132,6 +133,7 @@ export async function buildApp({
   registerVocabularyGapRoutes(app, { env, prisma });
   registerContactRoutes(app, { env, prisma, encryptor, mail });
   registerMessageRoutes(app, { prisma, encryptor });
+  registerExperienceRoutes(app, { env, prisma, encryptor });
   // Organisatie-instellingen: bewaartermijn (N3.3).
   registerOrganizationRoutes(app, { env, prisma });
   // Gesprekken op de tablet: de backend praat namens de tablet met de agentdienst (N4.5 e.v.).

@@ -622,7 +622,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   Ranking verbergt nooit een optie.
   *Acceptatie:* unittests in de agentdienst; backendtest: Experience uit → geen samenvatting.
 
-- [ ] **N12.3 Beheer: ervaring bekijken en wissen**
+- [x] **N12.3 Beheer: ervaring bekijken en wissen**
   *ONTWERP: §22, §49.* Per gebruiker in gewone taal wat er geleerd is; "Ervaring wissen"; bij uitzetten de
   vraag "ook wissen?". Audit-log.
   *Acceptatie:* tests: wissen verwijdert alles van die gebruiker en niets van een ander.

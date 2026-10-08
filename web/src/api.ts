@@ -47,7 +47,11 @@ import {
   type ContactVerifyStatus,
   type MessageListQuery,
   type MessageListResponse,
+  type UserExperience,
+  type ExperienceClearResponse,
   messageListResponseSchema,
+  userExperienceSchema,
+  experienceClearResponseSchema,
   type ContactCreateRequest,
   type ContactUpdateRequest,
   type ContactPublic,
@@ -176,6 +180,10 @@ export interface Api {
   resendContactVerification(userId: string, id: string): Promise<void>;
   /** Het berichtenoverzicht van de organisatie (alleen beheerder). */
   listMessages(query?: MessageListQuery): Promise<MessageListResponse>;
+  /** Wat Intento van een gebruiker geleerd heeft (alleen beheerder, N12.3). */
+  getUserExperience(userId: string): Promise<UserExperience>;
+  /** "Ervaring wissen": alle tellingen van deze gebruiker weg. */
+  clearUserExperience(userId: string): Promise<ExperienceClearResponse>;
   /** Alleen het aantal open ontbrekende woorden, voor de teller in het menu. */
   getVocabularyGapCount(): Promise<VocabularyGapCount>;
   /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
@@ -495,6 +503,16 @@ export const httpApi: Api & DeviceApi = {
     }
     const qs = params.toString();
     return messageListResponseSchema.parse(await request(`/messages${qs ? `?${qs}` : ''}`));
+  },
+  async getUserExperience(userId) {
+    return userExperienceSchema.parse(
+      await request(`/users/${encodeURIComponent(userId)}/experience`),
+    );
+  },
+  async clearUserExperience(userId) {
+    return experienceClearResponseSchema.parse(
+      await request(`/users/${encodeURIComponent(userId)}/experience`, { method: 'DELETE' }),
+    );
   },
   async getVocabularyGapCount() {
     return vocabularyGapCountSchema.parse(await request('/vocabulary/gaps/count'));

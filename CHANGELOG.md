@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N12.3 — beheer: ervaring bekijken en wissen
+
+- `GET /users/{id}/experience` en `DELETE /users/{id}/experience` (alleen de beheerder, eigen
+  organisatie; geaudit als `experience.view` en `experience.clear`).
+- Bij een gebruiker het onderdeel **Ervaring**: in gewone taal welke pictogrammen hij vaak kiest
+  ("4 keer gekozen, van de 6 keer dat het te zien was"), naar wie hij vaak stuurt en welke vorm tot een
+  bevestigd bericht leidde, met "bewijs, geen waarheid" erbij. **Ervaring wissen** na een bevestiging.
+- Wie bij Instellingen "Leren van eerdere gesprekken" uitzet en opslaat, krijgt de vraag "Ook wissen wat
+  Intento geleerd heeft?" (Ja, ook wissen / Nee, bewaren).
+- Tests: wissen verwijdert alles van die gebruiker en niets van een ander; isolatie tussen organisaties;
+  begeleider 403; audit zonder woorden of namen; componenttests voor het overzicht, wissen en de vraag
+  bij uitzetten.
+
 ### N12.2 — vaakst gekozen eerst
 
 - De backend stuurt met elke beurt een Experience-samenvatting mee (`TurnRequest.experience`), alleen als

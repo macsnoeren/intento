@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { interactionModeSchema } from './agent-contract.js';
 
 export * from './agent-contract.js';
 export * from './communication.js';
@@ -1285,6 +1286,39 @@ export const messageListResponseSchema = z.object({
   pageSize: z.number().int().min(1),
 });
 export type MessageListResponse = z.infer<typeof messageListResponseSchema>;
+
+// --- Experience per gebruiker (INTENTO-NEW-DESIGN §21, §22, N12.3) ---
+
+/** Hoe vaak iets getoond en gekozen is; `lastUsedAt` = de laatste keer gekozen (`null` = nooit). */
+const experienceCountsShape = {
+  presented: z.number().int().nonnegative(),
+  chosen: z.number().int().nonnegative(),
+  chosenAtFirstPosition: z.number().int().nonnegative(),
+  lastUsedAt: z.iso.datetime().nullable(),
+};
+
+export const userExperienceSchema = z.object({
+  /** Staat Experience voor deze gebruiker aan? */
+  enabled: z.boolean(),
+  /** Vaakst gekozen eerst; hooguit de bovenste paar. Een ingetrokken symbool staat er nog met zijn woord. */
+  symbols: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      imageUrl: z.string().nullable(),
+      ...experienceCountsShape,
+    }),
+  ),
+  /** Een verwijderd contact staat er niet meer bij. */
+  contacts: z.array(z.object({ id: z.string(), name: z.string(), ...experienceCountsShape })),
+  modes: z.array(z.object({ mode: interactionModeSchema, ...experienceCountsShape })),
+  /** Hoeveel symbolen er in totaal geteld zijn (ook buiten de bovenste paar). */
+  symbolCount: z.number().int().nonnegative(),
+});
+export type UserExperience = z.infer<typeof userExperienceSchema>;
+
+export const experienceClearResponseSchema = z.object({ deleted: z.number().int().nonnegative() });
+export type ExperienceClearResponse = z.infer<typeof experienceClearResponseSchema>;
 
 // --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---
 
