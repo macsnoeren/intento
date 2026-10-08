@@ -34,7 +34,7 @@ npm-debug.log*
 .vscode/
 .idea/
 
-# Compose-omgeving met geheimen (fase 19); het sjabloon `.env.docker.example` staat hierboven expliciet
+# Compose-omgeving met geheimen (fase 19, in `docker/`); het sjabloon `.env.docker.example` staat hierboven expliciet
 # uitgezonderd en hoort wél in git.
 .env.docker
 

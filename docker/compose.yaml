@@ -1,7 +1,15 @@
-# Intento in Docker (fase 19).
+# Intento in Docker (fase 19). Alles wat bij de containers hoort staat in `docker/`; zie
+# `docker/README.md`. Starten en stoppen:
 #
-#   cp .env.docker.example .env.docker   # vul de geheimen in
-#   docker compose up -d --build
+#   docker/start.sh        # maakt bij de eerste keer `.env.docker` met verse geheimen, bouwt en start
+#   docker/stop.sh
+#
+# Met de hand kan ook — geef dan altijd `--env-file` mee, anders mist Compose zijn variabelen:
+#
+#   docker compose -f docker/compose.yaml --env-file docker/.env.docker up -d --build
+#
+# Paden hieronder zijn relatief aan deze map: de build-context `..` is de repo-root, en `dockerfile`
+# is relatief aan die context.
 #
 # Vier onderdelen, elk een eigen image: de backend, de web-app, de spraakdienst en de agentdienst
 # (ADR-0017). Spraak- en agentdienst hebben geen poort naar buiten; alleen de backend praat ermee.
@@ -14,8 +22,8 @@ name: intento
 services:
   server:
     build:
-      context: .
-      dockerfile: server/Dockerfile
+      context: ..
+      dockerfile: docker/server.Dockerfile
     env_file: [.env.docker]
     environment:
       # De database en de afbeeldingen staan op de volumes hieronder, niet in het image.
@@ -31,7 +39,7 @@ services:
       # De agentdienst, ook op zijn servicenaam. Plain http mag hier: hij publiceert geen poort en
       # weigert alles zonder het gedeelde geheim.
       AGENT_SERVICE_URL: http://agents:5003
-      AGENT_SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in .env.docker}'
+      AGENT_SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in docker/.env.docker}'
       AGENT_ALLOW_INSECURE_HTTP: 'true'
       AGENT_TIMEOUT_MS: '${AGENT_TIMEOUT_MS:-30000}'
     volumes:
@@ -49,8 +57,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: web/Dockerfile
+      context: ..
+      dockerfile: docker/web.Dockerfile
       args:
         # Vite bakt deze URL in de bundel: dit is de API-URL zoals de **browser** hem ziet, niet zoals
         # de containers elkaar zien. Wijzig je hem, dan hoort daar `--build` bij.
@@ -68,7 +76,8 @@ services:
   # downloadt hij echt. Zo staat de stemkeuze in `.env.docker` en niet in een image.
   speech-voices:
     build:
-      context: speech-service
+      context: ../speech-service
+      dockerfile: ../docker/speech.Dockerfile
     user: root
     entrypoint: ['/bin/sh', '-c']
     command:
@@ -81,14 +90,15 @@ services:
 
   speech:
     build:
-      context: speech-service
+      context: ../speech-service
+      dockerfile: ../docker/speech.Dockerfile
     env_file: [.env.docker]
     environment:
       # Binnen het compose-netwerk moet hij wél op alle interfaces luisteren; daarom is het gedeelde
       # geheim hier geen luxe maar voorwaarde (zie speech-service/README.md).
       HOST: 0.0.0.0
       VOICES_DIR: /voices
-      SERVICE_TOKEN: '${SPEECH_SERVICE_TOKEN:?SPEECH_SERVICE_TOKEN ontbreekt in .env.docker}'
+      SERVICE_TOKEN: '${SPEECH_SERVICE_TOKEN:?SPEECH_SERVICE_TOKEN ontbreekt in docker/.env.docker}'
     volumes:
       - intento-voices:/voices
     depends_on:
@@ -100,17 +110,23 @@ services:
   # --- Startset van de Vocabulary (N2.8) -----------------------------------------------------------
   # Eenmalige klus, net als `speech-voices`: migreert, downloadt de afbeeldingen van Mulberry en de
   # zorgsymbolen naar het opslagvolume en seedt de Vocabulary. Bij een volgende `up` ziet hij dat de
-  # afbeeldingen er al staan en maakt hij niets dubbel. Na een nieuwe vertaling: `npm run docker:up`
-  # opnieuw (of `docker compose --env-file .env.docker run --rm vocabulary-import`).
+  # afbeeldingen er al staan en maakt hij niets dubbel. Na een nieuwe vertaling: `docker/start.sh`
+  # opnieuw (alleen deze klus: `docker compose -f docker/compose.yaml --env-file docker/.env.docker run
+  # --rm --build vocabulary-import`).
   vocabulary-import:
     build:
-      context: .
-      dockerfile: server/Dockerfile
+      context: ..
+      dockerfile: docker/server.Dockerfile
     env_file: [.env.docker]
     environment:
       DATABASE_URL: file:/data/intento.db
       STORAGE_DIR: /storage
     command: ['node', 'dist/scripts/vocabulary-import.js']
+    # Het image erft de HEALTHCHECK van de backend (`/health` op poort 3000), maar deze klus draait geen
+    # server. Zonder dit staat hij tijdens de import op "unhealthy" en ziet `start.sh` (`up --wait`) dat
+    # als mislukt.
+    healthcheck:
+      disable: true
     volumes:
       - intento-db:/data
       - intento-storage:/storage
@@ -119,12 +135,13 @@ services:
   # --- Agentdienst (N1.7) -------------------------------------------------------------------------
   agents:
     build:
-      context: agent-service
+      context: ../agent-service
+      dockerfile: ../docker/agents.Dockerfile
     environment:
       HOST: 0.0.0.0
       PORT: '5003'
       # Verplicht: de dienst start niet zonder, en de backend stuurt dezelfde waarde mee.
-      SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in .env.docker}'
+      SERVICE_TOKEN: '${AGENT_SERVICE_TOKEN:?AGENT_SERVICE_TOKEN ontbreekt in docker/.env.docker}'
       # Het taalmodel (§35). Leeg = alleen de regelgebaseerde agents.
       OLLAMA_URL: '${OLLAMA_URL:-}'
       OLLAMA_MODEL: '${OLLAMA_MODEL:-}'

@@ -1,14 +1,15 @@
 # syntax=docker/dockerfile:1
 #
 # Spraakdienst-image (T19.2). Build-context is `speech-service/` — deze dienst staat los van de
-# npm-workspaces en heeft alleen zichzelf en Piper nodig:
+# npm-workspaces en heeft alleen zichzelf en Piper nodig. Dit bestand staat in `docker/` bij de rest
+# van de containeropzet:
 #
-#   docker build -t intento-speech speech-service/
+#   docker build -f docker/speech.Dockerfile -t intento-speech speech-service/
 #
 # De **stemmodellen zitten bewust niet in het image**. Ze zijn ± 63 MB per stuk, de keuze welke
 # stemmen je aanbiedt is geen build-tijdbeslissing, en bij een afgebroken download wil je een volume
 # opnieuw kunnen vullen in plaats van een image opnieuw te bouwen. Compose vult het volume met een
-# eenmalige init-dienst; zie `compose.yaml`.
+# eenmalige init-dienst; zie `docker/compose.yaml`.
 #
 # Licentie: Piper staat onder GPL-3.0. Het draait hier als eigen proces in een eigen image, precies
 # zoals ADR-0015 beschrijft; lever je dit image uit, dan hoort daar een broncode-aanbod bij.

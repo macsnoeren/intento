@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Web-app-image (T19.1). Build-context is de **repo-root** (npm-workspaces, `shared/`):
+# Web-app-image (T19.1). Build-context is de **repo-root** (npm-workspaces, `shared/`); wat er níét
+# mee de context in gaat, staat in `web.Dockerfile.dockerignore` hiernaast:
 #
-#   docker build -f web/Dockerfile --build-arg VITE_API_URL=http://localhost:3000 -t intento-web .
+#   docker build -f docker/web.Dockerfile --build-arg VITE_API_URL=http://localhost:3000 -t intento-web .
 #
 # `VITE_API_URL` en `VITE_BASE` zijn **build**-argumenten, geen runtime-variabelen: Vite bakt beide
 # waarden in de bundel.

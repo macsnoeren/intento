@@ -228,19 +228,21 @@ Op de tablet (120b, standaard) duurt een gesprek "dorst" met vier schermen ±15 
 
 ## Draaien in containers (fase 19)
 
-Vier images, één `compose.yaml` in de repo-root:
+Vier images, één `docker/compose.yaml`; alles voor de containers staat in `docker/`:
 
 | Dienst | Image | Bijzonderheid |
 |---|---|---|
-| `server` | `server/Dockerfile`, Debian + Node 24 | migreert in het entrypoint (`prisma migrate deploy`), draait als niet-root, SQLite op een named volume |
-| `web` | `web/Dockerfile`, nginx-alpine | statische build; `VITE_API_URL` wordt **bij de build** ingebakken |
-| `speech` | `speech-service/Dockerfile`, Python + Piper | alleen op het interne netwerk; stemmen uit een volume dat een eenmalige init-dienst vult |
-| `vocabulary-import` | `server/Dockerfile` (zelfde image) | eenmalige klus: migreren, afbeeldingen van de startset naar het volume `intento-storage`, Vocabulary seeden; de server wacht tot hij klaar is |
-| `agents` | `agent-service/Dockerfile`, Python + pydantic | geen `ports:`, `SERVICE_TOKEN` verplicht, healthcheck op `/health`; de backend bereikt hem op `http://agents:5003` |
+| `server` | `docker/server.Dockerfile`, Debian + Node 24 | migreert in het entrypoint (`prisma migrate deploy`), draait als niet-root, SQLite op een named volume |
+| `web` | `docker/web.Dockerfile`, nginx-alpine | statische build; `VITE_API_URL` wordt **bij de build** ingebakken |
+| `speech` | `docker/speech.Dockerfile`, Python + Piper | alleen op het interne netwerk; stemmen uit een volume dat een eenmalige init-dienst vult |
+| `vocabulary-import` | `docker/server.Dockerfile` (zelfde image) | eenmalige klus: migreren, afbeeldingen van de startset naar het volume `intento-storage`, Vocabulary seeden; de server wacht tot hij klaar is |
+| `agents` | `docker/agents.Dockerfile`, Python + pydantic | geen `ports:`, `SERVICE_TOKEN` verplicht, healthcheck op `/health`; de backend bereikt hem op `http://agents:5003` |
 
-Build-context van `server` en `web` is de **repo-root** (npm-workspaces, `shared/`). De database is
+Build-context van `server` en `web` is de **repo-root** (npm-workspaces, `shared/`), die van `agents` en
+`speech` hun eigen dienstmap; elk Dockerfile heeft een eigen `*.Dockerfile.dockerignore` ernaast. De database is
 bewust SQLite; het PostgreSQL-pad staat als losse stap op de "na de MVP"-lijst. Afwegingen:
-[adr/0016](adr/0016-containers-en-compose.md); bediening: README, sectie "Draaien in Docker".
+[adr/0016](adr/0016-containers-en-compose.md); bediening (`docker/start.sh`, `docker/stop.sh`):
+[docker/README.md](../docker/README.md).
 
 ## Gerelateerde documentatie
 

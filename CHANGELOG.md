@@ -28,6 +28,24 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N15.4 — Docker-opzet in één map
+
+- Alles voor de containers staat in `docker/`: `compose.yaml`, `.env.docker.example`, de vier Dockerfiles
+  (`server`, `web`, `agents`, `speech`), het server-entrypoint en de nginx-config. Een eigen
+  [docker/README.md](docker/README.md) legt uit hoe het werkt.
+- **`docker/start.sh`**: controleert Docker, maakt bij de eerste keer `docker/.env.docker` met verse
+  geheimen, controleert of de poorten vrij zijn, bouwt, start en wacht tot alles gezond is. Het maakt geen nieuwe geheimen aan als er al een
+  database-volume staat (anders zouden versleutelde gegevens onleesbaar worden), en verplaatst een oude
+  `.env.docker` uit de repo-root vanzelf. **`docker/stop.sh`** stopt; `--wipe` wist na bevestiging ook de
+  volumes.
+- `vocabulary-import` erfde de healthcheck van het server-image en stond daardoor tijdens de import op
+  "unhealthy"; die healthcheck staat voor de klus nu uit.
+- Elk Dockerfile heeft een eigen `*.Dockerfile.dockerignore`. Nieuw voor agent- en spraakdienst: hun lokale
+  `.venv` en stemmodellen reizen niet meer mee de build-context in. Ook `.env.docker` blijft er nu
+  expliciet buiten.
+- `npm run docker:up`/`docker:down` roepen de scripts aan; de projectnaam `intento` blijft, dus bestaande
+  volumes (database, afbeeldingen, stemmen) blijven bruikbaar.
+
 ### N15.2 — security review
 
 - `/security-review` over de hele herbouw: geen HIGH/MEDIUM-bevindingen; het rapport staat in

@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Agentdienst-image (N1.7). Build-context is `agent-service/`:
+# Agentdienst-image (N1.7). Build-context is `agent-service/`; dit bestand staat in `docker/` bij de
+# rest van de containeropzet:
 #
-#   docker build -t intento-agents agent-service/
+#   docker build -f docker/agents.Dockerfile -t intento-agents agent-service/
 #
 # Geen poort naar buiten: alleen de backend hoort de dienst te bereiken (compose zet geen `ports:`).
 

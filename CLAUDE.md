@@ -77,7 +77,7 @@ Structuurkeuzes vastleggen als ADR in `docs/adr/`.
 
 ## Documentatie (aanmaken én bijhouden)
 
-In dezelfde commit als de code: **`README.md`** (opzet/draaien/testen), **`docs/`** (architecture, api, data-model, security), **`docs/adr/`** (context → beslissing → gevolgen), **`CHANGELOG.md`** (per fase), **`.env.example`**, **`.env.docker.example`** en de `.env.example` van elke Python-dienst (elke variabele gedocumenteerd). Beschrijf *wat + waarom*, geen kopie van de code. Verouderde docs corrigeren of verwijderen. Een afwijking van `INTENTO-NEW-DESIGN.md` werk je in het ontwerp zelf bij, in dezelfde commit.
+In dezelfde commit als de code: **`README.md`** (opzet/draaien/testen), **`docs/`** (architecture, api, data-model, security), **`docs/adr/`** (context → beslissing → gevolgen), **`CHANGELOG.md`** (per fase), **`.env.example`**, **`docker/.env.docker.example`** en de `.env.example` van elke Python-dienst (elke variabele gedocumenteerd). Beschrijf *wat + waarom*, geen kopie van de code. Verouderde docs corrigeren of verwijderen. Een afwijking van `INTENTO-NEW-DESIGN.md` werk je in het ontwerp zelf bij, in dezelfde commit.
 
 ## Security-checklist (OWASP)
 

@@ -51,13 +51,20 @@ Randvoorwaarden die de vorm bepaalden, gevonden bij het bekijken van de repo:
   zichtbare taak te zijn ("na de MVP" in de takenlijst), niet iets wat ongemerkt in een containertaak
   meelift.
 
+**Aanvulling (2026-10-08): alles in `docker/`.** De Dockerfiles stonden eerst elk in hun dienstmap en
+`compose.yaml` en `.env.docker` in de repo-root. Ze staan nu samen in `docker/`, met `start.sh`/`stop.sh`
+en een eigen README: wie de stack wil neerzetten, vindt alles op één plek, en de Python-diensten kregen
+daarbij eigen `*.Dockerfile.dockerignore`-lijsten (hun `.venv` reisde eerst mee de build-context in). De
+build-contexts zelf veranderden niet.
+
 ## Gevolgen
 
-- **Makkelijker:** `npm run docker:up` en het staat er, inclusief automatische migratie; een pilot
+- **Makkelijker:** `docker/start.sh` (of `npm run docker:up`) en het staat er, inclusief automatische migratie; een pilot
   opzetten vraagt geen Node/Python/Piper op de doelmachine; de onderdelen zijn los te vervangen.
 - **Moeilijker/afweging:** de configuratie staat nu op twee plekken (`.env` voor lokaal ontwikkelen,
   `.env.docker` voor de stack) en die kunnen uit elkaar lopen. Compose leest zijn eigen variabelen
-  bovendien alleen uit het bestand dat je met `--env-file` meegeeft, vandaar de `docker:*`-npm-scripts.
+  bovendien alleen uit het bestand dat je met `--env-file` meegeeft, vandaar `docker/start.sh` en de
+  `docker:*`-npm-scripts.
   Een nieuwe `VITE_API_URL` vraagt een herbouw van de web-app, geen herstart.
 - **Openstaand:** TLS/reverse proxy (nu draait alles op http en `COOKIE_SECURE=false`), en het
   PostgreSQL-pad.

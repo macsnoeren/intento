@@ -1,0 +1,11 @@
+# Uitsluitlijst voor `agents.Dockerfile` (context `agent-service/`). Het image kopieert alleen de bron,
+# maar zonder deze lijst reist de lokale `.venv` (honderden MB's) bij elke build mee de context in — en
+# een lokale `.env` met het gedeelde geheim hoort nooit in een image.
+.venv
+.env
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.ruff_cache
+*.egg-info
+tests

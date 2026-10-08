@@ -35,6 +35,9 @@ lokaal en zonder cloud. De tablet leest daarmee voor wat er op zijn scherm staat
 hem met die dienst. Zonder dienst blijft alles werken — de tablet valt dan terug op de stem van het
 apparaat zelf. Zie [docs/adr/0015](docs/adr/0015-speech-synthesis-piper.md).
 
+Alles voor het draaien in containers (Dockerfiles, `compose.yaml`, `start.sh`/`stop.sh`) staat in
+[`docker/`](docker/README.md); zie "Draaien in Docker" hieronder.
+
 Aanzetten kost drie regels in `server/.env` (`SPEECH_PROVIDER=http`, `SPEECH_SERVICE_URL` en
 `SPEECH_SERVICE_TOKEN`) plus een draaiende dienst met minstens de standaardstem. Dat
 **`SPEECH_SERVICE_TOKEN`** is geen sleutel die je ergens ophaalt: het is een zelfverzonnen gedeeld
@@ -93,42 +96,20 @@ curl http://127.0.0.1:3000/health
 
 ## Draaien in Docker
 
-De vier onderdelen hebben elk een eigen image; `compose.yaml` zet ze samen neer. De database is
-**SQLite op een volume** ([ADR-0016](docs/adr/0016-containers-en-compose.md)) — bewust, want schema, migratielijn en
+Alles voor de containers staat in [`docker/`](docker/), met een eigen handleiding:
+[docker/README.md](docker/README.md).
+
+```bash
+docker/start.sh     # eerste keer: maakt docker/.env.docker met verse geheimen, bouwt en start
+                    # web op http://localhost:8080, API op http://localhost:3000
+docker/stop.sh      # stoppen; database, afbeeldingen en stemmen blijven in hun volumes
+```
+
+`npm run docker:up` en `npm run docker:down` roepen dezelfde scripts aan. De database is **SQLite op een
+volume** ([ADR-0016](docs/adr/0016-containers-en-compose.md)) — bewust, want schema, migratielijn en
 runtime-adapter zijn nu SQLite en de overstap naar PostgreSQL hoort een eigen, zichtbare stap te zijn.
-
-```bash
-cp .env.docker.example .env.docker    # vul de geheimen in (SIGNING_SECRET, ENCRYPTION_KEY, SPEECH_SERVICE_TOKEN, AGENT_SERVICE_TOKEN)
-npm run docker:build
-npm run docker:up                     # web op http://localhost:8080, API op http://localhost:3000
-npm run docker:logs                   # meekijken
-npm run docker:down                   # stoppen (volumes blijven staan)
-```
-
-De npm-scripts geven `--env-file .env.docker` mee. Draai je `docker compose` met de hand, doe dat dan
-ook — anders vindt Compose de variabelen niet die hij bij het inlezen nodig heeft.
-
-**Wat waar draait.** `server` migreert bij elke start automatisch (`prisma migrate deploy`) en draait
-als niet-root; `web` is een nginx met SPA-fallback, zodat een harde refresh op `/tablet` werkt;
-`speech` luistert alleen op het compose-netwerk en krijgt zijn stemmen uit een volume dat een
-eenmalige init-dienst vult. `agents` (de agentdienst) luistert eveneens alleen op het compose-netwerk
-en weigert alles zonder `AGENT_SERVICE_TOKEN`; zet dat geheim in `.env.docker`.
-
-**De Vocabulary in Docker.** Vóór de server start, draait de eenmalige klus `vocabulary-import`: hij
-migreert, downloadt de afbeeldingen van Mulberry en de zorgsymbolen naar het volume `intento-storage` en
-seedt de startset. De eerste keer duurt dat een minuut; bij elke volgende `up` ziet hij dat de
-afbeeldingen er al staan. **Na een nieuwe of verbeterde vertaling** (`vocabulary/translations/`) bouw je
-het server-image opnieuw en draai je de klus nog eens:
-
-```bash
-npm run docker:build
-docker compose --env-file .env.docker run --rm vocabulary-import
-```
-
-De web-app bakt de API-URL in bij de **build** (`VITE_API_URL`): wijs je hem naar een andere host, dan
-hoort daar `npm run docker:build` bij. Dat de API een eigen poort heeft is een bewuste keuze — de SPA
-heeft een route `/operator` en de API een routetak `/operator/*`, dus één origin delen zou botsen (zie
-[docs/adr/0016](docs/adr/0016-containers-en-compose.md)).
+Dat de API een eigen poort heeft is ook een bewuste keuze: de SPA heeft een route `/operator` en de API
+een routetak `/operator/*`, dus één origin delen zou botsen.
 
 ## Database
 

@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1
 #
 # Backend-image (T19.1). Build-context is de **repo-root**: dit is een npm-workspaces-monorepo en de
-# server hangt aan `shared/`. Bouwen vanuit `server/` alleen zou dus niet werken.
+# server hangt aan `shared/`. Bouwen vanuit `server/` alleen zou dus niet werken. Wat er níét mee de
+# context in gaat, staat in `server.Dockerfile.dockerignore` hiernaast.
 #
-#   docker build -f server/Dockerfile -t intento-server .
+#   docker build -f docker/server.Dockerfile -t intento-server .
 #
 # Debian (`bookworm-slim`) en niet Alpine, omdat `argon2` en `better-sqlite3` native modules zijn die
 # tegen glibc bouwen; op musl kost dat een eigen toolchain en een hoop tijd.
@@ -73,7 +74,7 @@ COPY --from=builder /app/server/prisma.config.ts ./server/prisma.config.ts
 COPY --from=builder /app/server/prisma ./server/prisma
 # De bronbestanden van de startset (manifesten en vertalingen) voor de klus `vocabulary-import`.
 COPY vocabulary/ ./vocabulary/
-COPY docker/entrypoint-server.sh /usr/local/bin/entrypoint.sh
+COPY docker/server-entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # De database staat op een volume, niet in het image: `/data` is van de container-gebruiker.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Entrypoint van de backend-container (T19.1).
+# Entrypoint van de backend-container (T19.1); `server.Dockerfile` kopieert het in het image.
 #
 # Migreren gebeurt hier en niet met de hand: een verse database (leeg volume) hoort vanzelf goed te
 # komen, en een bestaande database hoort bij te zijn vóór de eerste request binnenkomt. `migrate

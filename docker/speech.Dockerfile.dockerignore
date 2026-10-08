@@ -1,0 +1,14 @@
+# Uitsluitlijst voor `speech.Dockerfile` (context `speech-service/`). Het image kopieert alleen de bron,
+# maar zonder deze lijst reizen de lokale `.venv` en de stemmodellen (± 63 MB per stuk; in Docker komen
+# ze uit een volume) bij elke build mee de context in — en een lokale `.env` hoort nooit in een image.
+.venv
+.env
+voices
+build
+.audit-deps
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.ruff_cache
+*.egg-info
+tests

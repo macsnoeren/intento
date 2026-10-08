@@ -678,6 +678,14 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   (README, `docs/`, CHANGELOG, `.env.example`).
   *Acceptatie:* elk punt uit §43 "Core" aantoonbaar aanwezig (lijst met verwijzing naar test of rooktest).
 
+- [x] **N15.4 Docker-opzet in één map**
+  *ONTWERP: §3.1; ADR-0016.* Dockerfiles, `compose.yaml`, `.env.docker(.example)`, entrypoint en nginx-config
+  samen in `docker/`, met `docker/start.sh` (eerste keer: `.env.docker` met verse geheimen; bouwen, starten,
+  wachten tot gezond), `docker/stop.sh` (`--wipe` wist de volumes na bevestiging) en `docker/README.md`.
+  Bestaande volumes blijven bruikbaar (projectnaam `intento`).
+  *Acceptatie:* `docker compose config` geldig; `docker/start.sh` brengt alle diensten gezond op;
+  `docker/stop.sh` stopt ze en laat de volumes staan.
+
 ---
 
 ## Na de MVP (nog niet uitwerken)
