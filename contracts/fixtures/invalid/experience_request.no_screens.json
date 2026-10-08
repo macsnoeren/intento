@@ -1,0 +1,14 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "settings": {
+    "interaction_mode": "binary",
+    "options_per_screen": 4,
+    "question_strategy": "general_to_specific",
+    "max_questions": 15,
+    "experience_enabled": true
+  },
+  "outcome": "confirmed",
+  "sent": true,
+  "screens": []
+}

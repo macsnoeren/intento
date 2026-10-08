@@ -272,6 +272,7 @@ function fakeApi(
         contacts: [],
         modes: [],
         symbolCount: 0,
+        notes: [],
       });
     },
     clearUserExperience(userId) {

@@ -148,6 +148,45 @@ describe('/users/:id/experience', () => {
     expect(JSON.parse(audit.metadataJson ?? '{}')).toEqual({ deleted: 2 });
   });
 
+  async function note(user: { id: string }, text: string): Promise<void> {
+    const session = await prisma.communicationSession.create({
+      data: { userId: user.id, organizationId: org, status: 'stopped', endedAt: new Date() },
+    });
+    await prisma.inference.create({
+      data: {
+        sessionId: session.id,
+        turn: 0,
+        agent: 'experience-agent',
+        kind: 'experience_note',
+        payloadEncrypted: encryptor.encrypt(
+          JSON.stringify({ notes: [{ about: 'question', text, confidence: 0.4 }] }),
+        ),
+        confidence: 0.4,
+      },
+    });
+  }
+
+  it('observaties (N12.4): te zien, en weg met Ervaring wissen — alleen van die gebruiker', async () => {
+    const sanne = await seedUser('Sanne', org);
+    const piet = await seedUser('Piet', org);
+    await note(sanne, 'De vraag over pijn leek te moeilijk.');
+    await note(piet, 'Piet koos snel.');
+    const cookie = await admin('a@intento.local', org);
+
+    const body = userExperienceSchema.parse((await get(cookie, sanne.id)).json());
+    expect(body.notes.map((n) => [n.about, n.text])).toEqual([
+      ['question', 'De vraag over pijn leek te moeilijk.'],
+    ]);
+
+    expect(experienceClearResponseSchema.parse((await clear(cookie, sanne.id)).json())).toEqual({
+      deleted: 1,
+    });
+    expect(userExperienceSchema.parse((await get(cookie, sanne.id)).json()).notes).toEqual([]);
+    const left = await prisma.inference.findMany({ where: { kind: 'experience_note' } });
+    expect(left).toHaveLength(1);
+    expect(userExperienceSchema.parse((await get(cookie, piet.id)).json()).notes).toHaveLength(1);
+  });
+
   it('Experience uit: wel te zien dat hij uit staat', async () => {
     const sanne = await seedUser('Sanne', org);
     await prisma.userCommunicationProfile.upsert({

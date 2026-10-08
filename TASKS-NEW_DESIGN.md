@@ -627,7 +627,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   vraag "ook wissen?". Audit-log.
   *Acceptatie:* tests: wissen verwijdert alles van die gebruiker en niets van een ander.
 
-- [ ] **N12.4 Experience Agent: observaties**
+- [x] **N12.4 Experience Agent: observaties**
   *ONTWERP: §21 (laag 2).* `POST /v1/experience` in de agentdienst: observaties over een afgeronde sessie
   (LLM). De backend roept hem na afloop aan zonder dat de tablet wacht; opgeslagen als inference
   `experience_note`, getoond in N12.3 als "observatie, geen waarheid".

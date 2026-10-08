@@ -1,0 +1,48 @@
+{
+  "contract_version": 1,
+  "session_id": "s-2",
+  "settings": {
+    "interaction_mode": "multi",
+    "options_per_screen": 4,
+    "question_strategy": "general_to_specific",
+    "max_questions": 15,
+    "experience_enabled": true
+  },
+  "outcome": "stopped",
+  "sent": false,
+  "screens": [
+    {
+      "turn": 0,
+      "kind": "question",
+      "mode": "multi",
+      "text": "Waar gaat het over?",
+      "options": [
+        {
+          "label": "pijn",
+          "concept": "pain",
+          "representation": "exact",
+          "position": 0
+        },
+        {
+          "label": "eten",
+          "concept": "eat",
+          "representation": "stand_in",
+          "position": 1
+        }
+      ],
+      "answer": "none_of_these",
+      "chosen_position": null,
+      "response_time_ms": null
+    },
+    {
+      "turn": 1,
+      "kind": "ask_stop",
+      "mode": "binary",
+      "text": "Wil je stoppen?",
+      "options": [],
+      "answer": null,
+      "chosen_position": null,
+      "response_time_ms": null
+    }
+  ]
+}

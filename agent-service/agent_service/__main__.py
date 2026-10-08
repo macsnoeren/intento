@@ -6,6 +6,7 @@ import logging
 import sys
 from functools import partial
 
+from .agents.observer import observe
 from .config import ConfigError, ServiceConfig
 from .llm import LlmProvider, OllamaProvider
 from .orchestrator import step
@@ -44,6 +45,7 @@ def main() -> int:
             llm_safety=config.llm_safety,
             turn_budget=config.turn_budget,
         ),
+        handle_experience=partial(observe, llm=provider),
     )
     log.info("Agentdienst luistert op http://%s:%d", config.host, config.port)
     try:

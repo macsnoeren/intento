@@ -225,3 +225,60 @@ export const turnResponseSchema = z.strictObject({
   gaps: z.array(vocabularyGapSchema),
 });
 export type TurnResponse = z.infer<typeof turnResponseSchema>;
+
+// --- Na afloop: de Experience Agent (§21 laag 2, N12.4) --------------------------------------------
+
+/** Hooguit zoveel schermen per gesprek; meer zegt een observatie niets extra. */
+export const MAX_EXPERIENCE_SCREENS = 60;
+/** Hooguit zoveel observaties per gesprek. */
+export const MAX_EXPERIENCE_NOTES = 5;
+
+/** Een symbool zoals het op het scherm stond. Geen contacten: die gaan nooit naar een LLM (V6). */
+export const experienceOptionSchema = z.strictObject({
+  label: shortText,
+  concept: ref.nullable().optional(),
+  representation: representationSchema,
+  position: nonNegative,
+});
+
+/**
+ * Eén scherm van het afgeronde gesprek (Presented) met wat de gebruiker deed (Observed). Schermen over
+ * contacten (`share_contact`, `confirm_send`) gaan nooit mee: daar staan namen op.
+ */
+export const experienceScreenSchema = z.strictObject({
+  turn: nonNegative,
+  kind: z.enum(['question', 'confirm_message', 'share_ask', 'ask_stop']),
+  mode: interactionModeSchema,
+  text: shortText,
+  options: z.array(experienceOptionSchema).max(8),
+  answer: z.enum(['yes', 'no', 'selected', 'none_of_these', 'back', 'stop']).nullable().optional(),
+  chosen_position: nonNegative.nullable().optional(),
+  response_time_ms: nonNegative.nullable().optional(),
+});
+export type ExperienceScreen = z.infer<typeof experienceScreenSchema>;
+
+export const experienceRequestSchema = z.strictObject({
+  contract_version: z.literal(AGENT_CONTRACT_VERSION),
+  session_id: ref,
+  settings: agentSettingsSchema,
+  outcome: z.enum(['confirmed', 'stopped']),
+  sent: z.boolean(),
+  screens: z.array(experienceScreenSchema).min(1).max(MAX_EXPERIENCE_SCREENS),
+});
+export type ExperienceRequest = z.infer<typeof experienceRequestSchema>;
+
+/** Een observatie over het gesprek: geen waarheid (§21, §36), en in de MVP stuurt ze niets bij. */
+export const experienceNoteSchema = z.strictObject({
+  about: z.enum(['mode', 'question', 'symbol', 'flow']),
+  text: shortText,
+  confidence,
+});
+export type ExperienceNote = z.infer<typeof experienceNoteSchema>;
+
+export const experienceResponseSchema = z.strictObject({
+  contract_version: z.literal(AGENT_CONTRACT_VERSION),
+  session_id: ref,
+  notes: z.array(experienceNoteSchema).max(MAX_EXPERIENCE_NOTES),
+  decision: agentDecisionSchema,
+});
+export type ExperienceResponse = z.infer<typeof experienceResponseSchema>;

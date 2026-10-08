@@ -28,6 +28,22 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N12.4 — Experience Agent: observaties
+
+- Agentdienst: `POST /v1/experience` met de **Experience Agent** (`agents/observer.py`, prompt
+  `experience-v1`): kijkt terug op een afgerond gesprek en noteert hooguit 3 korte observaties, met
+  regels als terugval (feiten over het verloop). Nieuwe contracten `ExperienceRequest`/`ExperienceResponse`
+  in pydantic en zod, met voorbeeldbestanden; contactschermen kent het contract niet (V6).
+- Backend: na het einde van een gesprek (met Experience aan) los van de beurt `observeSession`: de
+  schermen met wat de gebruiker deed, zonder contactschermen; observaties met een contactnaam of URL gaan
+  weg; de rest wordt een inference `experience_note`, versleuteld. Een mislukte of hangende aanroep raakt
+  het gesprek niet en staat als mislukte beslissing in de provenance.
+- Beheer: onder **Ervaring** "Wat Intento na afloop opviel", uitdrukkelijk als observatie, geen waarheid.
+  "Ervaring wissen" wist ook de observaties.
+- Tests: unittests met FakeProvider (model, lege lijst, ongeldige uitvoer → regels, onbereikbaar),
+  de HTTP-route, contracten aan beide kanten; backend: geen contactnaam in het verzoek, falen en hangen
+  raken het gesprek niet, één keer per gesprek, observaties met naam of URL weg, wissen per gebruiker.
+
 ### N12.3 — beheer: ervaring bekijken en wissen
 
 - `GET /users/{id}/experience` en `DELETE /users/{id}/experience` (alleen de beheerder, eigen

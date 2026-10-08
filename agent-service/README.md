@@ -15,6 +15,7 @@ De agentdienst bevat de **orchestrator** en de **agents** van Intento (INTENTO-N
 |---|---|---|---|
 | GET | `/health` | nee | Leeft de dienst? |
 | POST | `/v1/turn` | ja | Eén beurt: `TurnRequest` → `TurnResponse` ([contracten](../contracts/README.md)). |
+| POST | `/v1/experience` | ja | Na afloop van een gesprek: `ExperienceRequest` → `ExperienceResponse` (observaties van de Experience Agent, N12.4). |
 
 Fouten hebben dezelfde vorm als in de backend: `{ "error": { "code": "…", "message": "…" } }`.
 
@@ -26,8 +27,8 @@ Fouten hebben dezelfde vorm als in de backend: `{ "error": { "code": "…", "mes
 | 409 | `PROTOCOL_ERROR` | De gebeurtenis past niet bij de toestand (bv. een antwoord op een afgelopen gesprek). |
 | 500 | `INTERNAL_ERROR` | Onverwachte fout; de details staan alleen in het log van de dienst. |
 
-`POST /v1/experience` volgt in N12.4. Het log bevat per beurt alleen de gebeurtenis, de fase, de soort
-presentatie en de duur.
+Het log bevat per beurt alleen de gebeurtenis, de fase, de soort presentatie en de duur; bij
+`/v1/experience` alleen het aantal schermen en observaties, de status en de duur.
 
 ## LLM-laag
 
@@ -141,6 +142,17 @@ in dit gesprek nog nergens JA op zei; daarna bepalen zijn antwoorden de volgorde
 multi-icon-scherm en de contacten in volgorde van `chosen`; bij gelijke aantallen blijft de vaste
 volgorde (of die van de Intent Agent). Ranking ordent alleen: dezelfde opties, nooit een minder. Staat
 `experience_enabled` uit, dan wordt een meegestuurde samenvatting genegeerd.
+
+**Experience Agent** (`agents/observer.py`, `prompts/experience-v1.md`, §21 laag 2, N12.4): kijkt na
+afloop terug op een gesprek. De backend stuurt de schermen met wat de gebruiker deed (vraag, getoonde
+pictogrammen met plek en dekking, het antwoord en de reactietijd), de uitkomst en of er verstuurd is —
+**zonder** de schermen over contacten; het contract kent ze niet, dus er kan geen naam in de prompt komen
+(V6). Het model noteert hooguit 3 korte observaties (`mode`, `question`, `symbol` of `flow`) met een
+zekerheid; geen observatie mag ook. Ongeldige uitvoer (verkeerde vorm, te lang, een URL) → de regels:
+feiten over het verloop ("Na 2 vragen een bevestigd bericht en verstuurd.", "3 keer achter elkaar
+nee…", "2 keer terug…", een gekozen vervangend pictogram). Het model krijgt 20 s, zodat ook de terugval
+binnen de time-out van de backend terugkomt. Een observatie is geen waarheid en stuurt in de MVP niets
+bij.
 
 **Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke modelaanroep krijgt
 hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de regels het over. Zo

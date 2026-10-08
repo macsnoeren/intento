@@ -8,8 +8,8 @@ aan de TypeScript-kant in `shared/src/agent-contract.ts` (zod). Beide kanten wor
 - `fixtures/valid/*.json` — moet aan beide kanten geaccepteerd worden;
 - `fixtures/invalid/*.json` — moet aan beide kanten geweigerd worden.
 
-Een bestand heet `<model>.<naam>.json`; het voorvoegsel (`turn_request`, `turn_response`) bepaalt tegen
-welk model het gevalideerd wordt. Wijzig je een contract, dan wijzig je beide kanten en voeg je een
+Een bestand heet `<model>.<naam>.json`; het voorvoegsel (`turn_request`, `turn_response`,
+`experience_request`, `experience_response`) bepaalt tegen welk model het gevalideerd wordt. Wijzig je een contract, dan wijzig je beide kanten en voeg je een
 geldig én een ongeldig voorbeeld toe.
 
 `fields.json` bevat per model alle veldpaden (`state.share.sent_to`, `presentation.options[].ref`, …).
@@ -20,7 +20,10 @@ breken. Na een bewuste contractwijziging regenereer je het bestand vanuit pydant
 ```bash
 cd agent-service && .venv/bin/python -c "import json; from agent_service.contracts import *; \
 print(json.dumps({'turn_request': field_paths(TurnRequest.model_json_schema()), \
-'turn_response': field_paths(TurnResponse.model_json_schema())}, indent=2))" > ../contracts/fields.json
+'turn_response': field_paths(TurnResponse.model_json_schema()), \
+'experience_request': field_paths(ExperienceRequest.model_json_schema()), \
+'experience_response': field_paths(ExperienceResponse.model_json_schema())}, indent=2))" \
+> ../contracts/fields.json
 ```
 
 `question_strategies.json` bevat de sleutels van de vraagstrategieën (INTENTO-NEW-DESIGN §7.1), in

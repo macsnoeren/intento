@@ -50,6 +50,14 @@ const LEARNED: UserExperience = {
     },
   ],
   symbolCount: 2,
+  notes: [
+    {
+      about: 'question',
+      text: 'De vraag over pijn kreeg drie keer nee; misschien was die te moeilijk.',
+      confidence: 0.5,
+      createdAt: '2026-10-07T10:05:00.000Z',
+    },
+  ],
 };
 
 const EMPTY: UserExperience = {
@@ -58,6 +66,7 @@ const EMPTY: UserExperience = {
   contacts: [],
   modes: [],
   symbolCount: 0,
+  notes: [],
 };
 
 function fakeApi(start: UserExperience): { api: Api; cleared: string[] } {
@@ -90,6 +99,11 @@ describe('ExperiencePanel', () => {
       'Ja of nee5 gesprekken, 3 keer tot een bevestigd bericht',
     );
     expect(screen.getByText(/Het is bewijs, geen waarheid/)).toBeTruthy();
+
+    // De observaties staan er uitdrukkelijk als observatie, niet als feit.
+    const notes = screen.getByRole('list', { name: 'Observaties' });
+    expect(notes.textContent).toContain('misschien was die te moeilijk');
+    expect(screen.getByText(/Observaties, geen waarheid/)).toBeTruthy();
   });
 
   it('Ervaring wissen: eerst bevestigen, annuleren wist niets', async () => {

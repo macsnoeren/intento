@@ -13,13 +13,22 @@ from pathlib import Path
 
 from pydantic import BaseModel, ValidationError
 
-from agent_service.contracts import CONTRACT_VERSION, TurnRequest, TurnResponse, field_paths
+from agent_service.contracts import (
+    CONTRACT_VERSION,
+    ExperienceRequest,
+    ExperienceResponse,
+    TurnRequest,
+    TurnResponse,
+    field_paths,
+)
 
 FIXTURES = Path(__file__).resolve().parents[2] / "contracts" / "fixtures"
 
 MODELS: dict[str, type[BaseModel]] = {
     "turn_request": TurnRequest,
     "turn_response": TurnResponse,
+    "experience_request": ExperienceRequest,
+    "experience_response": ExperienceResponse,
 }
 
 

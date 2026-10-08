@@ -15,6 +15,11 @@ import { assertSameTenant } from '../auth/tenant.js';
 import { recordAudit } from '../audit/audit.js';
 import { AUDIT_ACTIONS } from '../audit/actions.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
+import {
+  EXPERIENCE_AGENT,
+  EXPERIENCE_NOTE_KIND,
+  experienceNotePayloadSchema,
+} from '../experience/observations.js';
 
 /**
  * Ervaring van een gebruiker (N12.3, INTENTO-NEW-DESIGN §22, §49).
@@ -22,8 +27,10 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
  * `GET /users/:id/experience` — wat Intento van deze gebruiker geleerd heeft: welke pictogrammen,
  *   contacten en vormen hij het vaakst koos (de tellingen uit N12.1). De beheeromgeving zet dat om in
  *   gewone taal.
- * `DELETE /users/:id/experience` — "Ervaring wissen": alle tellingen van deze gebruiker weg. Gesprekken
- *   die al bekeken waren, tellen daarna niet opnieuw mee; de ervaring begint echt opnieuw.
+ *   Plus de laatste observaties van de Experience Agent (N12.4): geen waarheid.
+ * `DELETE /users/:id/experience` — "Ervaring wissen": alle tellingen en observaties van deze gebruiker
+ *   weg. Gesprekken die al bekeken waren, tellen daarna niet opnieuw mee; de ervaring begint echt
+ *   opnieuw.
  *
  * Alleen de beheerder, alleen voor een gebruiker van de eigen organisatie (anders 403, zonder te
  * verraden of het id bestaat). Beide geaudit; contactnamen en woorden komen niet in het audit-log.
@@ -31,6 +38,17 @@ import { signedAssetUrl } from '../vocabulary/assets.js';
 
 /** De bovenste paar symbolen; meer zegt een beheerder niets ("kiest vaak …"). */
 const TOP_SYMBOLS = 12;
+/** De laatste zoveel gesprekken met observaties. */
+const NOTE_SESSIONS = 10;
+
+/** Waar de observaties van een gebruiker staan: inferences op zijn gesprekken. */
+function noteScope(user: { id: string; organizationId: string }) {
+  return {
+    agent: EXPERIENCE_AGENT,
+    kind: EXPERIENCE_NOTE_KIND,
+    session: { userId: user.id, organizationId: user.organizationId },
+  };
+}
 
 const userParamsSchema = z.object({ id: z.string().min(1).max(200) });
 const labelsSchema = z.array(z.string());
@@ -57,7 +75,7 @@ export function registerExperienceRoutes(
       { presented: 'desc' as const },
       { id: 'asc' as const },
     ];
-    const [symbols, symbolCount, contacts, modes] = await Promise.all([
+    const [symbols, symbolCount, contacts, modes, noteRows] = await Promise.all([
       prisma.experienceStat.findMany({
         where: { ...scope, subjectType: 'symbol' },
         orderBy: order,
@@ -69,6 +87,12 @@ export function registerExperienceRoutes(
         orderBy: order,
       }),
       prisma.experienceStat.findMany({ where: { ...scope, subjectType: 'mode' }, orderBy: order }),
+      prisma.inference.findMany({
+        where: noteScope(user),
+        orderBy: { createdAt: 'desc' },
+        take: NOTE_SESSIONS,
+        select: { payloadEncrypted: true, createdAt: true },
+      }),
     ]);
 
     // Woord en afbeelding bij elk symbool; ook van een ingetrokken item (de beheerder zag het zo).
@@ -126,6 +150,11 @@ export function registerExperienceRoutes(
         return mode.success ? [{ mode: mode.data, ...counts(row) }] : [];
       }),
       symbolCount,
+      notes: noteRows.flatMap((row) =>
+        experienceNotePayloadSchema
+          .parse(JSON.parse(encryptor.decrypt(row.payloadEncrypted)))
+          .notes.map((note) => ({ ...note, createdAt: row.createdAt.toISOString() })),
+      ),
     });
   });
 
@@ -133,9 +162,13 @@ export function registerExperienceRoutes(
     const account = requireAccount(request);
     const { id } = userParamsSchema.parse(request.params);
     const user = assertSameTenant(account, await prisma.user.findUnique({ where: { id } }));
-    const { count } = await prisma.experienceStat.deleteMany({
-      where: { userId: user.id, organizationId: user.organizationId },
-    });
+    const [stats, notes] = await prisma.$transaction([
+      prisma.experienceStat.deleteMany({
+        where: { userId: user.id, organizationId: user.organizationId },
+      }),
+      prisma.inference.deleteMany({ where: noteScope(user) }),
+    ]);
+    const count = stats.count + notes.count;
     await recordAudit(prisma, request, {
       action: AUDIT_ACTIONS.EXPERIENCE_CLEAR,
       targetType: 'user',

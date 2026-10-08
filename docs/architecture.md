@@ -86,6 +86,11 @@ server niet uit elkaar lopen.
   `summary.ts` (N12.2) maakt de samenvatting die met elke beurt naar de agentdienst gaat — alleen met
   Experience aan, alleen ids en aantallen, alleen symbolen uit de meegestuurde Vocabulary en contacten
   die nu aangeboden kunnen worden. De agentdienst ordent daarmee (vaakst gekozen eerst).
+  `observations.ts` (N12.4) laat na afloop de Experience Agent terugkijken (`POST /v1/experience`):
+  `conversation.ts` meldt het einde via `onSessionEnded`, de route start het los van de beurt (de
+  tablet wacht nooit, een fout gaat naar de log en als mislukte `AgentDecision` in de provenance). Het
+  verzoek bevat geen contactschermen; observaties met een contactnaam of URL gooit de backend weg. Wat
+  overblijft, is een inference `experience_note` (versleuteld, met het gesprek binnen de bewaartermijn).
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15–17): lezen en filteren per

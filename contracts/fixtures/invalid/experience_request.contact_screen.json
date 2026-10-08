@@ -1,0 +1,69 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "settings": {
+    "interaction_mode": "binary",
+    "options_per_screen": 4,
+    "question_strategy": "general_to_specific",
+    "max_questions": 15,
+    "experience_enabled": true
+  },
+  "outcome": "confirmed",
+  "sent": true,
+  "screens": [
+    {
+      "turn": 0,
+      "kind": "question",
+      "mode": "binary",
+      "text": "Heb je pijn?",
+      "options": [
+        {
+          "label": "pijn",
+          "concept": "pain",
+          "representation": "exact",
+          "position": 0
+        }
+      ],
+      "answer": "no",
+      "chosen_position": null,
+      "response_time_ms": 4200
+    },
+    {
+      "turn": 1,
+      "kind": "question",
+      "mode": "binary",
+      "text": "Wil je drinken?",
+      "options": [
+        {
+          "label": "drinken",
+          "concept": "drink",
+          "representation": "exact",
+          "position": 0
+        }
+      ],
+      "answer": "yes",
+      "chosen_position": null,
+      "response_time_ms": 1800
+    },
+    {
+      "turn": 2,
+      "kind": "confirm_message",
+      "mode": "binary",
+      "text": "Bedoel je: Ik wil drinken?",
+      "options": [],
+      "answer": "yes",
+      "chosen_position": null,
+      "response_time_ms": 2100
+    },
+    {
+      "turn": 3,
+      "kind": "share_contact",
+      "mode": "binary",
+      "text": "Wil je dit naar Mama sturen?",
+      "options": [],
+      "answer": "yes",
+      "chosen_position": null,
+      "response_time_ms": 900
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "contract_version": 1,
+  "session_id": "s-1",
+  "notes": [
+    {
+      "about": "question",
+      "text": "De gebruiker zei snel ja op drinken, na een langzame nee op pijn.",
+      "confidence": 0.6
+    }
+  ],
+  "decision": {
+    "agent": "experience-agent",
+    "status": "success",
+    "model": "gpt-oss:120b-cloud",
+    "prompt_version": "experience-v1",
+    "latency_ms": 2300,
+    "validation": "valid",
+    "reason": null
+  }
+}

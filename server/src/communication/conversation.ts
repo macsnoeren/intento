@@ -78,6 +78,11 @@ export interface ConversationDeps {
   onNewGaps?: (organizationId: string, concepts: string[]) => void;
   /** Een fout die het gesprek niet mag breken (zoals het tellen van Experience), voor de log. */
   onBackgroundError?: (message: string, error: unknown) => void;
+  /**
+   * Een gesprek is afgelopen (N12.4): de Experience Agent mag terugkijken. Los van de beurt — de tablet
+   * wacht er niet op — en mag niet gooien.
+   */
+  onSessionEnded?: (sessionId: string) => void;
 }
 
 /**
@@ -92,6 +97,7 @@ async function endConversation(deps: ConversationDeps, sessionId: string): Promi
   } catch (error) {
     deps.onBackgroundError?.('Experience tellen mislukt', error);
   }
+  deps.onSessionEnded?.(sessionId);
 }
 
 /** De gebruiker achter een apparaat, met zijn instellingen. */

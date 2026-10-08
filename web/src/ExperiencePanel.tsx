@@ -7,8 +7,9 @@ import { INTERACTION_MODE_OPTIONS } from './SettingsForm.tsx';
 /**
  * Wat Intento van één gebruiker geleerd heeft, in gewone taal (N12.3, INTENTO-NEW-DESIGN §22, §49):
  * welke pictogrammen hij vaak kiest, naar wie hij vaak stuurt en welke vorm tot een bericht leidde.
- * Bewijs, geen waarheid: het zet dingen eerder in beeld, maar verbergt nooit iets. Met "Ervaring wissen"
- * begint Intento opnieuw met leren (na een bevestiging, want het is niet terug te draaien).
+ * Bewijs, geen waarheid: het zet dingen eerder in beeld, maar verbergt nooit iets. Daaronder wat de
+ * Experience Agent na afloop opmerkte (N12.4), uitdrukkelijk als observatie. Met "Ervaring wissen" begint
+ * Intento opnieuw met leren (na een bevestiging, want het is niet terug te draaien).
  */
 
 function when(iso: string): string {
@@ -69,11 +70,13 @@ export function ExperiencePanel({
   const symbols = experience?.symbols.filter((s) => s.chosen > 0) ?? [];
   const contacts = experience?.contacts.filter((c) => c.chosen > 0) ?? [];
   const modes = experience?.modes ?? [];
+  const notes = experience?.notes ?? [];
   const empty =
     experience !== null &&
     experience.symbolCount === 0 &&
     experience.contacts.length === 0 &&
-    modes.length === 0;
+    modes.length === 0 &&
+    notes.length === 0;
 
   return (
     <section className="panel" aria-label="Ervaring">
@@ -158,6 +161,26 @@ export function ExperiencePanel({
                     {mode.presented === 1 ? '1 gesprek' : `${mode.presented} gesprekken`},{' '}
                     {times(mode.chosen)} tot een bevestigd bericht
                   </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      {notes.length > 0 ? (
+        <>
+          <h3 className="panel__subtitle">Wat Intento na afloop opviel</h3>
+          <p className="muted">
+            Observaties, geen waarheid: Intento kijkt na elk gesprek terug en noteert wat het zag.
+            Er verandert niets vanzelf door.
+          </p>
+          <ul className="record-list" aria-label="Observaties">
+            {notes.map((note, index) => (
+              <li key={`${note.createdAt}-${index}`} className="record">
+                <div className="record__body">
+                  <span className="record__title">{note.text}</span>
+                  <span className="record__meta">{when(note.createdAt)}</span>
                 </div>
               </li>
             ))}

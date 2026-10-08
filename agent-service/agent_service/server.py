@@ -2,6 +2,8 @@
 
 - ``GET /health`` — leeft de dienst? Zonder token, zodat een gezondheidscheck geen geheim nodig heeft.
 - ``POST /v1/turn`` — één beurt: `TurnRequest` → `TurnResponse`. Achter de API-key.
+- ``POST /v1/experience`` — observaties over een afgerond gesprek (N12.4): `ExperienceRequest` →
+  `ExperienceResponse`. Achter de API-key.
 
 De agentdienst is **stateless** tussen beurten en wordt alleen door de backend aangeroepen. Er wordt
 nooit gespreksinhoud gelogd: alleen pad, fase, status en duur.
@@ -19,15 +21,17 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from .agents.observer import observe
 from .auth import is_authorized
 from .config import ServiceConfig
-from .contracts import TurnRequest, TurnResponse
+from .contracts import ExperienceRequest, ExperienceResponse, TurnRequest, TurnResponse
 from .orchestrator import ProtocolError, step
 
 #: Grootste request-body die we lezen. De compacte Vocabulary van de startset is enkele honderden kB.
 MAX_BODY_BYTES = 8 * 1024 * 1024
 
 TurnHandler = Callable[[TurnRequest], TurnResponse]
+ExperienceHandler = Callable[[ExperienceRequest], ExperienceResponse]
 
 log = logging.getLogger("agent_service")
 
@@ -73,7 +77,8 @@ class AgentRequestHandler(BaseHTTPRequestHandler):
         self.send_json(HTTPStatus.OK, {"status": "ok", "service": "intento-agent-service"})
 
     def do_POST(self) -> None:
-        if self.path.split("?", 1)[0] != "/v1/turn":
+        path = self.path.split("?", 1)[0]
+        if path not in ("/v1/turn", "/v1/experience"):
             self.send_error_json(HTTPStatus.NOT_FOUND, "NOT_FOUND", "Onbekend pad.")
             return
         if not self.authorized():
@@ -83,6 +88,9 @@ class AgentRequestHandler(BaseHTTPRequestHandler):
             return
         payload = self.read_json()
         if payload is None:
+            return
+        if path == "/v1/experience":
+            self.experience(payload)
             return
         try:
             request = TurnRequest.model_validate(payload)
@@ -120,6 +128,39 @@ class AgentRequestHandler(BaseHTTPRequestHandler):
         )
         self.send_json(HTTPStatus.OK, response.model_dump(mode="json"))
 
+    def experience(self, payload: Any) -> None:
+        """Observaties over een afgerond gesprek. De inhoud komt nooit in het log."""
+        try:
+            request = ExperienceRequest.model_validate(payload)
+        except ValidationError as exc:
+            fields = ", ".join(
+                ".".join(str(part) for part in error["loc"]) or "(body)"
+                for error in exc.errors()[:5]
+            )
+            self.send_error_json(
+                HTTPStatus.BAD_REQUEST, "INVALID_REQUEST", f"Ongeldig ExperienceRequest: {fields}."
+            )
+            return
+        started = time.perf_counter()
+        try:
+            response = self.server.handle_experience(request)
+        except Exception:
+            log.exception("Terugkijken mislukt")
+            self.send_error_json(
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                "INTERNAL_ERROR",
+                "Het gesprek kon niet worden bekeken.",
+            )
+            return
+        log.info(
+            "Terugkijken: %d schermen, %d observaties (%s) in %.0f ms",
+            len(request.screens),
+            len(response.notes),
+            response.decision.status,
+            (time.perf_counter() - started) * 1000,
+        )
+        self.send_json(HTTPStatus.OK, response.model_dump(mode="json"))
+
     def read_json(self) -> Any:
         """Leest de body als JSON; stuurt zelf een 400 en geeft `None` terug als dat niet lukt."""
         try:
@@ -146,8 +187,14 @@ class AgentServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, config: ServiceConfig, handle_turn: TurnHandler = step) -> None:
+    def __init__(
+        self,
+        config: ServiceConfig,
+        handle_turn: TurnHandler = step,
+        handle_experience: ExperienceHandler = observe,
+    ) -> None:
         super().__init__((config.host, config.port), AgentRequestHandler)
         self.config = config
         # Injecteerbaar, zodat tests een beurt kunnen laten mislukken zonder de orchestrator te raken.
         self.handle_turn = handle_turn
+        self.handle_experience = handle_experience

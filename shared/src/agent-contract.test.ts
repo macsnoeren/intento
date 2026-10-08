@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z, type ZodType } from 'zod';
 import {
+  experienceRequestSchema,
+  experienceResponseSchema,
   questionStrategyKeySchema,
   turnRequestSchema,
   turnResponseSchema,
@@ -20,6 +22,8 @@ const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'cont
 const MODELS: Record<string, ZodType> = {
   turn_request: turnRequestSchema,
   turn_response: turnResponseSchema,
+  experience_request: experienceRequestSchema,
+  experience_response: experienceResponseSchema,
 };
 
 function load(kind: 'valid' | 'invalid'): { name: string; schema: ZodType; data: unknown }[] {

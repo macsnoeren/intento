@@ -5,6 +5,7 @@ import type { Encryptor } from '../crypto/encryption.js';
 import type { AgentClient } from '../agents/client.js';
 import type { MailTransport } from '../mail/transport.js';
 import { notifyNewGaps } from '../vocabulary/gap-notifications.js';
+import { observeSession } from '../experience/observations.js';
 import { recordAudit } from '../audit/audit.js';
 import { deviceAuthorize, requireDevice } from '../auth/device.js';
 import {
@@ -62,6 +63,12 @@ export function registerCommunicationRoutes(
     },
     onBackgroundError: (message, error) => {
       app.log.error({ err: error }, message);
+    },
+    // Na afloop terugkijken (N12.4): los van de beurt, een fout raakt het gesprek nooit.
+    onSessionEnded: (sessionId) => {
+      observeSession(base, sessionId).catch((error: unknown) => {
+        app.log.error({ err: error, sessionId }, 'terugkijken op een gesprek mislukt');
+      });
     },
   };
   // Ruim genoeg voor een gesprek in vlot tempo, maar geen gratis toegang tot de agentdienst.

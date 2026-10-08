@@ -1314,6 +1314,15 @@ export const userExperienceSchema = z.object({
   modes: z.array(z.object({ mode: interactionModeSchema, ...experienceCountsShape })),
   /** Hoeveel symbolen er in totaal geteld zijn (ook buiten de bovenste paar). */
   symbolCount: z.number().int().nonnegative(),
+  /** Observaties van de Experience Agent (N12.4), nieuwste eerst: geen waarheid. */
+  notes: z.array(
+    z.object({
+      about: z.enum(['mode', 'question', 'symbol', 'flow']),
+      text: z.string(),
+      confidence: z.number().min(0).max(1),
+      createdAt: z.iso.datetime(),
+    }),
+  ),
 });
 export type UserExperience = z.infer<typeof userExperienceSchema>;
 

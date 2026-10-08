@@ -269,6 +269,70 @@ class TurnResponse(Contract):
     gaps: list[Gap]
 
 
+# --- Na afloop: de Experience Agent (§21 laag 2, N12.4) --------------------------------------------
+
+#: Hooguit zoveel schermen per gesprek; meer zegt een observatie niets extra.
+MAX_EXPERIENCE_SCREENS = 60
+#: Hooguit zoveel observaties per gesprek.
+MAX_EXPERIENCE_NOTES = 5
+
+
+class ExperienceOption(Contract):
+    """Een symbool zoals het op het scherm stond. Geen contacten: die gaan nooit naar een LLM (V6)."""
+
+    label: ShortText
+    concept: Ref | None = None
+    representation: Representation
+    position: NonNegative
+
+
+class ExperienceScreen(Contract):
+    """Eén scherm van het afgeronde gesprek (Presented) met wat de gebruiker deed (Observed).
+
+    Schermen over contacten (`share_contact`, `confirm_send`) stuurt de backend niet mee: daar staan
+    namen op. Of er verstuurd is, staat in `ExperienceRequest.sent`.
+    """
+
+    turn: NonNegative
+    kind: Literal["question", "confirm_message", "share_ask", "ask_stop"]
+    mode: InteractionMode
+    text: ShortText
+    options: Annotated[list[ExperienceOption], Field(max_length=8)]
+    #: Wat de gebruiker op dit scherm deed; `None` = niets (het gesprek eindigde hier).
+    answer: Literal["yes", "no", "selected", "none_of_these", "back", "stop"] | None = None
+    #: De plek van de gekozen tegel (bij `selected`).
+    chosen_position: NonNegative | None = None
+    response_time_ms: NonNegative | None = None
+
+
+class ExperienceRequest(Contract):
+    contract_version: Literal[1]
+    session_id: Ref
+    settings: Settings
+    #: `confirmed`: de gebruiker zei JA op "Bedoel je …?"; `stopped`: het gesprek eindigde zonder.
+    outcome: Literal["confirmed", "stopped"]
+    #: Is de boodschap naar iemand verstuurd (zonder te zeggen naar wie)?
+    sent: bool
+    screens: Annotated[
+        list[ExperienceScreen], Field(min_length=1, max_length=MAX_EXPERIENCE_SCREENS)
+    ]
+
+
+class ExperienceNote(Contract):
+    """Een observatie over het gesprek: geen waarheid (§21, §36), en in de MVP stuurt ze niets bij."""
+
+    about: Literal["mode", "question", "symbol", "flow"]
+    text: ShortText
+    confidence: Confidence
+
+
+class ExperienceResponse(Contract):
+    contract_version: Literal[1]
+    session_id: Ref
+    notes: Annotated[list[ExperienceNote], Field(max_length=MAX_EXPERIENCE_NOTES)]
+    decision: AgentDecision
+
+
 def field_paths(schema: dict[str, JsonValue]) -> list[str]:
     """Alle veldpaden van een JSON-schema (`a.b`, `a[].c`), voor de vergelijking met de zod-kant.
 

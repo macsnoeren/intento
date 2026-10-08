@@ -1,17 +1,23 @@
 import {
+  experienceRequestSchema,
+  experienceResponseSchema,
   turnRequestSchema,
   turnResponseSchema,
+  type ExperienceRequest,
+  type ExperienceResponse,
   type TurnRequest,
   type TurnResponse,
 } from '@intento/shared';
+import type { ZodType } from 'zod';
 import type { Env } from '../env.js';
 import { HttpError } from '../errors.js';
 
 /**
  * Client voor de agentdienst (INTENTO-NEW-DESIGN §3.1, §51, ADR-0017).
  *
- * De backend is de enige die de agentdienst aanroept: `POST {url}/v1/turn` met het gedeelde geheim als
- * Bearer en een harde time-out. Het antwoord gaat door het zod-contract voordat iemand het gebruikt; de
+ * De backend is de enige die de agentdienst aanroept: `POST {url}/v1/turn` (een beurt) en, na afloop van
+ * een gesprek, `POST {url}/v1/experience` (observaties, N12.4), met het gedeelde geheim als Bearer en een
+ * harde time-out. Het antwoord gaat door het zod-contract voordat iemand het gebruikt; de
  * inhoudelijke toets (de harde invarianten, §52) doet de aanroeper daarna.
  *
  * Elke fout — niet geconfigureerd, onbereikbaar, time-out, 401, 4xx/5xx, ongeldige vorm — wordt één
@@ -42,6 +48,8 @@ export class AgentUnavailableError extends HttpError {
 
 export interface AgentClient {
   turn(request: TurnRequest): Promise<TurnResponse>;
+  /** Observaties over een afgerond gesprek (§21 laag 2). Niemand wacht hierop. */
+  experience(request: ExperienceRequest): Promise<ExperienceResponse>;
 }
 
 /** Bovengrens voor een antwoord: ruim boven een normale beurt, maar geen onbegrensd geheugengebruik. */
@@ -50,6 +58,12 @@ export const AGENT_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
 /** Er is geen agentdienst geconfigureerd (`AGENT_SERVICE_URL` leeg). */
 class UnconfiguredAgentClient implements AgentClient {
   turn(): Promise<TurnResponse> {
+    return Promise.reject(
+      new AgentUnavailableError('not_configured', 'AGENT_SERVICE_URL is niet gezet.'),
+    );
+  }
+
+  experience(): Promise<ExperienceResponse> {
     return Promise.reject(
       new AgentUnavailableError('not_configured', 'AGENT_SERVICE_URL is niet gezet.'),
     );
@@ -88,12 +102,45 @@ export class HttpAgentClient implements AgentClient {
 
   async turn(request: TurnRequest): Promise<TurnResponse> {
     // Ook wat wij versturen houden we aan het contract: een fout hier is een bug in de backend.
-    const body = JSON.stringify(turnRequestSchema.parse(request));
+    const response = await this.post(
+      '/v1/turn',
+      turnRequestSchema.parse(request),
+      turnResponseSchema,
+    );
+    if (
+      response.session_id !== request.session_id ||
+      response.turn !== request.turn ||
+      response.state.session_id !== request.session_id ||
+      response.state.turn !== request.turn
+    ) {
+      throw new AgentUnavailableError(
+        'invalid_response',
+        'Antwoord hoort bij een ander gesprek of een andere beurt.',
+      );
+    }
+    return response;
+  }
+
+  async experience(request: ExperienceRequest): Promise<ExperienceResponse> {
+    const response = await this.post(
+      '/v1/experience',
+      experienceRequestSchema.parse(request),
+      experienceResponseSchema,
+    );
+    if (response.session_id !== request.session_id) {
+      throw new AgentUnavailableError('invalid_response', 'Antwoord hoort bij een ander gesprek.');
+    }
+    return response;
+  }
+
+  /** Eén aanroep: versturen, begrensd lezen en het antwoord door het contract halen. */
+  private async post<T>(path: string, request: unknown, schema: ZodType<T>): Promise<T> {
+    const body = JSON.stringify(request);
     const signal = AbortSignal.timeout(this.timeoutMs);
     let response: Response;
     let text: string;
     try {
-      response = await fetch(`${this.baseUrl}/v1/turn`, {
+      response = await fetch(`${this.baseUrl}${path}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -134,7 +181,7 @@ export class HttpAgentClient implements AgentClient {
     } catch {
       throw new AgentUnavailableError('invalid_response', 'Geen geldige JSON.');
     }
-    const parsed = turnResponseSchema.safeParse(json);
+    const parsed = schema.safeParse(json);
     if (!parsed.success) {
       // Alleen de veldpaden: de waarden kunnen gespreksinhoud bevatten.
       const paths = parsed.error.issues
@@ -142,17 +189,6 @@ export class HttpAgentClient implements AgentClient {
         .map((issue) => issue.path.join('.') || '(root)')
         .join(', ');
       throw new AgentUnavailableError('invalid_response', `Contract geschonden bij: ${paths}`);
-    }
-    if (
-      parsed.data.session_id !== request.session_id ||
-      parsed.data.turn !== request.turn ||
-      parsed.data.state.session_id !== request.session_id ||
-      parsed.data.state.turn !== request.turn
-    ) {
-      throw new AgentUnavailableError(
-        'invalid_response',
-        'Antwoord hoort bij een ander gesprek of een andere beurt.',
-      );
     }
     return parsed.data;
   }
@@ -191,6 +227,24 @@ export function createAgentClient(env: Env): AgentClient {
  */
 export class FakeAgentClient implements AgentClient {
   readonly requests: TurnRequest[] = [];
+  readonly experienceRequests: ExperienceRequest[] = [];
+  /** Wat `experience` antwoordt; standaard één observatie. Vervangbaar in een test. */
+  observe: (request: ExperienceRequest) => ExperienceResponse | Promise<ExperienceResponse> = (
+    request,
+  ) => ({
+    contract_version: 1,
+    session_id: request.session_id,
+    notes: [{ about: 'flow', text: 'Een observatie van de nep-agentdienst.', confidence: 0.5 }],
+    decision: {
+      agent: 'experience-agent',
+      status: 'success',
+      model: null,
+      prompt_version: 'rules-v1',
+      latency_ms: 1,
+      validation: 'skipped',
+      reason: null,
+    },
+  });
 
   constructor(private respond: (request: TurnRequest) => TurnResponse | Promise<TurnResponse>) {}
 
@@ -203,6 +257,15 @@ export class FakeAgentClient implements AgentClient {
     this.requests.push(turnRequestSchema.parse(request));
     const response = await this.respond(request);
     const parsed = turnResponseSchema.safeParse(response);
+    if (!parsed.success) {
+      throw new AgentUnavailableError('invalid_response', parsed.error.message);
+    }
+    return parsed.data;
+  }
+
+  async experience(request: ExperienceRequest): Promise<ExperienceResponse> {
+    this.experienceRequests.push(experienceRequestSchema.parse(request));
+    const parsed = experienceResponseSchema.safeParse(await this.observe(request));
     if (!parsed.success) {
       throw new AgentUnavailableError('invalid_response', parsed.error.message);
     }
