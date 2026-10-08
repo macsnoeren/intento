@@ -616,7 +616,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   de backend de tellingen uit Presented en Observed — alleen als `experienceEnabled` aanstaat.
   *Acceptatie:* tests: uit → niets; aan → juiste tellingen, inclusief eerste plek.
 
-- [ ] **N12.2 Vaakst gekozen eerst**
+- [x] **N12.2 Vaakst gekozen eerst**
   *ONTWERP: §2.4, §29 (besluit 7).* Een samenvatting van de Experience gaat mee in de `TurnRequest`;
   startconcepten, multi-icon-tegels en contacten worden geordend op `chosen` (gelijk → vaste volgorde).
   Ranking verbergt nooit een optie.

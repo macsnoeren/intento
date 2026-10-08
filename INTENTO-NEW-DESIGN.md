@@ -1284,7 +1284,7 @@ JA / NEE
 
 Daar is de vraag zelf de bevestiging: JA verstuurt.
 
-**Volgorde (besluit 7):** Experience aan → wie het vaakst gekozen is, eerst. Experience uit → de vaste volgorde die de beheerder bij de contacten instelde.
+**Volgorde (besluit 7):** Experience aan → wie het vaakst gekozen is, eerst. Experience uit → de vaste volgorde die de beheerder bij de contacten instelde. Hetzelfde geldt voor de startconcepten (zolang de gebruiker in dit gesprek nog nergens JA op zei; daarna bepalen zijn antwoorden de volgorde) en voor de tegels op elk multi-icon-scherm. Bij gelijke aantallen blijft de vaste volgorde. De ordening gebeurt met regels in de agentdienst, op de samenvatting die de backend alleen bij Experience aan meestuurt.
 
 De AI mag de volgorde bepalen.
 

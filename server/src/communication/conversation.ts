@@ -30,6 +30,7 @@ import {
 import { signedAssetUrl } from '../vocabulary/assets.js';
 import { recordGaps } from '../vocabulary/gaps.js';
 import { recordSessionExperience } from '../experience/stats.js';
+import { experienceSummary } from '../experience/summary.js';
 import { confirmIntent, findIntent, withdrawIntent } from './intents.js';
 import { listShareableContacts } from '../contacts/shareable.js';
 import { contactToSend, deliver, type DeliveryOutcome } from './deliveries.js';
@@ -196,6 +197,7 @@ export async function runAgentTurn(
     throw new HttpError(503, 'VOCABULARY_EMPTY', 'Er zijn nog geen symbolen om mee te praten.');
   }
   const items = new Map(vocabulary.map((item) => [item.id, item]));
+  const contacts = await listShareableContacts(prisma, encryptor, user, items);
 
   const request: TurnRequest = {
     contract_version: AGENT_CONTRACT_VERSION,
@@ -207,9 +209,15 @@ export async function runAgentTurn(
     vocabulary: vocabulary.map(toVocabularyEntry),
     // Alleen bevestigde, actieve contacten (§28): id, naam, pictogram en volgorde, nooit het e-mailadres.
     // De naam is voor de vaste zinnen ("Wil je dit naar {naam} sturen?"); hij gaat nooit naar een LLM
-    // (V6, getest in de agentdienst). Experience komt in N12.
-    contacts: await listShareableContacts(prisma, encryptor, user, items),
-    experience: null,
+    // (V6, getest in de agentdienst).
+    contacts,
+    // Alleen als Experience aanstaat: uit betekent ook niets gebruiken (§22).
+    experience: user.profile.experienceEnabled
+      ? await experienceSummary(prisma, user, {
+          itemIds: new Set(items.keys()),
+          contactIds: new Set(contacts.map((contact) => contact.id)),
+        })
+      : null,
   };
 
   const started = Date.now();

@@ -29,6 +29,7 @@ from .agents.contact import (
     next_contacts,
 )
 from .agents.envelope import RULES_VERSION, AgentMeta, AgentResult, LlmAttempt, run_agent
+from .agents.experience import NO_RANKING, Ranking
 from .agents.icon import (
     ICON_TIMEOUT_SECONDS,
     IconMatch,
@@ -122,8 +123,11 @@ class _Turn:
         llm_validation: bool = False,
         llm_safety: bool = False,
         turn_budget: float = DEFAULT_TURN_BUDGET_SECONDS,
+        ranking: Ranking = NO_RANKING,
     ) -> None:
         self.clock = clock
+        #: Wat het vaakst gekozen is, eerst (§29 besluit 7); zonder Experience de vaste volgorde.
+        self.ranking = ranking
         #: Uiterlijk dan moet de beurt klaar zijn; daarna geen modelaanroepen meer (`budget`).
         self.deadline = clock() + turn_budget
         self.llm_validation = llm_validation
@@ -196,6 +200,8 @@ def step(
         llm_validation,
         llm_safety,
         turn_budget,
+        # Alleen als Experience aanstaat; de backend stuurt dan ook pas een samenvatting (§22).
+        Ranking(request.experience if request.settings.experience_enabled else None),
     )
     event = request.event
 
@@ -285,6 +291,10 @@ def _update_hypotheses(
     intent = result.value or IntentResult(hypotheses=[])
     turn.intent = intent if result.status == "success" and turn.llm is not None else None
     hypotheses = intent.hypotheses
+    if not any(a.answer in ("yes", "selected") for a in state.answers):
+        # Nog nergens JA op gezegd: de startconcepten, vaakst gekozen eerst (§29 besluit 7). Na een
+        # JA bepalen de antwoorden van dit gesprek de volgorde, niet wat er eerder gekozen werd.
+        hypotheses = turn.ranking.symbols(hypotheses, lambda h: _item_id(vocabulary, h.concept))
     state.intent_hypotheses = hypotheses
     state.current_intent = hypotheses[0] if hypotheses else None
     state.assumptions = intent.assumptions
@@ -306,6 +316,11 @@ def _update_hypotheses(
         )
     )
     return result
+
+
+def _item_id(vocabulary: VocabularyIndex, concept: str) -> str | None:
+    entry = vocabulary.for_concept(concept)
+    return entry.id if entry else None
 
 
 def _next_targets(state: SessionState, limit: int) -> list[Hypothesis]:
@@ -830,7 +845,7 @@ def _ask_contact(
     limit = turn.settings.options_per_screen if multi else 1
     result = run_agent(
         "contact-agent",
-        rules=lambda: next_contacts(state, contacts, limit),
+        rules=lambda: next_contacts(state, contacts, limit, turn.ranking),
         rules_reason="vaste volgorde",
         clock=turn.clock,
     )
@@ -1009,7 +1024,14 @@ def _ask_multi(state: SessionState, vocabulary: VocabularyIndex, turn: _Turn) ->
             continue
         shown.add(key)
         chosen.append(target)
-        options.append(option.model_copy(update={"position": len(options)}))
+        options.append(option)
+    # Dezelfde tegels, vaakst gekozen eerst (§29 besluit 7); de plek volgt de nieuwe volgorde.
+    options = [
+        option.model_copy(update={"position": position})
+        for position, option in enumerate(
+            turn.ranking.symbols(options, lambda option: option.vocabulary_item_id)
+        )
+    ]
     if len(options) < 2:
         confirmed = _confirmed(state)
         return _propose(state, confirmed, vocabulary, turn) if confirmed else _ask_stop()

@@ -1,9 +1,10 @@
 """Contact Agent: welk contact als volgende wordt aangeboden (INTENTO-NEW-DESIGN §28, §29).
 
 Regels, geen LLM: de namen van contacten gaan nooit naar een taalmodel (V6), en de vragen erover zijn
-vaste zinnen. De volgorde is de vaste volgorde die de beheerder instelde (`sort_order`); met Experience
-komt in N12.2 "wie het vaakst gekozen is, eerst" erbij. De Contact Agent kiest nooit zelf een ontvanger:
-hij bepaalt alleen wie er als volgende gevraagd wordt (§32).
+vaste zinnen. De volgorde (§29 besluit 7): met Experience wie het vaakst gekozen is eerst, en anders (of
+bij gelijke aantallen) de vaste volgorde die de beheerder instelde (`sort_order`). De Contact Agent kiest
+nooit zelf een ontvanger: hij bepaalt alleen wie er als volgende gevraagd wordt (§32), en de ranking
+slaat nooit iemand over.
 """
 
 from __future__ import annotations
@@ -11,26 +12,36 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ..contracts import ContactEntry, Option, SessionState
+from .experience import NO_RANKING, Ranking
 
 
-def contact_order(contacts: Sequence[ContactEntry]) -> list[ContactEntry]:
-    """De vaste volgorde: `sort_order`, en bij gelijke waarde de volgorde waarin de backend ze gaf."""
-    return [
+def contact_order(
+    contacts: Sequence[ContactEntry], ranking: Ranking = NO_RANKING
+) -> list[ContactEntry]:
+    """Vaakst gekozen eerst; daarna `sort_order`, en bij gelijke waarde de volgorde waarin de backend
+    ze gaf."""
+    fixed = [
         c for _, c in sorted(enumerate(contacts), key=lambda pair: (pair[1].sort_order, pair[0]))
     ]
+    return ranking.contacts(fixed, lambda c: c.id)
 
 
 def next_contacts(
-    state: SessionState, contacts: Sequence[ContactEntry], limit: int
+    state: SessionState,
+    contacts: Sequence[ContactEntry],
+    limit: int,
+    ranking: Ranking = NO_RANKING,
 ) -> list[ContactEntry]:
     """De volgende `limit` contacten die in dit gesprek nog niet getoond zijn, in volgorde."""
     asked = set(state.share.contacts_asked)
-    return [c for c in contact_order(contacts) if c.id not in asked][:limit]
+    return [c for c in contact_order(contacts, ranking) if c.id not in asked][:limit]
 
 
-def next_contact(state: SessionState, contacts: Sequence[ContactEntry]) -> ContactEntry | None:
+def next_contact(
+    state: SessionState, contacts: Sequence[ContactEntry], ranking: Ranking = NO_RANKING
+) -> ContactEntry | None:
     """Het eerste contact dat in dit gesprek nog niet gevraagd is, of `None`."""
-    page = next_contacts(state, contacts, 1)
+    page = next_contacts(state, contacts, 1, ranking)
     return page[0] if page else None
 
 

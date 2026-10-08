@@ -83,6 +83,9 @@ server niet uit elkaar lopen.
   getoond, gekozen, gekozen op de eerste plek); `stats.ts` claimt het gesprek en telt het op bij
   `ExperienceStat`, in één transactie en alleen als Experience aanstaat. `conversation.ts` roept dat aan
   bij elk einde van een gesprek; een fout daarbij breekt het gesprek niet.
+  `summary.ts` (N12.2) maakt de samenvatting die met elke beurt naar de agentdienst gaat — alleen met
+  Experience aan, alleen ids en aantallen, alleen symbolen uit de meegestuurde Vocabulary en contacten
+  die nu aangeboden kunnen worden. De agentdienst ordent daarmee (vaakst gekozen eerst).
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15–17): lezen en filteren per

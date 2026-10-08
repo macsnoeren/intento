@@ -69,6 +69,7 @@ def request(
     turn: int | None = None,
     vocab: list[VocabularyEntry] | None = None,
     contacts: list[ContactEntry] | None = None,
+    experience: dict[str, Any] | None = None,
     **setting_overrides: Any,
 ) -> TurnRequest:
     return TurnRequest.model_validate(
@@ -81,7 +82,7 @@ def request(
             "settings": settings(**setting_overrides),
             "vocabulary": vocab or vocabulary(),
             "contacts": contacts or [],
-            "experience": None,
+            "experience": experience,
         }
     )
 
@@ -94,3 +95,17 @@ NO: dict[str, Any] = {"type": "answer_no"}
 def answer(response: TurnResponse, event: dict[str, Any], **kwargs: Any) -> TurnRequest:
     """Het volgende verzoek na `response`, met `event` als antwoord."""
     return request(event, response.state, **kwargs)
+
+
+def experience(
+    symbols: dict[str, int] | None = None, contacts: dict[str, int] | None = None
+) -> dict[str, Any]:
+    """Een Experience-samenvatting: per ref hoe vaak gekozen (getoond telt hier niet)."""
+
+    def counts(chosen: dict[str, int] | None) -> list[dict[str, Any]]:
+        return [
+            {"ref": ref, "presented": n, "chosen": n, "chosen_at_first_position": 0}
+            for ref, n in (chosen or {}).items()
+        ]
+
+    return {"symbols": counts(symbols), "contacts": counts(contacts), "modes": []}

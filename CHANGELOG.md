@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N12.2 — vaakst gekozen eerst
+
+- De backend stuurt met elke beurt een Experience-samenvatting mee (`TurnRequest.experience`), alleen als
+  Experience voor de gebruiker aanstaat: per symbool, contact en vorm hoe vaak getoond en gekozen —
+  alleen ids en aantallen, en alleen symbolen uit de meegestuurde Vocabulary en contacten die nu
+  aangeboden kunnen worden (hooguit 500 symbolen).
+- De agentdienst ordent daarmee, met regels (`agents/experience.py`): startconcepten (tot de eerste JA
+  in het gesprek), de tegels op elk multi-icon-scherm en de contacten, vaakst gekozen eerst; bij gelijke
+  aantallen de vaste volgorde. Ranking verbergt nooit een optie.
+- Tests: unittests in de agentdienst (volgorde, nooit een optie minder, uit → vaste volgorde, ook met een
+  meegestuurde samenvatting); backend: aan → samenvatting met ids en aantallen, uit → `null`, alleen wat
+  nu kan, per gebruiker gescheiden.
+
 ### N12.1 — Experience: tellen na afloop
 
 - Nieuwe tabel `ExperienceStat` (migratie `experience_stats`): per gebruiker en per symbool, contact

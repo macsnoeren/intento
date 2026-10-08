@@ -125,7 +125,7 @@ is er voor de vaste zinnen en komt in geen enkele prompt (V6; `tests/test_share.
 prompt met alle LLM-agents aan).
 
 **Contact Agent** (`agents/contact.py`, §28, §29): regels, geen LLM. Na JA op "Wil je dit sturen?" vraagt
-hij in binary de contacten één voor één in de vaste volgorde (`sort_order`): "Wil je dit naar {naam}
+hij in binary de contacten één voor één, in de volgorde van **Vaakst gekozen eerst** hieronder: "Wil je dit naar {naam}
 sturen?" met het pictogram van het contact. JA kiest dát contact (`share.selected_contact`, na S3); NEE →
 het volgende; niemand meer → `done` zonder ontvanger. In multi-icon: "Met wie wil je dit delen?" met de
 volgende contacten als tegels (2 tot `options_per_screen`); een keuze → altijd nog "Naar {naam} sturen?"
@@ -133,6 +133,14 @@ volgende contacten als tegels (2 tot `options_per_screen`); een keuze → altijd
 meteen "Naar {naam} sturen?" (een tegelscherm met één tegel kan niet, I4). Versturen doet de backend,
 nooit de agentdienst (I3). De scenario's "dorst, naar mama sturen", "pijn, niet versturen" en "dorst,
 naar mama (multi-icon)" spelen het hele gesprek.
+
+**Vaakst gekozen eerst** (`agents/experience.py`, §2.4, §29 besluit 7, N12.2): regels, geen LLM. Met
+Experience aan stuurt de backend per beurt een samenvatting mee (per Vocabulary-item, contact en vorm hoe
+vaak getoond en gekozen; alleen ids en aantallen). Daarmee komen de startconcepten (zolang de gebruiker
+in dit gesprek nog nergens JA op zei; daarna bepalen zijn antwoorden de volgorde), de tegels op elk
+multi-icon-scherm en de contacten in volgorde van `chosen`; bij gelijke aantallen blijft de vaste
+volgorde (of die van de Intent Agent). Ranking ordent alleen: dezelfde opties, nooit een minder. Staat
+`experience_enabled` uit, dan wordt een meegestuurde samenvatting genegeerd.
 
 **Tijdsbudget per beurt** (`AGENT_TURN_BUDGET_SECONDS`, standaard 25 s): elke modelaanroep krijgt
 hooguit de tijd die van de beurt over is, en met minder dan 1 s over nemen de regels het over. Zo
