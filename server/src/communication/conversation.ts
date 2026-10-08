@@ -29,6 +29,7 @@ import {
 } from '../vocabulary/repository.js';
 import { signedAssetUrl } from '../vocabulary/assets.js';
 import { recordGaps } from '../vocabulary/gaps.js';
+import { recordSessionExperience } from '../experience/stats.js';
 import { confirmIntent, findIntent, withdrawIntent } from './intents.js';
 import { listShareableContacts } from '../contacts/shareable.js';
 import { contactToSend, deliver, type DeliveryOutcome } from './deliveries.js';
@@ -74,6 +75,22 @@ export interface ConversationDeps {
   now?: () => Date;
   /** Na het opslaan: concepten die voor deze organisatie nieuw ontbreken (N9.3). Mag niet gooien. */
   onNewGaps?: (organizationId: string, concepts: string[]) => void;
+  /** Een fout die het gesprek niet mag breken (zoals het tellen van Experience), voor de log. */
+  onBackgroundError?: (message: string, error: unknown) => void;
+}
+
+/**
+ * Sluit een gesprek af en telt het mee voor Experience (N12.1, §21 laag 1). Het tellen breekt het
+ * gesprek nooit: lukt het niet, dan gaat dat naar de log en is dit gesprek niet meegeteld.
+ */
+async function endConversation(deps: ConversationDeps, sessionId: string): Promise<void> {
+  const now = (deps.now ?? (() => new Date()))();
+  await closeSession(deps.prisma, sessionId, now);
+  try {
+    await recordSessionExperience(deps.prisma, sessionId, now);
+  } catch (error) {
+    deps.onBackgroundError?.('Experience tellen mislukt', error);
+  }
 }
 
 /** De gebruiker achter een apparaat, met zijn instellingen. */
@@ -249,7 +266,7 @@ export async function runAgentTurn(
   // Klaar, of JA op "Wil je stoppen?": het gesprek is voorbij. Een bevestigd gesprek blijft
   // `confirmed`, een onbevestigd wordt `stopped`.
   if (response.presentation.kind === 'done' || response.presentation.kind === 'stopped') {
-    await closeSession(prisma, session.id, now());
+    await endConversation(deps, session.id);
   }
 
   return toTabletTurn(
@@ -287,14 +304,13 @@ export async function startConversation(
   device: DeviceModel,
 ): Promise<CommunicationTurn> {
   const { prisma } = deps;
-  const now = deps.now ?? (() => new Date());
   const user = await loadConversationUser(prisma, device);
 
   const running = await prisma.communicationSession.findMany({
     where: { userId: user.id, ...ONGOING },
     select: { id: true },
   });
-  for (const { id } of running) await closeSession(prisma, id, now());
+  for (const { id } of running) await endConversation(deps, id);
 
   const session = await createSession(prisma, {
     userId: user.id,
@@ -312,7 +328,7 @@ export async function startConversation(
       confirmedMessage: null,
     });
   } catch (error) {
-    await closeSession(prisma, session.id, now());
+    await endConversation(deps, session.id);
     throw error;
   }
 }
@@ -530,10 +546,9 @@ export async function stopConversation(
   sessionId: string,
 ): Promise<void> {
   const { prisma } = deps;
-  const now = deps.now ?? (() => new Date());
   const session = await loadActiveSession(prisma, device, sessionId);
   await recordObserved(prisma, session.id, session.currentTurn, { type: 'stop' });
-  await closeSession(prisma, session.id, now());
+  await endConversation(deps, session.id);
 }
 
 /**

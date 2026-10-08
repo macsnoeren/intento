@@ -44,7 +44,7 @@ export interface ObservedInput {
 }
 
 /** De leesbare structuur van een getoonde optie: zonder label (dat staat versleuteld). */
-const storedOptionSchema = z.strictObject({
+export const storedOptionSchema = z.strictObject({
   ref: z.string(),
   kind: z.enum(['symbol', 'contact']),
   vocabularyItemId: z.string().nullable(),

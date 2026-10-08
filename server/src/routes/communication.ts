@@ -60,6 +60,9 @@ export function registerCommunicationRoutes(
         app.log.error({ err: error }, 'e-mail over ontbrekende woorden mislukt');
       });
     },
+    onBackgroundError: (message, error) => {
+      app.log.error({ err: error }, message);
+    },
   };
   // Ruim genoeg voor een gesprek in vlot tempo, maar geen gratis toegang tot de agentdienst.
   const rateLimit = { max: 60, timeWindow: '1 minute' };

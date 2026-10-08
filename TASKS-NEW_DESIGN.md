@@ -610,7 +610,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N12 — Experience
 
-- [ ] **N12.1 Tellen na afloop**
+- [x] **N12.1 Tellen na afloop**
   *ONTWERP: §21 (laag 1), §22.* Migratie `ExperienceStat` (userId, subjectType symbol/contact/mode,
   subjectRef, presented, chosen, chosenAtFirstPosition, lastUsedAt). Bij het einde van een sessie berekent
   de backend de tellingen uit Presented en Observed — alleen als `experienceEnabled` aanstaat.

@@ -1001,6 +1001,7 @@ De Experience Agent zet dit om in bruikbare ervaring.
 **Implementatie, in twee lagen:**
 
 1. **Tellingen (regels, MVP).** Na afloop van een sessie berekent de backend uit Presented en Observed: per symbool hoe vaak getoond, gekozen en gekozen op de eerste plek; hetzelfde per contact; per vorm hoe vaak die tot een bevestigde boodschap leidde. Dit voedt de ranking (§29).
+   Precies: een **symbool** telt per vraagscherm (gekozen = de tegel, of JA op de binary vraag; in binary staat elk symbool op de eerste plek, zodat het ja-zeggen zichtbaar blijft, §25). Een **contact** telt één keer per gesprek: aangeboden, gekozen = JA op het versturen naar dát contact (een tegel kiezen alleen is nog geen keuze), eerste plek = het eerst aangeboden contact. Een **vorm** telt als er vragen in gesteld werden, en als gekozen voor de vorm van de laatste vraag vóór de bevestiging. Elk gesprek telt hooguit één keer; een gesprek van toen Experience uit stond, telt ook later nooit mee.
 2. **Observaties (LLM, na afloop).** De agentdienst bekijkt de sessie en noteert observaties ("de vraag 'waar doet het pijn?' leek te moeilijk"). Die worden als inference bewaard en in de beheeromgeving getoond als **observatie, geen waarheid**. In de MVP sturen ze niets automatisch bij.
 
 De Experience Agent draait **na** de sessie: de gebruiker wacht er nooit op.

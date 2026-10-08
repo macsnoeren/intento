@@ -56,6 +56,7 @@ model Organization {
   vocabularyGaps        VocabularyGap[]
   contacts              Contact[]
   deliveries            Delivery[]
+  experienceStats       ExperienceStat[]
 }
 
 /// De communicerende persoon (DESIGN §2, §6.2). Staat bewust los van `Account`: een
@@ -84,6 +85,8 @@ model User {
   deviceLinkCodes       DeviceLinkCode[]
   /// De mensen naar wie deze gebruiker een bevestigde boodschap kan sturen (N10.1).
   contacts              Contact[]
+  /// Wat er van deze gebruiker geleerd is (N12.1); verdwijnt mee met de gebruiker.
+  experienceStats       ExperienceStat[]
 
   @@index([organizationId])
 }
@@ -468,13 +471,16 @@ model VocabularyGap {
 /// een bevestigd gesprek dat eindigt blijft `confirmed`. `currentTurn` wijst naar de beurt die nu op het
 /// scherm staat.
 model CommunicationSession {
-  id             String    @id @default(cuid())
-  userId         String
-  organizationId String
-  status         String    @default("active")
-  startedAt      DateTime  @default(now())
-  endedAt        DateTime?
-  currentTurn    Int       @default(0)
+  id                  String    @id @default(cuid())
+  userId              String
+  organizationId      String
+  status              String    @default("active")
+  startedAt           DateTime  @default(now())
+  endedAt             DateTime?
+  currentTurn         Int       @default(0)
+  /// Wanneer dit gesprek voor Experience bekeken is (N12.1): elk gesprek telt hooguit één keer mee, ook
+  /// als Experience toen uit stond (dan wordt het later nooit alsnog geteld).
+  experienceCountedAt DateTime?
 
   user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -640,4 +646,35 @@ model Delivery {
   @@unique([sessionId, contactId])
   @@index([organizationId, createdAt])
   @@index([userId, createdAt])
+}
+
+/// **Experience** per gebruiker (N12.1, INTENTO-NEW-DESIGN §21 laag 1, §22): tellingen uit Presented en
+/// Observed van afgeronde gesprekken, nooit uit wat een agent concludeerde. Bewijs, geen waarheid: de
+/// ranking (§29, N12.2) ordent ermee, maar verbergt nooit een optie.
+///
+/// - `subjectType`: `symbol` (`subjectRef` = Vocabulary-item), `contact` (= contact-id) of `mode`
+///   (= `binary`/`multi`). Waarden bewaakt in code (geen native enum, SQLite/PostgreSQL).
+/// - `presented`: zo vaak getoond; `chosen`: zo vaak gekozen; `chosenAtFirstPosition`: daarvan op de
+///   eerste plek — samen het bewijs voor het bias-rapport (§25, N14.3).
+/// - `lastUsedAt`: de laatste keer gekozen (`null` = nog nooit).
+/// - `organizationId` staat er dubbel (ook via de gebruiker) zodat elke query direct op de tenant filtert.
+/// Geen namen of inhoud: alleen ids en aantallen.
+model ExperienceStat {
+  id                    String    @id @default(cuid())
+  userId                String
+  organizationId        String
+  subjectType           String
+  subjectRef            String
+  presented             Int       @default(0)
+  chosen                Int       @default(0)
+  chosenAtFirstPosition Int       @default(0)
+  lastUsedAt            DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, subjectType, subjectRef])
+  @@index([organizationId])
 }

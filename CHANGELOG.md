@@ -28,6 +28,18 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N12.1 — Experience: tellen na afloop
+
+- Nieuwe tabel `ExperienceStat` (migratie `experience_stats`): per gebruiker en per symbool, contact
+  en vorm hoe vaak getoond, gekozen en gekozen op de eerste plek, plus wanneer voor het laatst gekozen.
+- Als een gesprek eindigt (klaar, gestopt, of afgesloten door een nieuwe start) telt de backend het mee,
+  puur uit Presented en Observed. Alleen als Experience voor de gebruiker aanstaat; elk gesprek wordt
+  hooguit één keer bekeken (`CommunicationSession.experienceCountedAt`, in één transactie met het
+  optellen), dus een gesprek van toen Experience uit stond telt ook later nooit mee. Een fout bij het
+  tellen breekt het gesprek niet (log).
+- Tests: de telregels per soort (binary, multi-icon, contacten, vorm), uit → niets, nooit dubbel,
+  per gebruiker gescheiden.
+
 ### N11.7 — kopie aan de beheerder
 
 - Accountinstelling `copySentMessages` (migratie `copy_sent_messages`, standaard uit), onder "Mijn

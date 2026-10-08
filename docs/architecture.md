@@ -78,6 +78,11 @@ server niet uit elkaar lopen.
   agentdienst → invarianten → opslaan, inclusief de ontbrekende woorden per organisatie → presentatie
   voor de tablet met ondertekende afbeeldings-URL's).
   De routes staan in `routes/communication.ts`.
+- `server/src/experience/` — Experience per gebruiker (INTENTO-NEW-DESIGN §21 laag 1, §22, N12.1):
+  `tally.ts` telt één afgerond gesprek puur uit Presented en Observed (per symbool, contact en vorm:
+  getoond, gekozen, gekozen op de eerste plek); `stats.ts` claimt het gesprek en telt het op bij
+  `ExperienceStat`, in één transactie en alleen als Experience aanstaat. `conversation.ts` roept dat aan
+  bij elk einde van een gesprek; een fout daarbij breekt het gesprek niet.
 - `shared/src/agent-contract.ts` — dezelfde contracten in zod, voor de backend. De vitest-test leest
   `contracts/fixtures/` en `contracts/fields.json` en eist hetzelfde oordeel als pydantic.
 - `server/src/vocabulary/` — de Vocabulary (INTENTO-NEW-DESIGN §15–17): lezen en filteren per
