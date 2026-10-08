@@ -1482,7 +1482,7 @@ De agents spreken een intern contract.
 
 De provider is een implementatiedetail.
 
-**In de MVP (besluit 13):** Ollama, **lokaal** (`OLLAMA_URL`) of **in de cloud** (`OLLAMA_URL` + `OLLAMA_API_KEY`). De provider-interface in de agentdienst is één methode: berichten + JSON-schema erin, gevalideerde JSON eruit. Een `FakeProvider` met vaste antwoorden maakt alle tests deterministisch en offline.
+**In de MVP (besluit 13):** Ollama, **lokaal** (`OLLAMA_URL`) of **in de cloud** (`OLLAMA_URL` + `OLLAMA_API_KEY`). In Docker zit er een eigen Ollama-container in de stack (`http://ollama:11434`), standaard met een `-cloud`-model. Die container authenticeert bij ollama.com met een eigen sleutel die de beheerder één keer aan zijn account koppelt, niet met een API-key. Hij staat op een eigen netwerk met alleen de agentdienst (ADR-0016). De provider-interface in de agentdienst is één methode: berichten + JSON-schema erin, gevalideerde JSON eruit. Een `FakeProvider` met vaste antwoorden maakt alle tests deterministisch en offline.
 
 Lessen uit de huidige worker die meegaan:
 

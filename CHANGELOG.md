@@ -28,6 +28,22 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N15.5 — Ollama in de Docker-stack
+
+- Nieuwe dienst **`ollama`** (officieel image, vast op 0.40.1) en een eenmalige klus **`ollama-models`**
+  die de modellen uit `OLLAMA_PULL_MODELS` ophaalt. Standaard praten de agents nu met
+  `http://ollama:11434` en `gpt-oss:120b-cloud`.
+- **Koppelen in plaats van een API-key.** De Ollama-server ondertekent cloudverzoeken met een eigen
+  sleutel op het volume `intento-ollama` en leest `OLLAMA_API_KEY` daarvoor niet. Je koppelt die sleutel
+  één keer aan je ollama.com-account. `docker/start.sh` controleert de koppeling en toont de link zolang
+  die er niet is. Het weigert ook `OLLAMA_API_KEY` naast de container-URL.
+- Ollama zit op een eigen netwerk `llm` met alleen de agentdienst. Backend, web en spraak kunnen er niet
+  bij.
+- De agentdienst wacht op `ollama-models`. Zonder die afhankelijkheid zag `up --wait` de klus als
+  mislukt zodra hij keurig stopte, en meldde `start.sh` dat niet alles gezond opkwam.
+- `docker/README.md` heeft een nieuwe sectie "Taalmodel (Ollama)". Bijgewerkt: ADR-0016,
+  `docs/security.md`, ontwerp §35 en `.env.docker.example`.
+
 ### N15.4 — Docker-opzet in één map
 
 - Alles voor de containers staat in `docker/`: `compose.yaml`, `.env.docker.example`, de vier Dockerfiles

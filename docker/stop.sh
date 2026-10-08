@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Stop de Intento-stack in Docker. Zie docker/README.md.
 #
-#   docker/stop.sh           containers stoppen en opruimen; database, afbeeldingen en stemmen blijven
-#   docker/stop.sh --wipe    óók alle volumes wissen: database, afbeeldingen en stemmen zijn dan weg
+#   docker/stop.sh           containers stoppen en opruimen; database, afbeeldingen, stemmen en Ollama blijven
+#   docker/stop.sh --wipe    óók alle volumes wissen: database, afbeeldingen, stemmen en Ollama zijn dan weg
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,7 +33,8 @@ fi
 
 if [ "$wipe" -eq 1 ]; then
   echo "Dit wist de database (alle gebruikers, gesprekken en contacten), de afbeeldingen van de"
-  echo "Vocabulary en de stemmodellen. Dat is niet terug te draaien."
+  echo "Vocabulary, de stemmodellen en de Ollama-modellen met de koppeling aan ollama.com (die moet je"
+  echo "daarna opnieuw maken). Dat is niet terug te draaien."
   if [ ! -t 0 ]; then
     echo "✗ Geen terminal om te bevestigen; er is niets gewist." >&2
     exit 1
@@ -47,5 +48,5 @@ if [ "$wipe" -eq 1 ]; then
   echo "✓ Gestopt en gewist."
 else
   docker compose -f "$DIR/compose.yaml" "${env_args[@]}" down --remove-orphans
-  echo "✓ Gestopt. Database, afbeeldingen en stemmen staan nog in hun volumes."
+  echo "✓ Gestopt. Database, afbeeldingen, stemmen en Ollama staan nog in hun volumes."
 fi

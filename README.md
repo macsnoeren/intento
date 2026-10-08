@@ -102,8 +102,13 @@ Alles voor de containers staat in [`docker/`](docker/), met een eigen handleidin
 ```bash
 docker/start.sh     # eerste keer: maakt docker/.env.docker met verse geheimen, bouwt en start
                     # web op http://localhost:8080, API op http://localhost:3000
-docker/stop.sh      # stoppen; database, afbeeldingen en stemmen blijven in hun volumes
+docker/stop.sh      # stoppen; database, afbeeldingen, stemmen en Ollama blijven in hun volumes
 ```
+
+De stack heeft een eigen **Ollama-container** voor de agents. Die stuurt een `-cloud`-model door naar
+ollama.com. Koppel hem één keer aan je ollama.com-account; `start.sh` toont daarvoor de link. Welke
+modellen hij ophaalt, staat in `OLLAMA_PULL_MODELS` (zie
+[docker/README.md](docker/README.md#taalmodel-ollama)).
 
 `npm run docker:up` en `npm run docker:down` roepen dezelfde scripts aan. De database is **SQLite op een
 volume** ([ADR-0016](docs/adr/0016-containers-en-compose.md)) — bewust, want schema, migratielijn en

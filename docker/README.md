@@ -38,6 +38,8 @@ hetzelfde.
 3. **Bouwt de images** (alleen wat gewijzigd is) en **start de stack**.
 4. **Wacht tot alles gezond is** en toont de adressen. Lukt dat niet, dan zie je de status en de
    laatste logregels van elke dienst.
+5. **Controleert de koppeling met ollama.com** als de agents de Ollama-container gebruiken. Is die er
+   nog niet, dan toont het de link om te koppelen (zie "Taalmodel (Ollama)").
 
 | Optie | Effect |
 |---|---|
@@ -59,6 +61,9 @@ Bij de eerste start gebeurt er meer dan bij latere starts:
 - **Vocabulary vullen.** De eenmalige dienst `vocabulary-import` migreert de database, downloadt de
   afbeeldingen van Mulberry en de zorgsymbolen en zet de Nederlandse startset neer. Bij latere starts
   maakt hij niets dubbel.
+- **Ollama ophalen en koppelen.** Het Ollama-image is ± 3,8 GB. De eenmalige dienst `ollama-models`
+  zet de modellen uit `OLLAMA_PULL_MODELS` klaar. Daarna toont `start.sh` de link om de container aan je
+  ollama.com-account te koppelen.
 
 Daarna maak je een account aan: open <http://localhost:8080>, kies **Nieuwe omgeving aanmelden** en
 maak een organisatie aan. Zonder mailserver (de standaard) gaat er geen e-mail de deur uit, maar staat de
@@ -76,11 +81,15 @@ docker compose -f docker/compose.yaml --env-file docker/.env.docker logs server 
 | `web` | `web.Dockerfile` (nginx, Alpine) | `8080` | De web-app als statische bestanden, met SPA-fallback zodat een refresh op `/tablet` werkt. |
 | `agents` | `agents.Dockerfile` (Python) | geen | De agentdienst (orchestrator + agents). Alleen de backend bereikt hem, met `AGENT_SERVICE_TOKEN`. |
 | `speech` | `speech.Dockerfile` (Python + Piper) | geen | Spraakuitvoer. Alleen de backend bereikt hem, met `SPEECH_SERVICE_TOKEN`. |
+| `ollama` | `ollama/ollama` (vast versienummer) | geen | Het taalmodel voor de agents. Stuurt `-cloud`-modellen door naar ollama.com. |
+| `ollama-models` | `ollama/ollama` | — | Eenmalig: de modellen uit `OLLAMA_PULL_MODELS` naar het volume. |
 | `speech-voices` | `speech.Dockerfile` | — | Eenmalig: stemmodellen naar het volume. |
 | `vocabulary-import` | `server.Dockerfile` | — | Eenmalig: migreren, afbeeldingen ophalen, Vocabulary seeden. De server wacht hierop. |
 
-De agentdienst en de spraakdienst publiceren bewust geen poort: de client praat nooit rechtstreeks met
-de AI (tablet → backend → agentdienst → Ollama).
+De agentdienst, de spraakdienst en Ollama publiceren bewust geen poort: de client praat nooit
+rechtstreeks met de AI (tablet → backend → agentdienst → Ollama). Ollama zit bovendien op een eigen
+netwerk (`llm`) met alleen de agentdienst. Ollama vraagt zelf geen wachtwoord, dus wie hem bereikt,
+rekent op jouw ollama.com-account.
 
 ### Gegevens (volumes)
 
@@ -89,6 +98,7 @@ de AI (tablet → backend → agentdienst → Ollama).
 | `intento_intento-db` | De SQLite-database (`/data/intento.db`): accounts, gesprekken, contacten, versleuteld waar nodig. |
 | `intento_intento-storage` | De afbeeldingen van de Vocabulary. |
 | `intento_intento-voices` | De stemmodellen van Piper. |
+| `intento_intento-ollama` | Ollama: de sleutel die aan je ollama.com-account gekoppeld is, en de modellen. |
 
 `docker/stop.sh` laat de volumes staan. **Alles wissen** en echt opnieuw beginnen:
 
@@ -124,10 +134,56 @@ De instellingen die je het vaakst aanpast:
 |---|---|
 | `WEB_PORT`, `SERVER_PORT` | Een andere poort op de host. Pas dan ook `VITE_API_URL`, `CORS_ORIGIN` en `APP_BASE_URL` aan. |
 | `VITE_API_URL` | De API-URL **zoals de browser hem ziet**. Vite bakt hem in de bundel, dus `start.sh` bouwt de web-app dan opnieuw. |
-| `OLLAMA_URL`, `OLLAMA_MODEL`, `OLLAMA_API_KEY` | Het taalmodel voor de agents. Leeg betekent dat alleen de regelgebaseerde agents draaien. Ollama Cloud: `https://ollama.com` met een API-key. |
+| `OLLAMA_URL`, `OLLAMA_MODEL`, `OLLAMA_PULL_MODELS` | Het taalmodel voor de agents. Zie "Taalmodel (Ollama)" hieronder. |
 | `SMTP_*`, `MAIL_FROM` | Echte e-mail (verificatie, berichten aan contacten). Leeg betekent dat mails alleen in de serverlog verschijnen. |
 | `SPEECH_VOICES` | Welke stemmen `speech-voices` ophaalt. |
 | `NODE_ENV` | `development` voor een lokale http-opstelling. Zie hieronder voor `production`. |
+
+### Taalmodel (Ollama)
+
+Standaard praten de agents met de **Ollama-container** in de stack (`OLLAMA_URL=http://ollama:11434`),
+met een **cloudmodel** (`OLLAMA_MODEL=gpt-oss:120b-cloud`). Het model draait bij ollama.com; de
+container stuurt de verzoeken door.
+
+**Eenmalig koppelen.** Ollama Cloud moet weten dat deze container van jou is. Een API-key werkt daar
+niet voor: de Ollama-server gebruikt die niet. In plaats daarvan maakt de container bij zijn eerste
+start een eigen sleutel aan (op het volume `intento_intento-ollama`), en die koppel je één keer aan je
+account:
+
+1. Draai `docker/start.sh`. Zolang er geen koppeling is, eindigt het met een link
+   `https://ollama.com/connect?name=intento-ollama&key=…`.
+2. Open die link in een browser waarin je bent ingelogd op ollama.com, en klik op **Connect**.
+3. Klaar. Opnieuw starten is niet nodig. `docker/start.sh --no-build` laat zien met welk account de
+   container nu gekoppeld is.
+
+De koppeling blijft staan zolang het volume bestaat. Na `docker/stop.sh --wipe` maakt de container een
+nieuwe sleutel aan en koppel je opnieuw. Intrekken doe je in je accountinstellingen op
+<https://ollama.com/settings>; de koppeling staat daar onder de naam `intento-ollama`. Tot de koppeling er is, krijgen de agents een 401 van Ollama en
+draaien ze op hun regels. Het gesprek werkt dan wel, maar minder slim.
+
+**Welke modellen.** De eenmalige dienst `ollama-models` haalt bij elke `start.sh` de modellen uit
+`OLLAMA_PULL_MODELS` op (spaties ertussen) en slaat over wat er al staat. Zet daar in elk geval
+`OLLAMA_MODEL` in.
+
+| Soort | Voorbeeld | Wat er gedownload wordt |
+|---|---|---|
+| Cloudmodel (aanbevolen) | `gpt-oss:120b-cloud`, `gpt-oss:20b-cloud` | Een klein verwijsbestand. Het model draait bij ollama.com. |
+| Lokaal model | `qwen3:4b` | Het hele model, enkele GB. Draait in de container op de CPU (er is geen GPU-doorgifte ingesteld), dus traag. |
+
+Wisselen van model: zet het nieuwe model in `OLLAMA_PULL_MODELS` en `OLLAMA_MODEL`, en draai daarna
+`docker/start.sh`. Ollama Cloud trekt modellen soms in (HTTP 410 "retired"); de beschikbare staan op
+<https://ollama.com/search?c=cloud>.
+
+**Zonder de container.** De agentdienst kan ook rechtstreeks met Ollama Cloud praten:
+`OLLAMA_URL=https://ollama.com`, `OLLAMA_API_KEY=<sleutel van ollama.com>` en de modelnaam zonder
+`-cloud` (`gpt-oss:120b`). De container draait dan wel mee, maar wordt niet gebruikt. Zet je
+`OLLAMA_API_KEY` terwijl `OLLAMA_URL` naar de container wijst, dan weigert `start.sh` te starten: de
+container gebruikt geen sleutel, en de agentdienst stuurt een sleutel nooit over http. Laat `OLLAMA_URL`
+leeg om alleen de regelgebaseerde agents te draaien.
+
+**Privacy.** Met een cloudmodel gaan concepten, vragen en antwoorden naar ollama.com, maar nooit namen of
+e-mailadressen van contacten (zie [docs/security.md](../docs/security.md)). Wil je alles binnen de eigen
+omgeving houden, gebruik dan een lokaal model.
 
 **Productie.** Met `NODE_ENV=production` eist de backend https voor de publieke URL's,
 `COOKIE_SECURE=true` en een echte mailserver, en weigert hij anders te starten. Zet daarvoor een reverse
@@ -178,6 +234,11 @@ De afwegingen achter deze opzet (vier images, SQLite op een volume, een eigen po
 - **Inloggen lukt, maar je bent meteen weer uitgelogd.** Op http moet `COOKIE_SECURE=false` staan.
 - **De web-app praat met de verkeerde API.** `VITE_API_URL` zit in de bundel gebakken. Na een wijziging
   bouwt `start.sh` opnieuw. Draaide je met `--no-build`, start dan zonder die optie.
-- **Ollama op je eigen machine gebruiken** vanuit de container: `OLLAMA_URL=http://host.docker.internal:11434`.
-  Voeg op Linux in `compose.yaml` bij `agents` dan `extra_hosts: ["host.docker.internal:host-gateway"]`
-  toe.
+- **"De Ollama-container is nog niet gekoppeld"** terwijl je de link al opende? Controleer dat je op
+  ollama.com met het goede account was ingelogd en op **Connect** klikte. Draai daarna
+  `docker/start.sh --no-build`.
+- **`ollama-models` faalt.** Meestal is een modelnaam fout of door Ollama ingetrokken. Kijk met
+  `dc logs ollama-models` welke naam het was, pas `OLLAMA_PULL_MODELS` aan en start opnieuw.
+- **De Ollama op je eigen machine gebruiken** in plaats van de container:
+  `OLLAMA_URL=http://host.docker.internal:11434`. Voeg op Linux in `compose.yaml` bij `agents` dan
+  `extra_hosts: ["host.docker.internal:host-gateway"]` toe.

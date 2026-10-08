@@ -686,6 +686,14 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   *Acceptatie:* `docker compose config` geldig; `docker/start.sh` brengt alle diensten gezond op;
   `docker/stop.sh` stopt ze en laat de volumes staan.
 
+- [x] **N15.5 Ollama in de Docker-stack**
+  *ONTWERP: §3.1, §35; ADR-0016.* Een Ollama-container voor de agents (geen poort, eigen netwerk met alleen
+  de agentdienst), een eenmalige klus die de modellen uit `OLLAMA_PULL_MODELS` ophaalt, en `start.sh` die
+  de koppeling met ollama.com controleert en zo nodig de link toont.
+  *Acceptatie:* `docker compose config` geldig; `ollama` wordt gezond en `ollama-models` haalt de modellen
+  op; de agentdienst bereikt `http://ollama:11434`, backend en web niet; `start.sh` toont de koppellink of
+  het gekoppelde account.
+
 ---
 
 ## Na de MVP (nog niet uitwerken)

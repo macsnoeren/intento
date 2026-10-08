@@ -415,6 +415,22 @@
 - **Geen inhoud in logs of foutmeldingen.** Het log bevat per beurt alleen gebeurtenis, fase, soort
   presentatie en duur; een validatiefout noemt veldnamen, nooit waarden.
 
+### Ollama-container (ADR-0016)
+
+- **Geen poort en een eigen netwerk.** `ollama` publiceert niets en zit alleen op het netwerk `llm`,
+  samen met de agentdienst (en de eenmalige `ollama-models`). Ollama vraagt zelf geen wachtwoord. Daarom
+  kunnen backend, web en spraak er niet bij: alleen de agentdienst kan namens het gekoppelde account
+  modellen aanroepen.
+- **De koppeling is een geheim.** De sleutel `id_ed25519` op het volume `intento_intento-ollama` geeft
+  toegang tot het ollama.com-account waaraan hij gekoppeld is. Behandel het volume als
+  `.env.docker`: neem het niet mee in een gedeelde back-up. Bij twijfel trek je de koppeling in op
+  ollama.com. `stop.sh --wipe` gooit de sleutel weg.
+- **Geen API-key over http.** De container gebruikt geen `OLLAMA_API_KEY`. `start.sh` weigert die
+  sleutel naast `OLLAMA_URL=http://ollama:11434`, en de agentdienst weigert hem toch al bij een
+  http-URL.
+- **Vast versienummer** van het image (geen `latest`), zodat er niet ongemerkt een andere versie
+  binnenkomt. Bijwerken is een bewuste wijziging in `compose.yaml`.
+
 ## Bekende afwegingen / restrisico's
 
 - `server.ts` bindt op `0.0.0.0`; op een gedeeld netwerk zonder firewall is de dev-server

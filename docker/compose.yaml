@@ -11,8 +11,9 @@
 # Paden hieronder zijn relatief aan deze map: de build-context `..` is de repo-root, en `dockerfile`
 # is relatief aan die context.
 #
-# Vier onderdelen, elk een eigen image: de backend, de web-app, de spraakdienst en de agentdienst
-# (ADR-0017). Spraak- en agentdienst hebben geen poort naar buiten; alleen de backend praat ermee.
+# Vier eigen images: de backend, de web-app, de spraakdienst en de agentdienst (ADR-0017). Daarnaast
+# het officiële Ollama-image voor het taalmodel. Spraak, agents en Ollama hebben geen poort naar
+# buiten; alleen de backend praat met spraak en agents, en alleen de agents met Ollama.
 #
 # De database is bewust **SQLite op een volume** (ADR-0016): het schema, de migratielijn en de
 # runtime-adapter zijn nu SQLite, en die overstap hoort een eigen, zichtbare taak te zijn.
@@ -150,10 +151,69 @@ services:
       AGENT_LLM_VALIDATION: '${AGENT_LLM_VALIDATION:-false}'
       AGENT_LLM_SAFETY: '${AGENT_LLM_SAFETY:-false}'
       AGENT_TURN_BUDGET_SECONDS: '${AGENT_TURN_BUDGET_SECONDS:-25}'
+    # `default` voor de backend, `llm` voor Ollama.
+    networks: [default, llm]
+    # Pas starten als de modellen er staan. Dit is ook nodig voor `up --wait`: die ziet een eenmalige
+    # klus waar niemand op wacht als mislukt, ook als hij keurig stopt.
+    depends_on:
+      ollama-models:
+        condition: service_completed_successfully
     # Bewust géén `ports:` — alleen de backend hoort erbij te kunnen.
     restart: unless-stopped
+
+  # --- Taalmodel: Ollama in de stack (§35) ---------------------------------------------------------
+  # Eigen Ollama-server voor de agents (`OLLAMA_URL=http://ollama:11434`). Met een `-cloud`-model draait
+  # het model bij ollama.com; deze container stuurt de verzoeken door en ondertekent ze met zijn eigen
+  # sleutel (`/root/.ollama/id_ed25519`, op het volume). Die sleutel koppel je één keer aan je
+  # ollama.com-account; `docker/start.sh` toont de link zolang dat nog niet gebeurd is. Een API-key
+  # gebruikt de Ollama-server hiervoor niet; die is alleen voor `OLLAMA_URL=https://ollama.com`.
+  ollama:
+    image: ollama/ollama:0.40.1
+    # De naam waaronder de koppeling in je accountinstellingen op ollama.com verschijnt.
+    hostname: intento-ollama
+    volumes:
+      - intento-ollama:/root/.ollama
+    # Ollama vraagt zelf geen wachtwoord: wie hem bereikt, rekent op jouw ollama.com-account. Daarom een
+    # eigen netwerk waar alleen de agentdienst ook op zit; backend, web en spraak kunnen er niet bij.
+    # Geen `internal: true`: hij moet zelf wel naar ollama.com.
+    networks: [llm]
+    healthcheck:
+      # De CLI praat met de server in dezelfde container; slaagt alleen als die luistert.
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    # Bewust géén `ports:` — alleen de agentdienst hoort erbij te kunnen.
+    restart: unless-stopped
+
+  # Eenmalige klus, net als `speech-voices`: haalt de modellen uit `OLLAMA_PULL_MODELS` naar het volume.
+  # Voor een `-cloud`-model is dat een klein verwijsbestand; een lokaal model is gigabytes groot en
+  # draait hier zonder GPU traag. Een model dat er al staat, wordt alleen gecontroleerd.
+  ollama-models:
+    image: ollama/ollama:0.40.1
+    entrypoint: ['/bin/sh', '-c']
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      PULL_MODELS: '${OLLAMA_PULL_MODELS:-}'
+    command:
+      - >
+        for model in $$PULL_MODELS; do echo "ollama pull $$model"; ollama pull "$$model" || exit 1; done;
+        echo "modellen klaar: $${PULL_MODELS:-geen}"
+    networks: [llm]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: 'no'
+
+networks:
+  default:
+  # Alleen agentdienst ↔ Ollama (zie de dienst `ollama`).
+  llm:
 
 volumes:
   intento-db:
   intento-storage:
   intento-voices:
+  # De Ollama-sleutel (de koppeling met ollama.com) en de gedownloade modellen.
+  intento-ollama:

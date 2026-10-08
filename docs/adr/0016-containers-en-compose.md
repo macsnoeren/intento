@@ -57,6 +57,28 @@ en een eigen README: wie de stack wil neerzetten, vindt alles op één plek, en 
 daarbij eigen `*.Dockerfile.dockerignore`-lijsten (hun `.venv` reisde eerst mee de build-context in). De
 build-contexts zelf veranderden niet.
 
+**Aanvulling (2026-10-08): Ollama in de stack.** De agents hadden in Docker een Ollama buiten de stack
+nodig (op de host, of rechtstreeks `https://ollama.com` met een API-key). Nu is er een dienst `ollama`
+(het officiële image, vast versienummer), met een eenmalige klus `ollama-models` die de modellen uit
+`OLLAMA_PULL_MODELS` ophaalt. Dat werkt zoals `speech-voices`: de keuze staat in `.env.docker`, niet in
+een image. Standaard is dat een `-cloud`-model: een klein verwijsbestand, het model draait bij ollama.com.
+Drie dingen die de vorm bepaalden:
+
+- **Geen API-key in de container.** Volgens de broncode van Ollama (`server/cloud_proxy.go`) ondertekent
+  de server elk doorgestuurd cloudverzoek met zijn eigen sleutel (`~/.ollama/id_ed25519`).
+  `OLLAMA_API_KEY` leest hij daarvoor niet. Die sleutel staat op het volume `intento-ollama` en wordt één
+  keer aan het ollama.com-account gekoppeld. `start.sh` controleert de koppeling met `ollama signin`
+  (dat vraagt niets) en toont de link zolang die er niet is. De API-key blijft de route voor
+  `OLLAMA_URL=https://ollama.com` zonder container. `start.sh` weigert de combinatie
+  container-URL + sleutel, want de agentdienst stuurt een sleutel nooit over http.
+- **Een eigen netwerk `llm`.** Ollama vraagt zelf niets: wie hem bereikt, rekent op het gekoppelde
+  account. Alleen de agentdienst zit op `llm` en op `default`. Backend, web en spraak kunnen Ollama niet
+  bereiken. Het netwerk is niet `internal`, want Ollama moet zelf naar ollama.com.
+- **Altijd aan, geen profiel.** Het image is groot (± 3,8 GB, met CUDA-bibliotheken), maar een profiel
+  zou elke handmatige `docker compose`-aanroep een extra vlag geven. Wie Ollama Cloud rechtstreeks
+  gebruikt, laat de container ongebruikt meedraaien. Er is geen GPU-doorgifte ingesteld, dus een lokaal
+  model draait in de container op de CPU.
+
 ## Gevolgen
 
 - **Makkelijker:** `docker/start.sh` (of `npm run docker:up`) en het staat er, inclusief automatische migratie; een pilot

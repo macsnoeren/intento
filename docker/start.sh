@@ -100,6 +100,20 @@ for name in "${SECRETS[@]}"; do
   fi
 done
 
+# --- Taalmodel ------------------------------------------------------------------------------------
+# De Ollama-container in de stack (`ollama`) ondertekent cloudverzoeken met zijn eigen gekoppelde
+# sleutel; een API-key hoort alleen bij `https://ollama.com`. De agentdienst weigert een sleutel over
+# http, en zou dan blijven herstarten. Hier meteen zeggen wat er mis is.
+INTERNAL_OLLAMA_URL=http://ollama:11434
+ollama_url="${OLLAMA_URL:-$(env_value OLLAMA_URL)}"
+if [ "${ollama_url%/}" = "$INTERNAL_OLLAMA_URL" ] && [ -n "${OLLAMA_API_KEY:-$(env_value OLLAMA_API_KEY)}" ]; then
+  echo "✗ OLLAMA_URL wijst naar de Ollama-container, maar OLLAMA_API_KEY is ook gezet." >&2
+  echo "  De container gebruikt geen API-key: maak OLLAMA_API_KEY leeg en koppel de container één keer" >&2
+  echo "  aan ollama.com (de link verschijnt na het starten). Of gebruik de sleutel rechtstreeks met" >&2
+  echo "  OLLAMA_URL=https://ollama.com en een modelnaam zonder '-cloud'." >&2
+  exit 1
+fi
+
 # --- Poorten vrij? --------------------------------------------------------------------------------
 # Compose laat een variabele uit de shell voorgaan op .env.docker; hier dus ook.
 server_port="${SERVER_PORT:-$(env_value SERVER_PORT)}"
@@ -146,6 +160,29 @@ echo "✓ Intento draait."
 echo "  Web-app:  http://localhost:$web_port"
 echo "  API:      http://localhost:$server_port/health"
 echo "  Stoppen:  docker/stop.sh"
+
+# --- Koppeling met ollama.com -----------------------------------------------------------------------
+# Alleen als de agents de Ollama-container gebruiken. `ollama signin` vraagt niets: het meldt de
+# gekoppelde gebruiker, of geeft de link waarmee je de sleutel van deze container aan je account koppelt.
+if [ "${ollama_url%/}" = "$INTERNAL_OLLAMA_URL" ]; then
+  signin="$(compose exec -T ollama ollama signin 2>&1 || true)"
+  user="$(sed -n "s/.*signed in as user '\(.*\)'.*/\1/p" <<<"$signin" | head -n 1)"
+  link="$(grep -o 'https://ollama.com/connect[^[:space:]]*' <<<"$signin" | head -n 1)"
+  echo
+  if [ -n "$user" ]; then
+    echo "✓ Ollama-container gekoppeld aan ollama.com als '$user' (model: $(env_value OLLAMA_MODEL))."
+  elif [ -n "$link" ]; then
+    echo "! De Ollama-container is nog niet gekoppeld aan ollama.com. Tot dan draaien de agents alleen"
+    echo "  op hun regels. Open deze link één keer, ingelogd op ollama.com, en klik op Connect:"
+    echo
+    echo "  $link"
+    echo
+    echo "  Daarna werkt het meteen; opnieuw starten hoeft niet. Controleren: docker/start.sh --no-build"
+  else
+    echo "! Kon de koppeling met ollama.com niet controleren:" >&2
+    echo "$signin" | sed 's/^/  /' >&2
+  fi
+fi
 
 if [ "$follow_logs" -eq 1 ]; then
   compose logs -f
