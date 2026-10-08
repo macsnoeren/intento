@@ -533,42 +533,10 @@ export type UserListResponse = z.infer<typeof userListResponseSchema>;
 
 /**
  * Huidige versie van het profielexportformaat. Reist mee in de payload zodat een importeur een ouder/
- * nieuwer formaat kan herkennen en weigeren i.p.v. verkeerd te interpreteren (ruimte voor migratie later).
+ * nieuwer formaat kan herkennen en weigeren i.p.v. verkeerd te interpreteren. Versie 2 (N15.1) voegt
+ * contacten en Experience toe; een bestand van versie 1 wordt nog gelezen (zonder die twee).
  */
-export const PROFILE_EXPORT_VERSION = 1;
-
-/**
- * De **ontsleutelde** inhoud van een profielexport (INTENTO-NEW-DESIGN §53). Bevat uitsluitend het
- * gebruikersprofiel: naam en communicatie-instellingen (contacten en Experience volgen in N15.1).
- * Bewust **niet**: account- of organisatiegegevens, id's of tokens — het profiel is eigendom van de
- * gebruiker en draagbaar naar een andere omgeving. Deze payload wordt in zijn geheel versleuteld voordat
- * hij het bestand in gaat (`profileExportResponseSchema.data`).
- */
-export const profileExportSchema = z.object({
-  version: z.literal(PROFILE_EXPORT_VERSION),
-  exportedAt: z.iso.datetime(),
-  user: z.object({ name: z.string() }),
-  /**
-   * Het communicatieprofiel. De spraakinstellingen hebben een terugval: een ouder bestand zonder die
-   * velden is geen reden om een overdracht te weigeren. Velden van vóór de herbouw (N0.5) worden bij
-   * het inlezen genegeerd.
-   */
-  communicationProfile: communicationProfileSchema.extend({
-    interactionMode: interactionModeSettingKeySchema.default('binary'),
-    optionsPerScreen: z
-      .number()
-      .int()
-      .min(OPTIONS_PER_SCREEN_MIN)
-      .max(OPTIONS_PER_SCREEN_MAX)
-      .default(4),
-    questionStrategy: questionStrategySchema.default('general_to_specific'),
-    experienceEnabled: z.boolean().default(true),
-    maxQuestions: z.number().int().min(MAX_QUESTIONS_MIN).max(MAX_QUESTIONS_MAX).default(15),
-    speechEnabled: z.boolean().default(false),
-    speechVoice: speechVoiceSchema.default(DEFAULT_SPEECH_VOICE),
-  }),
-});
-export type ProfileExport = z.infer<typeof profileExportSchema>;
+export const PROFILE_EXPORT_VERSION = 2;
 
 /**
  * Antwoord op `GET /users/{id}/export`. `data` is de **versleutelde** (ondoorzichtige) export-payload —
@@ -1220,6 +1188,73 @@ export const contactUpdateRequestSchema = z
     message: 'Geef minstens één veld om te wijzigen.',
   });
 export type ContactUpdateRequest = z.input<typeof contactUpdateRequestSchema>;
+
+/**
+ * De **ontsleutelde** inhoud van een profielexport (INTENTO-NEW-DESIGN §1, §28, §53). Bevat uitsluitend
+ * wat van de gebruiker is: naam, communicatie-instellingen, contacten en Experience. Bewust **niet**:
+ * account- of organisatiegegevens, database-id's, tokens of gesprekken — het profiel is draagbaar naar een
+ * andere omgeving. Een contact heeft in het bestand alleen een lokale `key`, waar de Experience naar
+ * verwijst; een pictogram (Vocabulary-item) reist mee als id en vervalt bij het inlezen als het daar niet
+ * beschikbaar is. Deze payload wordt in zijn geheel versleuteld voordat
+ * hij het bestand in gaat (`profileExportResponseSchema.data`).
+ */
+export const profileExportSchema = z.object({
+  version: z.union([z.literal(1), z.literal(PROFILE_EXPORT_VERSION)]),
+  exportedAt: z.iso.datetime(),
+  user: z.object({ name: z.string() }),
+  /**
+   * Het communicatieprofiel. De spraakinstellingen hebben een terugval: een ouder bestand zonder die
+   * velden is geen reden om een overdracht te weigeren. Velden van vóór de herbouw (N0.5) worden bij
+   * het inlezen genegeerd.
+   */
+  communicationProfile: communicationProfileSchema.extend({
+    interactionMode: interactionModeSettingKeySchema.default('binary'),
+    optionsPerScreen: z
+      .number()
+      .int()
+      .min(OPTIONS_PER_SCREEN_MIN)
+      .max(OPTIONS_PER_SCREEN_MAX)
+      .default(4),
+    questionStrategy: questionStrategySchema.default('general_to_specific'),
+    experienceEnabled: z.boolean().default(true),
+    maxQuestions: z.number().int().min(MAX_QUESTIONS_MIN).max(MAX_QUESTIONS_MAX).default(15),
+    speechEnabled: z.boolean().default(false),
+    speechVoice: speechVoiceSchema.default(DEFAULT_SPEECH_VOICE),
+  }),
+  /** Contacten (versie 2). Bij importeren weer onbevestigd: de opt-in geldt per omgeving (N10.2). */
+  contacts: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(40),
+        name: plainLine(60),
+        relation: plainLine(40).nullable(),
+        email: contactEmailSchema,
+        vocabularyItemId: z.string().min(1).max(200).nullable(),
+        active: z.boolean(),
+        sortOrder: z.number().int().min(0).max(CONTACT_SORT_ORDER_MAX),
+      }),
+    )
+    .max(200)
+    .default([]),
+  /**
+   * Experience (versie 2): de tellingen. `subjectRef` is bij een contact diens `key` hierboven, bij een
+   * symbool het Vocabulary-item en bij een vorm `binary`/`multi`.
+   */
+  experience: z
+    .array(
+      z.object({
+        subjectType: z.enum(['symbol', 'contact', 'mode']),
+        subjectRef: z.string().min(1).max(200),
+        presented: z.number().int().nonnegative(),
+        chosen: z.number().int().nonnegative(),
+        chosenAtFirstPosition: z.number().int().nonnegative(),
+        lastUsedAt: z.iso.datetime().nullable(),
+      }),
+    )
+    .max(5000)
+    .default([]),
+});
+export type ProfileExport = z.infer<typeof profileExportSchema>;
 
 /** Eén contact voor de beheeromgeving (ontsleuteld; nooit naar de agentdienst). */
 export const contactPublicSchema = z.object({

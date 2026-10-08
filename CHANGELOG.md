@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N15.1 — profielexport met contacten en Experience
+
+- Exportformaat versie 2: naast naam en instellingen ook de contacten (naam, relatie, e-mail, pictogram,
+  actief, volgorde; met een lokale sleutel, geen database-id) en de Experience-tellingen. Versie 1 wordt
+  nog gelezen.
+- Importeren: elk contact weer onbevestigd (opt-in per omgeving); een pictogram of symbool dat in de
+  nieuwe organisatie niet beschikbaar is, vervalt; de Experience van een contact verhuist mee naar het
+  nieuwe contact. Alles in één transactie.
+- De teksten bij exporteren en importeren zeggen nu wat er meegaat, en dat contacten opnieuw moeten
+  bevestigen.
+- Tests: rondgang tussen twee organisaties (contacten onbevestigd, pictogram alleen als het bestaat,
+  Experience mee), een bestand van versie 1, een ongeldig contact → 400 zonder halve gebruiker.
+
 ### N14.3 — bias-rapport
 
 - `GET /reports/bias` (beheerder, eigen organisatie; te beperken tot een gebruiker en de laatste dagen):

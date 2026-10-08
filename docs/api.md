@@ -103,8 +103,12 @@ mag instellingen beheren, maar sinds **T2.2** alléén voor gebruikers waaraan h
 ### Profielexport en -import (T8.1, DESIGN §6.4, FR-019)
 
 Gegevenseigenaarschap (DESIGN §4): het communicatieprofiel is eigendom van de gebruiker en is **draagbaar**
-naar een andere omgeving. De export bevat de weergavenaam en het communicatieprofiel (contacten en Experience volgen in
-N15.1) — **niet** account- of organisatiegegevens, id's of tokens. De payload wordt in zijn
+naar een andere omgeving. De export (formaatversie 2, N15.1) bevat de weergavenaam, het communicatieprofiel, de
+contacten (naam, relatie, e-mail, pictogram, actief, volgorde, met een lokale sleutel in plaats van een id) en de
+Experience-tellingen — **niet** account- of organisatiegegevens, database-id's, tokens of gesprekken. Bij importeren
+is elk contact weer **onbevestigd** (de opt-in geldt per omgeving, N10.2); een pictogram of een symbool in de
+Experience dat in de nieuwe organisatie niet beschikbaar is, vervalt. Een bestand van versie 1 wordt nog gelezen.
+Alles in één transactie. De payload wordt in zijn
 geheel versleuteld met de omgevingssleutel (`ENCRYPTION_KEY`), dus het bestand is **onleesbaar zonder die
 sleutel**. Beide acties zijn **ADMIN-only** en tenant-gebonden.
 

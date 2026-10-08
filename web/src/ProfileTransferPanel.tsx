@@ -55,8 +55,8 @@ export function ProfileExportPanel({
     <section className="panel" aria-label={`Profiel exporteren voor ${userName}`}>
       <h2 className="panel__subtitle">Profiel exporteren</h2>
       <p className="muted">
-        Download het communicatieprofiel, de persoonlijke context en de voorkeuren als versleuteld
-        bestand. Account- en organisatiegegevens gaan niet mee.
+        Download de instellingen, de contacten en wat Intento geleerd heeft als versleuteld bestand.
+        Gesprekken, account- en organisatiegegevens gaan niet mee.
       </p>
 
       {error ? (
@@ -111,8 +111,9 @@ export function ProfileImportPanel({
     <section className="panel" aria-label="Profiel importeren">
       <h2 className="panel__subtitle">Profiel importeren</h2>
       <p className="muted">
-        Kies een eerder geëxporteerd profielbestand. Er wordt een nieuwe gebruiker met dat profiel
-        aangemaakt in deze organisatie.
+        Kies een eerder geëxporteerd profielbestand. Er wordt een nieuwe gebruiker met dat profiel,
+        zijn contacten en zijn ervaring aangemaakt in deze organisatie. Elk contact moet hier
+        opnieuw bevestigen voordat er iets naar verstuurd kan worden.
       </p>
 
       {error ? (

@@ -661,7 +661,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N15 — Afronding van de MVP
 
-- [ ] **N15.1 Profielexport en -import**
+- [x] **N15.1 Profielexport en -import**
   *ONTWERP: §1 (eigenaarschap), §53, §28.* Export/import van instellingen, contacten en Experience
   (versleuteld zoals de bestaande export). Contacten met naam, relatie, e-mail en volgorde; bij importeren
   is elk contact weer onbevestigd (opt-in geldt per omgeving, N10.2) en vervalt het pictogram als het daar
