@@ -28,6 +28,17 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N14.3 — bias-rapport
+
+- `GET /reports/bias` (beheerder, eigen organisatie; te beperken tot een gebruiker en de laatste dagen):
+  eerste plek bij tegels naast de toevalsverwachting, JA-aandeel bij ja/nee, per contact gekozen en op
+  de eerste plek, vormwisselingen, ontbrekende woorden en overconfidence (B4/B5). De berekening is een
+  pure functie (`computeBias`) over Presented, Observed en de zekerheid in Inferred.
+- Pagina **Bias-rapport** in het beheermenu (met een weegschaal-icoon): bij elk getal in gewone taal wat
+  het kan betekenen; filters op periode en gebruiker.
+- Tests: elk getal op vaste testdata (ook "niets te tellen"), filters, isolatie tussen organisaties,
+  begeleider 403; componenttests.
+
 ### N14.2 — bewaartermijn uitvoeren
 
 - `purgeExpired(now)` (`server/src/retention/purge.ts`): per organisatie weg wat ouder is dan de

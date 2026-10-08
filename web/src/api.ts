@@ -51,11 +51,14 @@ import {
   type SessionListQuery,
   type SessionListResponse,
   type SessionReview,
+  type BiasReport,
+  type BiasReportQuery,
   type ExperienceClearResponse,
   messageListResponseSchema,
   userExperienceSchema,
   sessionListResponseSchema,
   sessionReviewSchema,
+  biasReportSchema,
   experienceClearResponseSchema,
   type ContactCreateRequest,
   type ContactUpdateRequest,
@@ -193,6 +196,8 @@ export interface Api {
   listUserSessions(userId: string, query?: SessionListQuery): Promise<SessionListResponse>;
   /** Eén gesprek terugzien: per beurt Getoond, Gekozen en Gedacht (alleen beheerder). */
   getSessionReview(sessionId: string): Promise<SessionReview>;
+  /** Het bias-rapport van de organisatie, of één gebruiker (alleen beheerder, N14.3). */
+  getBiasReport(query?: BiasReportQuery): Promise<BiasReport>;
   /** Alleen het aantal open ontbrekende woorden, voor de teller in het menu. */
   getVocabularyGapCount(): Promise<VocabularyGapCount>;
   /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
@@ -537,6 +542,14 @@ export const httpApi: Api & DeviceApi = {
     return sessionReviewSchema.parse(
       await request(`/communication/sessions/${encodeURIComponent(sessionId)}/provenance`),
     );
+  },
+  async getBiasReport(query = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return biasReportSchema.parse(await request(`/reports/bias${qs ? `?${qs}` : ''}`));
   },
   async getVocabularyGapCount() {
     return vocabularyGapCountSchema.parse(await request('/vocabulary/gaps/count'));

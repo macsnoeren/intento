@@ -654,7 +654,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
   daarna dagelijks.
   *Acceptatie:* tests met een vaste klok: net te oud → weg, net te jong → blijft, andere org ongemoeid.
 
-- [ ] **N14.3 Bias-rapport**
+- [x] **N14.3 Bias-rapport**
   *ONTWERP: §24 (B4, B5), §25.* `GET /reports/bias` (beheerder) + pagina: aandeel keuzes op de eerste
   plek, JA-aandeel in binary, per contact de eerste plek, vormwisselingen, gaps, overconfidence.
   *Acceptatie:* tests op de berekende getallen met vaste testdata; isolatie.

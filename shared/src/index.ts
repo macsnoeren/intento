@@ -1421,6 +1421,58 @@ export const sessionReviewSchema = z.object({
 });
 export type SessionReview = z.infer<typeof sessionReviewSchema>;
 
+// --- Bias-rapport (INTENTO-NEW-DESIGN §24 B4/B5, §25, N14.3) ---
+
+export const biasReportQuerySchema = z.object({
+  /** Alleen de laatste zoveel dagen; zonder: alles binnen de bewaartermijn. */
+  days: z.coerce.number().int().min(1).max(365).optional(),
+  /** Alleen deze gebruiker; zonder: de hele organisatie. */
+  userId: z.string().min(1).max(200).optional(),
+});
+export type BiasReportQuery = z.infer<typeof biasReportQuerySchema>;
+
+/** Een aandeel: hoeveel van hoeveel; `share` is `null` als er niets te tellen was. */
+const shareSchema = z.object({
+  count: z.number().int().nonnegative(),
+  of: z.number().int().nonnegative(),
+  share: z.number().min(0).max(1).nullable(),
+});
+export type BiasShare = z.infer<typeof shareSchema>;
+
+export const biasReportSchema = z.object({
+  sessions: z.number().int().nonnegative(),
+  /** B4: van de keuzes uit tegels, hoeveel op de eerste plek — en wat je bij toeval zou verwachten. */
+  firstPosition: shareSchema.extend({ expected: z.number().min(0).max(1).nullable() }),
+  /** B4: van de antwoorden op ja/nee-vragen, hoeveel JA. */
+  binaryYes: shareSchema,
+  /** B4: per contact hoe vaak gekozen, en hoe vaak dat het eerst aangeboden contact was. */
+  contacts: z.array(
+    z.object({
+      contactId: z.string(),
+      /** `null` als het contact inmiddels verwijderd is. */
+      name: z.string().nullable(),
+      chosen: z.number().int().nonnegative(),
+      chosenAtFirst: z.number().int().nonnegative(),
+    }),
+  ),
+  contactFirst: shareSchema,
+  /** B4: vormwisselingen bij "AI kiest" (de startkeuze telt niet). */
+  modeSwitches: z.object({
+    switches: z.number().int().nonnegative(),
+    sessions: z.number().int().nonnegative(),
+  }),
+  /** B4: ontbrekende woorden van de organisatie (niet per periode: ze hebben geen gesprek). */
+  gaps: z.object({ open: z.number().int().nonnegative(), total: z.number().int().nonnegative() }),
+  /** B5: overconfidence. */
+  overconfidence: z.object({
+    /** "Bedoel je …?" met zekerheid ≥ 0,9 waarop de gebruiker NEE zei, van alle zulke voorstellen. */
+    rejectedConfidentProposals: shareSchema,
+    /** De zekerheid van de beste hypothese steeg in één beurt ≥ 0,4 zonder JA of keuze ertussen. */
+    suddenRises: z.number().int().nonnegative(),
+  }),
+});
+export type BiasReport = z.infer<typeof biasReportSchema>;
+
 // --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---
 
 export const RETENTION_DAYS_MIN = 7;

@@ -10,6 +10,7 @@ import { VocabularyPage } from './VocabularyPage.tsx';
 import { VocabularyGapsPage } from './VocabularyGapsPage.tsx';
 import { NavBadgesProvider } from './NavBadges.tsx';
 import { MessagesPage } from './MessagesPage.tsx';
+import { BiasReportPage } from './BiasReportPage.tsx';
 import { AttributionsPage } from './AttributionsPage.tsx';
 import { OrganizationPage } from './OrganizationPage.tsx';
 import { CaregiverUsersPage } from './CaregiverUsersPage.tsx';
@@ -231,6 +232,8 @@ export function App({
         return <VocabularyGapsPage {...props} />;
       case 'messages':
         return <MessagesPage {...props} />;
+      case 'bias':
+        return <BiasReportPage {...props} />;
       case 'sources':
         return <AttributionsPage {...props} />;
       case 'organization':

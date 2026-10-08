@@ -275,6 +275,9 @@ function fakeApi(
         notes: [],
       });
     },
+    getBiasReport() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     listUserSessions() {
       return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 25 });
     },

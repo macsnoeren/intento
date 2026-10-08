@@ -1116,6 +1116,8 @@ De layer bewaakt onder andere:
 | B5 | **Overconfidence** wordt geteld: een voorstel met confidence ≥ 0,9 dat de gebruiker met NEE afwijst, of een confidence die in één beurt ≥ 0,4 stijgt zonder nieuw antwoord. |
 | B6 | Prompts verbieden aannames over gender, cultuur of relaties; contactgegevens komen nooit in een prompt (V6). |
 
+**Uitwerking van B4/B5 (N14.3).** Alles uit Presented, Observed en de zekerheid in Inferred, binnen de bewaartermijn, per organisatie (of één gebruiker, of de laatste dagen). *Eerste plek* telt keuzes uit tegels en zet er de toevalsverwachting naast (gemiddeld 1 / aantal tegels). *Contact op de eerste plek*: van de verzendingen (JA op versturen naar dát contact) hoe vaak dat het eerst aangeboden contact van het gesprek was. *Vormwisselingen*: inferences `mode_change` na de startbeurt. *Plotselinge stijging*: de zekerheid van de beste hypothese stijgt van de ene beurt op de volgende met ≥ 0,4 terwijl de gebruiker daartussen geen JA gaf en niets koos (een NEE of "Geen van deze" telt dus als "geen nieuw antwoord" dat zo'n sprong rechtvaardigt).
+
 ---
 
 # 25. Feedback loop protection
