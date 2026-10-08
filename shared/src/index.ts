@@ -1329,6 +1329,98 @@ export type UserExperience = z.infer<typeof userExperienceSchema>;
 export const experienceClearResponseSchema = z.object({ deleted: z.number().int().nonnegative() });
 export type ExperienceClearResponse = z.infer<typeof experienceClearResponseSchema>;
 
+// --- Een gesprek terugzien (INTENTO-NEW-DESIGN §26, §27, §49, N14.1) ---
+
+export const sessionListQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+export type SessionListQuery = Partial<z.infer<typeof sessionListQuerySchema>>;
+
+/** Eén gesprek in het overzicht van een gebruiker: alleen wanneer, hoe het afliep en hoe lang. */
+export const sessionSummarySchema = z.object({
+  id: z.string(),
+  startedAt: z.iso.datetime(),
+  endedAt: z.iso.datetime().nullable(),
+  /** `active` (loopt nog), `confirmed` (bevestigde boodschap) of `stopped`. */
+  status: z.enum(['active', 'confirmed', 'stopped']),
+  /** Hoeveel schermen er getoond zijn. */
+  screens: z.number().int().nonnegative(),
+});
+export type SessionSummary = z.infer<typeof sessionSummarySchema>;
+
+export const sessionListResponseSchema = z.object({
+  items: z.array(sessionSummarySchema),
+  total: z.number().int().nonnegative(),
+  page: z.number().int().min(1),
+  pageSize: z.number().int().min(1),
+});
+export type SessionListResponse = z.infer<typeof sessionListResponseSchema>;
+
+/** Wat er op één scherm stond (Presented). */
+export const reviewPresentedSchema = z.object({
+  kind: z.string(),
+  mode: z.string(),
+  text: z.string(),
+  message: z.string().nullable(),
+  options: z.array(
+    z.object({
+      ref: z.string(),
+      kind: z.enum(['symbol', 'contact']),
+      label: z.string().nullable(),
+      concept: z.string().nullable(),
+      representation: z.enum(['exact', 'stand_in']),
+      position: z.number().int().nonnegative(),
+    }),
+  ),
+});
+
+/** Eén beurt: Getoond, Gekozen en Gedacht apart, plus de agentbeslissingen. */
+export const reviewTurnSchema = z.object({
+  turn: z.number().int().nonnegative(),
+  presented: reviewPresentedSchema.nullable(),
+  observed: z.array(
+    z.object({
+      type: z.string(),
+      optionRef: z.string().nullable(),
+      position: z.number().int().nullable(),
+      responseTimeMs: z.number().int().nullable(),
+    }),
+  ),
+  inferred: z.array(
+    z.object({
+      agent: z.string(),
+      kind: z.string(),
+      payload: z.json(),
+      confidence: z.number().nullable(),
+    }),
+  ),
+  decisions: z.array(
+    z.object({
+      agent: z.string(),
+      status: z.string(),
+      model: z.string().nullable(),
+      promptVersion: z.string().nullable(),
+      latencyMs: z.number().int().nonnegative(),
+      validation: z.string().nullable(),
+      reason: z.string().nullable(),
+    }),
+  ),
+});
+export type ReviewTurn = z.infer<typeof reviewTurnSchema>;
+
+export const sessionReviewSchema = z.object({
+  session: z.object({
+    id: z.string(),
+    user: z.object({ id: z.string(), name: z.string() }),
+    startedAt: z.iso.datetime(),
+    endedAt: z.iso.datetime().nullable(),
+    status: z.enum(['active', 'confirmed', 'stopped']),
+  }),
+  turns: z.array(reviewTurnSchema),
+});
+export type SessionReview = z.infer<typeof sessionReviewSchema>;
+
 // --- Organisatie-instellingen (INTENTO-NEW-DESIGN §50, §53) ---
 
 export const RETENTION_DAYS_MIN = 7;

@@ -28,6 +28,19 @@ compatibiliteit. Per taak uit `TASKS-NEW_DESIGN.md` een regel hieronder.
 - `DeviceApi` kent alleen nog `deviceMe`, `linkDevice` en `speakText`. `speech.ts` blijft voor het
   voorlezen in de nieuwe flow.
 
+### N14.1 — beheer: een gesprek terugzien
+
+- `GET /users/{id}/sessions` (overzicht, nieuwste eerst, zonder inhoud) en
+  `GET /communication/sessions/{id}/provenance` (per beurt Getoond / Gekozen / Gedacht plus de
+  agentbeslissingen; geaudit als `session.view`). Alleen de beheerder, alleen de eigen organisatie.
+- Bij een gebruiker het onderdeel **Gesprekken**: de lijst, en per gesprek elke beurt in drie kolommen
+  naast elkaar (op een smal scherm onder elkaar), in gewone woorden ("Koos drinken (plek 2) · 2,1 s",
+  "Vorm: ja/nee → tegels (4 keer achter elkaar nee)"), met per agent gelukt/terugval, model,
+  promptversie en duur.
+- `zod` naar 4.6.5 in shared, server en web (web gebruikt het nu zelf, voor de weergave van inferences).
+- Tests: inhoud per beurt, overzicht en bladeren, isolatie (403 ook bij een onbekend id), begeleider 403,
+  audit zonder inhoud; componenttests.
+
 ### N13.1 — AI kiest de vorm
 
 - Bij de instelling "AI kiest" begint een gesprek in de vorm die volgens de Experience het vaakst tot een

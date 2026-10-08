@@ -1712,3 +1712,63 @@ body {
   font-size: clamp(2.25rem, 6vw, 3.75rem);
   font-weight: 800;
 }
+
+/* Een gesprek terugzien (N14.1): per beurt Getoond, Gekozen en Gedacht naast elkaar. */
+.review-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.review-turn {
+  border: 1px solid var(--intento-border);
+  border-radius: var(--intento-radius);
+  padding: 0.9rem 1rem;
+  background: var(--intento-surface);
+}
+
+.review-turn__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--intento-muted);
+}
+
+.review-turn__columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.review-turn__heading {
+  margin: 0 0 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--intento-muted);
+}
+
+.review-turn__options {
+  margin: 0.3rem 0 0;
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+
+.review-turn__decisions {
+  list-style: none;
+  margin: 0.7rem 0 0;
+  padding: 0.6rem 0 0;
+  border-top: 1px solid var(--intento-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+@media (max-width: 40rem) {
+  .review-turn__columns {
+    grid-template-columns: 1fr;
+  }
+}

@@ -48,9 +48,14 @@ import {
   type MessageListQuery,
   type MessageListResponse,
   type UserExperience,
+  type SessionListQuery,
+  type SessionListResponse,
+  type SessionReview,
   type ExperienceClearResponse,
   messageListResponseSchema,
   userExperienceSchema,
+  sessionListResponseSchema,
+  sessionReviewSchema,
   experienceClearResponseSchema,
   type ContactCreateRequest,
   type ContactUpdateRequest,
@@ -184,6 +189,10 @@ export interface Api {
   getUserExperience(userId: string): Promise<UserExperience>;
   /** "Ervaring wissen": alle tellingen van deze gebruiker weg. */
   clearUserExperience(userId: string): Promise<ExperienceClearResponse>;
+  /** De gesprekken van een gebruiker, nieuwste eerst (alleen beheerder, N14.1). */
+  listUserSessions(userId: string, query?: SessionListQuery): Promise<SessionListResponse>;
+  /** Eén gesprek terugzien: per beurt Getoond, Gekozen en Gedacht (alleen beheerder). */
+  getSessionReview(sessionId: string): Promise<SessionReview>;
   /** Alleen het aantal open ontbrekende woorden, voor de teller in het menu. */
   getVocabularyGapCount(): Promise<VocabularyGapCount>;
   /** Meldingen van het eigen account (alleen beheerder): e-mail per nieuw ontbrekend woord. */
@@ -512,6 +521,21 @@ export const httpApi: Api & DeviceApi = {
   async clearUserExperience(userId) {
     return experienceClearResponseSchema.parse(
       await request(`/users/${encodeURIComponent(userId)}/experience`, { method: 'DELETE' }),
+    );
+  },
+  async listUserSessions(userId, query = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return sessionListResponseSchema.parse(
+      await request(`/users/${encodeURIComponent(userId)}/sessions${qs ? `?${qs}` : ''}`),
+    );
+  },
+  async getSessionReview(sessionId) {
+    return sessionReviewSchema.parse(
+      await request(`/communication/sessions/${encodeURIComponent(sessionId)}/provenance`),
     );
   },
   async getVocabularyGapCount() {

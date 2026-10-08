@@ -643,7 +643,7 @@ groter blijkt, wordt gesplitst in plaats van half afgemaakt.
 
 ## Fase N14 — Terugzien, bias en bewaartermijn
 
-- [ ] **N14.1 Beheer: een sessie terugzien**
+- [x] **N14.1 Beheer: een sessie terugzien**
   *ONTWERP: §27, §49.* `GET /communication/sessions/:id/provenance` (alleen de beheerder) + scherm met
   per beurt drie kolommen: Getoond / Gekozen / Gedacht, plus de agentbeslissingen (agent, status, duur).
   *Acceptatie:* tests: isolatie, begeleider → 403; componenttest.

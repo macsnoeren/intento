@@ -33,7 +33,7 @@
     "fastify": "^5.12.5",
     "nodemailer": "^10.0.15",
     "prisma": "^7.10.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/nodemailer": "^8.0.1",

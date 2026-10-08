@@ -275,6 +275,12 @@ function fakeApi(
         notes: [],
       });
     },
+    listUserSessions() {
+      return Promise.resolve({ items: [], total: 0, page: 1, pageSize: 25 });
+    },
+    getSessionReview() {
+      return Promise.reject(new ApiRequestError(500, 'NOT_IMPLEMENTED', 'niet in deze test'));
+    },
     clearUserExperience(userId) {
       options.onClearExperience?.(userId);
       return Promise.resolve({ deleted: 3 });

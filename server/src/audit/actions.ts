@@ -34,6 +34,8 @@ export const AUDIT_ACTIONS = {
   // Experience van een gebruiker bekijken en wissen (N12.3, §22)
   EXPERIENCE_VIEW: 'experience.view',
   EXPERIENCE_CLEAR: 'experience.clear',
+  // Een gesprek terugzien: ontsleutelde provenance (N14.1, §27)
+  SESSION_VIEW: 'session.view',
   // Begeleider-koppelingen
   CAREGIVER_LINK: 'caregiver.link',
   CAREGIVER_UNLINK: 'caregiver.unlink',
